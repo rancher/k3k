@@ -12,11 +12,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-)
-
-var (
-	kubeconfig string
 )
 
 var (
@@ -24,15 +21,15 @@ var (
 )
 
 func init() {
-	flag.StringVar(&kubeconfig, "kube-config", "", "kubeconfig path")
 	_ = clientgoscheme.AddToScheme(Scheme)
 	_ = v1alpha1.AddToScheme(Scheme)
 }
 
 func main() {
-	klog.InitFlags(nil)
+	ctrlconfig.RegisterFlags(nil)
 	flag.Parse()
 
+	kubeconfig := flag.Lookup("kubeconfig").Value.String()
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		klog.Fatalf("Failed to create config from kubeconfig file: %v", err)

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/galal-hussein/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -14,12 +15,13 @@ func service(cluster *v1alpha1.Cluster) v1.Service {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "k3k-server-service",
-			Namespace: clusterNamespace(cluster),
+			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: v1.ServiceSpec{
 			Type: v1.ServiceTypeClusterIP,
 			Selector: map[string]string{
 				"cluster": cluster.Name,
+				"role":    "server",
 			},
 			Ports: []v1.ServicePort{
 				{

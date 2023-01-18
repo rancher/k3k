@@ -1,7 +1,10 @@
 package controller
 
 import (
+	"strconv"
+
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/galal-hussein/k3k/pkg/controller/util"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,22 +30,26 @@ func server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cluster.Name + "-" + name,
-			Namespace: clusterNamespace(cluster),
+			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: apps.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"cluster": cluster.Name,
+					"role":    "server",
+					"init":    strconv.FormatBool(init),
 				},
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"cluster": cluster.Name,
+						"role":    "server",
+						"init":    strconv.FormatBool(init),
 					},
 				},
-				Spec: podSpec(image, name),
+				Spec: serverPodSpec(image, name),
 			},
 		},
 	}
@@ -52,7 +59,7 @@ func getImage(cluster *v1alpha1.Cluster) string {
 	return "rancher/k3s:" + cluster.Spec.Version
 }
 
-func podSpec(image, name string) v1.PodSpec {
+func serverPodSpec(image, name string) v1.PodSpec {
 	privileged := true
 	return v1.PodSpec{
 		Volumes: []v1.Volume{

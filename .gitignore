@@ -1,2 +1,8 @@
+/.dapper
+/.cache
+/bin
+/dist
+*.swp
+.idea
 k3k
-kubeconfig.yaml
+

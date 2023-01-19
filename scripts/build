@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+source $(dirname $0)/version
+
+cd $(dirname $0)/..
+
+mkdir -p bin
+if [ "$(uname)" = "Linux" ]; then
+    OTHER_LINKFLAGS="-extldflags -static -s"
+fi
+LINKFLAGS="-X github.com/rancher/k3k.Version=$VERSION"
+LINKFLAGS="-X github.com/rancher/k3k.GitCommit=$COMMIT $LINKFLAGS"
+CGO_ENABLED=0 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3k
+if [ "$CROSS" = "true" ] && [ "$ARCH" = "amd64" ]; then
+    GOOS=darwin go build -ldflags "$LINKFLAGS" -o bin/k3k-darwin
+    GOOS=windows go build -ldflags "$LINKFLAGS" -o bin/k3k-windows
+fi

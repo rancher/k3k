@@ -1,4 +1,4 @@
-package controller
+package server
 
 import (
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func service(cluster *v1alpha1.Cluster) v1.Service {
+func Service(cluster *v1alpha1.Cluster) v1.Service {
 	return v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",

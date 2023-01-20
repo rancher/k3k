@@ -1,8 +1,6 @@
-package controller
+package agent
 
 import (
-	"strconv"
-
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/galal-hussein/k3k/pkg/controller/util"
 	apps "k8s.io/api/apps/v1"
@@ -10,19 +8,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
-	var replicas int32
-	image := getImage(cluster)
+func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
+	image := util.K3SImage(cluster)
 
-	name := "k3k-server"
-	if init {
-		name = "k3k-init-server"
-	}
+	name := "k3k-agent"
 
-	replicas = *cluster.Spec.Servers - 1
-	if init {
-		replicas = 1
-	}
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -33,33 +23,27 @@ func server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: apps.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: cluster.Spec.Agents,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"cluster": cluster.Name,
-					"role":    "server",
-					"init":    strconv.FormatBool(init),
+					"type":    "agent",
 				},
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"cluster": cluster.Name,
-						"role":    "server",
-						"init":    strconv.FormatBool(init),
+						"type":    "agent",
 					},
 				},
-				Spec: serverPodSpec(image, name),
+				Spec: agentPodSpec(image, name),
 			},
 		},
 	}
 }
 
-func getImage(cluster *v1alpha1.Cluster) string {
-	return "rancher/k3s:" + cluster.Spec.Version
-}
-
-func serverPodSpec(image, name string) v1.PodSpec {
+func agentPodSpec(image, name string) v1.PodSpec {
 	privileged := true
 	return v1.PodSpec{
 		Volumes: []v1.Volume{
@@ -126,7 +110,7 @@ func serverPodSpec(image, name string) v1.PodSpec {
 				},
 				Args: []string{
 					"-c",
-					"/bin/k3s server --config /opt/rancher/k3s/config.yaml && true",
+					"/bin/k3s agent --config /opt/rancher/k3s/config.yaml && true",
 				},
 				VolumeMounts: []v1.VolumeMount{
 					{

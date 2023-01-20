@@ -1,6 +1,8 @@
-package controller
+package server
 
 import (
+	"strconv"
+
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/galal-hussein/k3k/pkg/controller/util"
 	apps "k8s.io/api/apps/v1"
@@ -8,11 +10,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func agent(cluster *v1alpha1.Cluster) *apps.Deployment {
-	image := getImage(cluster)
+func Server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
+	var replicas int32
+	image := util.K3SImage(cluster)
 
-	name := "k3k-agent"
+	name := "k3k-server"
+	if init {
+		name = "k3k-init-server"
+	}
 
+	replicas = *cluster.Spec.Servers - 1
+	if init {
+		replicas = 1
+	}
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -23,27 +33,29 @@ func agent(cluster *v1alpha1.Cluster) *apps.Deployment {
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: apps.DeploymentSpec{
-			Replicas: cluster.Spec.Agents,
+			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"cluster": cluster.Name,
-					"type":    "agent",
+					"role":    "server",
+					"init":    strconv.FormatBool(init),
 				},
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"cluster": cluster.Name,
-						"type":    "agent",
+						"role":    "server",
+						"init":    strconv.FormatBool(init),
 					},
 				},
-				Spec: agentPodSpec(image, name),
+				Spec: serverPodSpec(image, name),
 			},
 		},
 	}
 }
 
-func agentPodSpec(image, name string) v1.PodSpec {
+func serverPodSpec(image, name string) v1.PodSpec {
 	privileged := true
 	return v1.PodSpec{
 		Volumes: []v1.Volume{
@@ -110,7 +122,7 @@ func agentPodSpec(image, name string) v1.PodSpec {
 				},
 				Args: []string{
 					"-c",
-					"/bin/k3s agent --config /opt/rancher/k3s/config.yaml && true",
+					"/bin/k3s server --config /opt/rancher/k3s/config.yaml && true",
 				},
 				VolumeMounts: []v1.VolumeMount{
 					{

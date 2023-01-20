@@ -6,7 +6,7 @@ import (
 	"flag"
 
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/galal-hussein/k3k/pkg/controller"
+	"github.com/galal-hussein/k3k/pkg/controller/cluster"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
@@ -41,7 +41,7 @@ func main() {
 	if err != nil {
 		klog.Fatalf("Failed to create new controller runtime manager: %v", err)
 	}
-	if err := controller.Add(mgr); err != nil {
+	if err := cluster.Add(mgr); err != nil {
 		klog.Fatalf("Failed to add the new controller: %v", err)
 	}
 

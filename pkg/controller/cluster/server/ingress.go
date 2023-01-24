@@ -11,9 +11,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	pathType    = networkingv1.PathTypePrefix
+const (
 	wildcardDNS = ".sslip.io"
+
+	nginxSSLPassthroughAnnotation  = "nginx.ingress.kubernetes.io/ssl-passthrough"
+	nginxBackendProtocolAnnotation = "nginx.ingress.kubernetes.io/backend-protocol"
+	nginxSSLRedirectAnnotation     = "nginx.ingress.kubernetes.io/ssl-redirect"
 )
 
 func Ingress(ctx context.Context, cluster *v1alpha1.Cluster, client client.Client) (*networkingv1.Ingress, error) {
@@ -23,7 +26,7 @@ func Ingress(ctx context.Context, cluster *v1alpha1.Cluster, client client.Clien
 	}
 
 	ingressRules := ingressRules(cluster, addresses)
-	return &networkingv1.Ingress{
+	ingress := &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Ingress",
 			APIVersion: "networking.k8s.io/v1",
@@ -33,10 +36,14 @@ func Ingress(ctx context.Context, cluster *v1alpha1.Cluster, client client.Clien
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: networkingv1.IngressSpec{
-			IngressClassName: &cluster.Spec.IngressClassName,
+			IngressClassName: &cluster.Spec.Expose.Ingress.IngressClassName,
 			Rules:            ingressRules,
 		},
-	}, nil
+	}
+
+	configureIngressOptions(ingress, cluster.Spec.Expose.Ingress.IngressClassName)
+
+	return ingress, nil
 }
 
 // return all the nodes external addresses, if not found then return internal addresses
@@ -48,13 +55,13 @@ func addresses(ctx context.Context, client client.Client) ([]string, error) {
 	}
 
 	for _, node := range nodeList.Items {
-		addresses = append(addresses, GetNodeAddress(&node))
+		addresses = append(addresses, getNodeAddress(&node))
 	}
 
 	return addresses, nil
 }
 
-func GetNodeAddress(node *v1.Node) string {
+func getNodeAddress(node *v1.Node) string {
 	externalIP := ""
 	internalIP := ""
 	for _, ip := range node.Status.Addresses {
@@ -74,6 +81,7 @@ func GetNodeAddress(node *v1.Node) string {
 
 func ingressRules(cluster *v1alpha1.Cluster, addresses []string) []networkingv1.IngressRule {
 	ingressRules := []networkingv1.IngressRule{}
+	pathTypePrefix := networkingv1.PathTypePrefix
 	for _, address := range addresses {
 		rule := networkingv1.IngressRule{
 			Host: cluster.Name + "." + address + wildcardDNS,
@@ -82,7 +90,7 @@ func ingressRules(cluster *v1alpha1.Cluster, addresses []string) []networkingv1.
 					Paths: []networkingv1.HTTPIngressPath{
 						{
 							Path:     "/",
-							PathType: &pathType,
+							PathType: &pathTypePrefix,
 							Backend: networkingv1.IngressBackend{
 								Service: &networkingv1.IngressServiceBackend{
 									Name: "k3k-server-service",
@@ -99,4 +107,18 @@ func ingressRules(cluster *v1alpha1.Cluster, addresses []string) []networkingv1.
 		ingressRules = append(ingressRules, rule)
 	}
 	return ingressRules
+}
+
+// configureIngressOptions will configure the ingress object by
+// adding tls passthrough capabilities and TLS needed annotations
+// it depends on the ingressclassname to configure each ingress
+// TODO: add treafik support through ingresstcproutes
+func configureIngressOptions(ingress *networkingv1.Ingress, ingressClassName string) {
+	// initial support for nginx ingress via annotations
+	if ingressClassName == "nginx" {
+		ingress.Annotations = make(map[string]string)
+		ingress.Annotations[nginxSSLPassthroughAnnotation] = "true"
+		ingress.Annotations[nginxSSLRedirectAnnotation] = "true"
+		ingress.Annotations[nginxBackendProtocolAnnotation] = "HTTPS"
+	}
 }

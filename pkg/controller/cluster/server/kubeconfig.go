@@ -40,7 +40,7 @@ type content struct {
 	Content   string
 }
 
-// GenerateNewKubeConfig generates the kubeconfig for the server:
+// GenerateNewKubeConfig generates the kubeconfig for the cluster:
 // 1- use the server token to get the bootstrap data from k3s
 // 2- generate client admin cert/key
 // 3- use the ca cert from the bootstrap data & admin cert/key to write a new kubeconfig

@@ -165,14 +165,15 @@ func (r *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		}
 	}
 
-	// create ingress with random port for the server
-	serverIngress, err := server.Ingress(ctx, cluster, r.Client)
-	if err != nil {
-		return util.WrapErr("failed to create ingress object", err)
-	}
-	if err := r.Client.Create(ctx, serverIngress); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create server ingress", err)
+	if cluster.Spec.Expose.Ingress.Enabled {
+		serverIngress, err := server.Ingress(ctx, cluster, r.Client)
+		if err != nil {
+			return util.WrapErr("failed to create ingress object", err)
+		}
+		if err := r.Client.Create(ctx, serverIngress); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return util.WrapErr("failed to create server ingress", err)
+			}
 		}
 	}
 

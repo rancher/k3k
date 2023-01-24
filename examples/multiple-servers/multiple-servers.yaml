@@ -8,4 +8,7 @@ spec:
   agents: 3
   token: test
   version: v1.26.0-k3s2
-  ingressClassName: traefik
+  expose:
+    ingress:
+      enabled: true
+      ingressClassName: "nginx"

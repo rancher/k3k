@@ -82,6 +82,16 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ServerArgs != nil {
+		in, out := &in.ServerArgs, &out.ServerArgs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.AgentArgs != nil {
+		in, out := &in.AgentArgs, &out.AgentArgs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	in.Expose.DeepCopyInto(&out.Expose)
 	return
 }

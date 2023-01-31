@@ -119,16 +119,23 @@ func (r *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 	}
 
 	// create init node config
-	initServerConfigMap := config.ServerConfig(cluster, true, service.Spec.ClusterIP)
-	if err := r.Client.Create(ctx, &initServerConfigMap); err != nil {
+	initServerConfigMap, err := config.ServerConfig(cluster, true, service.Spec.ClusterIP)
+	if err != nil {
+		return util.WrapErr("failed to get init server config", err)
+	}
+	if err := r.Client.Create(ctx, initServerConfigMap); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return util.WrapErr("failed to create init configmap", err)
 		}
 	}
 
 	// create servers configuration
-	serverConfigMap := config.ServerConfig(cluster, false, service.Spec.ClusterIP)
-	if err := r.Client.Create(ctx, &serverConfigMap); err != nil {
+	serverConfigMap, err := config.ServerConfig(cluster, false, service.Spec.ClusterIP)
+	if err != nil {
+		return util.WrapErr("failed to get server config", err)
+
+	}
+	if err := r.Client.Create(ctx, serverConfigMap); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return util.WrapErr("failed to create configmap", err)
 		}

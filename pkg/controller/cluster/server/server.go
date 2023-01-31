@@ -2,6 +2,7 @@ package server
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/galal-hussein/k3k/pkg/controller/util"
@@ -49,13 +50,13 @@ func Server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
 						"init":    strconv.FormatBool(init),
 					},
 				},
-				Spec: serverPodSpec(image, name),
+				Spec: serverPodSpec(image, name, cluster.Spec.ServerArgs),
 			},
 		},
 	}
 }
 
-func serverPodSpec(image, name string) v1.PodSpec {
+func serverPodSpec(image, name string, args []string) v1.PodSpec {
 	privileged := true
 	return v1.PodSpec{
 		Volumes: []v1.Volume{
@@ -122,7 +123,9 @@ func serverPodSpec(image, name string) v1.PodSpec {
 				},
 				Args: []string{
 					"-c",
-					"/bin/k3s server --config /opt/rancher/k3s/config.yaml && true",
+					"/bin/k3s server --config /opt/rancher/k3s/config.yaml " +
+						strings.Join(args, " ") +
+						" && true",
 				},
 				VolumeMounts: []v1.VolumeMount{
 					{

@@ -15,13 +15,19 @@ type Cluster struct {
 }
 
 type ClusterSpec struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-	Servers *int32 `json:"servers"`
-	Agents  *int32 `json:"agents"`
-	Token   string `json:"token"`
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Servers     *int32 `json:"servers"`
+	Agents      *int32 `json:"agents"`
+	Token       string `json:"token"`
+	ClusterCIDR string `json:"clusterCIDR,omitempty"`
+	ServiceCIDR string `json:"serviceCIDR,omitempty"`
+	ClusterDNS  string `json:"clusterDNS,omitempty"`
 
-	Expose ExposeConfig `json:"expose"`
+	ServerArgs []string `json:"serverArgs,omitempty"`
+	AgentArgs  []string `json:"agentArgs,omitempty"`
+
+	Expose ExposeConfig `json:"expose,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

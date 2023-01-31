@@ -25,6 +25,20 @@ spec:
                   type: integer
                 token:
                   type: string
+                clusterCIDR:
+                  type: string
+                serviceCIDR:
+                  type: string
+                clusterDNS:
+                  type: string
+                serverArgs:
+                  type: array
+                  items:
+                    type: string
+                agentArgs:
+                  type: array
+                  items:
+                    type: string
                 expose:
                   type: object
                   properties:

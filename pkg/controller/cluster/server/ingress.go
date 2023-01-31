@@ -5,7 +5,6 @@ import (
 
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/galal-hussein/k3k/pkg/controller/util"
-	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,7 +19,7 @@ const (
 )
 
 func Ingress(ctx context.Context, cluster *v1alpha1.Cluster, client client.Client) (*networkingv1.Ingress, error) {
-	addresses, err := addresses(ctx, client)
+	addresses, err := util.Addresses(ctx, client)
 	if err != nil {
 		return nil, err
 	}
@@ -44,39 +43,6 @@ func Ingress(ctx context.Context, cluster *v1alpha1.Cluster, client client.Clien
 	configureIngressOptions(ingress, cluster.Spec.Expose.Ingress.IngressClassName)
 
 	return ingress, nil
-}
-
-// return all the nodes external addresses, if not found then return internal addresses
-func addresses(ctx context.Context, client client.Client) ([]string, error) {
-	addresses := []string{}
-	nodeList := v1.NodeList{}
-	if err := client.List(ctx, &nodeList); err != nil {
-		return nil, err
-	}
-
-	for _, node := range nodeList.Items {
-		addresses = append(addresses, getNodeAddress(&node))
-	}
-
-	return addresses, nil
-}
-
-func getNodeAddress(node *v1.Node) string {
-	externalIP := ""
-	internalIP := ""
-	for _, ip := range node.Status.Addresses {
-		if ip.Type == "ExternalIP" && ip.Address != "" {
-			externalIP = ip.Address
-			break
-		} else if ip.Type == "InternalIP" && ip.Address != "" {
-			internalIP = ip.Address
-		}
-	}
-	if externalIP != "" {
-		return externalIP
-	}
-
-	return internalIP
 }
 
 func ingressRules(cluster *v1alpha1.Cluster, addresses []string) []networkingv1.IngressRule {

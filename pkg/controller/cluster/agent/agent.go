@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"strings"
+
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/galal-hussein/k3k/pkg/controller/util"
 	apps "k8s.io/api/apps/v1"
@@ -37,13 +39,13 @@ func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
 						"type":    "agent",
 					},
 				},
-				Spec: agentPodSpec(image, name),
+				Spec: agentPodSpec(image, name, cluster.Spec.AgentArgs),
 			},
 		},
 	}
 }
 
-func agentPodSpec(image, name string) v1.PodSpec {
+func agentPodSpec(image, name string, args []string) v1.PodSpec {
 	privileged := true
 	return v1.PodSpec{
 		Volumes: []v1.Volume{
@@ -110,7 +112,9 @@ func agentPodSpec(image, name string) v1.PodSpec {
 				},
 				Args: []string{
 					"-c",
-					"/bin/k3s agent --config /opt/rancher/k3s/config.yaml && true",
+					"/bin/k3s agent --config /opt/rancher/k3s/config.yaml " +
+						strings.Join(args, " ") +
+						" && true",
 				},
 				VolumeMounts: []v1.VolumeMount{
 					{

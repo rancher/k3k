@@ -1,0 +1,19 @@
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: example1
+  namespace: default
+spec:
+  servers: 1
+  agents: 3
+  token: test
+  version: v1.26.0-k3s2
+  clusterCIDR: 10.30.0.0/16
+  serviceCIDR: 10.31.0.0/16
+  clusterDNS: 10.30.0.10
+  serverArgs:
+  - "--write-kubeconfig-mode=777"
+  expose:
+    ingress:
+      enabled: true
+      ingressClassName: "nginx"

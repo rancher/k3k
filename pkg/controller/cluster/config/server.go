@@ -9,17 +9,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func ServerConfig(cluster *v1alpha1.Cluster, init bool, serviceIP string) v1.Secret {
+func ServerConfig(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret, error) {
 	name := "k3k-server-config"
 	if init {
 		name = "k3k-init-server-config"
 	}
 
-	config := serverConfigData(serviceIP, cluster.Spec.Token)
+	config := serverConfigData(serviceIP, cluster)
 	if init {
-		config = initConfigData(cluster.Spec.Token)
+		config = initConfigData(cluster)
 	}
-	return v1.Secret{
+	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -31,26 +31,36 @@ func ServerConfig(cluster *v1alpha1.Cluster, init bool, serviceIP string) v1.Sec
 		Data: map[string][]byte{
 			"config.yaml": []byte(config),
 		},
-	}
+	}, nil
 }
 
-func serverConfigData(serviceIP, token string) string {
+func serverConfigData(serviceIP string, cluster *v1alpha1.Cluster) string {
+	opts := serverOptions(cluster)
 	return fmt.Sprintf(`cluster-init: true
 server: https://%s:6443
-token: %s
-cluster-cidr: 10.40.0.0/16
-service-cidr: 10.44.0.0/16
-cluster-dns: 10.44.0.10
-tls-san:
-- 0.0.0.0`, serviceIP, token)
+%s`, serviceIP, opts)
 }
 
-func initConfigData(token string) string {
+func initConfigData(cluster *v1alpha1.Cluster) string {
+	opts := serverOptions(cluster)
 	return fmt.Sprintf(`cluster-init: true
-token: %s
-cluster-cidr: 10.40.0.0/16
-service-cidr: 10.44.0.0/16
-cluster-dns: 10.44.0.10
-tls-san:
-- 0.0.0.0`, token)
+%s`, opts)
+}
+
+func serverOptions(cluster *v1alpha1.Cluster) string {
+	opts := ""
+	// TODO: generate token if not found
+	if cluster.Spec.Token != "" {
+		opts = fmt.Sprintf("token: %s\n", cluster.Spec.Token)
+	}
+	if cluster.Spec.ClusterCIDR != "" {
+		opts = fmt.Sprintf("%scluster-cidr: %s\n", opts, cluster.Spec.ClusterCIDR)
+	}
+	if cluster.Spec.ServiceCIDR != "" {
+		opts = fmt.Sprintf("%sservice-cidr: %s\n", opts, cluster.Spec.ServiceCIDR)
+	}
+	if cluster.Spec.ClusterDNS != "" {
+		opts = fmt.Sprintf("%scluster-dns: %s\n", opts, cluster.Spec.ClusterDNS)
+	}
+	return opts
 }

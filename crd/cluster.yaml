@@ -54,6 +54,15 @@ spec:
                       properties:
                         enabled: 
                           type: boolean
+            status:
+              type: object
+              properties:
+                clusterCIDR:
+                  type: string
+                serviceCIDR:
+                  type: string
+                clusterDNS:
+                  type: string
   scope: Namespaced
   names:
     plural: clusters

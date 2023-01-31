@@ -11,7 +11,8 @@ type Cluster struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta   `json:",inline"`
 
-	Spec ClusterSpec `json:"spec"`
+	Spec   ClusterSpec   `json:"spec"`
+	Status ClusterStatus `json:"status"`
 }
 
 type ClusterSpec struct {
@@ -51,4 +52,10 @@ type IngressConfig struct {
 
 type LoadBalancerConfig struct {
 	Enabled bool `json:"enabled"`
+}
+
+type ClusterStatus struct {
+	ClusterCIDR string `json:"clusterCIDR,omitempty"`
+	ServiceCIDR string `json:"serviceCIDR,omitempty"`
+	ClusterDNS  string `json:"clusterDNS,omitempty"`
 }

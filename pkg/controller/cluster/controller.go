@@ -145,18 +145,6 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			}
 		}
 
-		clusterCIDR, err := c.nextCIDR(ctx, ns.String(), req.Name, cidrAllocationClusterPoolName)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		cluster.Status.ClusterCIDR = clusterCIDR.String()
-
-		serviceCIDR, err := c.nextCIDR(ctx, ns.String(), req.Name, cidrAllocationServicePoolName)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		cluster.Status.ServiceCIDR = serviceCIDR.String()
-
 		klog.Infof("enqueue cluster [%s]", cluster.Name)
 
 		return reconcile.Result{}, c.createCluster(ctx, &cluster)
@@ -164,7 +152,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
 		// TODO: handle CIDR deletion
-		if err := c.releaseCIDR(ctx, cluster.Namespace, cluster.Status.ClusterCIDR, cluster.Name); err != nil {
+		if err := c.releaseCIDR(ctx, cluster.Status.ClusterCIDR, cluster.Name); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -183,6 +171,22 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 	// create a new namespace for the cluster
 	if err := c.createNamespace(ctx, cluster); err != nil {
 		return util.WrapErr("failed to create ns", err)
+	}
+
+	if cluster.Spec.ClusterCIDR == "" && cluster.Status.ClusterCIDR == "" {
+		clusterCIDR, err := c.nextCIDR(ctx, cidrAllocationClusterPoolName, cluster.Name)
+		if err != nil {
+			return err
+		}
+		cluster.Status.ClusterCIDR = clusterCIDR.String()
+	}
+
+	if cluster.Spec.ServiceCIDR == "" && cluster.Status.ServiceCIDR == "" {
+		serviceCIDR, err := c.nextCIDR(ctx, cidrAllocationServicePoolName, cluster.Name)
+		if err != nil {
+			return err
+		}
+		cluster.Status.ServiceCIDR = serviceCIDR.String()
 	}
 
 	serviceIP, err := c.createClusterService(ctx, cluster)
@@ -222,7 +226,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		}
 	}
 
-	return nil
+	return c.Client.Update(ctx, cluster)
 }
 
 func (c *ClusterReconciler) createNamespace(ctx context.Context, cluster *v1alpha1.Cluster) error {

@@ -60,7 +60,7 @@ func generateSubnets(cidr string) ([]string, error) {
 }
 
 // nextCIDR retrieves the next available CIDR address from the given pool.
-func (c *ClusterReconciler) nextCIDR(ctx context.Context, namespace, cidrAllocationPoolName, clusterName string) (*net.IPNet, error) {
+func (c *ClusterReconciler) nextCIDR(ctx context.Context, cidrAllocationPoolName, clusterName string) (*net.IPNet, error) {
 	var cidrPool v1alpha1.CIDRAllocationPool
 
 	nn := types.NamespacedName{
@@ -95,7 +95,7 @@ func (c *ClusterReconciler) nextCIDR(ctx context.Context, namespace, cidrAllocat
 }
 
 // releaseCIDR updates the given CIDR pool by marking the address as available.
-func (c *ClusterReconciler) releaseCIDR(ctx context.Context, namespace, cidrAllocationPoolName, clusterName string) error {
+func (c *ClusterReconciler) releaseCIDR(ctx context.Context, cidrAllocationPoolName, clusterName string) error {
 	var cidrPool v1alpha1.CIDRAllocationPool
 
 	nn := types.NamespacedName{

@@ -8,7 +8,7 @@ CODEGEN_GIT_PKG=https://github.com/kubernetes/code-generator.git
 git clone --depth 1 ${CODEGEN_GIT_PKG} || true
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-CODEGEN_PKG=../code-generator
+CODEGEN_PKG=./code-generator
 
 "${CODEGEN_PKG}/generate-groups.sh" \
  "deepcopy" \

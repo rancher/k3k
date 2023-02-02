@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/galal-hussein/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
@@ -35,32 +33,29 @@ func ServerConfig(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.S
 }
 
 func serverConfigData(serviceIP string, cluster *v1alpha1.Cluster) string {
-	opts := serverOptions(cluster)
-	return fmt.Sprintf(`cluster-init: true
-server: https://%s:6443
-%s`, serviceIP, opts)
+	return "cluster-init: true\nserver: https://" + serviceIP + ":6443" + serverOptions(cluster)
 }
 
 func initConfigData(cluster *v1alpha1.Cluster) string {
-	opts := serverOptions(cluster)
-	return fmt.Sprintf(`cluster-init: true
-%s`, opts)
+	return "cluster-init: true\n" + serverOptions(cluster)
 }
 
 func serverOptions(cluster *v1alpha1.Cluster) string {
-	opts := ""
+	var opts string
+
 	// TODO: generate token if not found
 	if cluster.Spec.Token != "" {
-		opts = fmt.Sprintf("token: %s\n", cluster.Spec.Token)
+		opts = "token: " + cluster.Spec.Token + "\n"
 	}
 	if cluster.Spec.ClusterCIDR != "" {
-		opts = fmt.Sprintf("%scluster-cidr: %s\n", opts, cluster.Spec.ClusterCIDR)
+		opts = opts + "cluster-cidr: " + cluster.Spec.ClusterCIDR + "\n"
 	}
 	if cluster.Spec.ServiceCIDR != "" {
-		opts = fmt.Sprintf("%sservice-cidr: %s\n", opts, cluster.Spec.ServiceCIDR)
+		opts = opts + "service-cidr: " + cluster.Spec.ServiceCIDR + "\n"
 	}
 	if cluster.Spec.ClusterDNS != "" {
-		opts = fmt.Sprintf("%scluster-dns: %s\n", opts, cluster.Spec.ClusterDNS)
+		opts = opts + "cluster-dns: " + cluster.Spec.ClusterDNS + "\n"
 	}
+
 	return opts
 }

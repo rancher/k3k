@@ -29,6 +29,8 @@ func main() {
 	ctrlconfig.RegisterFlags(nil)
 	flag.Parse()
 
+	ctx := context.Background()
+
 	kubeconfig := flag.Lookup("kubeconfig").Value.String()
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -41,11 +43,12 @@ func main() {
 	if err != nil {
 		klog.Fatalf("Failed to create new controller runtime manager: %v", err)
 	}
-	if err := cluster.Add(mgr); err != nil {
+
+	if err := cluster.Add(ctx, mgr); err != nil {
 		klog.Fatalf("Failed to add the new controller: %v", err)
 	}
 
-	if err := mgr.Start(context.Background()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		klog.Fatalf("Failed to start the manager: %v", err)
 	}
 }

@@ -10,16 +10,16 @@ import (
 )
 
 const (
-	NamespacePrefix = "k3k-"
-	K3SImageName    = "rancher/k3s"
+	namespacePrefix = "k3k-"
+	k3SImageName    = "rancher/k3s"
 )
 
 func ClusterNamespace(cluster *v1alpha1.Cluster) string {
-	return NamespacePrefix + cluster.Name
+	return namespacePrefix + cluster.Name
 }
 
 func K3SImage(cluster *v1alpha1.Cluster) string {
-	return K3SImageName + ":" + cluster.Spec.Version
+	return k3SImageName + ":" + cluster.Spec.Version
 }
 
 func WrapErr(errString string, err error) error {
@@ -27,24 +27,10 @@ func WrapErr(errString string, err error) error {
 	return err
 }
 
-// return all the nodes external addresses, if not found then return internal addresses
-func Addresses(ctx context.Context, client client.Client) ([]string, error) {
-	addresses := []string{}
-	nodeList := v1.NodeList{}
-	if err := client.List(ctx, &nodeList); err != nil {
-		return nil, err
-	}
+func nodeAddress(node *v1.Node) string {
+	var externalIP string
+	var internalIP string
 
-	for _, node := range nodeList.Items {
-		addresses = append(addresses, getNodeAddress(&node))
-	}
-
-	return addresses, nil
-}
-
-func getNodeAddress(node *v1.Node) string {
-	externalIP := ""
-	internalIP := ""
 	for _, ip := range node.Status.Addresses {
 		if ip.Type == "ExternalIP" && ip.Address != "" {
 			externalIP = ip.Address
@@ -58,4 +44,20 @@ func getNodeAddress(node *v1.Node) string {
 	}
 
 	return internalIP
+}
+
+// return all the nodes external addresses, if not found then return internal addresses
+func Addresses(ctx context.Context, client client.Client) ([]string, error) {
+	var nodeList v1.NodeList
+	if err := client.List(ctx, &nodeList); err != nil {
+		return nil, err
+	}
+
+	addresses := make([]string, len(nodeList.Items))
+
+	for _, node := range nodeList.Items {
+		addresses = append(addresses, nodeAddress(&node))
+	}
+
+	return addresses, nil
 }

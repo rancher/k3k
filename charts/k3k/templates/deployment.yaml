@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k3k.fullname" . }}
+  labels:
+    {{- include "k3k.labels" . | nindent 4 }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.image.replicaCount }}
+  selector:
+     matchLabels:
+      {{- include "k3k.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "k3k.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: {{ .Chart.Name }}
+          ports:
+          - containerPort: 8080
+            name: https
+            protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: https
+          readinessProbe:
+            httpGet:
+              path: /
+              port: https
+      serviceAccountName: {{ include "k3k.serviceAccountName" . }}

@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	cidrAllocationClusterPoolName = "k3k-cidr-allocation-cluster-pool"
-	cidrAllocationServicePoolName = "k3k-cidr-allocation-service-pool"
+	cidrAllocationClusterPoolName = "k3k-cluster-cidr-allocation-pool"
+	cidrAllocationServicePoolName = "k3k-service-cidr-allocation-pool"
 
 	defaultClusterCIDR        = "10.44.0.0/16"
 	defaultClusterServiceCIDR = "10.45.0.0/16"

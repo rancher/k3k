@@ -3,7 +3,7 @@ name: Chart Release
 on:
   push:
     branches:
-      - main
+      - k3k-chart
 
 jobs:
   release:

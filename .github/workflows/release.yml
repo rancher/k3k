@@ -1,0 +1,28 @@
+name: K3K Release
+on:
+ push:
+   tags:
+     - "v*"
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v2
+      - name: Build
+        uses: addnab/docker-run-action@v3
+        with:
+          registry: docker.io
+          image: rancher/dapper:v0.5.5
+          options: -v /var/run/docker.sock:/var/run/docker.sock
+          run: |
+            dapper ci
+      - uses: SierraSoftworks/gh-releases@v1.0.7
+        with:
+          token: ${{ secrets.TOKEN }}
+          overwrite: 'true'
+          files: |
+            dist/artifacts/k3k

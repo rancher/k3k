@@ -19,7 +19,7 @@ jobs:
           image: rancher/dapper:v0.5.5
           options: -v ${{ github.workspace }}:/work -v /var/run/docker.sock:/var/run/docker.sock
           run: |
-            dapper ci
+            pwd && ls -l R
       - uses: SierraSoftworks/gh-releases@v1.0.7
         with:
           token: ${{ secrets.TOKEN }}

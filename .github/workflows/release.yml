@@ -17,7 +17,7 @@ jobs:
         with:
           registry: docker.io
           image: rancher/dapper:v0.5.5
-          options: -v /var/run/docker.sock:/var/run/docker.sock
+          options: -v ${{ github.workspace }}:/work -v /var/run/docker.sock:/var/run/docker.sock
           run: |
             dapper ci
       - uses: SierraSoftworks/gh-releases@v1.0.7

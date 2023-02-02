@@ -63,7 +63,7 @@ spec:
                   type: string
                 clusterDNS:
                   type: string
-  scope: Namespaced
+  scope: Cluster
   names:
     plural: clusters
     singular: cluster

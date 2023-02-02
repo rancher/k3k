@@ -16,6 +16,7 @@ import (
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -23,7 +24,8 @@ import (
 )
 
 const (
-	ClusterController = "k3k-cluster-controller"
+	ClusterController    = "k3k-cluster-controller"
+	ClusterFinalizerName = "cluster.k3k.io/finalizer"
 )
 
 type ClusterReconciler struct {
@@ -58,118 +60,60 @@ func Add(mgr manager.Manager) error {
 }
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	cluster := v1alpha1.Cluster{}
+	cluster := &v1alpha1.Cluster{}
 
-	if err := r.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
-		return reconcile.Result{}, util.WrapErr(fmt.Sprintf("failed to get cluster %s", req.NamespacedName), err)
+	if err := r.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !cluster.DeletionTimestamp.IsZero() {
-		if err := r.handleDeletion(ctx, &cluster); err != nil {
-			return reconcile.Result{}, util.WrapErr(fmt.Sprintf("failed to delete cluster %s", req.NamespacedName), err)
+	if cluster.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(cluster, ClusterFinalizerName) {
+			controllerutil.AddFinalizer(cluster, ClusterFinalizerName)
+			if err := r.Client.Update(ctx, cluster); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		// we create a namespace for each new cluster
+		ns := &v1.Namespace{}
+		if err := r.Client.Get(ctx, client.ObjectKey{Name: util.ClusterNamespace(cluster)}, ns); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return reconcile.Result{},
+					util.WrapErr(fmt.Sprintf("failed to get cluster namespace %s", util.ClusterNamespace(cluster)), err)
+			}
+		}
+		klog.Infof("enqueue cluster [%s]", cluster.Name)
+		return reconcile.Result{}, r.createCluster(ctx, cluster)
+	}
+	if controllerutil.ContainsFinalizer(cluster, ClusterFinalizerName) {
+		// TODO: handle CIDR deletion
+
+		// remove our finalizer from the list and update it.
+		controllerutil.RemoveFinalizer(cluster, ClusterFinalizerName)
+		if err := r.Client.Update(ctx, cluster); err != nil {
+			return reconcile.Result{}, err
 		}
 	}
-
-	// we create a namespace for each new cluster
-	ns := &v1.Namespace{}
-	if err := r.Client.Get(ctx, client.ObjectKey{Name: util.ClusterNamespace(&cluster)}, ns); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return reconcile.Result{},
-				util.WrapErr(fmt.Sprintf("failed to get cluster namespace %s", util.ClusterNamespace(&cluster)), err)
-		}
-	}
-	klog.Infof("enqueue cluster [%s]", cluster.Name)
-	return reconcile.Result{}, r.createCluster(ctx, &cluster)
-}
-
-// handleDeletion will delete the k3k cluster from kubernetes
-func (r *ClusterReconciler) handleDeletion(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	return nil
+	klog.Infof("deleting cluster [%s]", cluster.Name)
+	return reconcile.Result{}, nil
 }
 
 func (r *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
 	// create a new namespace for the cluster
-	namespace := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: util.ClusterNamespace(cluster),
-		},
-	}
-	if err := r.Client.Create(ctx, namespace); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create ns", err)
-		}
-
+	if err := r.createNamespace(ctx, cluster); err != nil {
+		return util.WrapErr("failed to create ns", err)
 	}
 
-	// create cluster service
-	clusterService := server.Service(cluster)
-	if err := r.Client.Create(ctx, &clusterService); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create cluster service", err)
-		}
-	}
-
-	service := v1.Service{}
-	if err := r.Client.Get(ctx,
-		client.ObjectKey{
-			Namespace: util.ClusterNamespace(cluster),
-			Name:      "k3k-server-service"},
-		&service); err != nil {
-		return util.WrapErr("failed to get cluster service", err)
-	}
-
-	// create init node config
-	initServerConfigMap, err := config.ServerConfig(cluster, true, service.Spec.ClusterIP)
+	serviceIP, err := r.createClusterService(ctx, cluster)
 	if err != nil {
-		return util.WrapErr("failed to get init server config", err)
-	}
-	if err := r.Client.Create(ctx, initServerConfigMap); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create init configmap", err)
-		}
+		return util.WrapErr("failed to create cluster service", err)
 	}
 
-	// create servers configuration
-	serverConfigMap, err := config.ServerConfig(cluster, false, service.Spec.ClusterIP)
-	if err != nil {
-		return util.WrapErr("failed to get server config", err)
-
-	}
-	if err := r.Client.Create(ctx, serverConfigMap); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create configmap", err)
-		}
+	if err := r.createClusterConfigs(ctx, cluster, serviceIP); err != nil {
+		return util.WrapErr("failed to create cluster configs", err)
 	}
 
-	// create deployment for the init server
-	// the init deployment must have only 1 replica
-	initNodeDeployment := server.Server(cluster, true)
-	if err := r.Client.Create(ctx, initNodeDeployment); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create init node deployment", err)
-		}
-	}
-
-	// create deployment for the rest of the servers
-	serverNodesDeployment := server.Server(cluster, false)
-	if err := r.Client.Create(ctx, serverNodesDeployment); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create server nodes deployment", err)
-		}
-	}
-
-	agentsConfigMap := config.AgentConfig(cluster, service.Spec.ClusterIP)
-	if err := r.Client.Create(ctx, &agentsConfigMap); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create agent config", err)
-		}
-	}
-
-	agentsDeployment := agent.Agent(cluster)
-	if err := r.Client.Create(ctx, agentsDeployment); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create agent deployment", err)
-		}
+	if err := r.createDeployments(ctx, cluster); err != nil {
+		return util.WrapErr("failed to create servers and agents deployment", err)
 	}
 
 	if cluster.Spec.Expose.Ingress.Enabled {
@@ -184,7 +128,7 @@ func (r *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		}
 	}
 
-	kubeconfigSecret, err := server.GenerateNewKubeConfig(ctx, cluster, service.Spec.ClusterIP)
+	kubeconfigSecret, err := server.GenerateNewKubeConfig(ctx, cluster, serviceIP)
 	if err != nil {
 		return util.WrapErr("failed to generate new kubeconfig", err)
 	}
@@ -193,5 +137,135 @@ func (r *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 			return util.WrapErr("failed to create kubeconfig secret", err)
 		}
 	}
+	return nil
+}
+
+func (r *ClusterReconciler) createNamespace(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	// create a new namespace for the cluster
+	namespace := &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: util.ClusterNamespace(cluster),
+		},
+	}
+	if err := controllerutil.SetControllerReference(cluster, namespace, r.Scheme); err != nil {
+		return err
+	}
+	if err := r.Client.Create(ctx, namespace); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return util.WrapErr("failed to create ns", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
+	// create init node config
+	initServerConfig, err := config.ServerConfig(cluster, true, serviceIP)
+	if err != nil {
+		return err
+	}
+
+	if err := controllerutil.SetControllerReference(cluster, initServerConfig, r.Scheme); err != nil {
+		return err
+	}
+
+	if err := r.Client.Create(ctx, initServerConfig); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	// create servers configuration
+	serverConfig, err := config.ServerConfig(cluster, false, serviceIP)
+	if err != nil {
+		return err
+	}
+	if err := controllerutil.SetControllerReference(cluster, serverConfig, r.Scheme); err != nil {
+		return err
+	}
+	if err := r.Client.Create(ctx, serverConfig); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	// create agents configuration
+	agentsConfig := config.AgentConfig(cluster, serviceIP)
+	if err := controllerutil.SetControllerReference(cluster, &agentsConfig, r.Scheme); err != nil {
+		return err
+	}
+	if err := r.Client.Create(ctx, &agentsConfig); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *ClusterReconciler) createClusterService(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
+	// create cluster service
+	clusterService := server.Service(cluster)
+
+	if err := controllerutil.SetControllerReference(cluster, clusterService, r.Scheme); err != nil {
+		return "", err
+	}
+	if err := r.Client.Create(ctx, clusterService); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return "", err
+		}
+	}
+
+	service := v1.Service{}
+	if err := r.Client.Get(ctx,
+		client.ObjectKey{
+			Namespace: util.ClusterNamespace(cluster),
+			Name:      "k3k-server-service"},
+		&service); err != nil {
+		return "", err
+	}
+
+	return service.Spec.ClusterIP, nil
+}
+
+func (r *ClusterReconciler) createDeployments(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	// create deployment for the init server
+	// the init deployment must have only 1 replica
+	initServerDeployment := server.Server(cluster, true)
+
+	if err := controllerutil.SetControllerReference(cluster, initServerDeployment, r.Scheme); err != nil {
+		return err
+	}
+
+	if err := r.Client.Create(ctx, initServerDeployment); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	// create deployment for the rest of the servers
+	serversDeployment := server.Server(cluster, false)
+
+	if err := controllerutil.SetControllerReference(cluster, serversDeployment, r.Scheme); err != nil {
+		return err
+	}
+
+	if err := r.Client.Create(ctx, serversDeployment); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	agentsDeployment := agent.Agent(cluster)
+	if err := controllerutil.SetControllerReference(cluster, agentsDeployment, r.Scheme); err != nil {
+		return err
+	}
+
+	if err := r.Client.Create(ctx, agentsDeployment); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
 	return nil
 }

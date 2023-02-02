@@ -2,7 +2,6 @@ apiVersion: k3k.io/v1alpha1
 kind: Cluster
 metadata:
   name: single-server
-  namespace: default
 spec:
   servers: 1
   agents: 3

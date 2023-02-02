@@ -7,8 +7,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func Service(cluster *v1alpha1.Cluster) v1.Service {
-	return v1.Service{
+func Service(cluster *v1alpha1.Cluster) *v1.Service {
+	return &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",

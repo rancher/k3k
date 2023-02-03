@@ -26,6 +26,7 @@ jobs:
           overwrite: 'true'
           files: |
             ${{ github.workspace }}/bin/k3k
+            ${{ github.workspace }}/bin/k3kcli
       - name: Docker Hub Login
         uses: docker/login-action@v2
         with:

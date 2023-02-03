@@ -13,7 +13,7 @@ import (
 func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
 	image := util.K3SImage(cluster)
 
-	name := "k3k-agent"
+	const name = "k3k-agent"
 
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -47,6 +47,7 @@ func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
 
 func agentPodSpec(image, name string, args []string) v1.PodSpec {
 	privileged := true
+
 	return v1.PodSpec{
 		Volumes: []v1.Volume{
 			{

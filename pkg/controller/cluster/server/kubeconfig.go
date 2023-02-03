@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -48,15 +47,14 @@ type content struct {
 func GenerateNewKubeConfig(ctx context.Context, cluster *v1alpha1.Cluster, ip string) (*v1.Secret, error) {
 	token := cluster.Spec.Token
 
-	bootstrap := &controlRuntimeBootstrap{}
-	err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+	var bootstrap *controlRuntimeBootstrap
+	if err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
 		return true
 	}, func() error {
 		var err error
 		bootstrap, err = requestBootstrap(token, ip)
 		return err
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
@@ -65,10 +63,8 @@ func GenerateNewKubeConfig(ctx context.Context, cluster *v1alpha1.Cluster, ip st
 	}
 
 	adminCert, adminKey, err := createClientCertKey(
-		adminCommonName,
-		[]string{user.SystemPrivilegedGroup},
-		nil,
-		[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		adminCommonName, []string{user.SystemPrivilegedGroup},
+		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		bootstrap.ClientCA.Content,
 		bootstrap.ClientCAKey.Content)
 	if err != nil {
@@ -109,7 +105,7 @@ func requestBootstrap(token, serverIP string) (*controlRuntimeBootstrap, error) 
 		Timeout: 5 * time.Second,
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -120,28 +116,16 @@ func requestBootstrap(token, serverIP string) (*controlRuntimeBootstrap, error) 
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
 
-	runtimeBootstrap := controlRuntimeBootstrap{}
-	if err != nil {
-		return nil, err
-	}
-
-	if err := json.Unmarshal(body, &runtimeBootstrap); err != nil {
+	var runtimeBootstrap controlRuntimeBootstrap
+	if err := json.NewDecoder(resp.Body).Decode(&runtimeBootstrap); err != nil {
 		return nil, err
 	}
 
 	return &runtimeBootstrap, nil
 }
 
-func createClientCertKey(
-	commonName string,
-	organization []string,
-	altNames *certutil.AltNames,
-	extKeyUsage []x509.ExtKeyUsage,
-	caCert,
-	caKey string) ([]byte, []byte, error) {
-
+func createClientCertKey(commonName string, organization []string, altNames *certutil.AltNames, extKeyUsage []x509.ExtKeyUsage, caCert, caKey string) ([]byte, []byte, error) {
 	caKeyPEM, err := certutil.ParsePrivateKeyPEM([]byte(caKey))
 	if err != nil {
 		return nil, nil, err
@@ -152,12 +136,12 @@ func createClientCertKey(
 		return nil, nil, err
 	}
 
-	keyBytes, err := generateKey()
+	b, err := generateKey()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	key, err := certutil.ParsePrivateKeyPEM(keyBytes)
+	key, err := certutil.ParsePrivateKeyPEM(b)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -175,7 +159,7 @@ func createClientCertKey(
 		return nil, nil, err
 	}
 
-	return append(certutil.EncodeCertPEM(cert), certutil.EncodeCertPEM(caCertPEM[0])...), keyBytes, nil
+	return append(certutil.EncodeCertPEM(cert), certutil.EncodeCertPEM(caCertPEM[0])...), b, nil
 }
 
 func generateKey() (data []byte, err error) {
@@ -183,6 +167,7 @@ func generateKey() (data []byte, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("error generating key: %v", err)
 	}
+
 	return generatedData, nil
 }
 
@@ -210,6 +195,7 @@ func kubeconfig(url string, serverCA, clientCert, clientKey []byte) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
+
 	return kubeconfig, nil
 }
 
@@ -225,23 +211,27 @@ func decodeBootstrap(bootstrap *controlRuntimeBootstrap) error {
 		return err
 	}
 	bootstrap.ClientCA.Content = string(decoded)
+
 	//client-ca-key
 	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ClientCAKey.Content)
 	if err != nil {
 		return err
 	}
 	bootstrap.ClientCAKey.Content = string(decoded)
+
 	//server-ca
 	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ServerCA.Content)
 	if err != nil {
 		return err
 	}
 	bootstrap.ServerCA.Content = string(decoded)
+
 	//server-ca-key
 	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ServerCAKey.Content)
 	if err != nil {
 		return err
 	}
 	bootstrap.ServerCAKey.Content = string(decoded)
+
 	return nil
 }

@@ -59,3 +59,36 @@ type ClusterStatus struct {
 	ServiceCIDR string `json:"serviceCIDR,omitempty"`
 	ClusterDNS  string `json:"clusterDNS,omitempty"`
 }
+
+type Allocation struct {
+	ClusterName string `json:"clusterName"`
+	Issued      int64  `json:"issued"`
+	IPNet       string `json:"ipNet"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CIDRAllocationPool struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+
+	Spec   CIDRAllocationPoolSpec   `json:"spec"`
+	Status CIDRAllocationPoolStatus `json:"status"`
+}
+
+type CIDRAllocationPoolSpec struct {
+	DefaultClusterCIDR string `json:"defaultClusterCIDR"`
+}
+
+type CIDRAllocationPoolStatus struct {
+	Pool []Allocation `json:"pool"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CIDRAllocationPoolList struct {
+	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `json:",inline"`
+
+	Items []CIDRAllocationPool `json:"items"`
+}

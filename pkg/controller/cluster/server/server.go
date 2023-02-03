@@ -24,6 +24,7 @@ func Server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
 	if init {
 		replicas = 1
 	}
+
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -58,6 +59,7 @@ func Server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
 
 func serverPodSpec(image, name string, args []string) v1.PodSpec {
 	privileged := true
+
 	return v1.PodSpec{
 		Volumes: []v1.Volume{
 			{

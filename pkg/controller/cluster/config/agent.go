@@ -11,6 +11,7 @@ import (
 
 func AgentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
 	config := agentConfigData(serviceIP, cluster.Spec.Token)
+
 	return v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",

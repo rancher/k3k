@@ -64,13 +64,11 @@ func Add(ctx context.Context, mgr manager.Manager) error {
 		},
 	}
 	if err := reconciler.Client.Create(ctx, &cidrClusterPool); err != nil {
-		if !apierrors.IsConflict(err) {
+		if !apierrors.IsAlreadyExists(err) {
 			// return nil since the resource has
 			// already been created
-			return nil
+			return err
 		}
-
-		return err
 	}
 
 	clusterServiceSubnets, err := generateSubnets(defaultClusterServiceCIDR)
@@ -97,13 +95,11 @@ func Add(ctx context.Context, mgr manager.Manager) error {
 		},
 	}
 	if err := reconciler.Client.Create(ctx, &cidrServicePool); err != nil {
-		if !apierrors.IsConflict(err) {
+		if !apierrors.IsAlreadyExists(err) {
 			// return nil since the resource has
 			// already been created
-			return nil
+			return err
 		}
-
-		return err
 	}
 
 	// create a new controller and add it to the manager
@@ -202,15 +198,17 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		return util.WrapErr("failed to create servers and agents deployment", err)
 	}
 
-	if cluster.Spec.Expose.Ingress.Enabled {
-		serverIngress, err := server.Ingress(ctx, cluster, c.Client)
-		if err != nil {
-			return util.WrapErr("failed to create ingress object", err)
-		}
+	if cluster.Spec.Expose != nil {
+		if cluster.Spec.Expose.Ingress != nil {
+			serverIngress, err := server.Ingress(ctx, cluster, c.Client)
+			if err != nil {
+				return util.WrapErr("failed to create ingress object", err)
+			}
 
-		if err := c.Client.Create(ctx, serverIngress); err != nil {
-			if !apierrors.IsAlreadyExists(err) {
-				return util.WrapErr("failed to create server ingress", err)
+			if err := c.Client.Create(ctx, serverIngress); err != nil {
+				if !apierrors.IsAlreadyExists(err) {
+					return util.WrapErr("failed to create server ingress", err)
+				}
 			}
 		}
 	}

@@ -19,7 +19,11 @@ func Resource(resource string) schema.GroupResource {
 }
 
 func addKnownTypes(s *runtime.Scheme) error {
-	s.AddKnownTypes(SchemeGroupVersion, &Cluster{}, &ClusterList{})
+	s.AddKnownTypes(SchemeGroupVersion,
+		&Cluster{},
+		&ClusterList{},
+		&CIDRAllocationPool{},
+		&CIDRAllocationPoolList{})
 	metav1.AddToGroupVersion(s, SchemeGroupVersion)
 	return nil
 }

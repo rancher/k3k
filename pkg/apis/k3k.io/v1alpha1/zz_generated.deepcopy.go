@@ -207,7 +207,11 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	in.Expose.DeepCopyInto(&out.Expose)
+	if in.Expose != nil {
+		in, out := &in.Expose, &out.Expose
+		*out = new(ExposeConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

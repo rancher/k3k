@@ -23,12 +23,4 @@ spec:
           - containerPort: 8080
             name: https
             protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: https
-          readinessProbe:
-            httpGet:
-              path: /
-              port: https
       serviceAccountName: {{ include "k3k.serviceAccountName" . }}

@@ -1,0 +1,3 @@
+release-name-template: {{ .Name }}-Chart-{{ .Version }}
+git-base-url: https://api.github.com/
+git-upload-url: https://uploads.github.com/

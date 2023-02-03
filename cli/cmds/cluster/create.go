@@ -153,6 +153,7 @@ func newCluster(name, token string, servers, agents int32, clusterCIDR, serviceC
 			ServiceCIDR: serviceCIDR,
 			ServerArgs:  serverArgs,
 			AgentArgs:   agentArgs,
+			Version:     version,
 		},
 	}
 }

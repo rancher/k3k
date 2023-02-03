@@ -28,7 +28,7 @@ type ClusterSpec struct {
 	ServerArgs []string `json:"serverArgs,omitempty"`
 	AgentArgs  []string `json:"agentArgs,omitempty"`
 
-	Expose ExposeConfig `json:"expose,omitempty"`
+	Expose *ExposeConfig `json:"expose,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -82,7 +82,7 @@ var (
 			Name:        "version",
 			Usage:       "k3s version",
 			Destination: &version,
-			Value:       "v1.26.1+k3s1",
+			Value:       "v1.26.1-k3s1",
 		},
 	}
 )

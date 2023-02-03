@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 source $(dirname $0)/version
 
@@ -16,3 +16,11 @@ if [ "$CROSS" = "true" ] && [ "$ARCH" = "amd64" ]; then
     GOOS=darwin go build -ldflags "$LINKFLAGS" -o bin/k3k-darwin
     GOOS=windows go build -ldflags "$LINKFLAGS" -o bin/k3k-windows
 fi
+
+# build k3kcli
+CGO_ENABLED=0 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3kcli ./cli
+if [ "$CROSS" = "true" ] && [ "$ARCH" = "amd64" ]; then
+    GOOS=darwin go build -ldflags "$LINKFLAGS" -o bin/k3kcli-darwin ./cli
+    GOOS=windows go build -ldflags "$LINKFLAGS" -o bin/k3kcli-windows ./cli
+fi
+

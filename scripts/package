@@ -7,6 +7,7 @@ cd $(dirname $0)/..
 
 mkdir -p dist/artifacts
 cp bin/k3k dist/artifacts/k3k${SUFFIX}
+cp bin/k3kcli dist/artifacts/k3kcli${SUFFIX}
 
 IMAGE=${REPO}/k3k:${TAG}
 DOCKERFILE=package/Dockerfile

@@ -34,6 +34,7 @@ var (
 	agents      int64
 	serverArgs  cli.StringSlice
 	agentArgs   cli.StringSlice
+	version     string
 
 	clusterCreateFlags = []cli.Flag{
 		cli.StringFlag{
@@ -76,6 +77,12 @@ var (
 			Name:  "agent-args",
 			Usage: "agents extra arguments",
 			Value: &agentArgs,
+		},
+		cli.StringFlag{
+			Name:        "version",
+			Usage:       "k3s version",
+			Destination: &version,
+			Value:       "v1.26.1+k3s1",
 		},
 	}
 )

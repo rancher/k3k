@@ -147,9 +147,16 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
-		// TODO: handle CIDR deletion
-		if err := c.releaseCIDR(ctx, cluster.Status.ClusterCIDR, cluster.Name); err != nil {
-			return reconcile.Result{}, err
+		if !cluster.Status.OverrideClusterCIDR {
+			if err := c.releaseCIDR(ctx, cluster.Status.ClusterCIDR, cluster.Name); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
+		if !cluster.Status.OverrideServiceCIDR {
+			if err := c.releaseCIDR(ctx, cluster.Status.ServiceCIDR, cluster.Name); err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 
 		// remove our finalizer from the list and update it.
@@ -169,22 +176,30 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		return util.WrapErr("failed to create ns", err)
 	}
 
-	if cluster.Spec.ClusterCIDR == "" && cluster.Status.ClusterCIDR == "" {
+	klog.Info(cluster)
+	if cluster.Spec.ClusterCIDR == "" {
 		clusterCIDR, err := c.nextCIDR(ctx, cidrAllocationClusterPoolName, cluster.Name)
 		if err != nil {
 			return err
 		}
 		cluster.Status.ClusterCIDR = clusterCIDR.String()
+	} else {
+		cluster.Status.OverrideClusterCIDR = true
+		cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	}
 
-	if cluster.Spec.ServiceCIDR == "" && cluster.Status.ServiceCIDR == "" {
+	if cluster.Spec.ServiceCIDR == "" {
 		serviceCIDR, err := c.nextCIDR(ctx, cidrAllocationServicePoolName, cluster.Name)
 		if err != nil {
 			return err
 		}
 		cluster.Status.ServiceCIDR = serviceCIDR.String()
+	} else {
+		cluster.Status.OverrideServiceCIDR = true
+		cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	}
 
+	klog.Infof("creating cluster service")
 	serviceIP, err := c.createClusterService(ctx, cluster)
 	if err != nil {
 		return util.WrapErr("failed to create cluster service", err)

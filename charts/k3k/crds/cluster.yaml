@@ -57,8 +57,12 @@ spec:
             status:
               type: object
               properties:
+                overrideClusterCIDR:
+                  type: boolean
                 clusterCIDR:
                   type: string
+                overrideServiceCIDR:
+                  type: boolean
                 serviceCIDR:
                   type: string
                 clusterDNS:

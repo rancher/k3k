@@ -3,9 +3,9 @@ namespace: k3k-system
 
 image:
   repository: husseingalal/k3k
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "v0.0.0-alpha5"
+  tag: "dev"
 
 imagePullSecrets: []
 nameOverride: ""

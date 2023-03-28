@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/galal-hussein/k3k/pkg/controller/util"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -67,11 +68,20 @@ func (c *ClusterReconciler) nextCIDR(ctx context.Context, cidrAllocationPoolName
 		Name: cidrAllocationPoolName,
 	}
 	if err := c.Client.Get(ctx, nn, &cidrPool); err != nil {
-		return nil, err
+		return nil, util.WrapErr("failed to get cidrpool", err)
 	}
 
 	var ipNet *net.IPNet
 
+	for _, pool := range cidrPool.Status.Pool {
+		if pool.ClusterName == clusterName {
+			_, ipn, err := net.ParseCIDR(pool.IPNet)
+			if err != nil {
+				return nil, util.WrapErr("failed to parse cidr", err)
+			}
+			return ipn, nil
+		}
+	}
 	for i := 0; i < len(cidrPool.Status.Pool); i++ {
 		if cidrPool.Status.Pool[i].ClusterName == "" && cidrPool.Status.Pool[i].Issued == 0 {
 			cidrPool.Status.Pool[i].ClusterName = clusterName
@@ -79,11 +89,10 @@ func (c *ClusterReconciler) nextCIDR(ctx context.Context, cidrAllocationPoolName
 
 			_, ipn, err := net.ParseCIDR(cidrPool.Status.Pool[i].IPNet)
 			if err != nil {
-				return nil, err
+				return nil, util.WrapErr("failed to parse cidr", err)
 			}
-
-			if err := c.Client.Status().Update(ctx, &cidrPool); err != nil {
-				return nil, err
+			if err := c.Client.Update(ctx, &cidrPool); err != nil {
+				return nil, util.WrapErr("failed to update cidr pool", err)
 			}
 			ipNet = ipn
 

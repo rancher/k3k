@@ -47,11 +47,11 @@ func serverOptions(cluster *v1alpha1.Cluster) string {
 	if cluster.Spec.Token != "" {
 		opts = "token: " + cluster.Spec.Token + "\n"
 	}
-	if cluster.Spec.ClusterCIDR != "" {
-		opts = opts + "cluster-cidr: " + cluster.Spec.ClusterCIDR + "\n"
+	if cluster.Status.ClusterCIDR != "" {
+		opts = opts + "cluster-cidr: " + cluster.Status.ClusterCIDR + "\n"
 	}
-	if cluster.Spec.ServiceCIDR != "" {
-		opts = opts + "service-cidr: " + cluster.Spec.ServiceCIDR + "\n"
+	if cluster.Status.ServiceCIDR != "" {
+		opts = opts + "service-cidr: " + cluster.Status.ServiceCIDR + "\n"
 	}
 	if cluster.Spec.ClusterDNS != "" {
 		opts = opts + "cluster-dns: " + cluster.Spec.ClusterDNS + "\n"

@@ -55,11 +55,9 @@ type LoadBalancerConfig struct {
 }
 
 type ClusterStatus struct {
-	OverrideClusterCIDR bool   `json:"overrideClusterCIDR"`
-	OverrideServiceCIDR bool   `json:"overrideServiceCIDR"`
-	ClusterCIDR         string `json:"clusterCIDR,omitempty"`
-	ServiceCIDR         string `json:"serviceCIDR,omitempty"`
-	ClusterDNS          string `json:"clusterDNS,omitempty"`
+	ClusterCIDR string `json:"clusterCIDR,omitempty"`
+	ServiceCIDR string `json:"serviceCIDR,omitempty"`
+	ClusterDNS  string `json:"clusterDNS,omitempty"`
 }
 
 type Allocation struct {

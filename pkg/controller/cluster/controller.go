@@ -40,68 +40,6 @@ func Add(ctx context.Context, mgr manager.Manager) error {
 		Scheme: mgr.GetScheme(),
 	}
 
-	clusterSubnets, err := generateSubnets(defaultClusterCIDR)
-	if err != nil {
-		return err
-	}
-
-	var clusterSubnetAllocations []v1alpha1.Allocation
-	for _, cs := range clusterSubnets {
-		clusterSubnetAllocations = append(clusterSubnetAllocations, v1alpha1.Allocation{
-			IPNet: cs,
-		})
-	}
-
-	cidrClusterPool := v1alpha1.CIDRAllocationPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: cidrAllocationClusterPoolName,
-		},
-		Spec: v1alpha1.CIDRAllocationPoolSpec{
-			DefaultClusterCIDR: defaultClusterCIDR,
-		},
-		Status: v1alpha1.CIDRAllocationPoolStatus{
-			Pool: clusterSubnetAllocations,
-		},
-	}
-	if err := reconciler.Client.Create(ctx, &cidrClusterPool); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			// return nil since the resource has
-			// already been created
-			return err
-		}
-	}
-
-	clusterServiceSubnets, err := generateSubnets(defaultClusterServiceCIDR)
-	if err != nil {
-		return err
-	}
-
-	var clusterServiceSubnetAllocations []v1alpha1.Allocation
-	for _, ss := range clusterServiceSubnets {
-		clusterServiceSubnetAllocations = append(clusterServiceSubnetAllocations, v1alpha1.Allocation{
-			IPNet: ss,
-		})
-	}
-
-	cidrServicePool := v1alpha1.CIDRAllocationPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: cidrAllocationServicePoolName,
-		},
-		Spec: v1alpha1.CIDRAllocationPoolSpec{
-			DefaultClusterCIDR: defaultClusterCIDR,
-		},
-		Status: v1alpha1.CIDRAllocationPoolStatus{
-			Pool: clusterServiceSubnetAllocations,
-		},
-	}
-	if err := reconciler.Client.Create(ctx, &cidrServicePool); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			// return nil since the resource has
-			// already been created
-			return err
-		}
-	}
-
 	// create a new controller and add it to the manager
 	//this can be replaced by the new builder functionality in controller-runtime
 	controller, err := controller.New(clusterController, mgr, controller.Options{
@@ -147,18 +85,6 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
-		if !cluster.Status.OverrideClusterCIDR {
-			if err := c.releaseCIDR(ctx, cluster.Status.ClusterCIDR, cluster.Name); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-
-		if !cluster.Status.OverrideServiceCIDR {
-			if err := c.releaseCIDR(ctx, cluster.Status.ServiceCIDR, cluster.Name); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-
 		// remove our finalizer from the list and update it.
 		controllerutil.RemoveFinalizer(&cluster, clusterFinalizerName)
 		if err := c.Client.Update(ctx, &cluster); err != nil {
@@ -176,27 +102,14 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		return util.WrapErr("failed to create ns", err)
 	}
 
-	klog.Info(cluster)
-	if cluster.Spec.ClusterCIDR == "" {
-		clusterCIDR, err := c.nextCIDR(ctx, cidrAllocationClusterPoolName, cluster.Name)
-		if err != nil {
-			return err
-		}
-		cluster.Status.ClusterCIDR = clusterCIDR.String()
-	} else {
-		cluster.Status.OverrideClusterCIDR = true
-		cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
+	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
+	if cluster.Status.ClusterCIDR == "" {
+		cluster.Status.ClusterCIDR = defaultClusterCIDR
 	}
 
-	if cluster.Spec.ServiceCIDR == "" {
-		serviceCIDR, err := c.nextCIDR(ctx, cidrAllocationServicePoolName, cluster.Name)
-		if err != nil {
-			return err
-		}
-		cluster.Status.ServiceCIDR = serviceCIDR.String()
-	} else {
-		cluster.Status.OverrideServiceCIDR = true
-		cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
+	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
+	if cluster.Status.ServiceCIDR == "" {
+		cluster.Status.ServiceCIDR = defaultClusterServiceCIDR
 	}
 
 	klog.Infof("creating cluster service")
@@ -372,5 +285,70 @@ func (c *ClusterReconciler) createDeployments(ctx context.Context, cluster *v1al
 		}
 	}
 
+	return nil
+}
+
+func (c *ClusterReconciler) createCIDRPools(ctx context.Context) error {
+	clusterSubnets, err := generateSubnets(defaultClusterCIDR)
+	if err != nil {
+		return err
+	}
+
+	var clusterSubnetAllocations []v1alpha1.Allocation
+	for _, cs := range clusterSubnets {
+		clusterSubnetAllocations = append(clusterSubnetAllocations, v1alpha1.Allocation{
+			IPNet: cs,
+		})
+	}
+
+	cidrClusterPool := v1alpha1.CIDRAllocationPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cidrAllocationClusterPoolName,
+		},
+		Spec: v1alpha1.CIDRAllocationPoolSpec{
+			DefaultClusterCIDR: defaultClusterCIDR,
+		},
+		Status: v1alpha1.CIDRAllocationPoolStatus{
+			Pool: clusterSubnetAllocations,
+		},
+	}
+	if err := c.Client.Create(ctx, &cidrClusterPool); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			// return nil since the resource has
+			// already been created
+			return err
+		}
+	}
+
+	clusterServiceSubnets, err := generateSubnets(defaultClusterServiceCIDR)
+	if err != nil {
+		return err
+	}
+
+	var clusterServiceSubnetAllocations []v1alpha1.Allocation
+	for _, ss := range clusterServiceSubnets {
+		clusterServiceSubnetAllocations = append(clusterServiceSubnetAllocations, v1alpha1.Allocation{
+			IPNet: ss,
+		})
+	}
+
+	cidrServicePool := v1alpha1.CIDRAllocationPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cidrAllocationServicePoolName,
+		},
+		Spec: v1alpha1.CIDRAllocationPoolSpec{
+			DefaultClusterCIDR: defaultClusterCIDR,
+		},
+		Status: v1alpha1.CIDRAllocationPoolStatus{
+			Pool: clusterServiceSubnetAllocations,
+		},
+	}
+	if err := c.Client.Create(ctx, &cidrServicePool); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			// return nil since the resource has
+			// already been created
+			return err
+		}
+	}
 	return nil
 }

@@ -16,17 +16,17 @@ type Cluster struct {
 }
 
 type ClusterSpec struct {
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	Servers     *int32 `json:"servers"`
-	Agents      *int32 `json:"agents"`
-	Token       string `json:"token"`
-	ClusterCIDR string `json:"clusterCIDR,omitempty"`
-	ServiceCIDR string `json:"serviceCIDR,omitempty"`
-	ClusterDNS  string `json:"clusterDNS,omitempty"`
-
-	ServerArgs []string `json:"serverArgs,omitempty"`
-	AgentArgs  []string `json:"agentArgs,omitempty"`
+	Name        string   `json:"name"`
+	Version     string   `json:"version"`
+	Servers     *int32   `json:"servers"`
+	Agents      *int32   `json:"agents"`
+	Token       string   `json:"token"`
+	ClusterCIDR string   `json:"clusterCIDR,omitempty"`
+	ServiceCIDR string   `json:"serviceCIDR,omitempty"`
+	ClusterDNS  string   `json:"clusterDNS,omitempty"`
+	ServerArgs  []string `json:"serverArgs,omitempty"`
+	AgentArgs   []string `json:"agentArgs,omitempty"`
+	TLSSANs     []string `json:"tlsSANs,omitempty"`
 
 	Expose *ExposeConfig `json:"expose,omitempty"`
 }
@@ -43,6 +43,7 @@ type ClusterList struct {
 type ExposeConfig struct {
 	Ingress      *IngressConfig      `json:"ingress"`
 	LoadBalancer *LoadBalancerConfig `json:"loadbalancer"`
+	NodePort     *NodePortConfig     `json:"nodePort"`
 }
 
 type IngressConfig struct {
@@ -51,6 +52,10 @@ type IngressConfig struct {
 }
 
 type LoadBalancerConfig struct {
+	Enabled bool `json:"enabled"`
+}
+
+type NodePortConfig struct {
 	Enabled bool `json:"enabled"`
 }
 

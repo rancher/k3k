@@ -56,6 +56,13 @@ func serverOptions(cluster *v1alpha1.Cluster) string {
 	if cluster.Spec.ClusterDNS != "" {
 		opts = opts + "cluster-dns: " + cluster.Spec.ClusterDNS + "\n"
 	}
+	if len(cluster.Spec.TLSSANs) > 0 {
+		opts = opts + "tls-san:\n"
+		for _, addr := range cluster.Spec.TLSSANs {
+			opts = opts + "- " + addr + "\n"
+		}
+	}
+	// TODO: Add extra args to the options
 
 	return opts
 }

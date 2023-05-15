@@ -39,6 +39,10 @@ spec:
                   type: array
                   items:
                     type: string
+                tlsSANs:
+                  type: array
+                  items:
+                    type: string
                 expose:
                   type: object
                   properties:
@@ -50,6 +54,11 @@ spec:
                         ingressClassName:
                           type: string
                     loadbalancer:
+                      type: object
+                      properties:
+                        enabled: 
+                          type: boolean
+                    nodePort:
                       type: object
                       properties:
                         enabled: 

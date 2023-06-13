@@ -1,4 +1,4 @@
-module github.com/galal-hussein/k3k
+module github.com/rancher/k3k
 
 go 1.19
 

@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/galal-hussein/k3k/cli/cmds"
-	"github.com/galal-hussein/k3k/cli/cmds/cluster"
-	"github.com/galal-hussein/k3k/pkg/version"
+	"github.com/rancher/k3k/cli/cmds"
+	"github.com/rancher/k3k/cli/cmds/cluster"
+	"github.com/rancher/k3k/pkg/version"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

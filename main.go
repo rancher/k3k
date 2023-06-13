@@ -5,8 +5,8 @@ import (
 	"context"
 	"flag"
 
-	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/galal-hussein/k3k/pkg/controller/cluster"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller/cluster"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -172,8 +173,16 @@ func createCluster(clx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	// export kubeconfig
 
+	pwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	logrus.Infof(`You can start using the cluster with: 
+
+	export KUBECONFIG=%s
+	kubectl cluster-info
+	`, filepath.Join(pwd, cluster.Name+"-kubeconfig.yaml"))
 	return os.WriteFile(cluster.Name+"-kubeconfig.yaml", kubeconfig, 0644)
 }
 
@@ -247,7 +256,6 @@ func extractKubeconfig(ctx context.Context, client client.Client, cluster *v1alp
 			return nil, err
 		}
 		hostURL := fmt.Sprintf("https://%s:%d", serverIP, nodePort)
-		logrus.Infof(hostURL)
 		restConfig.Host = hostURL
 
 		clientConfig := generateKubeconfigFromRest(restConfig)

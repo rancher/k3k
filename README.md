@@ -2,9 +2,11 @@
 
 A Kubernetes in Kubernetes tool, k3k provides a way to run multiple embedded isolated k3s clusters on your kubernetes cluster.
 
-## Why?
+## Example
 
-![alt text](https://github.com/galal-hussein/k3k/blob/main/hack/becausewecan.jpg?raw=true)
+An example on creating a k3k cluster on an RKE2 host using k3kcli
+
+[![asciicast](https://asciinema.org/a/eYlc3dsL2pfP2B50i3Ea8MJJp.svg)](https://asciinema.org/a/eYlc3dsL2pfP2B50i3Ea8MJJp)
 
 
 ## Usage

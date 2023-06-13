@@ -8,6 +8,14 @@ import (
 )
 
 func Service(cluster *v1alpha1.Cluster) *v1.Service {
+	serviceType := v1.ServiceTypeClusterIP
+	if cluster.Spec.Expose != nil {
+		if cluster.Spec.Expose.NodePort != nil {
+			if cluster.Spec.Expose.NodePort.Enabled {
+				serviceType = v1.ServiceTypeNodePort
+			}
+		}
+	}
 	return &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
@@ -18,7 +26,7 @@ func Service(cluster *v1alpha1.Cluster) *v1.Service {
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: v1.ServiceSpec{
-			Type: v1.ServiceTypeClusterIP,
+			Type: serviceType,
 			Selector: map[string]string{
 				"cluster": cluster.Name,
 				"role":    "server",

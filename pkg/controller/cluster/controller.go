@@ -3,11 +3,11 @@ package cluster
 import (
 	"context"
 
-	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/galal-hussein/k3k/pkg/controller/cluster/agent"
-	"github.com/galal-hussein/k3k/pkg/controller/cluster/config"
-	"github.com/galal-hussein/k3k/pkg/controller/cluster/server"
-	"github.com/galal-hussein/k3k/pkg/controller/util"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller/cluster/agent"
+	"github.com/rancher/k3k/pkg/controller/cluster/config"
+	"github.com/rancher/k3k/pkg/controller/cluster/server"
+	"github.com/rancher/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

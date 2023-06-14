@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	"github.com/galal-hussein/k3k/cli/cmds"
+	"github.com/rancher/k3k/cli/cmds"
 	"github.com/urfave/cli"
 )
 

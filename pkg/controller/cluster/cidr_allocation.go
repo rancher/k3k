@@ -6,8 +6,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/galal-hussein/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/galal-hussein/k3k/pkg/controller/util"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller/util"
 	"k8s.io/apimachinery/pkg/types"
 )
 

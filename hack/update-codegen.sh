@@ -12,8 +12,8 @@ CODEGEN_PKG=./code-generator
 
 "${CODEGEN_PKG}/generate-groups.sh" \
  "deepcopy" \
- github.com/galal-hussein/k3k/pkg/generated \
- github.com/galal-hussein/k3k/pkg/apis \
+ github.com/rancher/k3k/pkg/generated \
+ github.com/rancher/k3k/pkg/apis \
  "k3k.io:v1alpha1" \
  --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt \
  --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../.."

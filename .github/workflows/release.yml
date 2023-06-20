@@ -27,7 +27,7 @@ jobs:
           image: ibuildthecloud/github-release:v0.0.1
           options: -v ${{ github.workspace }}:/work
           run: |
-            /bin/drone-github-release --api_key ${{ secrets.TOKEN }} --build.event tag --files /work/bin/* --prerelease true
+            --api_key ${{ secrets.TOKEN }} --build.event tag --files /work/bin/* --prerelease true
       - name: Docker Hub Login
         uses: docker/login-action@v2
         with:

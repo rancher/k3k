@@ -20,13 +20,13 @@ jobs:
           run: |
             cd /work && dapper ci
       - name: Publish Binaries
-        uses: addnab/docker-run-action@v3
+        uses: galal-hussein/docker-run-action@dev
         with:
           registry: docker.io
           image: ibuildthecloud/github-release:v0.0.1
           options: -v ${{ github.workspace }}:/work
           run: |
-            /bin/drone-github-release --api_key=${{ secrets.TOKEN }} --files /work/bin/* --prerelease true
+            /bin/drone-github-release --api_key ${{ secrets.TOKEN }} --files /work/bin/* --prerelease true
       - name: Docker Hub Login
         uses: docker/login-action@v2
         with:

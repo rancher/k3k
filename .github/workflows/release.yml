@@ -25,9 +25,7 @@ jobs:
         with:
           registry: docker.io
           image: ibuildthecloud/github-release:v0.0.1
-          options: -v ${{ github.workspace }}:/work
-          run: |
-            --api_key ${{ secrets.TOKEN }} --build.event tag --files /work/bin/* --prerelease true
+          options: -e GITHUB_TOKEN=${{ secrets.TOKEN }} -e GITHUB_RELEASE_PRERELEASE=true -e GITHUB_RELEASE_FILES='/work/bin/*' -v ${{ github.workspace }}:/work
       - name: Docker Hub Login
         uses: docker/login-action@v2
         with:

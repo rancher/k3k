@@ -5,12 +5,16 @@ source $(dirname $0)/version
 
 cd $(dirname $0)/..
 
-git fetch --tags
-CHART_TAG=chart-$(grep "version: " charts/k3k/Chart.yaml | awk '{print $2}')
-if [ $(git tag -l "$version") ]; then
-    echo "tag already exists"
-    exit 1
-fi
+#git fetch --tags
+#CHART_TAG=chart-$(grep "version: " charts/k3k/Chart.yaml | awk '{print $2}')
+#if [ $(git tag -l "$version") ]; then
+#    echo "tag already exists"
+#    exit 1
+#fi
+
+git config --global user.email "hussein.galal.ahmed.11@gmail.com"
+git config --global user.name "galal-hussein"
+
 
 # release the chart with artifacts
 cr upload --token ${GITHUB_TOKEN} \

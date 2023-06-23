@@ -34,13 +34,13 @@ steps:
     instance:
     - drone-publish.rancher.io
 
-- name: package-chart
+- name: release-chart
   image: rancher/dapper:v0.5.0
   environment:
     GITHUB_TOKEN:
       from_secret: github_token
   commands:
-  - dapper package-chart
+  - dapper release-chart
   volumes:
   - name: docker
     path: /var/run/docker.sock

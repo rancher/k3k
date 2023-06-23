@@ -13,7 +13,7 @@ RUN curl -sL https://github.com/helm/chart-releaser/releases/download/v1.5.0/cha
     && mv cr /bin/
 
 ENV GO111MODULE on
-ENV DAPPER_ENV REPO TAG DRONE_TAG CROSS
+ENV DAPPER_ENV REPO TAG DRONE_TAG CROSS GITHUB_TOKEN
 ENV DAPPER_SOURCE /go/src/github.com/rancher/k3k/
 ENV DAPPER_OUTPUT ./bin ./dist ./deploy
 ENV DAPPER_DOCKER_SOCKET true

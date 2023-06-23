@@ -17,6 +17,10 @@ steps:
   volumes:
   - name: docker
     path: /var/run/docker.sock
+  when:
+    branch:
+      exclude:
+      - k3k-chart
 
 - name: package-chart
   image: rancher/dapper:v0.5.0

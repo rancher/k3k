@@ -24,7 +24,7 @@ cr upload --token ${GITHUB_TOKEN} \
 cr index  --token ${GITHUB_TOKEN} \
           --release-name-template "chart-{{ .Version }}" \
           --package-path ./deploy/ \
-          -index-path index.yaml \
+          --index-path index.yaml \
           --git-repo k3k \
           -o rancher \
           --push

@@ -9,10 +9,13 @@ RUN if [ "${ARCH}" == "amd64" ]; then \
         curl -sL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s v1.15.0; \
     fi
 
+RUN curl -sL https://github.com/helm/chart-releaser/releases/download/v1.5.0/chart-releaser_1.5.0_linux_${ARCH}.tar.gz | tar -xz cr \
+    && mv cr /bin/
+
 ENV GO111MODULE on
-ENV DAPPER_ENV REPO TAG DRONE_TAG CROSS
+ENV DAPPER_ENV REPO TAG DRONE_TAG CROSS GITHUB_TOKEN
 ENV DAPPER_SOURCE /go/src/github.com/rancher/k3k/
-ENV DAPPER_OUTPUT ./bin ./dist
+ENV DAPPER_OUTPUT ./bin ./dist ./deploy
 ENV DAPPER_DOCKER_SOCKET true
 ENV HOME ${DAPPER_SOURCE}
 WORKDIR ${DAPPER_SOURCE}

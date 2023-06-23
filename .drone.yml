@@ -17,6 +17,42 @@ steps:
   volumes:
   - name: docker
     path: /var/run/docker.sock
+  when:
+    branch:
+      exclude:
+      - k3k-chart
+
+- name: package-chart
+  image: rancher/dapper:v0.5.0
+  environment:
+    GITHUB_TOKEN:
+      from_secret: github_token
+  commands:
+  - dapper package-chart
+  volumes:
+  - name: docker
+    path: /var/run/docker.sock
+  when:
+    branch:
+    - k3k-chart
+    instance:
+    - drone-publish.rancher.io
+
+- name: release-chart
+  image: rancher/dapper:v0.5.0
+  environment:
+    GITHUB_TOKEN:
+      from_secret: github_token
+  commands:
+  - dapper release-chart
+  volumes:
+  - name: docker
+    path: /var/run/docker.sock
+  when:
+    branch:
+    - k3k-chart
+    instance:
+    - drone-publish.rancher.io
 
 - name: github_binary_release
   image: ibuildthecloud/github-release:v0.0.1
@@ -38,6 +74,9 @@ steps:
     - refs/tags/*
     event:
     - tag
+    branch:
+      exclude:
+      - k3k-chart
 
 - name: docker-publish
   image: plugins/docker
@@ -56,6 +95,9 @@ steps:
     - refs/tags/*
     event:
     - tag
+    branch:
+      exclude:
+      - k3k-chart
 
 volumes:
 - name: docker

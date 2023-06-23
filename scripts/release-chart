@@ -1,0 +1,32 @@
+#!/bin/bash
+set -ex
+
+source $(dirname $0)/version
+
+cd $(dirname $0)/..
+
+git fetch --tags
+CHART_TAG=chart-$(grep "version: " charts/k3k/Chart.yaml | awk '{print $2}')
+if [ $(git tag -l "$version") ]; then
+    echo "tag already exists"
+    exit 1
+fi
+
+# release the chart with artifacts
+cr upload --token ${GITHUB_TOKEN} \
+          --release-name-template "chart-{{ .Version }}" \
+          --package-path ./deploy/ \
+          --git-repo k3k \
+          --skip-existing \
+          -o rancher
+
+# update the index.yaml
+cr index  --token ${GITHUB_TOKEN} \
+          --release-name-template "chart-{{ .Version }}" \
+          --package-path ./deploy/ \
+          --index-path index.yaml \
+          --git-repo k3k \
+          -o rancher \
+          --push
+
+   

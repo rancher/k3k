@@ -1,13 +1,12 @@
 package agent
 
 import (
-	"strings"
-
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/util"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 )
 
 func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
@@ -46,8 +45,7 @@ func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
 }
 
 func agentPodSpec(image, name string, args []string) v1.PodSpec {
-	privileged := true
-
+	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 	return v1.PodSpec{
 		Volumes: []v1.Volume{
 			{
@@ -106,17 +104,12 @@ func agentPodSpec(image, name string, args []string) v1.PodSpec {
 				Name:  name,
 				Image: image,
 				SecurityContext: &v1.SecurityContext{
-					Privileged: &privileged,
+					Privileged: pointer.BoolPtr(true),
 				},
 				Command: []string{
-					"/bin/sh",
+					"/bin/k3s",
 				},
-				Args: []string{
-					"-c",
-					"/bin/k3s agent --config /opt/rancher/k3s/config.yaml " +
-						strings.Join(args, " ") +
-						" && true",
-				},
+				Args: args,
 				VolumeMounts: []v1.VolumeMount{
 					{
 						Name:      "config",

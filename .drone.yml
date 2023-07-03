@@ -14,6 +14,7 @@ steps:
       from_secret: github_token
   commands:
   - dapper ci
+  - echo "${DRONE_TAG}-amd64" | sed -e 's/+/-/g' >.tags
   volumes:
   - name: docker
     path: /var/run/docker.sock
@@ -103,3 +104,34 @@ volumes:
 - name: docker
   host:
     path: /var/run/docker.sock
+---
+kind: pipeline
+type: docker
+name: manifest
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: push-runtime-manifest
+    image: plugins/manifest
+    settings:
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      spec: manifest-runtime.tmpl
+    when:
+      event:
+        - tag
+      instance:
+        - drone-publish.rancher.io
+      ref:
+        - refs/head/master
+        - refs/tags/*
+      branch:
+        exclude:
+        - k3k-chart
+depends_on:
+  - amd64

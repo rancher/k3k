@@ -1,4 +1,4 @@
-ARG GOLANG=rancher/hardened-build-base:v1.20.4b11
+ARG GOLANG=rancher/hardened-build-base:v1.20.6b11
 FROM ${GOLANG}
 
 ARG DAPPER_HOST_ARCH

@@ -5,7 +5,7 @@ cd $(dirname $0)/..
 
 go generate
 
-source ./scripts/version
+source ./ops/version
 
 if [ -n "$DIRTY" ]; then
     echo Git is dirty

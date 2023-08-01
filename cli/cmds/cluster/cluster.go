@@ -17,11 +17,9 @@ var clusterSubcommands = []cli.Command{
 }
 
 func NewClusterCommand() cli.Command {
-	cmd := cli.Command{
+	return cli.Command{
 		Name:        "cluster",
 		Usage:       "cluster command",
 		Subcommands: clusterSubcommands,
 	}
-
-	return cmd
 }

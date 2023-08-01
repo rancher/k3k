@@ -7,13 +7,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func ServerConfig(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret, error) {
+func Server(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret, error) {
 	name := "k3k-server-config"
 	if init {
 		name = "k3k-init-server-config"
 	}
 
-	config := serverConfigData(serviceIP, cluster)
+	config := serverData(serviceIP, cluster)
 	if init {
 		config = initConfigData(cluster)
 	}
@@ -32,7 +32,7 @@ func ServerConfig(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.S
 	}, nil
 }
 
-func serverConfigData(serviceIP string, cluster *v1alpha1.Cluster) string {
+func serverData(serviceIP string, cluster *v1alpha1.Cluster) string {
 	return "cluster-init: true\nserver: https://" + serviceIP + ":6443" + serverOptions(cluster)
 }
 

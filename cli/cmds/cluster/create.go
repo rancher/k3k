@@ -148,9 +148,7 @@ func createCluster(clx *cli.Context) error {
 		return err
 	}
 	host := strings.Split(url.Host, ":")
-	cluster.Spec.TLSSANs = []string{
-		host[0],
-	}
+	cluster.Spec.TLSSANs = []string{host[0]}
 
 	if err := ctrlClient.Create(ctx, cluster); err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -162,15 +160,13 @@ func createCluster(clx *cli.Context) error {
 
 	logrus.Infof("Extracting Kubeconfig for [%s] cluster", name)
 	var kubeconfig []byte
-	err = retry.OnError(backoff, apierrors.IsNotFound, func() error {
+	if err := retry.OnError(backoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = extractKubeconfig(ctx, ctrlClient, cluster, host[0])
 		if err != nil {
 			return err
 		}
 		return nil
-	})
-
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -178,11 +174,13 @@ func createCluster(clx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	logrus.Infof(`You can start using the cluster with: 
 
 	export KUBECONFIG=%s
 	kubectl cluster-info
 	`, filepath.Join(pwd, cluster.Name+"-kubeconfig.yaml"))
+
 	return os.WriteFile(cluster.Name+"-kubeconfig.yaml", kubeconfig, 0644)
 }
 
@@ -199,6 +197,7 @@ func validateCreateFlags(clx *cli.Context) error {
 	if cmds.Kubeconfig == "" && os.Getenv("KUBECONFIG") == "" {
 		return errors.New("empty kubeconfig")
 	}
+
 	return nil
 }
 
@@ -230,6 +229,7 @@ func extractKubeconfig(ctx context.Context, client client.Client, cluster *v1alp
 		Name:      cluster.Name + "-kubeconfig",
 		Namespace: util.ClusterNamespace(cluster),
 	}
+
 	var kubeSecret v1.Secret
 	if err := client.Get(ctx, nn, &kubeSecret); err != nil {
 		return nil, err
@@ -244,10 +244,12 @@ func extractKubeconfig(ctx context.Context, client client.Client, cluster *v1alp
 		Name:      "k3k-server-service",
 		Namespace: util.ClusterNamespace(cluster),
 	}
+
 	var k3kService v1.Service
 	if err := client.Get(ctx, nn, &k3kService); err != nil {
 		return nil, err
 	}
+
 	if k3kService.Spec.Type == v1.ServiceTypeNodePort {
 		nodePort := k3kService.Spec.Ports[0].NodePort
 
@@ -266,6 +268,7 @@ func extractKubeconfig(ctx context.Context, client client.Client, cluster *v1alp
 		}
 		kubeconfig = b
 	}
+
 	return kubeconfig, nil
 }
 
@@ -297,5 +300,6 @@ func generateKubeconfigFromRest(config *rest.Config) clientcmdapi.Config {
 		CurrentContext: "default-context",
 		AuthInfos:      authinfos,
 	}
+
 	return clientConfig
 }

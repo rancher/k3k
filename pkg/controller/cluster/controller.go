@@ -102,16 +102,6 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		return util.WrapErr("failed to create ns", err)
 	}
 
-	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
-	if cluster.Status.ClusterCIDR == "" {
-		cluster.Status.ClusterCIDR = defaultClusterCIDR
-	}
-
-	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
-	if cluster.Status.ServiceCIDR == "" {
-		cluster.Status.ServiceCIDR = defaultClusterServiceCIDR
-	}
-
 	klog.Infof("creating cluster service")
 	serviceIP, err := c.createClusterService(ctx, cluster)
 	if err != nil {
@@ -177,7 +167,7 @@ func (c *ClusterReconciler) createNamespace(ctx context.Context, cluster *v1alph
 
 func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
 	// create init node config
-	initServerConfig, err := config.ServerConfig(cluster, true, serviceIP)
+	initServerConfig, err := config.Server(cluster, true, serviceIP)
 	if err != nil {
 		return err
 	}
@@ -193,7 +183,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	}
 
 	// create servers configuration
-	serverConfig, err := config.ServerConfig(cluster, false, serviceIP)
+	serverConfig, err := config.Server(cluster, false, serviceIP)
 	if err != nil {
 		return err
 	}
@@ -207,7 +197,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	}
 
 	// create agents configuration
-	agentsConfig := config.AgentConfig(cluster, serviceIP)
+	agentsConfig := config.Agent(cluster, serviceIP)
 	if err := controllerutil.SetControllerReference(cluster, &agentsConfig, c.Scheme); err != nil {
 		return err
 	}
@@ -289,30 +279,7 @@ func (c *ClusterReconciler) createDeployments(ctx context.Context, cluster *v1al
 }
 
 func (c *ClusterReconciler) createCIDRPools(ctx context.Context) error {
-	clusterSubnets, err := generateSubnets(defaultClusterCIDR)
-	if err != nil {
-		return err
-	}
-
-	var clusterSubnetAllocations []v1alpha1.Allocation
-	for _, cs := range clusterSubnets {
-		clusterSubnetAllocations = append(clusterSubnetAllocations, v1alpha1.Allocation{
-			IPNet: cs,
-		})
-	}
-
-	cidrClusterPool := v1alpha1.CIDRAllocationPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: cidrAllocationClusterPoolName,
-		},
-		Spec: v1alpha1.CIDRAllocationPoolSpec{
-			DefaultClusterCIDR: defaultClusterCIDR,
-		},
-		Status: v1alpha1.CIDRAllocationPoolStatus{
-			Pool: clusterSubnetAllocations,
-		},
-	}
-	if err := c.Client.Create(ctx, &cidrClusterPool); err != nil {
+	if err := c.Client.Create(ctx, &v1alpha1.CIDRAllocationPool{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			// return nil since the resource has
 			// already been created
@@ -320,35 +287,13 @@ func (c *ClusterReconciler) createCIDRPools(ctx context.Context) error {
 		}
 	}
 
-	clusterServiceSubnets, err := generateSubnets(defaultClusterServiceCIDR)
-	if err != nil {
-		return err
-	}
-
-	var clusterServiceSubnetAllocations []v1alpha1.Allocation
-	for _, ss := range clusterServiceSubnets {
-		clusterServiceSubnetAllocations = append(clusterServiceSubnetAllocations, v1alpha1.Allocation{
-			IPNet: ss,
-		})
-	}
-
-	cidrServicePool := v1alpha1.CIDRAllocationPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: cidrAllocationServicePoolName,
-		},
-		Spec: v1alpha1.CIDRAllocationPoolSpec{
-			DefaultClusterCIDR: defaultClusterCIDR,
-		},
-		Status: v1alpha1.CIDRAllocationPoolStatus{
-			Pool: clusterServiceSubnetAllocations,
-		},
-	}
-	if err := c.Client.Create(ctx, &cidrServicePool); err != nil {
+	if err := c.Client.Create(ctx, &v1alpha1.CIDRAllocationPool{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			// return nil since the resource has
 			// already been created
 			return err
 		}
 	}
+
 	return nil
 }

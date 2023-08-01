@@ -9,8 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func AgentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
-	config := agentConfigData(serviceIP, cluster.Spec.Token)
+func Agent(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
+	config := agentData(serviceIP, cluster.Spec.Token)
 
 	return v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -27,7 +27,7 @@ func AgentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
 	}
 }
 
-func agentConfigData(serviceIP, token string) string {
+func agentData(serviceIP, token string) string {
 	return fmt.Sprintf(`server: https://%s:6443
 token: %s`, serviceIP, token)
 }

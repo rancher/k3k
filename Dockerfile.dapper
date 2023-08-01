@@ -1,4 +1,4 @@
-ARG GOLANG=rancher/hardened-build-base:v1.20.6b11
+ARG GOLANG=rancher/hardened-build-base:v1.20.6b2
 FROM ${GOLANG}
 
 ARG DAPPER_HOST_ARCH
@@ -20,5 +20,5 @@ ENV DAPPER_DOCKER_SOCKET true
 ENV HOME ${DAPPER_SOURCE}
 WORKDIR ${DAPPER_SOURCE}
 
-ENTRYPOINT ["./scripts/entry"]
+ENTRYPOINT ["./ops/entry"]
 CMD ["ci"]

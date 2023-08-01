@@ -1,4 +1,4 @@
-TARGETS := $(shell ls scripts)
+TARGETS := $(shell ls ops)
 
 .dapper:
 	@echo Downloading dapper

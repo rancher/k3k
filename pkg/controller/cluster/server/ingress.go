@@ -46,8 +46,9 @@ func Ingress(ctx context.Context, cluster *v1alpha1.Cluster, client client.Clien
 }
 
 func ingressRules(cluster *v1alpha1.Cluster, addresses []string) []networkingv1.IngressRule {
-	ingressRules := []networkingv1.IngressRule{}
+	var ingressRules []networkingv1.IngressRule
 	pathTypePrefix := networkingv1.PathTypePrefix
+
 	for _, address := range addresses {
 		rule := networkingv1.IngressRule{
 			Host: cluster.Name + "." + address + wildcardDNS,
@@ -72,6 +73,7 @@ func ingressRules(cluster *v1alpha1.Cluster, addresses []string) []networkingv1.
 		}
 		ingressRules = append(ingressRules, rule)
 	}
+
 	return ingressRules
 }
 

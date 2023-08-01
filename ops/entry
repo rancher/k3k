@@ -2,8 +2,8 @@
 set -e
 
 mkdir -p bin dist
-if [ -e ./scripts/$1 ]; then
-    ./scripts/"$@"
+if [ -e ./ops/$1 ]; then
+    ./ops/"$@"
 else
     exec "$@"
 fi

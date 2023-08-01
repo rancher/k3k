@@ -35,7 +35,8 @@ func nodeAddress(node *v1.Node) string {
 		if ip.Type == "ExternalIP" && ip.Address != "" {
 			externalIP = ip.Address
 			break
-		} else if ip.Type == "InternalIP" && ip.Address != "" {
+		}
+		if ip.Type == "InternalIP" && ip.Address != "" {
 			internalIP = ip.Address
 		}
 	}

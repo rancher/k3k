@@ -55,23 +55,19 @@ sudo cp k3kcli /usr/local/bin
 1 - Download the Binary:
 Use PowerShell's Invoke-WebRequest cmdlet to download the binary:
 ```powershel
-Invoke-WebRequest -Uri "https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli.exe" -OutFile "k3kcli.exe"
+Invoke-WebRequest -Uri "https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli-windows" -OutFile "k3kcli.exe"
 ```
 2 - Copy the Binary to a Directory in PATH:
 To allow running the binary from any command prompt, you can copy it to a directory in your system's PATH. For example, copying it to C:\Users\<YourUsername>\bin (create this directory if it doesn't exist):
 ```
-Copy-Item "k3kcli.exe" "$env:USERPROFILE\bin"
+Copy-Item "k3kcli.exe" "C:\bin"
 ```
 3 - Update Environment Variable (PATH):
-If you haven't already added `C:\Users\<YourUsername>\bin` (or your chosen directory) to your PATH, you can do it through PowerShell:
+If you haven't already added `C:\bin` (or your chosen directory) to your PATH, you can do it through PowerShell:
 ```
-$binPath = "$env:USERPROFILE\bin"
-$existingPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::User)
-if ($existingPath -notlike "*$binPath*") {
-    $newPath = "$existingPath;$binPath"
-    [System.Environment]::SetEnvironmentVariable("Path", $newPath, [System.EnvironmentVariableTarget]::User)
-}
+setx PATH "C:\bin;%PATH%"
 ```
+
 To create a new cluster you can use:
 ```
 k3k cluster create --name example-cluster --token test

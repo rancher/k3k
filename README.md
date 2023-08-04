@@ -40,15 +40,21 @@ To uninstall the chart:
 
 To create a new cluster you need to install and run the cli or create a cluster object, to install the cli:
 
-#### For linux
+#### For linux and macOS
 
+1 - Donwload the binary, linux dowload url:
 ```
 wget https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli
+```
+macOS dowload url:
+```
+wget https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli
+```
+Then copy to local bin
+```
 chmod +x k3kcli
 sudo cp k3kcli /usr/local/bin
 ```
-
-#### For macOS
 
 #### For Windows 
 

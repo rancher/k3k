@@ -10,18 +10,17 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+const agentName = "k3k-agent"
+
 func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
 	image := util.K3SImage(cluster)
-
-	const name = "k3k-agent"
-
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-" + name,
+			Name:      cluster.Name + "-" + agentName,
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: apps.DeploymentSpec{
@@ -39,7 +38,7 @@ func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
 						"type":    "agent",
 					},
 				},
-				Spec: agentPodSpec(image, name, cluster.Spec.AgentArgs, false),
+				Spec: agentPodSpec(image, agentName, cluster.Spec.AgentArgs, false),
 			},
 		},
 	}
@@ -48,19 +47,17 @@ func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
 func StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 	image := util.K3SImage(cluster)
 
-	const name = "k3k-agent"
-
 	return &apps.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Statefulset",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-" + name,
+			Name:      cluster.Name + "-" + agentName,
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: apps.StatefulSetSpec{
-			ServiceName: cluster.Name + "-" + name + "-headless",
+			ServiceName: cluster.Name + "-" + agentName + "-headless",
 			Replicas:    cluster.Spec.Agents,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -115,7 +112,7 @@ func StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 						"type":    "agent",
 					},
 				},
-				Spec: agentPodSpec(image, name, cluster.Spec.AgentArgs, true),
+				Spec: agentPodSpec(image, agentName, cluster.Spec.AgentArgs, true),
 			},
 		},
 	}

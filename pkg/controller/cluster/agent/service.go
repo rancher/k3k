@@ -8,14 +8,13 @@ import (
 )
 
 func StatefulAgentService(cluster *v1alpha1.Cluster) *v1.Service {
-	name := "k3k-agent"
 	return &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-" + name + "-headless",
+			Name:      cluster.Name + "-" + agentName + "-headless",
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: v1.ServiceSpec{

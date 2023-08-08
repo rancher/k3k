@@ -12,7 +12,7 @@ import (
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller/persist"
+	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -93,7 +93,7 @@ var (
 		cli.StringFlag{
 			Name:        "persistence-type",
 			Usage:       "Persistence mode for the nodes (ephermal, static, dynamic)",
-			Value:       persist.EphermalNodesType,
+			Value:       cluster.EphermalNodesType,
 			Destination: &persistenceType,
 		},
 		cli.StringFlag{
@@ -199,8 +199,8 @@ func createCluster(clx *cli.Context) error {
 }
 
 func validateCreateFlags(clx *cli.Context) error {
-	if persistenceType != persist.EphermalNodesType &&
-		persistenceType != persist.DynamicNodesType {
+	if persistenceType != cluster.EphermalNodesType &&
+		persistenceType != cluster.DynamicNodesType {
 		return errors.New("invalid persistence type")
 	}
 	if token == "" {

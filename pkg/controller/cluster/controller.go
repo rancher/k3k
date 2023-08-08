@@ -7,7 +7,6 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/config"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
-	"github.com/rancher/k3k/pkg/controller/persist"
 	"github.com/rancher/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,6 +25,8 @@ import (
 const (
 	clusterController    = "k3k-cluster-controller"
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
+	EphermalNodesType    = "ephermal"
+	DynamicNodesType     = "dynamic"
 )
 
 type ClusterReconciler struct {
@@ -101,7 +102,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 	if cluster.Spec.Persistence == nil {
 		// default to ephermal nodes
 		cluster.Spec.Persistence = &v1alpha1.PersistenceConfig{
-			Type: persist.EphermalNodesType,
+			Type: EphermalNodesType,
 		}
 	}
 	if err := c.Client.Update(ctx, cluster); err != nil {
@@ -123,7 +124,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 	}
 
 	// creating statefulsets in case the user chose a persistence type other than ephermal
-	if cluster.Spec.Persistence.Type != persist.EphermalNodesType {
+	if cluster.Spec.Persistence.Type != EphermalNodesType {
 		if cluster.Spec.Persistence.StorageRequestSize == "" {
 			// default to 1G of request size
 			cluster.Spec.Persistence.StorageRequestSize = "1G"

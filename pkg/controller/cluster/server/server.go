@@ -12,13 +12,18 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+const (
+	serverName     = "k3k-server"
+	initServerName = "k3k-init-server"
+)
+
 func Server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
 	var replicas int32
 	image := util.K3SImage(cluster)
 
-	name := "k3k-server"
+	name := serverName
 	if init {
-		name = "k3k-init-server"
+		name = initServerName
 	}
 
 	replicas = *cluster.Spec.Servers - 1
@@ -175,9 +180,9 @@ func StatefulServer(cluster *v1alpha1.Cluster, init bool) *apps.StatefulSet {
 	var replicas int32
 	image := util.K3SImage(cluster)
 
-	name := "k3k-server"
+	name := serverName
 	if init {
-		name = "k3k-init-server"
+		name = initServerName
 	}
 
 	replicas = *cluster.Spec.Servers - 1

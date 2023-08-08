@@ -46,9 +46,9 @@ func Service(cluster *v1alpha1.Cluster) *v1.Service {
 }
 
 func StatefulServerService(cluster *v1alpha1.Cluster, init bool) *v1.Service {
-	name := "k3k-server"
+	name := serverName
 	if init {
-		name = "k3k-init-server"
+		name = initServerName
 	}
 	return &v1.Service{
 		TypeMeta: metav1.TypeMeta{

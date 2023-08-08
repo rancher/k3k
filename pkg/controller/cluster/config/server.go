@@ -13,7 +13,7 @@ func Server(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret,
 		name = "k3k-init-server-config"
 	}
 
-	config := serverData(serviceIP, cluster)
+	config := serverConfigData(serviceIP, cluster)
 	if init {
 		config = initConfigData(cluster)
 	}
@@ -32,8 +32,8 @@ func Server(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret,
 	}, nil
 }
 
-func serverData(serviceIP string, cluster *v1alpha1.Cluster) string {
-	return "cluster-init: true\nserver: https://" + serviceIP + ":6443" + serverOptions(cluster)
+func serverConfigData(serviceIP string, cluster *v1alpha1.Cluster) string {
+	return "cluster-init: true\nserver: https://" + serviceIP + ":6443\n" + serverOptions(cluster)
 }
 
 func initConfigData(cluster *v1alpha1.Cluster) string {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -45,15 +46,17 @@ func init() {
 }
 
 var (
-	name        string
-	token       string
-	clusterCIDR string
-	serviceCIDR string
-	servers     int64
-	agents      int64
-	serverArgs  cli.StringSlice
-	agentArgs   cli.StringSlice
-	version     string
+	name             string
+	token            string
+	clusterCIDR      string
+	serviceCIDR      string
+	servers          int64
+	agents           int64
+	serverArgs       cli.StringSlice
+	agentArgs        cli.StringSlice
+	persistenceType  string
+	storageClassName string
+	version          string
 
 	clusterCreateFlags = []cli.Flag{
 		cli.StringFlag{
@@ -86,6 +89,17 @@ var (
 			Name:        "service-cidr",
 			Usage:       "service CIDR",
 			Destination: &serviceCIDR,
+		},
+		cli.StringFlag{
+			Name:        "persistence-type",
+			Usage:       "Persistence mode for the nodes (ephermal, static, dynamic)",
+			Value:       cluster.EphermalNodesType,
+			Destination: &persistenceType,
+		},
+		cli.StringFlag{
+			Name:        "storage-class-name",
+			Usage:       "Storage class name for dynamic persistence type",
+			Destination: &storageClassName,
 		},
 		cli.StringSliceFlag{
 			Name:  "server-args",
@@ -185,6 +199,10 @@ func createCluster(clx *cli.Context) error {
 }
 
 func validateCreateFlags(clx *cli.Context) error {
+	if persistenceType != cluster.EphermalNodesType &&
+		persistenceType != cluster.DynamicNodesType {
+		return errors.New("invalid persistence type")
+	}
 	if token == "" {
 		return errors.New("empty cluster token")
 	}
@@ -220,6 +238,10 @@ func newCluster(name, token string, servers, agents int32, clusterCIDR, serviceC
 			ServerArgs:  serverArgs,
 			AgentArgs:   agentArgs,
 			Version:     version,
+			Persistence: &v1alpha1.PersistenceConfig{
+				Type:             persistenceType,
+				StorageClassName: storageClassName,
+			},
 		},
 	}
 }

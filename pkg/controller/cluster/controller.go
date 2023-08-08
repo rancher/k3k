@@ -25,6 +25,8 @@ import (
 const (
 	clusterController    = "k3k-cluster-controller"
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
+	EphermalNodesType    = "ephermal"
+	DynamicNodesType     = "dynamic"
 )
 
 type ClusterReconciler struct {
@@ -97,6 +99,15 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 }
 
 func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	if cluster.Spec.Persistence == nil {
+		// default to ephermal nodes
+		cluster.Spec.Persistence = &v1alpha1.PersistenceConfig{
+			Type: EphermalNodesType,
+		}
+	}
+	if err := c.Client.Update(ctx, cluster); err != nil {
+		return util.WrapErr("failed to update cluster with persistence type", err)
+	}
 	// create a new namespace for the cluster
 	if err := c.createNamespace(ctx, cluster); err != nil {
 		return util.WrapErr("failed to create ns", err)
@@ -112,8 +123,19 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		return util.WrapErr("failed to create cluster configs", err)
 	}
 
-	if err := c.createDeployments(ctx, cluster); err != nil {
-		return util.WrapErr("failed to create servers and agents deployment", err)
+	// creating statefulsets in case the user chose a persistence type other than ephermal
+	if cluster.Spec.Persistence.Type != EphermalNodesType {
+		if cluster.Spec.Persistence.StorageRequestSize == "" {
+			// default to 1G of request size
+			cluster.Spec.Persistence.StorageRequestSize = "1G"
+		}
+		if err := c.createStatefulSets(ctx, cluster); err != nil {
+			return util.WrapErr("failed to create servers and agents statefulsets", err)
+		}
+	} else {
+		if err := c.createDeployments(ctx, cluster); err != nil {
+			return util.WrapErr("failed to create servers and agents deployment", err)
+		}
 	}
 
 	if cluster.Spec.Expose != nil {
@@ -270,6 +292,79 @@ func (c *ClusterReconciler) createDeployments(ctx context.Context, cluster *v1al
 	}
 
 	if err := c.Client.Create(ctx, agentsDeployment); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *ClusterReconciler) createStatefulSets(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	// create headless service for the init statefulset
+	initServerStatefulService := server.StatefulServerService(cluster, true)
+	if err := controllerutil.SetControllerReference(cluster, initServerStatefulService, c.Scheme); err != nil {
+		return err
+	}
+	if err := c.Client.Create(ctx, initServerStatefulService); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	// create statefulsets for the init server
+	// the init statefulset must have only 1 replica
+	initServerStatefulSet := server.StatefulServer(cluster, true)
+
+	if err := controllerutil.SetControllerReference(cluster, initServerStatefulSet, c.Scheme); err != nil {
+		return err
+	}
+
+	if err := c.Client.Create(ctx, initServerStatefulSet); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	// create statefulset for the rest of the servers
+	// create headless service for the server statefulset
+	serverStatefulService := server.StatefulServerService(cluster, false)
+	if err := controllerutil.SetControllerReference(cluster, serverStatefulService, c.Scheme); err != nil {
+		return err
+	}
+	if err := c.Client.Create(ctx, serverStatefulService); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	serversStatefulSet := server.StatefulServer(cluster, false)
+
+	if err := controllerutil.SetControllerReference(cluster, serversStatefulSet, c.Scheme); err != nil {
+		return err
+	}
+
+	if err := c.Client.Create(ctx, serversStatefulSet); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	// create headless service for the agents statefulset
+	agentStatefulService := agent.StatefulAgentService(cluster)
+	if err := controllerutil.SetControllerReference(cluster, agentStatefulService, c.Scheme); err != nil {
+		return err
+	}
+	if err := c.Client.Create(ctx, agentStatefulService); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	agentsStatefulSet := agent.StatefulAgent(cluster)
+	if err := controllerutil.SetControllerReference(cluster, agentsStatefulSet, c.Scheme); err != nil {
+		return err
+	}
+
+	if err := c.Client.Create(ctx, agentsStatefulSet); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}

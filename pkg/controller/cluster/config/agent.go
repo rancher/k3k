@@ -29,5 +29,6 @@ func Agent(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
 
 func agentData(serviceIP, token string) string {
 	return fmt.Sprintf(`server: https://%s:6443
-token: %s`, serviceIP, token)
+token: %s
+with-node-id: true`, serviceIP, token)
 }

@@ -28,7 +28,8 @@ type ClusterSpec struct {
 	AgentArgs   []string `json:"agentArgs,omitempty"`
 	TLSSANs     []string `json:"tlsSANs,omitempty"`
 
-	Expose *ExposeConfig `json:"expose,omitempty"`
+	Persistence *PersistenceConfig `json:"persistence,omitempty"`
+	Expose      *ExposeConfig      `json:"expose,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -38,6 +39,13 @@ type ClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 
 	Items []Cluster `json:"items"`
+}
+
+type PersistenceConfig struct {
+	// Type can be ephermal, static, dynamic
+	Type               string `json:"type"`
+	StorageClassName   string `json:"storageClassName,omitempty"`
+	StorageRequestSize string `json:"storageRequestSize,omitempty"`
 }
 
 type ExposeConfig struct {

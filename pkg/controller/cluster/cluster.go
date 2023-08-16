@@ -2,10 +2,10 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
-	"github.com/rancher/k3k/pkg/controller/cluster/config"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
@@ -27,6 +27,8 @@ const (
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
 	EphermalNodesType    = "ephermal"
 	DynamicNodesType     = "dynamic"
+
+	maxConcurrentReconciles = 1
 )
 
 type ClusterReconciler struct {
@@ -46,7 +48,7 @@ func Add(ctx context.Context, mgr manager.Manager) error {
 	//this can be replaced by the new builder functionality in controller-runtime
 	controller, err := controller.New(clusterController, mgr, controller.Options{
 		Reconciler:              &reconciler,
-		MaxConcurrentReconciles: 1,
+		MaxConcurrentReconciles: maxConcurrentReconciles,
 	})
 	if err != nil {
 		return err
@@ -77,7 +79,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 		if err := c.Client.Get(ctx, objKey, &ns); err != nil {
 			if !apierrors.IsNotFound(err) {
-				return reconcile.Result{}, util.WrapErr("failed to get cluster namespace "+util.ClusterNamespace(&cluster), err)
+				return reconcile.Result{}, util.LogAndReturnErr("failed to get cluster namespace "+util.ClusterNamespace(&cluster), err)
 			}
 		}
 
@@ -99,6 +101,9 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 }
 
 func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	server := server.New(cluster, c.Client)
+	agent := agent.New(cluster)
+
 	if cluster.Spec.Persistence == nil {
 		// default to ephermal nodes
 		cluster.Spec.Persistence = &v1alpha1.PersistenceConfig{
@@ -106,21 +111,21 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		}
 	}
 	if err := c.Client.Update(ctx, cluster); err != nil {
-		return util.WrapErr("failed to update cluster with persistence type", err)
+		return util.LogAndReturnErr("failed to update cluster with persistence type", err)
 	}
 	// create a new namespace for the cluster
 	if err := c.createNamespace(ctx, cluster); err != nil {
-		return util.WrapErr("failed to create ns", err)
+		return util.LogAndReturnErr("failed to create ns", err)
 	}
 
 	klog.Infof("creating cluster service")
-	serviceIP, err := c.createClusterService(ctx, cluster)
+	serviceIP, err := c.createClusterService(ctx, cluster, server)
 	if err != nil {
-		return util.WrapErr("failed to create cluster service", err)
+		return util.LogAndReturnErr("failed to create cluster service", err)
 	}
 
 	if err := c.createClusterConfigs(ctx, cluster, serviceIP); err != nil {
-		return util.WrapErr("failed to create cluster configs", err)
+		return util.LogAndReturnErr("failed to create cluster configs", err)
 	}
 
 	// creating statefulsets in case the user chose a persistence type other than ephermal
@@ -129,12 +134,12 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 			// default to 1G of request size
 			cluster.Spec.Persistence.StorageRequestSize = "1G"
 		}
-		if err := c.createStatefulSets(ctx, cluster); err != nil {
-			return util.WrapErr("failed to create servers and agents statefulsets", err)
+		if err := c.createStatefulSets(ctx, cluster, server, agent); err != nil {
+			return util.LogAndReturnErr("failed to create servers and agents statefulsets", err)
 		}
 	} else {
-		if err := c.createDeployments(ctx, cluster); err != nil {
-			return util.WrapErr("failed to create servers and agents deployment", err)
+		if err := c.createDeployments(ctx, cluster, server); err != nil {
+			return util.LogAndReturnErr("failed to create servers and agents deployment", err)
 		}
 	}
 
@@ -142,25 +147,25 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		if cluster.Spec.Expose.Ingress != nil {
 			serverIngress, err := server.Ingress(ctx, cluster, c.Client)
 			if err != nil {
-				return util.WrapErr("failed to create ingress object", err)
+				return util.LogAndReturnErr("failed to create ingress object", err)
 			}
 
 			if err := c.Client.Create(ctx, serverIngress); err != nil {
 				if !apierrors.IsAlreadyExists(err) {
-					return util.WrapErr("failed to create server ingress", err)
+					return util.LogAndReturnErr("failed to create server ingress", err)
 				}
 			}
 		}
 	}
 
-	kubeconfigSecret, err := server.GenerateNewKubeConfig(ctx, cluster, serviceIP)
+	kubeconfigSecret, err := server.GenerateNewKubeConfig(ctx, serviceIP)
 	if err != nil {
-		return util.WrapErr("failed to generate new kubeconfig", err)
+		return util.LogAndReturnErr("failed to generate new kubeconfig", err)
 	}
 
 	if err := c.Client.Create(ctx, kubeconfigSecret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create kubeconfig secret", err)
+			return util.LogAndReturnErr("failed to create kubeconfig secret", err)
 		}
 	}
 
@@ -180,7 +185,7 @@ func (c *ClusterReconciler) createNamespace(ctx context.Context, cluster *v1alph
 
 	if err := c.Client.Create(ctx, &namespace); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return util.WrapErr("failed to create ns", err)
+			return util.LogAndReturnErr("failed to create ns", err)
 		}
 	}
 
@@ -189,7 +194,7 @@ func (c *ClusterReconciler) createNamespace(ctx context.Context, cluster *v1alph
 
 func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
 	// create init node config
-	initServerConfig, err := config.Server(cluster, true, serviceIP)
+	initServerConfig, err := serverConfig(cluster, true, serviceIP)
 	if err != nil {
 		return err
 	}
@@ -205,7 +210,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	}
 
 	// create servers configuration
-	serverConfig, err := config.Server(cluster, false, serviceIP)
+	serverConfig, err := serverConfig(cluster, false, serviceIP)
 	if err != nil {
 		return err
 	}
@@ -219,7 +224,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	}
 
 	// create agents configuration
-	agentsConfig := config.Agent(cluster, serviceIP)
+	agentsConfig := agentConfig(cluster, serviceIP)
 	if err := controllerutil.SetControllerReference(cluster, &agentsConfig, c.Scheme); err != nil {
 		return err
 	}
@@ -232,7 +237,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	return nil
 }
 
-func (c *ClusterReconciler) createClusterService(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
+func (c *ClusterReconciler) createClusterService(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server) (string, error) {
 	// create cluster service
 	clusterService := server.Service(cluster)
 
@@ -258,10 +263,13 @@ func (c *ClusterReconciler) createClusterService(ctx context.Context, cluster *v
 	return service.Spec.ClusterIP, nil
 }
 
-func (c *ClusterReconciler) createDeployments(ctx context.Context, cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) createDeployments(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server) error {
 	// create deployment for the init server
 	// the init deployment must have only 1 replica
-	initServerDeployment := server.Server(cluster, true)
+	initServerDeployment, err := server.Deploy(ctx, true)
+	if err != nil {
+		return err
+	}
 
 	if err := controllerutil.SetControllerReference(cluster, initServerDeployment, c.Scheme); err != nil {
 		return err
@@ -274,7 +282,10 @@ func (c *ClusterReconciler) createDeployments(ctx context.Context, cluster *v1al
 	}
 
 	// create deployment for the rest of the servers
-	serversDeployment := server.Server(cluster, false)
+	serversDeployment, err := server.Deploy(ctx, false)
+	if err != nil {
+		return err
+	}
 
 	if err := controllerutil.SetControllerReference(cluster, serversDeployment, c.Scheme); err != nil {
 		return err
@@ -286,7 +297,9 @@ func (c *ClusterReconciler) createDeployments(ctx context.Context, cluster *v1al
 		}
 	}
 
-	agentsDeployment := agent.Agent(cluster)
+	agent := agent.New(cluster)
+
+	agentsDeployment := agent.Deploy()
 	if err := controllerutil.SetControllerReference(cluster, agentsDeployment, c.Scheme); err != nil {
 		return err
 	}
@@ -300,7 +313,7 @@ func (c *ClusterReconciler) createDeployments(ctx context.Context, cluster *v1al
 	return nil
 }
 
-func (c *ClusterReconciler) createStatefulSets(ctx context.Context, cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) createStatefulSets(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server, agent *agent.Agent) error {
 	// create headless service for the init statefulset
 	initServerStatefulService := server.StatefulServerService(cluster, true)
 	if err := controllerutil.SetControllerReference(cluster, initServerStatefulService, c.Scheme); err != nil {
@@ -314,7 +327,7 @@ func (c *ClusterReconciler) createStatefulSets(ctx context.Context, cluster *v1a
 
 	// create statefulsets for the init server
 	// the init statefulset must have only 1 replica
-	initServerStatefulSet := server.StatefulServer(cluster, true)
+	initServerStatefulSet := server.StatefulServer(ctx, cluster, true)
 
 	if err := controllerutil.SetControllerReference(cluster, initServerStatefulSet, c.Scheme); err != nil {
 		return err
@@ -337,7 +350,7 @@ func (c *ClusterReconciler) createStatefulSets(ctx context.Context, cluster *v1a
 			return err
 		}
 	}
-	serversStatefulSet := server.StatefulServer(cluster, false)
+	serversStatefulSet := server.StatefulServer(ctx, cluster, false)
 
 	if err := controllerutil.SetControllerReference(cluster, serversStatefulSet, c.Scheme); err != nil {
 		return err
@@ -373,22 +386,60 @@ func (c *ClusterReconciler) createStatefulSets(ctx context.Context, cluster *v1a
 	return nil
 }
 
-func (c *ClusterReconciler) createCIDRPools(ctx context.Context) error {
-	if err := c.Client.Create(ctx, &v1alpha1.CIDRAllocationPool{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			// return nil since the resource has
-			// already been created
-			return err
+func serverData(serviceIP string, cluster *v1alpha1.Cluster) string {
+	return "cluster-init: true\nserver: https://" + serviceIP + ":6443" + serverOptions(cluster)
+}
+
+func initConfigData(cluster *v1alpha1.Cluster) string {
+	return "cluster-init: true\n" + serverOptions(cluster)
+}
+
+func serverOptions(cluster *v1alpha1.Cluster) string {
+	var opts string
+
+	// TODO: generate token if not found
+	if cluster.Spec.Token != "" {
+		opts = "token: " + cluster.Spec.Token + "\n"
+	}
+	if cluster.Status.ClusterCIDR != "" {
+		opts = opts + "cluster-cidr: " + cluster.Status.ClusterCIDR + "\n"
+	}
+	if cluster.Status.ServiceCIDR != "" {
+		opts = opts + "service-cidr: " + cluster.Status.ServiceCIDR + "\n"
+	}
+	if cluster.Spec.ClusterDNS != "" {
+		opts = opts + "cluster-dns: " + cluster.Spec.ClusterDNS + "\n"
+	}
+	if len(cluster.Spec.TLSSANs) > 0 {
+		opts = opts + "tls-san:\n"
+		for _, addr := range cluster.Spec.TLSSANs {
+			opts = opts + "- " + addr + "\n"
 		}
 	}
+	// TODO: Add extra args to the options
 
-	if err := c.Client.Create(ctx, &v1alpha1.CIDRAllocationPool{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			// return nil since the resource has
-			// already been created
-			return err
-		}
+	return opts
+}
+
+func agentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
+	config := agentData(serviceIP, cluster.Spec.Token)
+
+	return v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "k3k-agent-config",
+			Namespace: util.ClusterNamespace(cluster),
+		},
+		Data: map[string][]byte{
+			"config.yaml": []byte(config),
+		},
 	}
+}
 
-	return nil
+func agentData(serviceIP, token string) string {
+	return fmt.Sprintf(`server: https://%s:6443
+token: %s`, serviceIP, token)
 }

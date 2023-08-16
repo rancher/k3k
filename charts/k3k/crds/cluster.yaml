@@ -43,6 +43,7 @@ spec:
                   type: array
                   items:
                     type: string
+<<<<<<< HEAD
                 persistence:
                   type: object
                   properties:
@@ -53,6 +54,17 @@ spec:
                       type: string
                     storageRequestSize:
                       type: string
+=======
+                addons:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      secretNamespace:
+                        type: string
+                      secretRef:
+                        type: string
+>>>>>>> cfaf9c2 (initial)
                 expose:
                   type: object
                   properties:

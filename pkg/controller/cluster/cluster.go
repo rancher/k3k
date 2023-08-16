@@ -6,6 +6,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
+	"github.com/rancher/k3k/pkg/controller/cluster/config"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
@@ -145,7 +146,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 
 	if cluster.Spec.Expose != nil {
 		if cluster.Spec.Expose.Ingress != nil {
-			serverIngress, err := server.Ingress(ctx, cluster, c.Client)
+			serverIngress, err := server.Ingress(ctx, c.Client)
 			if err != nil {
 				return util.LogAndReturnErr("failed to create ingress object", err)
 			}
@@ -194,7 +195,7 @@ func (c *ClusterReconciler) createNamespace(ctx context.Context, cluster *v1alph
 
 func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
 	// create init node config
-	initServerConfig, err := serverConfig(cluster, true, serviceIP)
+	initServerConfig, err := config.Server(cluster, true, serviceIP)
 	if err != nil {
 		return err
 	}
@@ -210,7 +211,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	}
 
 	// create servers configuration
-	serverConfig, err := serverConfig(cluster, false, serviceIP)
+	serverConfig, err := config.Server(cluster, false, serviceIP)
 	if err != nil {
 		return err
 	}

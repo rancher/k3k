@@ -30,6 +30,9 @@ const (
 	DynamicNodesType     = "dynamic"
 
 	maxConcurrentReconciles = 1
+
+	defaultClusterCIDR        = "10.44.0.0/16"
+	defaultClusterServiceCIDR = "10.45.0.0/16"
 )
 
 type ClusterReconciler struct {
@@ -117,6 +120,16 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 	// create a new namespace for the cluster
 	if err := c.createNamespace(ctx, cluster); err != nil {
 		return util.LogAndReturnErr("failed to create ns", err)
+	}
+
+	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
+	if cluster.Status.ClusterCIDR == "" {
+		cluster.Status.ClusterCIDR = defaultClusterCIDR
+	}
+
+	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
+	if cluster.Status.ServiceCIDR == "" {
+		cluster.Status.ServiceCIDR = defaultClusterServiceCIDR
 	}
 
 	klog.Infof("creating cluster service")

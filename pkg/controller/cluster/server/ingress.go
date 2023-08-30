@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/util"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,40 +17,40 @@ const (
 	nginxSSLRedirectAnnotation     = "nginx.ingress.kubernetes.io/ssl-redirect"
 )
 
-func Ingress(ctx context.Context, cluster *v1alpha1.Cluster, client client.Client) (*networkingv1.Ingress, error) {
+func (s *Server) Ingress(ctx context.Context, client client.Client) (*networkingv1.Ingress, error) {
 	addresses, err := util.Addresses(ctx, client)
 	if err != nil {
 		return nil, err
 	}
 
-	ingressRules := ingressRules(cluster, addresses)
+	ingressRules := s.ingressRules(addresses)
 	ingress := &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Ingress",
 			APIVersion: "networking.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-server-ingress",
-			Namespace: util.ClusterNamespace(cluster),
+			Name:      s.cluster.Name + "-server-ingress",
+			Namespace: util.ClusterNamespace(s.cluster),
 		},
 		Spec: networkingv1.IngressSpec{
-			IngressClassName: &cluster.Spec.Expose.Ingress.IngressClassName,
+			IngressClassName: &s.cluster.Spec.Expose.Ingress.IngressClassName,
 			Rules:            ingressRules,
 		},
 	}
 
-	configureIngressOptions(ingress, cluster.Spec.Expose.Ingress.IngressClassName)
+	configureIngressOptions(ingress, s.cluster.Spec.Expose.Ingress.IngressClassName)
 
 	return ingress, nil
 }
 
-func ingressRules(cluster *v1alpha1.Cluster, addresses []string) []networkingv1.IngressRule {
+func (s *Server) ingressRules(addresses []string) []networkingv1.IngressRule {
 	var ingressRules []networkingv1.IngressRule
 	pathTypePrefix := networkingv1.PathTypePrefix
 
 	for _, address := range addresses {
 		rule := networkingv1.IngressRule{
-			Host: cluster.Name + "." + address + wildcardDNS,
+			Host: s.cluster.Name + "." + address + wildcardDNS,
 			IngressRuleValue: networkingv1.IngressRuleValue{
 				HTTP: &networkingv1.HTTPIngressRuleValue{
 					Paths: []networkingv1.HTTPIngressPath{
@@ -62,7 +61,7 @@ func ingressRules(cluster *v1alpha1.Cluster, addresses []string) []networkingv1.
 								Service: &networkingv1.IngressServiceBackend{
 									Name: "k3k-server-service",
 									Port: networkingv1.ServiceBackendPort{
-										Number: 6443,
+										Number: port,
 									},
 								},
 							},

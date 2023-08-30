@@ -2,10 +2,10 @@ replicaCount: 1
 namespace: k3k-system
 
 image:
-  repository: rancher/k3k
+  repository: briandowns/k3k
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "v0.0.0-alpha6"
+  tag: "dev"
 
 imagePullSecrets: []
 nameOverride: ""

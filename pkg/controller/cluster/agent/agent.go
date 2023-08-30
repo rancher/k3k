@@ -12,39 +12,52 @@ import (
 
 const agentName = "k3k-agent"
 
-func Agent(cluster *v1alpha1.Cluster) *apps.Deployment {
-	image := util.K3SImage(cluster)
+type Agent struct {
+	cluster *v1alpha1.Cluster
+}
+
+func New(cluster *v1alpha1.Cluster) *Agent {
+	return &Agent{
+		cluster: cluster,
+	}
+}
+
+func (a *Agent) Deploy() *apps.Deployment {
+	image := util.K3SImage(a.cluster)
+
+	const name = "k3k-agent"
+
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-" + agentName,
-			Namespace: util.ClusterNamespace(cluster),
+			Name:      a.cluster.Name + "-" + name,
+			Namespace: util.ClusterNamespace(a.cluster),
 		},
 		Spec: apps.DeploymentSpec{
-			Replicas: cluster.Spec.Agents,
+			Replicas: a.cluster.Spec.Agents,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"cluster": cluster.Name,
+					"cluster": a.cluster.Name,
 					"type":    "agent",
 				},
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"cluster": cluster.Name,
+						"cluster": a.cluster.Name,
 						"type":    "agent",
 					},
 				},
-				Spec: agentPodSpec(image, agentName, cluster.Spec.AgentArgs, false),
+				Spec: a.podSpec(image, name, a.cluster.Spec.AgentArgs, false),
 			},
 		},
 	}
 }
 
-func StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
+func (a *Agent) StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 	image := util.K3SImage(cluster)
 
 	return &apps.StatefulSet{
@@ -112,13 +125,13 @@ func StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 						"type":    "agent",
 					},
 				},
-				Spec: agentPodSpec(image, agentName, cluster.Spec.AgentArgs, true),
+				Spec: a.podSpec(image, agentName, cluster.Spec.AgentArgs, true),
 			},
 		},
 	}
 }
 
-func agentPodSpec(image, name string, args []string, statefulSet bool) v1.PodSpec {
+func (a *Agent) podSpec(image, name string, args []string, statefulSet bool) v1.PodSpec {
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 	podSpec := v1.PodSpec{
 		Volumes: []v1.Volume{
@@ -212,9 +225,9 @@ func agentPodSpec(image, name string, args []string, statefulSet bool) v1.PodSpe
 			},
 		},
 	}
+
 	if !statefulSet {
 		podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
-
 			Name: "varlibkubelet",
 			VolumeSource: v1.VolumeSource{
 				EmptyDir: &v1.EmptyDirVolumeSource{},
@@ -228,5 +241,6 @@ func agentPodSpec(image, name string, args []string, statefulSet bool) v1.PodSpe
 		},
 		)
 	}
+
 	return podSpec
 }

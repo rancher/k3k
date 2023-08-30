@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func StatefulAgentService(cluster *v1alpha1.Cluster) *v1.Service {
+func (a *Agent) StatefulAgentService(cluster *v1alpha1.Cluster) *v1.Service {
 	return &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",

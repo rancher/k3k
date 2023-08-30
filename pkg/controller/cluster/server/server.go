@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -9,27 +11,108 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	serverName     = "k3k-server"
-	initServerName = "k3k-init-server"
+	serverName         = "k3k-"
+	k3kSystemNamespace = serverName + "system"
+	initServerName     = serverName + "init-server"
 )
 
-func Server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
-	var replicas int32
-	image := util.K3SImage(cluster)
+// Server
+type Server struct {
+	cluster *v1alpha1.Cluster
+	client  client.Client
+}
 
-	name := serverName
+func New(cluster *v1alpha1.Cluster, client client.Client) *Server {
+	return &Server{
+		cluster: cluster,
+		client:  client,
+	}
+}
+
+func (s *Server) Deploy(ctx context.Context, init bool) (*apps.Deployment, error) {
+	var replicas int32
+	image := util.K3SImage(s.cluster)
+
+	name := serverName + "server"
 	if init {
-		name = initServerName
+		name = serverName + "init-server"
 	}
 
-	replicas = *cluster.Spec.Servers - 1
+	replicas = *s.cluster.Spec.Servers - 1
 	if init {
 		replicas = 1
 	}
+
+	var volumes []v1.Volume
+	var volumeMounts []v1.VolumeMount
+
+	for _, addon := range s.cluster.Spec.Addons {
+		namespace := k3kSystemNamespace
+		if addon.SecretNamespace != "" {
+			namespace = addon.SecretNamespace
+		}
+
+		nn := types.NamespacedName{
+			Name:      addon.SecretRef,
+			Namespace: namespace,
+		}
+
+		var addons v1.Secret
+		if err := s.client.Get(ctx, nn, &addons); err != nil {
+			return nil, err
+		}
+
+		clusterAddons := v1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      addons.Name,
+				Namespace: util.ClusterNamespace(s.cluster),
+			},
+			Data: make(map[string][]byte, len(addons.Data)),
+		}
+		for k, v := range addons.Data {
+			clusterAddons.Data[k] = v
+		}
+
+		if err := s.client.Create(ctx, &clusterAddons); err != nil {
+			return nil, err
+		}
+
+		name := "varlibrancherk3smanifests" + addon.SecretRef
+		volume := v1.Volume{
+			Name: name,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: addon.SecretRef,
+				},
+			},
+		}
+		volumes = append(volumes, volume)
+
+		volumeMount := v1.VolumeMount{
+			Name:      name,
+			MountPath: "/var/lib/rancher/k3s/server/manifests/" + addon.SecretRef,
+			// changes to this part of the filesystem shouldn't be done manually. The secret should be updated instead.
+			ReadOnly: true,
+		}
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+
+	podSpec := s.podSpec(ctx, image, name, false)
+
+	podSpec.Volumes = append(podSpec.Volumes, volumes...)
+	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
+
+	fmt.Printf("XXX - Pod Spec\n %#v\n", podSpec)
 
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -37,14 +120,14 @@ func Server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-" + name,
-			Namespace: util.ClusterNamespace(cluster),
+			Name:      s.cluster.Name + "-" + name,
+			Namespace: util.ClusterNamespace(s.cluster),
 		},
 		Spec: apps.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"cluster": cluster.Name,
+					"cluster": s.cluster.Name,
 					"role":    "server",
 					"init":    strconv.FormatBool(init),
 				},
@@ -52,19 +135,20 @@ func Server(cluster *v1alpha1.Cluster, init bool) *apps.Deployment {
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"cluster": cluster.Name,
+						"cluster": s.cluster.Name,
 						"role":    "server",
 						"init":    strconv.FormatBool(init),
 					},
 				},
-				Spec: serverPodSpec(image, name, cluster.Spec.ServerArgs, false),
+				Spec: podSpec,
 			},
 		},
-	}
+	}, nil
 }
 
-func serverPodSpec(image, name string, args []string, statefulSet bool) v1.PodSpec {
-	args = append([]string{"server", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
+func (s *Server) podSpec(ctx context.Context, image, name string, statefulSet bool) v1.PodSpec {
+	args := append([]string{"server", "--config", "/opt/rancher/k3s/config.yaml"}, s.cluster.Spec.ServerArgs...)
+
 	podSpec := v1.PodSpec{
 		Volumes: []v1.Volume{
 			{
@@ -157,6 +241,7 @@ func serverPodSpec(image, name string, args []string, statefulSet bool) v1.PodSp
 			},
 		},
 	}
+
 	if !statefulSet {
 		podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
 
@@ -176,7 +261,7 @@ func serverPodSpec(image, name string, args []string, statefulSet bool) v1.PodSp
 	return podSpec
 }
 
-func StatefulServer(cluster *v1alpha1.Cluster, init bool) *apps.StatefulSet {
+func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster, init bool) *apps.StatefulSet {
 	var replicas int32
 	image := util.K3SImage(cluster)
 
@@ -257,7 +342,7 @@ func StatefulServer(cluster *v1alpha1.Cluster, init bool) *apps.StatefulSet {
 						"init":    strconv.FormatBool(init),
 					},
 				},
-				Spec: serverPodSpec(image, name, cluster.Spec.ServerArgs, true),
+				Spec: s.podSpec(ctx, image, name, true),
 			},
 		},
 	}

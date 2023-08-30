@@ -12,7 +12,6 @@ import (
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,8 +43,8 @@ type content struct {
 // 2- generate client admin cert/key
 // 3- use the ca cert from the bootstrap data & admin cert/key to write a new kubeconfig
 // 4- save the new kubeconfig as a secret
-func GenerateNewKubeConfig(ctx context.Context, cluster *v1alpha1.Cluster, ip string) (*v1.Secret, error) {
-	token := cluster.Spec.Token
+func (s *Server) GenerateNewKubeConfig(ctx context.Context, ip string) (*v1.Secret, error) {
+	token := s.cluster.Spec.Token
 
 	var bootstrap *controlRuntimeBootstrap
 	if err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
@@ -83,8 +82,8 @@ func GenerateNewKubeConfig(ctx context.Context, cluster *v1alpha1.Cluster, ip st
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-kubeconfig",
-			Namespace: util.ClusterNamespace(cluster),
+			Name:      s.cluster.Name + "-kubeconfig",
+			Namespace: util.ClusterNamespace(s.cluster),
 		},
 		Data: map[string][]byte{
 			"kubeconfig.yaml": kubeconfigData,

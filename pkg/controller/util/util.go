@@ -14,6 +14,10 @@ const (
 	k3SImageName    = "rancher/k3s"
 )
 
+const (
+	K3kSystemNamespace = namespacePrefix + "system"
+)
+
 func ClusterNamespace(cluster *v1alpha1.Cluster) string {
 	return namespacePrefix + cluster.Name
 }
@@ -22,7 +26,7 @@ func K3SImage(cluster *v1alpha1.Cluster) string {
 	return k3SImageName + ":" + cluster.Spec.Version
 }
 
-func WrapErr(errString string, err error) error {
+func LogAndReturnErr(errString string, err error) error {
 	klog.Errorf("%s: %v", errString, err)
 	return err
 }

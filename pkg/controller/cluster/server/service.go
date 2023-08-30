@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func Service(cluster *v1alpha1.Cluster) *v1.Service {
+func (s *Server) Service(cluster *v1alpha1.Cluster) *v1.Service {
 	serviceType := v1.ServiceTypeClusterIP
 	if cluster.Spec.Expose != nil {
 		if cluster.Spec.Expose.NodePort != nil {
@@ -38,14 +38,14 @@ func Service(cluster *v1alpha1.Cluster) *v1.Service {
 				{
 					Name:     "k3s-server-port",
 					Protocol: v1.ProtocolTCP,
-					Port:     6443,
+					Port:     port,
 				},
 			},
 		},
 	}
 }
 
-func StatefulServerService(cluster *v1alpha1.Cluster, init bool) *v1.Service {
+func (s *Server) StatefulServerService(cluster *v1alpha1.Cluster, init bool) *v1.Service {
 	name := serverName
 	if init {
 		name = initServerName

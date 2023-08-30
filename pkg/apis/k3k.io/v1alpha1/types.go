@@ -27,9 +27,15 @@ type ClusterSpec struct {
 	ServerArgs  []string `json:"serverArgs,omitempty"`
 	AgentArgs   []string `json:"agentArgs,omitempty"`
 	TLSSANs     []string `json:"tlsSANs,omitempty"`
+	Addons      []Addon  `json:"addons,omitempty"`
 
 	Persistence *PersistenceConfig `json:"persistence,omitempty"`
 	Expose      *ExposeConfig      `json:"expose,omitempty"`
+}
+
+type Addon struct {
+	SecretNamespace string `json:"secretNamespace,omitempty"`
+	SecretRef       string `json:"secretRef,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -71,37 +77,4 @@ type ClusterStatus struct {
 	ClusterCIDR string `json:"clusterCIDR,omitempty"`
 	ServiceCIDR string `json:"serviceCIDR,omitempty"`
 	ClusterDNS  string `json:"clusterDNS,omitempty"`
-}
-
-type Allocation struct {
-	ClusterName string `json:"clusterName"`
-	Issued      int64  `json:"issued"`
-	IPNet       string `json:"ipNet"`
-}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-type CIDRAllocationPool struct {
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	metav1.TypeMeta   `json:",inline"`
-
-	Spec   CIDRAllocationPoolSpec   `json:"spec"`
-	Status CIDRAllocationPoolStatus `json:"status"`
-}
-
-type CIDRAllocationPoolSpec struct {
-	DefaultClusterCIDR string `json:"defaultClusterCIDR"`
-}
-
-type CIDRAllocationPoolStatus struct {
-	Pool []Allocation `json:"pool"`
-}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-type CIDRAllocationPoolList struct {
-	metav1.ListMeta `json:"metadata,omitempty"`
-	metav1.TypeMeta `json:",inline"`
-
-	Items []CIDRAllocationPool `json:"items"`
 }

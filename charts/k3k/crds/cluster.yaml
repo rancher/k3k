@@ -53,6 +53,15 @@ spec:
                       type: string
                     storageRequestSize:
                       type: string
+                addons:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      secretNamespace:
+                        type: string
+                      secretRef:
+                        type: string
                 expose:
                   type: object
                   properties:

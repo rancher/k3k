@@ -45,10 +45,38 @@ helm delete my-k3k
 
 To create a new cluster you need to install and run the cli or create a cluster object, to install the cli:
 
-```sh
-wget https://github.com/rancher/k3k/releases/download/v0.0.0-alpha6/k3kcli
+#### For linux and macOS
+
+1 - Donwload the binary, linux dowload url:
+```
+wget https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli
+```
+macOS dowload url:
+```
+wget https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli
+```
+Then copy to local bin
+```
 chmod +x k3kcli
 sudo cp k3kcli /usr/local/bin
+```
+
+#### For Windows 
+
+1 - Download the Binary:
+Use PowerShell's Invoke-WebRequest cmdlet to download the binary:
+```powershel
+Invoke-WebRequest -Uri "https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli-windows" -OutFile "k3kcli.exe"
+```
+2 - Copy the Binary to a Directory in PATH:
+To allow running the binary from any command prompt, you can copy it to a directory in your system's PATH. For example, copying it to C:\Users\<YourUsername>\bin (create this directory if it doesn't exist):
+```
+Copy-Item "k3kcli.exe" "C:\bin"
+```
+3 - Update Environment Variable (PATH):
+If you haven't already added `C:\bin` (or your chosen directory) to your PATH, you can do it through PowerShell:
+```
+setx PATH "C:\bin;%PATH%"
 ```
 
 To create a new cluster you can use:

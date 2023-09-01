@@ -8,11 +8,45 @@ An example on creating a k3k cluster on an RKE2 host using k3kcli
 
 [![asciicast](https://asciinema.org/a/eYlc3dsL2pfP2B50i3Ea8MJJp.svg)](https://asciinema.org/a/eYlc3dsL2pfP2B50i3Ea8MJJp)
 
-## Usage
+## Architecture
 
 K3K consists of a controller and a cli tool, the controller can be deployed via a helm chart and the cli can be downloaded from the releases page.
 
-### Deploy Controller
+### Controller
+
+The K3K controller will watch a CRD called `clusters.k3k.io` Once found, the controller will create a separate namespace and it will create a K3S cluster as specified in the spec of the object.
+
+Each server and agent is created as a separate pod that runs in that namespace.
+
+### CLI
+
+The CLI will provide a quick way to create K3K clusters using simple flags. The CLI automatically exposes the K3K clusters so it's accessible via a kubeconfig.
+
+## Features
+
+### Isolation
+
+Each cluster runs in a sperate namespace that can be isolated via netowrk policies and RBAC rules, clusters also run in a sperate network namespace with flannel as the backend CNI, finally each cluster has a separate datastore which can be persisted.
+
+### Protability and Customization
+
+Cluster object is considered the template of the cluster where you can re-use to spin up multiple clusters in matter of seconds.
+
+K3K clusters use k3s internally and leverage all options that can be passed to k3s, each cluster is exposed to the host cluster via NodePort, LoadBalancers, and Ingresses.
+
+
+|                       | Separate Namespace  (for each tenant) | K3K                          | vcluster        | Separate Cluster (for each tenant) |
+|-----------------------|---------------------------------------|------------------------------|-----------------|------------------------------------|
+| Isolation             | Very weak                             | Very strong                  | strong          | Very strong                        |
+| Access for tenants    | Very restricted                       | Built-in k8s RBAC / Rancher  | Vclustser admin | Cluster admin                      |
+| Cost                  | Very cheap                            | Very cheap                   | cheap           | expensive                          |
+| Overhead              | Very low                              | Very low                     | Very low        | Very high                          |
+| Networking            | Shared                                | Separate                     | shared          | separate                           |
+| Cluster Configuration |                                       | Very easy                    | Very hard       |                                    |
+
+## Usage
+
+### Deploy K3K Controller
 
 [Helm](https://helm.sh) must be installed to use the charts.  Please refer to
 Helm's [documentation](https://helm.sh/docs) to get started.

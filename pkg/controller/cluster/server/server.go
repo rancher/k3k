@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -12,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -20,6 +20,8 @@ const (
 	serverName         = "k3k-"
 	k3kSystemNamespace = serverName + "system"
 	initServerName     = serverName + "init-server"
+	initContainerName  = serverName + "server-check"
+	initContainerImage = "alpine/curl"
 )
 
 // Server
@@ -107,12 +109,10 @@ func (s *Server) Deploy(ctx context.Context, init bool) (*apps.Deployment, error
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
-	podSpec := s.podSpec(ctx, image, name, false)
+	podSpec := s.podSpec(ctx, image, name, false, init)
 
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
-
-	fmt.Printf("XXX - Pod Spec\n %#v\n", podSpec)
 
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -146,7 +146,7 @@ func (s *Server) Deploy(ctx context.Context, init bool) (*apps.Deployment, error
 	}, nil
 }
 
-func (s *Server) podSpec(ctx context.Context, image, name string, statefulSet bool) v1.PodSpec {
+func (s *Server) podSpec(ctx context.Context, image, name string, statefulSet, init bool) v1.PodSpec {
 	args := append([]string{"server", "--config", "/opt/rancher/k3s/config.yaml"}, s.cluster.Spec.ServerArgs...)
 
 	podSpec := v1.PodSpec{
@@ -258,6 +258,33 @@ func (s *Server) podSpec(ctx context.Context, image, name string, statefulSet bo
 		},
 		)
 	}
+
+	// Adding readiness probes to deployment
+	podSpec.Containers[0].ReadinessProbe = &v1.Probe{
+		InitialDelaySeconds: 60,
+		FailureThreshold:    5,
+		TimeoutSeconds:      10,
+		ProbeHandler: v1.ProbeHandler{
+			TCPSocket: &v1.TCPSocketAction{
+				Port: intstr.FromInt(6443),
+				Host: "127.0.0.1",
+			},
+		},
+	}
+
+	if !init {
+		podSpec.InitContainers = []v1.Container{
+			{
+				Name:  initContainerName,
+				Image: initContainerImage,
+				Command: []string{
+					"sh",
+					"-c",
+					"until curl -qk https://k3k-server-service.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local:6443/v1-k3s/readyz; do echo waiting for init server to be up; sleep 2; done",
+				},
+			},
+		}
+	}
 	return podSpec
 }
 
@@ -342,7 +369,7 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster, 
 						"init":    strconv.FormatBool(init),
 					},
 				},
-				Spec: s.podSpec(ctx, image, name, true),
+				Spec: s.podSpec(ctx, image, name, true, init),
 			},
 		},
 	}

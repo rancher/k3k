@@ -14,25 +14,27 @@ K3K consists of a controller and a cli tool, the controller can be deployed via 
 
 ### Controller
 
-The K3K controller will watch a CRD called `clusters.k3k.io` Once found, the controller will create a separate namespace and it will create a K3S cluster as specified in the spec of the object.
+The K3K controller will watch a CRD called `clusters.k3k.io`. Once found, the controller will create a separate namespace and it will create a K3S cluster as specified in the spec of the object.
 
-Each server and agent is created as a separate pod that runs in that namespace.
+Each server and agent is created as a separate pod that runs in the new namespace.
 
 ### CLI
 
-The CLI will provide a quick way to create K3K clusters using simple flags. The CLI automatically exposes the K3K clusters so it's accessible via a kubeconfig.
+The CLI provides a quick and easy way to create K3K clusters using simple flags, and automatically exposes the K3K clusters so it's accessible via a kubeconfig.
 
 ## Features
 
 ### Isolation
 
-Each cluster runs in a sperate namespace that can be isolated via netowrk policies and RBAC rules, clusters also run in a sperate network namespace with flannel as the backend CNI, finally each cluster has a separate datastore which can be persisted.
+Each cluster runs in a sperate namespace that can be isolated via netowrk policies and RBAC rules, clusters also run in a sperate network namespace with flannel as the backend CNI. Finally, each cluster has a separate datastore which can be persisted.
 
-### Protability and Customization
+In addition, k3k offers a persistence feature that can help users to persist their datatstore, using dynamic storage class volumes.
 
-Cluster object is considered the template of the cluster where you can re-use to spin up multiple clusters in matter of seconds.
+### Portability and Customization
 
-K3K clusters use k3s internally and leverage all options that can be passed to k3s, each cluster is exposed to the host cluster via NodePort, LoadBalancers, and Ingresses.
+The "Cluster" object is considered the template of the cluster that you can re-use to spin up multiple clusters in a matter of seconds.
+
+K3K clusters use K3S internally and leverage all options that can be passed to K3S. Each cluster is exposed to the host cluster via NodePort, LoadBalancers, and Ingresses.
 
 
 |                       | Separate Namespace  (for each tenant) | K3K                          | vcluster        | Separate Cluster (for each tenant) |

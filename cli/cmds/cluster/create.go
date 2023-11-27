@@ -34,7 +34,7 @@ var (
 	Scheme  = runtime.NewScheme()
 	backoff = wait.Backoff{
 		Steps:    5,
-		Duration: 3 * time.Second,
+		Duration: 10 * time.Second,
 		Factor:   2,
 		Jitter:   0.1,
 	}
@@ -177,6 +177,7 @@ func createCluster(clx *cli.Context) error {
 	if err := retry.OnError(backoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = extractKubeconfig(ctx, ctrlClient, cluster, host[0])
 		if err != nil {
+			logrus.Infof("waiting for cluster to be available: %v", err)
 			return err
 		}
 		return nil

@@ -1,8 +1,6 @@
 package server
 
 import (
-	"strconv"
-
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
@@ -45,11 +43,8 @@ func (s *Server) Service(cluster *v1alpha1.Cluster) *v1.Service {
 	}
 }
 
-func (s *Server) StatefulServerService(cluster *v1alpha1.Cluster, init bool) *v1.Service {
+func (s *Server) StatefulServerService(cluster *v1alpha1.Cluster) *v1.Service {
 	name := serverName
-	if init {
-		name = initServerName
-	}
 	return &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
@@ -65,7 +60,6 @@ func (s *Server) StatefulServerService(cluster *v1alpha1.Cluster, init bool) *v1
 			Selector: map[string]string{
 				"cluster": cluster.Name,
 				"role":    "server",
-				"init":    strconv.FormatBool(init),
 			},
 			Ports: []v1.ServicePort{
 				{

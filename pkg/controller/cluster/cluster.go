@@ -274,12 +274,12 @@ func (c *ClusterReconciler) createClusterService(ctx context.Context, cluster *v
 }
 
 func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server) error {
-	// create headless service for the init statefulset
-	ServerStatefulService := server.StatefulServerService(cluster)
-	if err := controllerutil.SetControllerReference(cluster, ServerStatefulService, c.Scheme); err != nil {
+	// create headless service for the statefulset
+	serverStatefulService := server.StatefulServerService(cluster)
+	if err := controllerutil.SetControllerReference(cluster, serverStatefulService, c.Scheme); err != nil {
 		return err
 	}
-	if err := c.Client.Create(ctx, ServerStatefulService); err != nil {
+	if err := c.Client.Create(ctx, serverStatefulService); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}

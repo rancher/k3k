@@ -8,7 +8,7 @@ platform:
 
 steps:
 - name: build
-  image: rancher/dapper:v0.5.0
+  image: rancher/dapper:v0.6.0
   environment:
     CROSS: 'true'
     GITHUB_TOKEN:
@@ -25,7 +25,7 @@ steps:
       - k3k-chart
 
 - name: package-chart
-  image: rancher/dapper:v0.5.0
+  image: rancher/dapper:v0.6.0
   environment:
     GITHUB_TOKEN:
       from_secret: github_token
@@ -41,7 +41,7 @@ steps:
     - drone-publish.rancher.io
 
 - name: release-chart
-  image: rancher/dapper:v0.5.0
+  image: rancher/dapper:v0.6.0
   environment:
     GITHUB_TOKEN:
       from_secret: github_token
@@ -57,7 +57,7 @@ steps:
     - drone-publish.rancher.io
 
 - name: github_binary_release
-  image: ibuildthecloud/github-release:v0.0.1
+  image: plugins/github-release
   settings:
     api_key:
       from_secret: github_token

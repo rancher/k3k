@@ -375,18 +375,3 @@ func agentData(serviceIP, token string) string {
 	return fmt.Sprintf(`server: https://%s:6443
 token: %s`, serviceIP, token)
 }
-
-// func serverNamesConfig(cluster *v1alpha1.Cluster) v1.ConfigMap {
-// 	servers := cluster.Replicas
-// 	return v1.ConfigMap{
-// 		TypeMeta: metav1.TypeMeta{
-// 			Kind:       "Secret",
-// 			APIVersion: "v1",
-// 		},
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:      "k3k-agent-config",
-// 			Namespace: util.ClusterNamespace(cluster),
-// 		},
-// 		Data: map[string]string{},
-// 	}
-// }

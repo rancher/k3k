@@ -13,6 +13,12 @@ func Server(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret,
 		name = "k3k-init-server-config"
 	}
 
+	cluster.Spec.TLSSANs = append(cluster.Spec.TLSSANs,
+		serviceIP,
+		"k3k-server-service",
+		"k3k-server-service."+util.ClusterNamespace(cluster),
+	)
+
 	config := serverConfigData(serviceIP, cluster)
 	if init {
 		config = initConfigData(cluster)

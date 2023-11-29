@@ -2,17 +2,30 @@ package cluster
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
+	"net/url"
+	"strings"
+	"time"
 
+	certutil "github.com/rancher/dynamiclistener/cert"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/config"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/util"
+	"github.com/sirupsen/logrus"
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -26,11 +39,13 @@ import (
 const (
 	clusterController    = "k3k-cluster-controller"
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
+	etcdPodFinalizerName = "etcdpod.k3k.io/finalizer"
 
 	maxConcurrentReconciles = 1
 
 	defaultClusterCIDR        = "10.44.0.0/16"
 	defaultClusterServiceCIDR = "10.45.0.0/16"
+	memberRemovalTimeout      = time.Minute * 1
 )
 
 type ClusterReconciler struct {
@@ -56,11 +71,35 @@ func Add(ctx context.Context, mgr manager.Manager) error {
 		return err
 	}
 
-	return controller.Watch(&source.Kind{Type: &v1alpha1.Cluster{}}, &handler.EnqueueRequestForObject{})
+	if err := controller.Watch(&source.Kind{Type: &v1alpha1.Cluster{}}, &handler.EnqueueRequestForObject{}); err != nil {
+		return err
+	}
+	return controller.Watch(&source.Kind{Type: &v1.Pod{}},
+		&handler.EnqueueRequestForOwner{IsController: true, OwnerType: &apps.StatefulSet{}})
 }
 
 func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	var cluster v1alpha1.Cluster
+
+	var (
+		cluster v1alpha1.Cluster
+		podList v1.PodList
+	)
+	if req.Namespace != "" {
+		matchingLabels := client.MatchingLabels(map[string]string{"role": "server"})
+		listOpts := &client.ListOptions{Namespace: req.Namespace}
+		matchingLabels.ApplyToList(listOpts)
+
+		if err := c.Client.List(ctx, &podList, listOpts); err != nil {
+			return reconcile.Result{}, client.IgnoreNotFound(err)
+		}
+		for _, pod := range podList.Items {
+			if err := c.handleServerPod(ctx, &pod); err != nil {
+				return reconcile.Result{}, util.LogAndReturnErr("failed to handle etcd pod", err)
+			}
+		}
+
+		return reconcile.Result{}, nil
+	}
 
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
@@ -70,7 +109,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		if !controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
 			controllerutil.AddFinalizer(&cluster, clusterFinalizerName)
 			if err := c.Client.Update(ctx, &cluster); err != nil {
-				return reconcile.Result{}, err
+				return reconcile.Result{}, util.LogAndReturnErr("failed to add cluster finalizer", err)
 			}
 		}
 
@@ -86,15 +125,34 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 
 		klog.Infof("enqueue cluster [%s]", cluster.Name)
+		if err := c.createCluster(ctx, &cluster); err != nil {
+			return reconcile.Result{}, util.LogAndReturnErr("failed to create cluster", err)
+		}
+		return reconcile.Result{}, nil
+	}
 
-		return reconcile.Result{}, c.createCluster(ctx, &cluster)
+	// remove finalizer from the server pods and update them.
+	matchingLabels := client.MatchingLabels(map[string]string{"role": "server"})
+	listOpts := &client.ListOptions{Namespace: util.ClusterNamespace(&cluster)}
+	matchingLabels.ApplyToList(listOpts)
+
+	if err := c.Client.List(ctx, &podList, listOpts); err != nil {
+		return reconcile.Result{}, client.IgnoreNotFound(err)
+	}
+	for _, pod := range podList.Items {
+		if controllerutil.ContainsFinalizer(&pod, etcdPodFinalizerName) {
+			controllerutil.RemoveFinalizer(&pod, etcdPodFinalizerName)
+			if err := c.Client.Update(ctx, &pod); err != nil {
+				return reconcile.Result{}, util.LogAndReturnErr("failed to remove etcd finalizer", err)
+			}
+		}
 	}
 
 	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
-		// remove our finalizer from the list and update it.
+		// remove finalizer from the cluster and update it.
 		controllerutil.RemoveFinalizer(&cluster, clusterFinalizerName)
 		if err := c.Client.Update(ctx, &cluster); err != nil {
-			return reconcile.Result{}, err
+			return reconcile.Result{}, util.LogAndReturnErr("failed to remove cluster finalizer", err)
 		}
 	}
 	klog.Infof("deleting cluster [%s]", cluster.Name)
@@ -374,4 +432,133 @@ func agentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
 func agentData(serviceIP, token string) string {
 	return fmt.Sprintf(`server: https://%s:6443
 token: %s`, serviceIP, token)
+}
+
+func (c *ClusterReconciler) handleServerPod(ctx context.Context, pod *v1.Pod) error {
+	if pod.Labels["role"] != "server" {
+		return nil
+	}
+	// get Cluster object
+	clusterName := pod.Labels["cluster"]
+	var cluster v1alpha1.Cluster
+	if err := c.Client.Get(ctx, types.NamespacedName{Name: clusterName}, &cluster); err != nil {
+		return err
+	}
+	if *cluster.Spec.Servers <= 1 {
+		return nil
+	}
+	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
+	if !pod.DeletionTimestamp.IsZero() {
+		if cluster.Spec.Persistence.Type != server.EphermalNodesType {
+			if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
+				controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
+				if err := c.Client.Update(ctx, pod); err != nil {
+					return err
+				}
+			}
+		}
+		tlsConfig, err := c.getETCDTLS(&cluster)
+		if err != nil {
+			return err
+		}
+		// remove server from etcd
+		client, err := clientv3.New(clientv3.Config{
+			Endpoints: []string{
+				"https://k3k-server-service." + pod.Namespace + ":2379",
+			},
+			TLS: tlsConfig,
+		})
+		if err != nil {
+			return err
+		}
+
+		if err := removePeer(ctx, client, pod.Name, pod.Status.PodIP); err != nil {
+			return err
+		}
+		// remove our finalizer from the list and update it.
+		if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
+			controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
+			if err := c.Client.Update(ctx, pod); err != nil {
+				return err
+			}
+		}
+	}
+	if !controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
+		controllerutil.AddFinalizer(pod, etcdPodFinalizerName)
+		return c.Client.Update(ctx, pod)
+	}
+
+	return nil
+}
+
+// removePeer removes a peer from the cluster. The peer name and IP address must both match.
+func removePeer(ctx context.Context, client *clientv3.Client, name, address string) error {
+	ctx, cancel := context.WithTimeout(ctx, memberRemovalTimeout)
+	defer cancel()
+	members, err := client.MemberList(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, member := range members.Members {
+		if !strings.Contains(member.Name, name) {
+			continue
+		}
+		for _, peerURL := range member.PeerURLs {
+			u, err := url.Parse(peerURL)
+			if err != nil {
+				return err
+			}
+			if u.Hostname() == address {
+				logrus.Infof("Removing name=%s id=%d address=%s from etcd", member.Name, member.ID, address)
+				_, err := client.MemberRemove(ctx, member.ID)
+				if errors.Is(err, rpctypes.ErrGRPCMemberNotFound) {
+					return nil
+				}
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *ClusterReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, error) {
+	token := cluster.Spec.Token
+	endpoint := "k3k-server-service." + util.ClusterNamespace(cluster)
+	var bootstrap *server.ControlRuntimeBootstrap
+	if err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+		return true
+	}, func() error {
+		var err error
+		bootstrap, err = server.DecodedBootstrap(token, endpoint)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+
+	etcdCert, etcdKey, err := server.CreateClientCertKey(
+		"etcd-client", nil,
+		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		bootstrap.ETCDServerCA.Content,
+		bootstrap.ETCDServerCAKey.Content)
+	if err != nil {
+		return nil, err
+	}
+	clientCert, err := tls.X509KeyPair(etcdCert, etcdKey)
+	if err != nil {
+		return nil, err
+	}
+	// create rootCA CertPool
+	cert, err := certutil.ParseCertsPEM([]byte(bootstrap.ETCDServerCA.Content))
+	if err != nil {
+		return nil, err
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(cert[0])
+
+	return &tls.Config{
+		RootCAs:      pool,
+		Certificates: []tls.Certificate{clientCert},
+	}, nil
 }

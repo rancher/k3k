@@ -444,9 +444,10 @@ func (c *ClusterReconciler) handleServerPod(ctx context.Context, pod *v1.Pod) er
 	if err := c.Client.Get(ctx, types.NamespacedName{Name: clusterName}, &cluster); err != nil {
 		return err
 	}
-	if *cluster.Spec.Servers <= 1 {
+	if *cluster.Spec.Servers == 1 {
 		return nil
 	}
+
 	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
 	if !pod.DeletionTimestamp.IsZero() {
 		if cluster.Spec.Persistence.Type != server.EphermalNodesType {

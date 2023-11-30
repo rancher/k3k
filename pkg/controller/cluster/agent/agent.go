@@ -90,10 +90,10 @@ func (a *Agent) StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 					},
 					Spec: v1.PersistentVolumeClaimSpec{
 						AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-						StorageClassName: &cluster.Spec.Persistence.StorageClassName,
+						StorageClassName: &cluster.Status.Persistence.StorageClassName,
 						Resources: v1.ResourceRequirements{
 							Requests: v1.ResourceList{
-								"storage": resource.MustParse(cluster.Spec.Persistence.StorageRequestSize),
+								"storage": resource.MustParse(cluster.Status.Persistence.StorageRequestSize),
 							},
 						},
 					},
@@ -110,11 +110,11 @@ func (a *Agent) StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 					Spec: v1.PersistentVolumeClaimSpec{
 						Resources: v1.ResourceRequirements{
 							Requests: v1.ResourceList{
-								"storage": resource.MustParse(cluster.Spec.Persistence.StorageRequestSize),
+								"storage": resource.MustParse(cluster.Status.Persistence.StorageRequestSize),
 							},
 						},
 						AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-						StorageClassName: &cluster.Spec.Persistence.StorageClassName,
+						StorageClassName: &cluster.Status.Persistence.StorageClassName,
 					},
 				},
 			},

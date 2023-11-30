@@ -81,10 +81,25 @@ func Add(ctx context.Context, mgr manager.Manager) error {
 func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 
 	var (
-		cluster v1alpha1.Cluster
-		podList v1.PodList
+		cluster     v1alpha1.Cluster
+		podList     v1.PodList
+		clusterName string
 	)
 	if req.Namespace != "" {
+		s := strings.Split(req.Namespace, "-")
+		if len(s) <= 1 {
+			return reconcile.Result{}, util.LogAndReturnErr("failed to get cluster namespace", nil)
+		}
+
+		clusterName = s[1]
+		var cluster v1alpha1.Cluster
+		if err := c.Client.Get(ctx, types.NamespacedName{Name: clusterName}, &cluster); err != nil {
+			return reconcile.Result{}, util.LogAndReturnErr("failed to get cluster object", err)
+		}
+		if *cluster.Spec.Servers == 1 {
+			klog.Infof("skipping request for etcd pod for cluster [%s] since it is not in HA mode", clusterName)
+			return reconcile.Result{}, nil
+		}
 		matchingLabels := client.MatchingLabels(map[string]string{"role": "server"})
 		listOpts := &client.ListOptions{Namespace: req.Namespace}
 		matchingLabels.ApplyToList(listOpts)
@@ -93,7 +108,8 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			return reconcile.Result{}, client.IgnoreNotFound(err)
 		}
 		for _, pod := range podList.Items {
-			if err := c.handleServerPod(ctx, &pod); err != nil {
+			klog.Infof("Handle etcd server pod [%s/%s]", pod.Namespace, pod.Name)
+			if err := c.handleServerPod(ctx, cluster, &pod); err != nil {
 				return reconcile.Result{}, util.LogAndReturnErr("failed to handle etcd pod", err)
 			}
 		}
@@ -163,10 +179,11 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
 	s := server.New(cluster, c.Client)
 
-	if cluster.Spec.Persistence == nil {
-		// default to ephermal nodes
-		cluster.Spec.Persistence = &v1alpha1.PersistenceConfig{
-			Type: server.EphermalNodesType,
+	if cluster.Spec.Persistence != nil {
+		cluster.Status.Persistence = cluster.Spec.Persistence
+		if cluster.Spec.Persistence.StorageRequestSize == "" {
+			// default to 1G of request size
+			cluster.Status.Persistence.StorageRequestSize = "1G"
 		}
 	}
 	if err := c.Client.Update(ctx, cluster); err != nil {
@@ -198,11 +215,6 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 	}
 
 	// creating statefulsets in case the user chose a persistence type other than ephermal
-
-	if cluster.Spec.Persistence.StorageRequestSize == "" {
-		// default to 1G of request size
-		cluster.Spec.Persistence.StorageRequestSize = "1G"
-	}
 	if err := c.server(ctx, cluster, s); err != nil {
 		return util.LogAndReturnErr("failed to create servers", err)
 	}
@@ -434,23 +446,13 @@ func agentData(serviceIP, token string) string {
 token: %s`, serviceIP, token)
 }
 
-func (c *ClusterReconciler) handleServerPod(ctx context.Context, pod *v1.Pod) error {
+func (c *ClusterReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
 	if pod.Labels["role"] != "server" {
 		return nil
 	}
-	// get Cluster object
-	clusterName := pod.Labels["cluster"]
-	var cluster v1alpha1.Cluster
-	if err := c.Client.Get(ctx, types.NamespacedName{Name: clusterName}, &cluster); err != nil {
-		return err
-	}
-	if *cluster.Spec.Servers == 1 {
-		return nil
-	}
-
 	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
 	if !pod.DeletionTimestamp.IsZero() {
-		if cluster.Spec.Persistence.Type != server.EphermalNodesType {
+		if cluster.Status.Persistence.Type != server.EphermalNodesType {
 			if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
 				controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
 				if err := c.Client.Update(ctx, pod); err != nil {
@@ -525,6 +527,7 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 }
 
 func (c *ClusterReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, error) {
+	klog.Infof("generating etcd TLS client certificate for cluster [%s]", cluster.Name)
 	token := cluster.Spec.Token
 	endpoint := "k3k-server-service." + util.ClusterNamespace(cluster)
 	var bootstrap *server.ControlRuntimeBootstrap

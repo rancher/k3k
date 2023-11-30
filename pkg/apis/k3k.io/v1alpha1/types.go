@@ -74,7 +74,9 @@ type NodePortConfig struct {
 }
 
 type ClusterStatus struct {
-	ClusterCIDR string `json:"clusterCIDR,omitempty"`
-	ServiceCIDR string `json:"serviceCIDR,omitempty"`
-	ClusterDNS  string `json:"clusterDNS,omitempty"`
+	ClusterCIDR string             `json:"clusterCIDR,omitempty"`
+	ServiceCIDR string             `json:"serviceCIDR,omitempty"`
+	ClusterDNS  string             `json:"clusterDNS,omitempty"`
+	TLSSANs     []string           `json:"tlsSANs,omitempty"`
+	Persistence *PersistenceConfig `json:"persistence,omitempty"`
 }

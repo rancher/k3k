@@ -95,6 +95,20 @@ spec:
                   type: string
                 clusterDNS:
                   type: string
+                tlsSANs:
+                  type: array
+                  items:
+                    type: string
+                persistence:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      default: "ephermal"
+                    storageClassName:
+                      type: string
+                    storageRequestSize:
+                      type: string
   scope: Cluster
   names:
     plural: clusters

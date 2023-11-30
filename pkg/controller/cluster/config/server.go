@@ -13,7 +13,7 @@ func Server(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret,
 		name = "k3k-init-server-config"
 	}
 
-	cluster.Spec.TLSSANs = append(cluster.Spec.TLSSANs,
+	cluster.Status.TLSSANs = append(cluster.Spec.TLSSANs,
 		serviceIP,
 		"k3k-server-service",
 		"k3k-server-service."+util.ClusterNamespace(cluster),
@@ -62,9 +62,9 @@ func serverOptions(cluster *v1alpha1.Cluster) string {
 	if cluster.Spec.ClusterDNS != "" {
 		opts = opts + "cluster-dns: " + cluster.Spec.ClusterDNS + "\n"
 	}
-	if len(cluster.Spec.TLSSANs) > 0 {
+	if len(cluster.Status.TLSSANs) > 0 {
 		opts = opts + "tls-san:\n"
-		for _, addr := range cluster.Spec.TLSSANs {
+		for _, addr := range cluster.Status.TLSSANs {
 			opts = opts + "- " + addr + "\n"
 		}
 	}

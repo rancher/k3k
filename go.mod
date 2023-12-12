@@ -1,6 +1,6 @@
 module github.com/rancher/k3k
 
-go 1.19
+go 1.20
 
 replace (
 	go.etcd.io/etcd/api/v3 => github.com/k3s-io/etcd/api/v3 v3.5.9-k3s1

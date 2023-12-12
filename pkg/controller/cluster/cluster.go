@@ -447,8 +447,12 @@ token: %s`, serviceIP, token)
 }
 
 func (c *ClusterReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
-	if pod.Labels["role"] != "server" {
-		return nil
+	if _, ok := pod.Labels["role"]; ok {
+		if pod.Labels["role"] != "server" {
+			return nil
+		}
+	} else {
+		return errors.New("server pod has no role label")
 	}
 	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
 	if !pod.DeletionTimestamp.IsZero() {
@@ -541,11 +545,7 @@ func (c *ClusterReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, 
 		return nil, err
 	}
 
-	etcdCert, etcdKey, err := server.CreateClientCertKey(
-		"etcd-client", nil,
-		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		bootstrap.ETCDServerCA.Content,
-		bootstrap.ETCDServerCAKey.Content)
+	etcdCert, etcdKey, err := server.CreateClientCertKey("etcd-client", nil, nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, bootstrap.ETCDServerCA.Content, bootstrap.ETCDServerCAKey.Content)
 	if err != nil {
 		return nil, err
 	}

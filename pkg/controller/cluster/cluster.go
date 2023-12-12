@@ -43,9 +43,10 @@ const (
 
 	maxConcurrentReconciles = 1
 
-	defaultClusterCIDR        = "10.44.0.0/16"
-	defaultClusterServiceCIDR = "10.45.0.0/16"
-	memberRemovalTimeout      = time.Minute * 1
+	defaultClusterCIDR           = "10.44.0.0/16"
+	defaultClusterServiceCIDR    = "10.45.0.0/16"
+	defaultStoragePersistentSize = "1G"
+	memberRemovalTimeout         = time.Minute * 1
 )
 
 type ClusterReconciler struct {
@@ -183,7 +184,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		cluster.Status.Persistence = cluster.Spec.Persistence
 		if cluster.Spec.Persistence.StorageRequestSize == "" {
 			// default to 1G of request size
-			cluster.Status.Persistence.StorageRequestSize = "1G"
+			cluster.Status.Persistence.StorageRequestSize = defaultStoragePersistentSize
 		}
 	}
 	if err := c.Client.Update(ctx, cluster); err != nil {

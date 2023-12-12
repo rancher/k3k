@@ -26,11 +26,13 @@ const (
 	port            = 6443
 )
 
-type controlRuntimeBootstrap struct {
-	ServerCA    content
-	ServerCAKey content
-	ClientCA    content
-	ClientCAKey content
+type ControlRuntimeBootstrap struct {
+	ServerCA        content
+	ServerCAKey     content
+	ClientCA        content
+	ClientCAKey     content
+	ETCDServerCA    content
+	ETCDServerCAKey content
 }
 
 type content struct {
@@ -46,7 +48,7 @@ type content struct {
 func (s *Server) GenerateNewKubeConfig(ctx context.Context, ip string) (*v1.Secret, error) {
 	token := s.cluster.Spec.Token
 
-	var bootstrap *controlRuntimeBootstrap
+	var bootstrap *ControlRuntimeBootstrap
 	if err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
 		return true
 	}, func() error {
@@ -61,7 +63,7 @@ func (s *Server) GenerateNewKubeConfig(ctx context.Context, ip string) (*v1.Secr
 		return nil, err
 	}
 
-	adminCert, adminKey, err := createClientCertKey(
+	adminCert, adminKey, err := CreateClientCertKey(
 		adminCommonName, []string{user.SystemPrivilegedGroup},
 		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		bootstrap.ClientCA.Content,
@@ -92,7 +94,7 @@ func (s *Server) GenerateNewKubeConfig(ctx context.Context, ip string) (*v1.Secr
 
 }
 
-func requestBootstrap(token, serverIP string) (*controlRuntimeBootstrap, error) {
+func requestBootstrap(token, serverIP string) (*ControlRuntimeBootstrap, error) {
 	url := "https://" + serverIP + ":6443/v1-k3s/server-bootstrap"
 
 	client := http.Client{
@@ -116,7 +118,7 @@ func requestBootstrap(token, serverIP string) (*controlRuntimeBootstrap, error) 
 	}
 	defer resp.Body.Close()
 
-	var runtimeBootstrap controlRuntimeBootstrap
+	var runtimeBootstrap ControlRuntimeBootstrap
 	if err := json.NewDecoder(resp.Body).Decode(&runtimeBootstrap); err != nil {
 		return nil, err
 	}
@@ -124,7 +126,7 @@ func requestBootstrap(token, serverIP string) (*controlRuntimeBootstrap, error) 
 	return &runtimeBootstrap, nil
 }
 
-func createClientCertKey(commonName string, organization []string, altNames *certutil.AltNames, extKeyUsage []x509.ExtKeyUsage, caCert, caKey string) ([]byte, []byte, error) {
+func CreateClientCertKey(commonName string, organization []string, altNames *certutil.AltNames, extKeyUsage []x509.ExtKeyUsage, caCert, caKey string) ([]byte, []byte, error) {
 	caKeyPEM, err := certutil.ParsePrivateKeyPEM([]byte(caKey))
 	if err != nil {
 		return nil, nil, err
@@ -203,7 +205,7 @@ func basicAuth(username, password string) string {
 	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
-func decodeBootstrap(bootstrap *controlRuntimeBootstrap) error {
+func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 	//client-ca
 	decoded, err := base64.StdEncoding.DecodeString(bootstrap.ClientCA.Content)
 	if err != nil {
@@ -232,5 +234,32 @@ func decodeBootstrap(bootstrap *controlRuntimeBootstrap) error {
 	}
 	bootstrap.ServerCAKey.Content = string(decoded)
 
+	//etcd-ca
+	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ETCDServerCA.Content)
+	if err != nil {
+		return err
+	}
+	bootstrap.ETCDServerCA.Content = string(decoded)
+
+	//etcd-ca-key
+	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ETCDServerCAKey.Content)
+	if err != nil {
+		return err
+	}
+	bootstrap.ETCDServerCAKey.Content = string(decoded)
+
 	return nil
+}
+
+func DecodedBootstrap(token, ip string) (*ControlRuntimeBootstrap, error) {
+	bootstrap, err := requestBootstrap(token, ip)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := decodeBootstrap(bootstrap); err != nil {
+		return nil, err
+	}
+
+	return bootstrap, nil
 }

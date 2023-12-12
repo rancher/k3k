@@ -2,9 +2,16 @@ module github.com/rancher/k3k
 
 go 1.19
 
+replace (
+	go.etcd.io/etcd/api/v3 => github.com/k3s-io/etcd/api/v3 v3.5.9-k3s1
+	go.etcd.io/etcd/client/v3 => github.com/k3s-io/etcd/client/v3 v3.5.9-k3s1
+)
+
 require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/urfave/cli v1.22.12
+	go.etcd.io/etcd/api/v3 v3.5.9
+	go.etcd.io/etcd/client/v3 v3.5.5
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
@@ -14,6 +21,8 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/coreos/go-semver v0.3.0 // indirect
+	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
@@ -39,12 +48,18 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.9 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b // indirect
 	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/term v0.3.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21 // indirect
+	google.golang.org/grpc v1.49.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.26.0 // indirect

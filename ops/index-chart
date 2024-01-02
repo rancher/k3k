@@ -12,21 +12,17 @@ if [ $(git tag -l "$version") ]; then
     exit 1
 fi
 
-# release the chart with artifacts
-cr upload --token ${GITHUB_TOKEN} \
-          --release-name-template "chart-{{ .Version }}" \
-          --package-path ./deploy/ \
-          --git-repo k3k \
-          --skip-existing \
-          -o rancher
-
 # update the index.yaml
 cr index  --token ${GITHUB_TOKEN} \
           --release-name-template "chart-{{ .Version }}" \
           --package-path ./deploy/ \
           --index-path index.yaml \
           --git-repo k3k \
-          -o rancher \
-          --push
+          -o rancher
+
+# push to gh-pages
+git add index.yaml
+git commit -m "add chart-${CHART_TAG} to index.yaml"
+git push --set-upstream origin HEAD:gh-pages
 
    

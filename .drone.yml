@@ -20,9 +20,9 @@ steps:
   - name: docker
     path: /var/run/docker.sock
   when:
-    branch:
+    ref:
       exclude:
-      - k3k-chart
+        - refs/tags/chart-*
 
 - name: package-chart
   image: rancher/dapper:v0.6.0
@@ -35,26 +35,50 @@ steps:
   - name: docker
     path: /var/run/docker.sock
   when:
-    branch:
-    - k3k-chart
+    ref:
+    - refs/tags/chart-*
     instance:
     - drone-publish.rancher.io
+    event:
+    - tag
 
 - name: release-chart
+  image: plugins/github-release
+  settings:
+    api_key:
+      from_secret: github_token
+    checksum:
+    - sha256
+    checksum_file: CHECKSUMsum-amd64.txt
+    checksum_flatten: true
+    files:
+    - "deploy/*"
+  when:
+    instance:
+    - drone-publish.rancher.io
+    ref:
+      include:
+      - refs/tags/chart-*  
+    event:
+    - tag
+
+- name: index-chart
   image: rancher/dapper:v0.6.0
   environment:
     GITHUB_TOKEN:
       from_secret: github_token
   commands:
-  - dapper release-chart
+  - dapper index-chart
   volumes:
   - name: docker
     path: /var/run/docker.sock
   when:
-    branch:
-    - k3k-chart
+    ref:
+    - refs/tags/chart-*
     instance:
     - drone-publish.rancher.io
+    event:
+    - tag
 
 - name: github_binary_release
   image: plugins/github-release
@@ -72,13 +96,13 @@ steps:
     instance:
     - drone-publish.rancher.io
     ref:
-    - refs/head/master
-    - refs/tags/*
+      include:
+      - refs/head/master
+      - refs/tags/*
+      exclude:
+      - refs/tags/chart-*  
     event:
     - tag
-    branch:
-      exclude:
-      - k3k-chart
 
 - name: docker-publish
   image: plugins/docker
@@ -93,13 +117,13 @@ steps:
     instance:
     - drone-publish.rancher.io
     ref:
-    - refs/head/master
-    - refs/tags/*
+      include:
+      - refs/head/master
+      - refs/tags/*
+      exclude:
+      - refs/tags/chart-*  
     event:
     - tag
-    branch:
-      exclude:
-      - k3k-chart
 
 volumes:
 - name: docker
@@ -129,10 +153,10 @@ steps:
       instance:
         - drone-publish.rancher.io
       ref:
+        include:
         - refs/head/master
         - refs/tags/*
-      branch:
         exclude:
-        - k3k-chart
+        - refs/tags/chart-*  
 depends_on:
   - amd64

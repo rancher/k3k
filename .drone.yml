@@ -49,7 +49,7 @@ steps:
       from_secret: github_token
     checksum:
     - sha256
-    checksum_file: CHECKSUMsum-amd64.txt
+    checksum_file: CHECKSUMsum.txt
     checksum_flatten: true
     files:
     - "deploy/*"

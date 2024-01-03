@@ -22,7 +22,6 @@ func (s *Server) Ingress(ctx context.Context, client client.Client) (*networking
 	if err != nil {
 		return nil, err
 	}
-
 	ingressRules := s.ingressRules(addresses)
 	ingress := &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
@@ -47,7 +46,6 @@ func (s *Server) Ingress(ctx context.Context, client client.Client) (*networking
 func (s *Server) ingressRules(addresses []string) []networkingv1.IngressRule {
 	var ingressRules []networkingv1.IngressRule
 	pathTypePrefix := networkingv1.PathTypePrefix
-
 	for _, address := range addresses {
 		rule := networkingv1.IngressRule{
 			Host: s.cluster.Name + "." + address + wildcardDNS,

@@ -212,7 +212,7 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 
 	replicas = *cluster.Spec.Servers
 
-	if cluster.Spec.Persistence.Type != EphermalNodesType {
+	if cluster.Spec.Persistence != nil && cluster.Spec.Persistence.Type != EphermalNodesType {
 		persistent = true
 		pvClaims = []v1.PersistentVolumeClaim{
 			{

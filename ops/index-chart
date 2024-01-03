@@ -23,6 +23,9 @@ cr index  --token ${GITHUB_TOKEN} \
 # push to gh-pages
 git config --global user.email "hussein.galal.ahmed.11@gmail.com"
 git config --global user.name "galal-hussein"
+git remote add k3kgit git@github.com:rancher/k3k.git
+
+# push index.yaml to gh-pages
 git add index.yaml
 git commit -m "add chart-${CHART_TAG} to index.yaml"
-git push --set-upstream origin HEAD:gh-pages
+git push --set-upstream k3kgit HEAD:gh-pages

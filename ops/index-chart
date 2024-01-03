@@ -28,4 +28,4 @@ git config --global url.https://${GITHUB_TOKEN}@github.com/.insteadOf https://gi
 # push index.yaml to gh-pages
 git add index.yaml
 git commit -m "add chart-${CHART_TAG} to index.yaml"
-git push --set-upstream origin HEAD:gh-pages
+git push --force --set-upstream origin HEAD:gh-pages

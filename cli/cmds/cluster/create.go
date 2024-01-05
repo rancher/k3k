@@ -210,6 +210,9 @@ func validateCreateFlags(clx *cli.Context) error {
 	if name == "" {
 		return errors.New("empty cluster name")
 	}
+	if name == "system" {
+		return errors.New("invalid cluster name")
+	}
 	if servers <= 0 {
 		return errors.New("invalid number of servers")
 	}

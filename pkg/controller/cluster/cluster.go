@@ -40,7 +40,7 @@ const (
 	clusterController    = "k3k-cluster-controller"
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
 	etcdPodFinalizerName = "etcdpod.k3k.io/finalizer"
-	clusterInvalidName   = "system"
+	ClusterInvalidName   = "system"
 
 	maxConcurrentReconciles = 1
 

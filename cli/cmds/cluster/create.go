@@ -12,6 +12,7 @@ import (
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
@@ -210,7 +211,7 @@ func validateCreateFlags(clx *cli.Context) error {
 	if name == "" {
 		return errors.New("empty cluster name")
 	}
-	if name == "system" {
+	if name == cluster.ClusterInvalidName {
 		return errors.New("invalid cluster name")
 	}
 	if servers <= 0 {

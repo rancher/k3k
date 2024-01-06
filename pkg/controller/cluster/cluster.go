@@ -40,6 +40,7 @@ const (
 	clusterController    = "k3k-cluster-controller"
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
 	etcdPodFinalizerName = "etcdpod.k3k.io/finalizer"
+	ClusterInvalidName   = "system"
 
 	maxConcurrentReconciles = 1
 
@@ -178,6 +179,10 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 }
 
 func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	if cluster.Name == ClusterInvalidName {
+		klog.Errorf("Invalid cluster name %s, no action will be taken", cluster.Name)
+		return nil
+	}
 	s := server.New(cluster, c.Client)
 
 	if cluster.Spec.Persistence != nil {

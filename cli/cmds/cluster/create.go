@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -17,16 +16,13 @@ import (
 	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apiserver/pkg/authentication/user"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -174,9 +170,14 @@ func createCluster(clx *cli.Context) error {
 	}
 
 	logrus.Infof("Extracting Kubeconfig for [%s] cluster", name)
+	cfg := &util.KubeConfig{
+		CN:         util.AdminCommonName,
+		ORG:        []string{user.SystemPrivilegedGroup},
+		ExpiryDate: 0,
+	}
 	var kubeconfig []byte
 	if err := retry.OnError(backoff, apierrors.IsNotFound, func() error {
-		kubeconfig, err = extractKubeconfig(ctx, ctrlClient, cluster, host[0])
+		kubeconfig, err = util.ExtractKubeconfig(ctx, ctrlClient, cluster, host[0], cfg)
 		if err != nil {
 			logrus.Infof("waiting for cluster to be available: %v", err)
 			return err
@@ -249,84 +250,4 @@ func newCluster(name, token string, servers, agents int32, clusterCIDR, serviceC
 			},
 		},
 	}
-}
-
-func extractKubeconfig(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, serverIP string) ([]byte, error) {
-	nn := types.NamespacedName{
-		Name:      cluster.Name + "-kubeconfig",
-		Namespace: util.ClusterNamespace(cluster),
-	}
-
-	var kubeSecret v1.Secret
-	if err := client.Get(ctx, nn, &kubeSecret); err != nil {
-		return nil, err
-	}
-
-	kubeconfig := kubeSecret.Data["kubeconfig.yaml"]
-	if kubeconfig == nil {
-		return nil, errors.New("empty kubeconfig")
-	}
-
-	nn = types.NamespacedName{
-		Name:      "k3k-server-service",
-		Namespace: util.ClusterNamespace(cluster),
-	}
-
-	var k3kService v1.Service
-	if err := client.Get(ctx, nn, &k3kService); err != nil {
-		return nil, err
-	}
-
-	if k3kService.Spec.Type == v1.ServiceTypeNodePort {
-		nodePort := k3kService.Spec.Ports[0].NodePort
-
-		restConfig, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-		if err != nil {
-			return nil, err
-		}
-		hostURL := fmt.Sprintf("https://%s:%d", serverIP, nodePort)
-		restConfig.Host = hostURL
-
-		clientConfig := generateKubeconfigFromRest(restConfig)
-
-		b, err := clientcmd.Write(clientConfig)
-		if err != nil {
-			return nil, err
-		}
-		kubeconfig = b
-	}
-
-	return kubeconfig, nil
-}
-
-func generateKubeconfigFromRest(config *rest.Config) clientcmdapi.Config {
-	clusters := make(map[string]*clientcmdapi.Cluster)
-	clusters["default-cluster"] = &clientcmdapi.Cluster{
-		Server:                   config.Host,
-		CertificateAuthorityData: config.CAData,
-	}
-
-	contexts := make(map[string]*clientcmdapi.Context)
-	contexts["default-context"] = &clientcmdapi.Context{
-		Cluster:   "default-cluster",
-		Namespace: "default",
-		AuthInfo:  "default",
-	}
-
-	authinfos := make(map[string]*clientcmdapi.AuthInfo)
-	authinfos["default"] = &clientcmdapi.AuthInfo{
-		ClientCertificateData: config.CertData,
-		ClientKeyData:         config.KeyData,
-	}
-
-	clientConfig := clientcmdapi.Config{
-		Kind:           "Config",
-		APIVersion:     "v1",
-		Clusters:       clusters,
-		Contexts:       contexts,
-		CurrentContext: "default-context",
-		AuthInfos:      authinfos,
-	}
-
-	return clientConfig
 }

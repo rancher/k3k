@@ -36,12 +36,12 @@ func (s *Server) Service(cluster *v1alpha1.Cluster) *v1.Service {
 				{
 					Name:     "k3s-server-port",
 					Protocol: v1.ProtocolTCP,
-					Port:     port,
+					Port:     serverPort,
 				},
 				{
 					Name:     "k3s-etcd-port",
 					Protocol: v1.ProtocolTCP,
-					Port:     2379,
+					Port:     etcdPort,
 				},
 			},
 		},
@@ -70,12 +70,12 @@ func (s *Server) StatefulServerService(cluster *v1alpha1.Cluster) *v1.Service {
 				{
 					Name:     "k3s-server-port",
 					Protocol: v1.ProtocolTCP,
-					Port:     6443,
+					Port:     serverPort,
 				},
 				{
 					Name:     "k3s-etcd-port",
 					Protocol: v1.ProtocolTCP,
-					Port:     2379,
+					Port:     etcdPort,
 				},
 			},
 		},

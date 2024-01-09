@@ -15,6 +15,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/config"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
+	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
@@ -244,12 +245,12 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		}
 	}
 
-	kubeconfigSecret, err := s.GenerateNewKubeConfig(ctx, serviceIP)
+	bootstrapSecret, err := bootstrap.GenerateBootstrap(ctx, cluster, serviceIP)
 	if err != nil {
 		return util.LogAndReturnErr("failed to generate new kubeconfig", err)
 	}
 
-	if err := c.Client.Create(ctx, kubeconfigSecret); err != nil {
+	if err := c.Client.Create(ctx, bootstrapSecret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return util.LogAndReturnErr("failed to create kubeconfig secret", err)
 		}
@@ -540,18 +541,18 @@ func (c *ClusterReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, 
 	klog.Infof("generating etcd TLS client certificate for cluster [%s]", cluster.Name)
 	token := cluster.Spec.Token
 	endpoint := "k3k-server-service." + util.ClusterNamespace(cluster)
-	var bootstrap *server.ControlRuntimeBootstrap
+	var b *bootstrap.ControlRuntimeBootstrap
 	if err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
 		return true
 	}, func() error {
 		var err error
-		bootstrap, err = server.DecodedBootstrap(token, endpoint)
+		b, err = bootstrap.DecodedBootstrap(token, endpoint)
 		return err
 	}); err != nil {
 		return nil, err
 	}
 
-	etcdCert, etcdKey, err := server.CreateClientCertKey("etcd-client", nil, nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, bootstrap.ETCDServerCA.Content, bootstrap.ETCDServerCAKey.Content)
+	etcdCert, etcdKey, err := util.CreateClientCertKey("etcd-client", nil, nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, 0, b.ETCDServerCA.Content, b.ETCDServerCAKey.Content)
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +561,7 @@ func (c *ClusterReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, 
 		return nil, err
 	}
 	// create rootCA CertPool
-	cert, err := certutil.ParseCertsPEM([]byte(bootstrap.ETCDServerCA.Content))
+	cert, err := certutil.ParseCertsPEM([]byte(b.ETCDServerCA.Content))
 	if err != nil {
 		return nil, err
 	}

@@ -15,6 +15,8 @@ const (
 	nginxSSLPassthroughAnnotation  = "nginx.ingress.kubernetes.io/ssl-passthrough"
 	nginxBackendProtocolAnnotation = "nginx.ingress.kubernetes.io/backend-protocol"
 	nginxSSLRedirectAnnotation     = "nginx.ingress.kubernetes.io/ssl-redirect"
+	serverPort                     = 6443
+	etcdPort                       = 2379
 )
 
 func (s *Server) Ingress(ctx context.Context, client client.Client) (*networkingv1.Ingress, error) {
@@ -59,7 +61,7 @@ func (s *Server) ingressRules(addresses []string) []networkingv1.IngressRule {
 								Service: &networkingv1.IngressServiceBackend{
 									Name: "k3k-server-service",
 									Port: networkingv1.ServiceBackendPort{
-										Number: port,
+										Number: serverPort,
 									},
 								},
 							},

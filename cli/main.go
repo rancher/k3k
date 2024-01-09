@@ -5,6 +5,7 @@ import (
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/cli/cmds/cluster"
+	"github.com/rancher/k3k/cli/cmds/kubeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -19,6 +20,7 @@ func main() {
 	app := cmds.NewApp()
 	app.Commands = []cli.Command{
 		cluster.NewClusterCommand(),
+		kubeconfig.NewKubeconfigCommand(),
 	}
 	app.Version = version + " (" + gitCommit + ")"
 

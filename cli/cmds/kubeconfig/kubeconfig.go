@@ -80,26 +80,26 @@ var (
 	}
 )
 
-var kubeconfigSubcommands = []cli.Command{
+var subcommands = []cli.Command{
 	{
 		Name:            "generate",
 		Usage:           "Generate kubeconfig for clusters",
 		SkipFlagParsing: false,
 		SkipArgReorder:  true,
-		Action:          generateKubeconfig,
+		Action:          generate,
 		Flags:           append(cmds.CommonFlags, generateKubeconfigFlags...),
 	},
 }
 
-func NewKubeconfigCommand() cli.Command {
+func NewCommand() cli.Command {
 	return cli.Command{
 		Name:        "kubeconfig",
 		Usage:       "Manage kubeconfig for clusters",
-		Subcommands: kubeconfigSubcommands,
+		Subcommands: subcommands,
 	}
 }
 
-func generateKubeconfig(clx *cli.Context) error {
+func generate(clx *cli.Context) error {
 	var cluster v1alpha1.Cluster
 	ctx := context.Background()
 
@@ -139,11 +139,11 @@ func generateKubeconfig(clx *cli.Context) error {
 		ExpiryDate: time.Hour * 24 * time.Duration(expirationDays),
 		AltNames:   certAltNames,
 	}
+	logrus.Infof("waiting for cluster to be available..")
 	var kubeconfig []byte
 	if err := retry.OnError(backoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = cfg.Extract(ctx, ctrlClient, &cluster, host[0])
 		if err != nil {
-			logrus.Infof("waiting for cluster to be available: %v", err)
 			return err
 		}
 		return nil

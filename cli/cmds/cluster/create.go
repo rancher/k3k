@@ -176,11 +176,11 @@ func createCluster(clx *cli.Context) error {
 		ORG:        []string{user.SystemPrivilegedGroup},
 		ExpiryDate: 0,
 	}
+	logrus.Infof("waiting for cluster to be available..")
 	var kubeconfig []byte
 	if err := retry.OnError(backoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = cfg.Extract(ctx, ctrlClient, cluster, host[0])
 		if err != nil {
-			logrus.Infof("waiting for cluster to be available: %v", err)
 			return err
 		}
 		return nil

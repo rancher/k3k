@@ -246,7 +246,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		}
 	}
 
-	bootstrapSecret, err := bootstrap.GenerateBootstrap(ctx, cluster, serviceIP)
+	bootstrapSecret, err := bootstrap.Generate(ctx, cluster, serviceIP)
 	if err != nil {
 		return util.LogAndReturnErr("failed to generate new kubeconfig", err)
 	}

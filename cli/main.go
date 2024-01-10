@@ -19,8 +19,8 @@ const (
 func main() {
 	app := cmds.NewApp()
 	app.Commands = []cli.Command{
-		cluster.NewClusterCommand(),
-		kubeconfig.NewKubeconfigCommand(),
+		cluster.NewCommand(),
+		kubeconfig.NewCommand(),
 	}
 	app.Version = version + " (" + gitCommit + ")"
 

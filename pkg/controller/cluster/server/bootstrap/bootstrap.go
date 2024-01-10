@@ -28,10 +28,10 @@ type content struct {
 	Content   string
 }
 
-// GenerateBootstrap generates the bootstrap for the cluster:
+// Generate generates the bootstrap for the cluster:
 // 1- use the server token to get the bootstrap data from k3s
 // 2- save the bootstrap data as a secret
-func GenerateBootstrap(ctx context.Context, cluster *v1alpha1.Cluster, ip string) (*v1.Secret, error) {
+func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip string) (*v1.Secret, error) {
 	token := cluster.Spec.Token
 
 	var bootstrap *ControlRuntimeBootstrap

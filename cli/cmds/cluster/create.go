@@ -118,7 +118,7 @@ var (
 	}
 )
 
-func createCluster(clx *cli.Context) error {
+func create(clx *cli.Context) error {
 	ctx := context.Background()
 	if err := validateCreateFlags(clx); err != nil {
 		return err

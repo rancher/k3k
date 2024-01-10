@@ -16,6 +16,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/config"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
@@ -552,7 +553,7 @@ func (c *ClusterReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, 
 		return nil, err
 	}
 
-	etcdCert, etcdKey, err := util.CreateClientCertKey("etcd-client", nil, nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, 0, b.ETCDServerCA.Content, b.ETCDServerCAKey.Content)
+	etcdCert, etcdKey, err := kubeconfig.CreateClientCertKey("etcd-client", nil, nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, 0, b.ETCDServerCA.Content, b.ETCDServerCAKey.Content)
 	if err != nil {
 		return nil, err
 	}

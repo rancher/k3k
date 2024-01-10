@@ -10,6 +10,7 @@ import (
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -106,11 +107,11 @@ func generateKubeconfig(clx *cli.Context) error {
 	}
 	host := strings.Split(url.Host, ":")
 
-	certAltNames := util.AddSANs(altNames)
+	certAltNames := kubeconfig.AddSANs(altNames)
 	if org == nil {
 		org = cli.StringSlice{user.SystemPrivilegedGroup}
 	}
-	cfg := util.KubeConfig{
+	cfg := kubeconfig.KubeConfig{
 		CN:         cn,
 		ORG:        org,
 		ExpiryDate: time.Hour * 24 * time.Duration(expirationDays),
@@ -118,7 +119,7 @@ func generateKubeconfig(clx *cli.Context) error {
 	}
 	var kubeconfig []byte
 	if err := retry.OnError(backoff, apierrors.IsNotFound, func() error {
-		kubeconfig, err = util.ExtractKubeconfig(ctx, ctrlClient, &cluster, host[0], &cfg)
+		kubeconfig, err = cfg.Extract(ctx, ctrlClient, &cluster, host[0])
 		if err != nil {
 			logrus.Infof("waiting for cluster to be available: %v", err)
 			return err

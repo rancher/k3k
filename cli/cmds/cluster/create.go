@@ -13,6 +13,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
+	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -170,14 +171,14 @@ func createCluster(clx *cli.Context) error {
 	}
 
 	logrus.Infof("Extracting Kubeconfig for [%s] cluster", name)
-	cfg := &util.KubeConfig{
+	cfg := &kubeconfig.KubeConfig{
 		CN:         util.AdminCommonName,
 		ORG:        []string{user.SystemPrivilegedGroup},
 		ExpiryDate: 0,
 	}
 	var kubeconfig []byte
 	if err := retry.OnError(backoff, apierrors.IsNotFound, func() error {
-		kubeconfig, err = util.ExtractKubeconfig(ctx, ctrlClient, cluster, host[0], cfg)
+		kubeconfig, err = cfg.Extract(ctx, ctrlClient, cluster, host[0])
 		if err != nil {
 			logrus.Infof("waiting for cluster to be available: %v", err)
 			return err

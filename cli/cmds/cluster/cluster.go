@@ -5,7 +5,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var clusterSubcommands = []cli.Command{
+var subcommands = []cli.Command{
 	{
 		Name:            "create",
 		Usage:           "Create new cluster",
@@ -16,10 +16,10 @@ var clusterSubcommands = []cli.Command{
 	},
 }
 
-func NewClusterCommand() cli.Command {
+func NewCommand() cli.Command {
 	return cli.Command{
 		Name:        "cluster",
 		Usage:       "cluster command",
-		Subcommands: clusterSubcommands,
+		Subcommands: subcommands,
 	}
 }

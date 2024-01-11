@@ -33,16 +33,15 @@ func delete(clx *cli.Context) error {
 	ctrlClient, err := client.New(restConfig, client.Options{
 		Scheme: Scheme,
 	})
-
 	if err != nil {
 		return err
 	}
 
+	logrus.Infof("deleting [%s] cluster", name)
 	cluster := v1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 	}
-	logrus.Infof("deleting [%s] cluster", name)
 	return ctrlClient.Delete(ctx, &cluster)
 }

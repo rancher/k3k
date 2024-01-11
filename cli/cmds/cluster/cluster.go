@@ -11,8 +11,16 @@ var subcommands = []cli.Command{
 		Usage:           "Create new cluster",
 		SkipFlagParsing: false,
 		SkipArgReorder:  true,
-		Action:          createCluster,
+		Action:          create,
 		Flags:           append(cmds.CommonFlags, clusterCreateFlags...),
+	},
+	{
+		Name:            "delete",
+		Usage:           "Delete an existing cluster",
+		SkipFlagParsing: false,
+		SkipArgReorder:  true,
+		Action:          delete,
+		Flags:           append(cmds.CommonFlags, clusterDeleteFlags...),
 	},
 }
 

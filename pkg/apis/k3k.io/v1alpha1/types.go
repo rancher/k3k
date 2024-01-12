@@ -16,7 +16,6 @@ type Cluster struct {
 }
 
 type ClusterSpec struct {
-	Name        string   `json:"name"`
 	Version     string   `json:"version"`
 	Servers     *int32   `json:"servers"`
 	Agents      *int32   `json:"agents"`

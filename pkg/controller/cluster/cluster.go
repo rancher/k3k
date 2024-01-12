@@ -577,16 +577,16 @@ func (c *ClusterReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, 
 
 func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
 	if cluster.Name == ClusterInvalidName {
-		return errors.New("Invalid cluster name " + cluster.Name + " no action will be taken")
+		return errors.New("invalid cluster name " + cluster.Name + " no action will be taken")
 	}
 	if cluster.Spec.ClusterCIDR != cluster.Status.ClusterCIDR {
-		return errors.New("Immutable field: ClusterCIDR cant be changed once set")
+		return errors.New("immutable field: ClusterCIDR cant be changed once set")
 	}
 	if cluster.Spec.ServiceCIDR != cluster.Status.ServiceCIDR {
-		return errors.New("Immutable field: ServiceCIDR cant be changed once set")
+		return errors.New("immutable field: ServiceCIDR cant be changed once set")
 	}
 	if cluster.Spec.ClusterDNS != cluster.Status.ClusterDNS {
-		return errors.New("Immutable field: ClusterDNS cant be changed once set")
+		return errors.New("immutable field: ClusterDNS cant be changed once set")
 	}
 	return nil
 }

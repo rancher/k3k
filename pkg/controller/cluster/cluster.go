@@ -396,41 +396,6 @@ func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster
 	return nil
 }
 
-func serverData(serviceIP string, cluster *v1alpha1.Cluster) string {
-	return "cluster-init: true\nserver: https://" + serviceIP + ":6443" + serverOptions(cluster)
-}
-
-func initConfigData(cluster *v1alpha1.Cluster) string {
-	return "cluster-init: true\n" + serverOptions(cluster)
-}
-
-func serverOptions(cluster *v1alpha1.Cluster) string {
-	var opts string
-
-	// TODO: generate token if not found
-	if cluster.Spec.Token != "" {
-		opts = "token: " + cluster.Spec.Token + "\n"
-	}
-	if cluster.Status.ClusterCIDR != "" {
-		opts = opts + "cluster-cidr: " + cluster.Status.ClusterCIDR + "\n"
-	}
-	if cluster.Status.ServiceCIDR != "" {
-		opts = opts + "service-cidr: " + cluster.Status.ServiceCIDR + "\n"
-	}
-	if cluster.Spec.ClusterDNS != "" {
-		opts = opts + "cluster-dns: " + cluster.Spec.ClusterDNS + "\n"
-	}
-	if len(cluster.Spec.TLSSANs) > 0 {
-		opts = opts + "tls-san:\n"
-		for _, addr := range cluster.Spec.TLSSANs {
-			opts = opts + "- " + addr + "\n"
-		}
-	}
-	// TODO: Add extra args to the options
-
-	return opts
-}
-
 func agentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
 	config := agentData(serviceIP, cluster.Spec.Token)
 

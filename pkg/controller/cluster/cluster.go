@@ -181,8 +181,8 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 }
 
 func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	if cluster.Name == ClusterInvalidName {
-		klog.Errorf("Invalid cluster name %s, no action will be taken", cluster.Name)
+	if err := c.validate(cluster); err != nil {
+		klog.Errorf("invalid change: %v", err)
 		return nil
 	}
 	s := server.New(cluster, c.Client)
@@ -573,4 +573,20 @@ func (c *ClusterReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, 
 		RootCAs:      pool,
 		Certificates: []tls.Certificate{clientCert},
 	}, nil
+}
+
+func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
+	if cluster.Name == ClusterInvalidName {
+		return errors.New("Invalid cluster name " + cluster.Name + " no action will be taken")
+	}
+	if cluster.Spec.ClusterCIDR != cluster.Status.ClusterCIDR {
+		return errors.New("Immutable field: ClusterCIDR cant be changed once set")
+	}
+	if cluster.Spec.ServiceCIDR != cluster.Status.ServiceCIDR {
+		return errors.New("Immutable field: ServiceCIDR cant be changed once set")
+	}
+	if cluster.Spec.ClusterDNS != cluster.Status.ClusterDNS {
+		return errors.New("Immutable field: ClusterDNS cant be changed once set")
+	}
+	return nil
 }

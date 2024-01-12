@@ -236,7 +236,6 @@ func newCluster(name, token string, servers, agents int32, clusterCIDR, serviceC
 			APIVersion: "k3k.io/v1alpha1",
 		},
 		Spec: v1alpha1.ClusterSpec{
-			Name:        name,
 			Token:       token,
 			Servers:     &servers,
 			Agents:      &agents,

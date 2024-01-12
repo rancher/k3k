@@ -21,16 +21,34 @@ spec:
                   type: string
                 servers:
                   type: integer
+                  x-kubernetes-validations:
+                  - message: cluster must have at least one server
+                    rule: self >= 1
                 agents:
                   type: integer
+                  x-kubernetes-validations:
+                  - message: invalid value for agents
+                    rule: self >= 0
                 token:
                   type: string
+                  x-kubernetes-validations:
+                  - message: token is immutable
+                    rule: self == oldSelf
                 clusterCIDR:
                   type: string
+                  x-kubernetes-validations:
+                  - message: clusterCIDR is immutable
+                    rule: self == oldSelf
                 serviceCIDR:
                   type: string
+                  x-kubernetes-validations:
+                  - message: serviceCIDR is immutable
+                    rule: self == oldSelf
                 clusterDNS:
                   type: string
+                  x-kubernetes-validations:
+                  - message: clusterDNS is immutable
+                    rule: self == oldSelf
                 serverArgs:
                   type: array
                   items:

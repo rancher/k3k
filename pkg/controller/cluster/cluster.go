@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 
@@ -29,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -53,7 +54,7 @@ const (
 )
 
 type ClusterReconciler struct {
-	Client client.Client
+	Client ctrlruntimeclient.Client
 	Scheme *runtime.Scheme
 }
 
@@ -98,18 +99,16 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		clusterName = s[1]
 		var cluster v1alpha1.Cluster
 		if err := c.Client.Get(ctx, types.NamespacedName{Name: clusterName}, &cluster); err != nil {
-			return reconcile.Result{}, util.LogAndReturnErr("failed to get cluster object", err)
+			if !apierrors.IsNotFound(err) {
+				return reconcile.Result{}, err
+			}
 		}
-		if *cluster.Spec.Servers == 1 {
-			klog.Infof("skipping request for etcd pod for cluster [%s] since it is not in HA mode", clusterName)
-			return reconcile.Result{}, nil
-		}
-		matchingLabels := client.MatchingLabels(map[string]string{"role": "server"})
-		listOpts := &client.ListOptions{Namespace: req.Namespace}
+		matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
+		listOpts := &ctrlruntimeclient.ListOptions{Namespace: req.Namespace}
 		matchingLabels.ApplyToList(listOpts)
 
 		if err := c.Client.List(ctx, &podList, listOpts); err != nil {
-			return reconcile.Result{}, client.IgnoreNotFound(err)
+			return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 		}
 		for _, pod := range podList.Items {
 			klog.Infof("Handle etcd server pod [%s/%s]", pod.Namespace, pod.Name)
@@ -122,7 +121,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
-		return reconcile.Result{}, client.IgnoreNotFound(err)
+		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
 	if cluster.DeletionTimestamp.IsZero() {
@@ -135,7 +134,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 		// we create a namespace for each new cluster
 		var ns v1.Namespace
-		objKey := client.ObjectKey{
+		objKey := ctrlruntimeclient.ObjectKey{
 			Name: util.ClusterNamespace(&cluster),
 		}
 		if err := c.Client.Get(ctx, objKey, &ns); err != nil {
@@ -152,12 +151,12 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// remove finalizer from the server pods and update them.
-	matchingLabels := client.MatchingLabels(map[string]string{"role": "server"})
-	listOpts := &client.ListOptions{Namespace: util.ClusterNamespace(&cluster)}
+	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
+	listOpts := &ctrlruntimeclient.ListOptions{Namespace: util.ClusterNamespace(&cluster)}
 	matchingLabels.ApplyToList(listOpts)
 
 	if err := c.Client.List(ctx, &podList, listOpts); err != nil {
-		return reconcile.Result{}, client.IgnoreNotFound(err)
+		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 	for _, pod := range podList.Items {
 		if controllerutil.ContainsFinalizer(&pod, etcdPodFinalizerName) {
@@ -340,7 +339,7 @@ func (c *ClusterReconciler) createClusterService(ctx context.Context, cluster *v
 
 	var service v1.Service
 
-	objKey := client.ObjectKey{
+	objKey := ctrlruntimeclient.ObjectKey{
 		Namespace: util.ClusterNamespace(cluster),
 		Name:      "k3k-server-service",
 	}
@@ -371,10 +370,8 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 		return err
 	}
 
-	if err := c.Client.Create(ctx, ServerStatefulSet); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
+	if err := c.ensure(ctx, ServerStatefulSet, false); err != nil {
+		return err
 	}
 
 	return nil
@@ -388,47 +385,10 @@ func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster
 		return err
 	}
 
-	if err := c.Client.Create(ctx, agentsDeployment); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
+	if err := c.ensure(ctx, agentsDeployment, false); err != nil {
+		return err
 	}
 	return nil
-}
-
-func serverData(serviceIP string, cluster *v1alpha1.Cluster) string {
-	return "cluster-init: true\nserver: https://" + serviceIP + ":6443" + serverOptions(cluster)
-}
-
-func initConfigData(cluster *v1alpha1.Cluster) string {
-	return "cluster-init: true\n" + serverOptions(cluster)
-}
-
-func serverOptions(cluster *v1alpha1.Cluster) string {
-	var opts string
-
-	// TODO: generate token if not found
-	if cluster.Spec.Token != "" {
-		opts = "token: " + cluster.Spec.Token + "\n"
-	}
-	if cluster.Status.ClusterCIDR != "" {
-		opts = opts + "cluster-cidr: " + cluster.Status.ClusterCIDR + "\n"
-	}
-	if cluster.Status.ServiceCIDR != "" {
-		opts = opts + "service-cidr: " + cluster.Status.ServiceCIDR + "\n"
-	}
-	if cluster.Spec.ClusterDNS != "" {
-		opts = opts + "cluster-dns: " + cluster.Spec.ClusterDNS + "\n"
-	}
-	if len(cluster.Spec.TLSSANs) > 0 {
-		opts = opts + "tls-san:\n"
-		for _, addr := range cluster.Spec.TLSSANs {
-			opts = opts + "- " + addr + "\n"
-		}
-	}
-	// TODO: Add extra args to the options
-
-	return opts
 }
 
 func agentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
@@ -464,13 +424,15 @@ func (c *ClusterReconciler) handleServerPod(ctx context.Context, cluster v1alpha
 	}
 	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
 	if !pod.DeletionTimestamp.IsZero() {
-		if cluster.Status.Persistence.Type != server.EphermalNodesType {
+		// check if cluster is deleted then remove the finalizer from the pod
+		if cluster.Name == "" {
 			if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
 				controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
 				if err := c.Client.Update(ctx, pod); err != nil {
 					return err
 				}
 			}
+			return nil
 		}
 		tlsConfig, err := c.getETCDTLS(&cluster)
 		if err != nil {
@@ -579,14 +541,43 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
 	if cluster.Name == ClusterInvalidName {
 		return errors.New("invalid cluster name " + cluster.Name + " no action will be taken")
 	}
-	if cluster.Spec.ClusterCIDR != cluster.Status.ClusterCIDR {
-		return errors.New("immutable field: ClusterCIDR cant be changed once set")
+	return nil
+}
+
+func (c *ClusterReconciler) ensure(ctx context.Context, obj ctrlruntimeclient.Object, requiresRecreate bool) error {
+	exists := true
+	existingObject := obj.DeepCopyObject().(ctrlruntimeclient.Object)
+	if err := c.Client.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, existingObject); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get Object(%T): %w", existingObject, err)
+		}
+		exists = false
 	}
-	if cluster.Spec.ServiceCIDR != cluster.Status.ServiceCIDR {
-		return errors.New("immutable field: ServiceCIDR cant be changed once set")
+
+	if !exists {
+		// if not exists create object
+		if err := c.Client.Create(ctx, obj); err != nil {
+			return err
+		}
+		return nil
 	}
-	if cluster.Spec.ClusterDNS != cluster.Status.ClusterDNS {
-		return errors.New("immutable field: ClusterDNS cant be changed once set")
+	// if exists then apply udpate or recreate if necessary
+	if reflect.DeepEqual(obj.(metav1.Object), existingObject.(metav1.Object)) {
+		return nil
+	}
+
+	if !requiresRecreate {
+		if err := c.Client.Update(ctx, obj); err != nil {
+			return err
+		}
+	} else {
+		// this handles object that needs recreation including configmaps and secrets
+		if err := c.Client.Delete(ctx, obj); err != nil {
+			return err
+		}
+		if err := c.Client.Create(ctx, obj); err != nil {
+			return err
+		}
 	}
 	return nil
 }

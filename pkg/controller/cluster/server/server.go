@@ -185,7 +185,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		)
 	}
 
-	// Adding readiness probes to deployment
+	// Adding readiness probes to statefulset
 	podSpec.Containers[0].ReadinessProbe = &v1.Probe{
 		InitialDelaySeconds: 60,
 		FailureThreshold:    5,
@@ -193,7 +193,6 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		ProbeHandler: v1.ProbeHandler{
 			TCPSocket: &v1.TCPSocketAction{
 				Port: intstr.FromInt(6443),
-				Host: "127.0.0.1",
 			},
 		},
 	}

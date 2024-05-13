@@ -10,12 +10,10 @@ git clone --depth 1 ${CODEGEN_GIT_PKG} || true
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CODEGEN_PKG=./code-generator
 
-"${CODEGEN_PKG}/kube_codegen.sh" \
- "deepcopy" \
- github.com/rancher/k3k/pkg/generated \
- github.com/rancher/k3k/pkg/apis \
- "k3k.io:v1alpha1" \
- --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt \
- --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../.."
+source ${CODEGEN_PKG}/kube_codegen.sh
+
+kube::codegen::gen_helpers \
+    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+    "${SCRIPT_ROOT}/pkg/apis"
 
 rm -rf code-generator

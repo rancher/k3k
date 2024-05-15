@@ -3,9 +3,9 @@ on:
     tags:
     - "chart-*"
 
-name: Build
+name: Chart
 permissions:
-    contents: read
+    contents: write
     id-token: write
 jobs:
   chart-release:

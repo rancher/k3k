@@ -3,7 +3,7 @@ on:
     tags:
     - "v*"
 
-name: Build
+name: Release
 permissions:
     contents: write
     id-token: write

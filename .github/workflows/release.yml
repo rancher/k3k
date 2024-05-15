@@ -46,7 +46,7 @@ jobs:
       with:
         context: .
         push: true
-        tags: rancher/k3k:${{ github.event.release.tag_name }}
+        tags: rancher/k3k:${{ github.ref_name }}
         file: Dockerfile
         platforms: linux/amd64
 

@@ -8,7 +8,7 @@ name: Build
 permissions:
     contents: read
 jobs:
-  build-amd64:
+  build-cross-arch:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code

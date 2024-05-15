@@ -8,7 +8,7 @@ permissions:
     contents: read
     id-token: write
 jobs:
-  build-amd64:
+  chart-release:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code

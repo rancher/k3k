@@ -20,7 +20,7 @@ fi
 SUFFIX="-${ARCH}"
 
 
-if [[ $TAG = "chart*" ]]; then
+if [[ $VERSION = "chart*" ]]; then
   TAG=${TAG:-${VERSION}}
 else 
   TAG=${TAG:-${VERSION}${SUFFIX}}

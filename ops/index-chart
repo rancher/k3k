@@ -18,7 +18,7 @@ cr index  --token ${GITHUB_TOKEN} \
           --package-path ./deploy/ \
           --index-path index.yaml \
           --git-repo k3k \
-          -o rancher
+          -o galal-hussein
 
 # push to gh-pages
 git config --global user.email "hussein.galal.ahmed.11@gmail.com"

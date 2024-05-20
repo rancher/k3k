@@ -1,5 +1,4 @@
 TARGETS := $(shell ls ops)
-
 .dapper:
 	@echo Downloading dapper
 	@curl -sL https://releases.rancher.com/dapper/latest/dapper-$$(uname -s)-$$(uname -m) > .dapper.tmp

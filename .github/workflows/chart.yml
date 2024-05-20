@@ -16,26 +16,15 @@ jobs:
 
     - name: Package Chart
       run: |
-        make package-chart
-    
-    # - name: "Read secrets"
-    #   uses: rancher-eio/read-vault-secrets@main
-    #   with:
-    #     secrets: |
-    #       secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
-    #       secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials password | DOCKER_PASSWORD ;
-    #       secret/data/github/repo/${{ github.repository }}/github/${{ github.repository_owner }}/credentials github_token | GITHUB_TOKEN
+        make package-chart;
 
     - name: Release Chart
       uses: softprops/action-gh-release@v2
       with:
         files: |
           deploy/*
-        token: ${{ secrets.GITHUB_TOKEN }}
       
     - name: Index Chart
       run: |
         make index-chart
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         

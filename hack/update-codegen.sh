@@ -4,6 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+set -x
 CODEGEN_GIT_PKG=https://github.com/kubernetes/code-generator.git
 git clone --depth 1 ${CODEGEN_GIT_PKG} || true
 

@@ -1,0 +1,22 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+name: Build
+permissions:
+    contents: read
+jobs:
+  build-cross-arch:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Cross Arch Build
+      run: |
+        make ci
+      env:
+        CROSS: "true"
+        

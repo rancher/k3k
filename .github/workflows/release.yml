@@ -3,6 +3,9 @@ on:
     tags:
     - "v*"
 
+env:
+    GH_TOKEN: ${{ github.token }}
+
 name: Release
 permissions:
     contents: write

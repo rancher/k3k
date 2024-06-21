@@ -3,6 +3,9 @@ on:
     tags:
     - "chart-*"
 
+env:
+    GH_TOKEN: ${{ github.token }}
+
 name: Chart
 permissions:
     contents: write

@@ -19,10 +19,8 @@ jobs:
         make package-chart;
 
     - name: Release Chart
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          deploy/*
+      run: |
+        gh release upload ${{ github.ref_name }} deploy/*
       
     - name: Index Chart
       run: |

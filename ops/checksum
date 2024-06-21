@@ -3,9 +3,7 @@ set -ex
 
 cd $(dirname $0)/..
 
-source ./ops/version.sh
-
-CHECKSUM_DIR=${CHECKSUM_DIR:-./dist/artifacts}
+CHECKSUM_DIR=${CHECKSUM_DIR:-./bin}
 
 sumfile="${CHECKSUM_DIR}/sha256sum.txt"
 echo -n "" > "${sumfile}"

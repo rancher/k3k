@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -ex
+
+cd $(dirname $0)/..
+
+CHECKSUM_DIR=${CHECKSUM_DIR:-./bin}
+
+sumfile="${CHECKSUM_DIR}/sha256sum.txt"
+echo -n "" > "${sumfile}"
+
+files=$(ls ${CHECKSUM_DIR} | grep -v "sha256sum.txt")
+for file in ${files}; do
+  sha256sum "${CHECKSUM_DIR}/${file}" | sed "s;$(dirname ${CHECKSUM_DIR}/${file})/;;g" >> "${sumfile}"
+done
+
+cat "${sumfile}"

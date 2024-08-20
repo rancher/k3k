@@ -41,7 +41,12 @@ func New(cluster *v1alpha1.Cluster, client client.Client) *Server {
 }
 
 func (s *Server) podSpec(ctx context.Context, image, name string, persistent bool, affinitySelector *metav1.LabelSelector) v1.PodSpec {
+	var limit v1.ResourceList
+	if s.cluster.Spec.Limit != nil && s.cluster.Spec.Limit.ServerLimit != nil {
+		limit = s.cluster.Spec.Limit.ServerLimit
+	}
 	podSpec := v1.PodSpec{
+		NodeSelector: s.cluster.Spec.NodeSelector,
 		Affinity: &v1.Affinity{
 			PodAntiAffinity: &v1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
@@ -110,6 +115,9 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 			{
 				Name:  name,
 				Image: image,
+				Resources: v1.ResourceRequirements{
+					Limits: limit,
+				},
 				Env: []v1.EnvVar{
 					{
 						Name: "POD_NAME",

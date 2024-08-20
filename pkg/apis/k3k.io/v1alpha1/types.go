@@ -27,6 +27,10 @@ type ClusterSpec struct {
 	// +kubebuilder:validation:XValidation:message="invalid value for agents",rule="self >= 0"
 	// Agents is the number of K3s pods to run in agent (worker) mode.
 	Agents *int32 `json:"agents"`
+	// NodeSelector is the node selector that will be applied to all server/agent pods
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// Limit is the limits that apply for the server/worker nodes.
+	Limit *ClusterLimit `json:"clusterLimit,omitempty"`
 	// +kubebuilder:validation:XValidation:message="token is immutable",rule="self == oldSelf"
 	// Token is the token used to join the worker nodes to the cluster.
 	Token string `json:"token"`

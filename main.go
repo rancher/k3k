@@ -7,6 +7,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster"
+	"github.com/rancher/k3k/pkg/controller/clusterset"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
@@ -38,12 +39,25 @@ func main() {
 	mgr, err := ctrl.NewManager(restConfig, manager.Options{
 		Scheme: Scheme,
 	})
+
 	if err != nil {
 		klog.Fatalf("Failed to create new controller runtime manager: %v", err)
 	}
 
 	if err := cluster.Add(ctx, mgr); err != nil {
-		klog.Fatalf("Failed to add the new controller: %v", err)
+		klog.Fatalf("Failed to add the new cluster controller: %v", err)
+	}
+
+	if err := cluster.AddPodController(ctx, mgr); err != nil {
+		klog.Fatalf("Failed to add the new cluster controller: %v", err)
+	}
+	klog.Info("adding clusterset controller")
+	if err := clusterset.Add(ctx, mgr); err != nil {
+		klog.Fatalf("Failed to add the clusterset controller: %v", err)
+	}
+
+	if err := cluster.AddWebhookHandler(ctx, mgr); err != nil {
+		klog.Fatalf("failed to add a webhook for the cluster type: %v", err)
 	}
 
 	if err := cluster.AddPodController(ctx, mgr); err != nil {

@@ -23,7 +23,7 @@ func (s *Server) Service(cluster *v1alpha1.Cluster) *v1.Service {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "k3k-server-service",
+			Name:      util.ServerSvcName(cluster),
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: v1.ServiceSpec{

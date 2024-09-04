@@ -139,6 +139,7 @@ func create(clx *cli.Context) error {
 	logrus.Infof("Creating a new cluster [%s]", name)
 	cluster := newCluster(
 		name,
+		cmds.Namespace(),
 		token,
 		int32(servers),
 		int32(agents),
@@ -226,10 +227,11 @@ func validateCreateFlags(clx *cli.Context) error {
 	return nil
 }
 
-func newCluster(name, token string, servers, agents int32, clusterCIDR, serviceCIDR string, serverArgs, agentArgs []string) *v1alpha1.Cluster {
+func newCluster(name, namespace, token string, servers, agents int32, clusterCIDR, serviceCIDR string, serverArgs, agentArgs []string) *v1alpha1.Cluster {
 	return &v1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: namespace,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Cluster",

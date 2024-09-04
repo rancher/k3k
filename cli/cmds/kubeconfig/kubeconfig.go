@@ -114,9 +114,9 @@ func generate(clx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	clusterKey := types.NamespacedName{
-		Name: name,
+		Name:      name,
+		Namespace: cmds.Namespace(),
 	}
 
 	if err := ctrlClient.Get(ctx, clusterKey, &cluster); err != nil {

@@ -5,15 +5,25 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	defaultNamespace = "default"
+)
+
 var (
 	debug       bool
 	Kubeconfig  string
+	namespace   string
 	CommonFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "kubeconfig",
 			EnvVar:      "KUBECONFIG",
 			Usage:       "Kubeconfig path",
 			Destination: &Kubeconfig,
+		},
+		cli.StringFlag{
+			Name:        "namespace",
+			Usage:       "Namespace to create the k3k cluster in",
+			Destination: &namespace,
 		},
 	}
 )
@@ -39,4 +49,11 @@ func NewApp() *cli.App {
 	}
 
 	return app
+}
+
+func Namespace() string {
+	if namespace == "" {
+		return defaultNamespace
+	}
+	return namespace
 }

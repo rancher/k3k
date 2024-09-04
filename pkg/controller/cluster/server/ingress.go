@@ -59,7 +59,7 @@ func (s *Server) ingressRules(addresses []string) []networkingv1.IngressRule {
 							PathType: &pathTypePrefix,
 							Backend: networkingv1.IngressBackend{
 								Service: &networkingv1.IngressServiceBackend{
-									Name: "k3k-server-service",
+									Name: util.ServerSvcName(s.cluster),
 									Port: networkingv1.ServiceBackendPort{
 										Number: serverPort,
 									},

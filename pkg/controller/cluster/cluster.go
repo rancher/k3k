@@ -199,26 +199,6 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 	return c.Client.Update(ctx, cluster)
 }
 
-func (c *ClusterReconciler) createNamespace(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	// create a new namespace for the cluster
-	namespace := v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: util.ClusterNamespace(cluster),
-		},
-	}
-	if err := controllerutil.SetControllerReference(cluster, &namespace, c.Scheme); err != nil {
-		return err
-	}
-
-	if err := c.Client.Create(ctx, &namespace); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.LogAndReturnErr("failed to create ns", err)
-		}
-	}
-
-	return nil
-}
-
 func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
 	// create init node config
 	initServerConfig, err := config.Server(cluster, true, serviceIP)

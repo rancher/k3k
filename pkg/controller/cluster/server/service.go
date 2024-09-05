@@ -56,7 +56,7 @@ func (s *Server) StatefulServerService(cluster *v1alpha1.Cluster) *v1.Service {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-" + name + "-headless",
+			Name:      cluster.Name + "-" + name + "headless",
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Spec: v1.ServiceSpec{

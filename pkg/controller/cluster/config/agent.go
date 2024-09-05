@@ -18,7 +18,7 @@ func Agent(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "k3k-agent-config",
+			Name:      util.AgentConfigName(cluster),
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Data: map[string][]byte{

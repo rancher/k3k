@@ -46,6 +46,10 @@ func main() {
 		klog.Fatalf("Failed to add the new controller: %v", err)
 	}
 
+	if err := cluster.AddPodController(ctx, mgr); err != nil {
+		klog.Fatalf("Failed to add the new cluster controller: %v", err)
+	}
+
 	if err := mgr.Start(ctx); err != nil {
 		klog.Fatalf("Failed to start the manager: %v", err)
 	}

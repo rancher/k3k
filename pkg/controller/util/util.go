@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	v1 "k8s.io/api/core/v1"
@@ -21,7 +22,23 @@ const (
 )
 
 func ClusterNamespace(cluster *v1alpha1.Cluster) string {
-	return namespacePrefix + cluster.Name
+	return cluster.Namespace
+}
+
+func ServerSvcName(cluster *v1alpha1.Cluster) string {
+	return fmt.Sprintf("k3k-%s-service", cluster.Name)
+}
+
+func ServerConfigName(cluster *v1alpha1.Cluster) string {
+	return fmt.Sprintf("k3k-%s-server-config", cluster.Name)
+}
+
+func ServerInitConfigName(cluster *v1alpha1.Cluster) string {
+	return fmt.Sprintf("k3k-init-%s-server-config", cluster.Name)
+}
+
+func AgentConfigName(cluster *v1alpha1.Cluster) string {
+	return fmt.Sprintf("k3k-%s-agent-config", cluster.Name)
 }
 
 func K3SImage(cluster *v1alpha1.Cluster) string {

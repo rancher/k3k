@@ -57,7 +57,7 @@ func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster 
 	}
 	// get the server service to extract the right IP
 	nn = types.NamespacedName{
-		Name:      "k3k-server-service",
+		Name:      util.ServerSvcName(cluster),
 		Namespace: util.ClusterNamespace(cluster),
 	}
 

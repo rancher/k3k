@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -60,7 +61,7 @@ func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip string) (*v1.Se
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cluster.Name + "-bootstrap",
-			Namespace: "k3k-" + cluster.Name,
+			Namespace: util.ClusterNamespace(cluster),
 		},
 		Data: map[string][]byte{
 			"bootstrap": bootstrapData,

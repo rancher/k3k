@@ -26,7 +26,12 @@ func (a *Agent) Deploy() *apps.Deployment {
 	image := util.K3SImage(a.cluster)
 
 	const name = "k3k-agent"
-
+	selector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"cluster": a.cluster.Name,
+			"type":    "agent",
+		},
+	}
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -35,23 +40,16 @@ func (a *Agent) Deploy() *apps.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.cluster.Name + "-" + name,
 			Namespace: util.ClusterNamespace(a.cluster),
+			Labels:    selector.MatchLabels,
 		},
 		Spec: apps.DeploymentSpec{
 			Replicas: a.cluster.Spec.Agents,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"cluster": a.cluster.Name,
-					"type":    "agent",
-				},
-			},
+			Selector: &selector,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"cluster": a.cluster.Name,
-						"type":    "agent",
-					},
+					Labels: selector.MatchLabels,
 				},
-				Spec: a.podSpec(image, name, a.cluster.Spec.AgentArgs, false),
+				Spec: a.podSpec(image, name, a.cluster.Spec.AgentArgs, false, &selector),
 			},
 		},
 	}
@@ -60,6 +58,12 @@ func (a *Agent) Deploy() *apps.Deployment {
 func (a *Agent) StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 	image := util.K3SImage(cluster)
 
+	selector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"cluster": cluster.Name,
+			"type":    "agent",
+		},
+	}
 	return &apps.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Statefulset",
@@ -68,16 +72,12 @@ func (a *Agent) StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cluster.Name + "-" + agentName,
 			Namespace: util.ClusterNamespace(cluster),
+			Labels:    selector.MatchLabels,
 		},
 		Spec: apps.StatefulSetSpec{
 			ServiceName: cluster.Name + "-" + agentName + "-headless",
 			Replicas:    cluster.Spec.Agents,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"cluster": cluster.Name,
-					"type":    "agent",
-				},
-			},
+			Selector:    &selector,
 			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
 				{
 					TypeMeta: metav1.TypeMeta{
@@ -120,20 +120,28 @@ func (a *Agent) StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"cluster": cluster.Name,
-						"type":    "agent",
-					},
+					Labels: selector.MatchLabels,
 				},
-				Spec: a.podSpec(image, agentName, cluster.Spec.AgentArgs, true),
+				Spec: a.podSpec(image, agentName, cluster.Spec.AgentArgs, true, &selector),
 			},
 		},
 	}
 }
 
-func (a *Agent) podSpec(image, name string, args []string, statefulSet bool) v1.PodSpec {
+func (a *Agent) podSpec(image, name string, args []string, statefulSet bool, affinitySelector *metav1.LabelSelector) v1.PodSpec {
+	var limit v1.ResourceList
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 	podSpec := v1.PodSpec{
+		Affinity: &v1.Affinity{
+			PodAntiAffinity: &v1.PodAntiAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+					{
+						LabelSelector: affinitySelector,
+						TopologyKey:   "kubernetes.io/hostname",
+					},
+				},
+			},
+		},
 		Volumes: []v1.Volume{
 			{
 				Name: "config",
@@ -185,6 +193,9 @@ func (a *Agent) podSpec(image, name string, args []string, statefulSet bool) v1.
 					"/bin/k3s",
 				},
 				Args: args,
+				Resources: v1.ResourceRequirements{
+					Limits: limit,
+				},
 				VolumeMounts: []v1.VolumeMount{
 					{
 						Name:      "config",

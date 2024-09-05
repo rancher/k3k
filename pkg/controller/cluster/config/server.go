@@ -1,22 +1,26 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Server returns the secret for the server's config. Note that this doesn't set the ownerRef on the secret
+// to tie it back to the cluster.
 func Server(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret, error) {
-	name := "k3k-server-config"
+	name := util.ServerConfigName(cluster)
 	if init {
-		name = "k3k-init-server-config"
+		name = util.ServerInitConfigName(cluster)
 	}
 
 	cluster.Status.TLSSANs = append(cluster.Spec.TLSSANs,
 		serviceIP,
-		"k3k-server-service",
-		"k3k-server-service."+util.ClusterNamespace(cluster),
+		util.ServerSvcName(cluster),
+		fmt.Sprintf("%s.%s", util.ServerSvcName(cluster), util.ClusterNamespace(cluster)),
 	)
 
 	config := serverConfigData(serviceIP, cluster)

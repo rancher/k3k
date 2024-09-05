@@ -2,33 +2,22 @@ package cluster
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
-	"net/url"
 	"reflect"
-	"strings"
 	"time"
 
-	certutil "github.com/rancher/dynamiclistener/cert"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/config"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
-	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/rancher/k3k/pkg/controller/util"
-	"github.com/sirupsen/logrus"
-	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -76,49 +65,15 @@ func Add(ctx context.Context, mgr manager.Manager) error {
 		return err
 	}
 
-	if err := controller.Watch(&source.Kind{Type: &v1alpha1.Cluster{}}, &handler.EnqueueRequestForObject{}); err != nil {
-		return err
-	}
-	return controller.Watch(&source.Kind{Type: &v1.Pod{}},
-		&handler.EnqueueRequestForOwner{IsController: true, OwnerType: &apps.StatefulSet{}})
+	return controller.Watch(&source.Kind{Type: &v1alpha1.Cluster{}}, &handler.EnqueueRequestForObject{})
 }
 
 func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 
 	var (
-		cluster     v1alpha1.Cluster
-		podList     v1.PodList
-		clusterName string
+		cluster v1alpha1.Cluster
+		podList v1.PodList
 	)
-	if req.Namespace != "" {
-		s := strings.Split(req.Namespace, "-")
-		if len(s) <= 1 {
-			return reconcile.Result{}, util.LogAndReturnErr("failed to get cluster namespace", nil)
-		}
-
-		clusterName = s[1]
-		var cluster v1alpha1.Cluster
-		if err := c.Client.Get(ctx, types.NamespacedName{Name: clusterName}, &cluster); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return reconcile.Result{}, err
-			}
-		}
-		matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
-		listOpts := &ctrlruntimeclient.ListOptions{Namespace: req.Namespace}
-		matchingLabels.ApplyToList(listOpts)
-
-		if err := c.Client.List(ctx, &podList, listOpts); err != nil {
-			return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
-		}
-		for _, pod := range podList.Items {
-			klog.Infof("Handle etcd server pod [%s/%s]", pod.Namespace, pod.Name)
-			if err := c.handleServerPod(ctx, cluster, &pod); err != nil {
-				return reconcile.Result{}, util.LogAndReturnErr("failed to handle etcd pod", err)
-			}
-		}
-
-		return reconcile.Result{}, nil
-	}
 
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
@@ -129,17 +84,6 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			controllerutil.AddFinalizer(&cluster, clusterFinalizerName)
 			if err := c.Client.Update(ctx, &cluster); err != nil {
 				return reconcile.Result{}, util.LogAndReturnErr("failed to add cluster finalizer", err)
-			}
-		}
-
-		// we create a namespace for each new cluster
-		var ns v1.Namespace
-		objKey := ctrlruntimeclient.ObjectKey{
-			Name: util.ClusterNamespace(&cluster),
-		}
-		if err := c.Client.Get(ctx, objKey, &ns); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return reconcile.Result{}, util.LogAndReturnErr("failed to get cluster namespace "+util.ClusterNamespace(&cluster), err)
 			}
 		}
 
@@ -195,10 +139,6 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 	}
 	if err := c.Client.Update(ctx, cluster); err != nil {
 		return util.LogAndReturnErr("failed to update cluster with persistence type", err)
-	}
-	// create a new namespace for the cluster
-	if err := c.createNamespace(ctx, cluster); err != nil {
-		return util.LogAndReturnErr("failed to create ns", err)
 	}
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
@@ -257,26 +197,6 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 	}
 
 	return c.Client.Update(ctx, cluster)
-}
-
-func (c *ClusterReconciler) createNamespace(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	// create a new namespace for the cluster
-	namespace := v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: util.ClusterNamespace(cluster),
-		},
-	}
-	if err := controllerutil.SetControllerReference(cluster, &namespace, c.Scheme); err != nil {
-		return err
-	}
-
-	if err := c.Client.Create(ctx, &namespace); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return util.LogAndReturnErr("failed to create ns", err)
-		}
-	}
-
-	return nil
 }
 
 func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
@@ -341,7 +261,7 @@ func (c *ClusterReconciler) createClusterService(ctx context.Context, cluster *v
 
 	objKey := ctrlruntimeclient.ObjectKey{
 		Namespace: util.ClusterNamespace(cluster),
-		Name:      "k3k-server-service",
+		Name:      util.ServerSvcName(cluster),
 	}
 	if err := c.Client.Get(ctx, objKey, &service); err != nil {
 		return "", err
@@ -400,7 +320,7 @@ func agentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "k3k-agent-config",
+			Name:      util.AgentConfigName(cluster),
 			Namespace: util.ClusterNamespace(cluster),
 		},
 		Data: map[string][]byte{
@@ -412,129 +332,6 @@ func agentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
 func agentData(serviceIP, token string) string {
 	return fmt.Sprintf(`server: https://%s:6443
 token: %s`, serviceIP, token)
-}
-
-func (c *ClusterReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
-	if _, ok := pod.Labels["role"]; ok {
-		if pod.Labels["role"] != "server" {
-			return nil
-		}
-	} else {
-		return errors.New("server pod has no role label")
-	}
-	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
-	if !pod.DeletionTimestamp.IsZero() {
-		// check if cluster is deleted then remove the finalizer from the pod
-		if cluster.Name == "" {
-			if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
-				controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
-				if err := c.Client.Update(ctx, pod); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-		tlsConfig, err := c.getETCDTLS(&cluster)
-		if err != nil {
-			return err
-		}
-		// remove server from etcd
-		client, err := clientv3.New(clientv3.Config{
-			Endpoints: []string{
-				"https://k3k-server-service." + pod.Namespace + ":2379",
-			},
-			TLS: tlsConfig,
-		})
-		if err != nil {
-			return err
-		}
-
-		if err := removePeer(ctx, client, pod.Name, pod.Status.PodIP); err != nil {
-			return err
-		}
-		// remove our finalizer from the list and update it.
-		if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
-			controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
-			if err := c.Client.Update(ctx, pod); err != nil {
-				return err
-			}
-		}
-	}
-	if !controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
-		controllerutil.AddFinalizer(pod, etcdPodFinalizerName)
-		return c.Client.Update(ctx, pod)
-	}
-
-	return nil
-}
-
-// removePeer removes a peer from the cluster. The peer name and IP address must both match.
-func removePeer(ctx context.Context, client *clientv3.Client, name, address string) error {
-	ctx, cancel := context.WithTimeout(ctx, memberRemovalTimeout)
-	defer cancel()
-	members, err := client.MemberList(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, member := range members.Members {
-		if !strings.Contains(member.Name, name) {
-			continue
-		}
-		for _, peerURL := range member.PeerURLs {
-			u, err := url.Parse(peerURL)
-			if err != nil {
-				return err
-			}
-			if u.Hostname() == address {
-				logrus.Infof("Removing name=%s id=%d address=%s from etcd", member.Name, member.ID, address)
-				_, err := client.MemberRemove(ctx, member.ID)
-				if errors.Is(err, rpctypes.ErrGRPCMemberNotFound) {
-					return nil
-				}
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (c *ClusterReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, error) {
-	klog.Infof("generating etcd TLS client certificate for cluster [%s]", cluster.Name)
-	token := cluster.Spec.Token
-	endpoint := "k3k-server-service." + util.ClusterNamespace(cluster)
-	var b *bootstrap.ControlRuntimeBootstrap
-	if err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
-		return true
-	}, func() error {
-		var err error
-		b, err = bootstrap.DecodedBootstrap(token, endpoint)
-		return err
-	}); err != nil {
-		return nil, err
-	}
-
-	etcdCert, etcdKey, err := kubeconfig.CreateClientCertKey("etcd-client", nil, nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, 0, b.ETCDServerCA.Content, b.ETCDServerCAKey.Content)
-	if err != nil {
-		return nil, err
-	}
-	clientCert, err := tls.X509KeyPair(etcdCert, etcdKey)
-	if err != nil {
-		return nil, err
-	}
-	// create rootCA CertPool
-	cert, err := certutil.ParseCertsPEM([]byte(b.ETCDServerCA.Content))
-	if err != nil {
-		return nil, err
-	}
-	pool := x509.NewCertPool()
-	pool.AddCert(cert[0])
-
-	return &tls.Config{
-		RootCAs:      pool,
-		Certificates: []tls.Certificate{clientCert},
-	}, nil
 }
 
 func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {

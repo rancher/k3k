@@ -1,35 +1,67 @@
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:storageversion
+// +kubebuilder:subresource:status
 
 type Cluster struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta   `json:",inline"`
 
 	Spec   ClusterSpec   `json:"spec"`
-	Status ClusterStatus `json:"status"`
+	Status ClusterStatus `json:"status,omitempty"`
 }
 
 type ClusterSpec struct {
-	Version     string   `json:"version"`
-	Servers     *int32   `json:"servers"`
-	Agents      *int32   `json:"agents"`
-	Token       string   `json:"token"`
-	ClusterCIDR string   `json:"clusterCIDR,omitempty"`
-	ServiceCIDR string   `json:"serviceCIDR,omitempty"`
-	ClusterDNS  string   `json:"clusterDNS,omitempty"`
-	ServerArgs  []string `json:"serverArgs,omitempty"`
-	AgentArgs   []string `json:"agentArgs,omitempty"`
-	TLSSANs     []string `json:"tlsSANs,omitempty"`
-	Addons      []Addon  `json:"addons,omitempty"`
+	// Version is a string representing the Kubernetes version to be used by the virtual nodes.
+	Version string `json:"version"`
+	// +kubebuilder:validation:XValidation:message="cluster must have at least one server",rule="self >= 1"
+	// Servers is the number of K3s pods to run in server (controlplane) mode.
+	Servers *int32 `json:"servers"`
+	// +kubebuilder:validation:XValidation:message="invalid value for agents",rule="self >= 0"
+	// Agents is the number of K3s pods to run in agent (worker) mode.
+	Agents *int32 `json:"agents"`
+	// +kubebuilder:validation:XValidation:message="token is immutable",rule="self == oldSelf"
+	// Token is the token used to join the worker nodes to the cluster.
+	Token string `json:"token"`
+	// +kubebuilder:validation:XValidation:message="clusterCIDR is immutable",rule="self == oldSelf"
+	// ClusterCIDR is the CIDR range for the pods of the cluster. Defaults to 10.42.0.0/16.
+	ClusterCIDR string `json:"clusterCIDR,omitempty"`
+	// +kubebuilder:validation:XValidation:message="serviceCIDR is immutable",rule="self == oldSelf"
+	// ServiceCIDR is the CIDR range for the services in the cluster. Defaults to 10.43.0.0/16.
+	ServiceCIDR string `json:"serviceCIDR,omitempty"`
+	// +kubebuilder:validation:XValidation:message="clusterDNS is immutable",rule="self == oldSelf"
+	// ClusterDNS is the IP address for the coredns service. Needs to be in the range provided by ServiceCIDR or CoreDNS may not deploy.
+	// Defaults to 10.43.0.10.
+	ClusterDNS string `json:"clusterDNS,omitempty"`
+	// ServerArgs are the ordered key value pairs (e.x. "testArg", "testValue") for the K3s pods running in server mode.
+	ServerArgs []string `json:"serverArgs,omitempty"`
+	// AgentArgs are the ordered key value pairs (e.x. "testArg", "testValue") for the K3s pods running in agent mode.
+	AgentArgs []string `json:"agentArgs,omitempty"`
+	// TLSSANs are the subjectAlternativeNames for the certificate the K3s server will use.
+	TLSSANs []string `json:"tlsSANs,omitempty"`
+	// Addons is a list of secrets containing raw YAML which will be deployed in the virtual K3k cluster on startup.
+	Addons []Addon `json:"addons,omitempty"`
 
+	// Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
+	// persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.
 	Persistence *PersistenceConfig `json:"persistence,omitempty"`
-	Expose      *ExposeConfig      `json:"expose,omitempty"`
+	// Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a
+	// clusterIP which is relatively secure, but difficult to access outside of the cluster.
+	Expose *ExposeConfig `json:"expose,omitempty"`
+}
+
+type ClusterLimit struct {
+	// ServerLimit is the limits (cpu/mem) that apply to the server nodes
+	ServerLimit v1.ResourceList `json:"serverLimit,omitempty"`
+	// WorkerLimit is the limits (cpu/mem) that apply to the agent nodes
+	WorkerLimit v1.ResourceList `json:"workerLimit,omitempty"`
 }
 
 type Addon struct {
@@ -48,6 +80,7 @@ type ClusterList struct {
 
 type PersistenceConfig struct {
 	// Type can be ephermal, static, dynamic
+	// +kubebuilder:default="ephemeral"
 	Type               string `json:"type"`
 	StorageClassName   string `json:"storageClassName,omitempty"`
 	StorageRequestSize string `json:"storageRequestSize,omitempty"`

@@ -40,14 +40,24 @@ func New(cluster *v1alpha1.Cluster, client client.Client) *Server {
 	}
 }
 
-func (s *Server) podSpec(ctx context.Context, image, name string, persistent bool) v1.PodSpec {
+func (s *Server) podSpec(ctx context.Context, image, name string, persistent bool, affinitySelector *metav1.LabelSelector) v1.PodSpec {
 	podSpec := v1.PodSpec{
+		Affinity: &v1.Affinity{
+			PodAntiAffinity: &v1.PodAntiAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+					{
+						LabelSelector: affinitySelector,
+						TopologyKey:   "kubernetes.io/hostname",
+					},
+				},
+			},
+		},
 		Volumes: []v1.Volume{
 			{
 				Name: "initconfig",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: "k3k-init-server-config",
+						SecretName: util.ServerInitConfigName(s.cluster),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",
@@ -61,7 +71,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 				Name: "config",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: "k3k-server-config",
+						SecretName: util.ServerConfigName(s.cluster),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",
@@ -313,7 +323,14 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
-	podSpec := s.podSpec(ctx, image, name, persistent)
+	selector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"cluster": cluster.Name,
+			"role":    "server",
+		},
+	}
+
+	podSpec := s.podSpec(ctx, image, name, persistent, &selector)
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
 
@@ -325,23 +342,16 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cluster.Name + "-" + name,
 			Namespace: util.ClusterNamespace(cluster),
+			Labels:    selector.MatchLabels,
 		},
 		Spec: apps.StatefulSetSpec{
-			Replicas:    &replicas,
-			ServiceName: cluster.Name + "-" + name + "-headless",
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"cluster": cluster.Name,
-					"role":    "server",
-				},
-			},
+			Replicas:             &replicas,
+			ServiceName:          cluster.Name + "-" + name + "-headless",
+			Selector:             &selector,
 			VolumeClaimTemplates: pvClaims,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"cluster": cluster.Name,
-						"role":    "server",
-					},
+					Labels: selector.MatchLabels,
 				},
 				Spec: podSpec,
 			},

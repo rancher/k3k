@@ -40,7 +40,8 @@ func delete(clx *cli.Context) error {
 	logrus.Infof("deleting [%s] cluster", name)
 	cluster := v1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: cmds.Namespace(),
 		},
 	}
 	return ctrlClient.Delete(ctx, &cluster)

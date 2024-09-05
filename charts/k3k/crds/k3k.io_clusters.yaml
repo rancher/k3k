@@ -1,0 +1,206 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+  name: clusters.k3k.io
+spec:
+  group: k3k.io
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              addons:
+                description: Addons is a list of secrets containing raw YAML which
+                  will be deployed in the virtual K3k cluster on startup.
+                items:
+                  properties:
+                    secretNamespace:
+                      type: string
+                    secretRef:
+                      type: string
+                  type: object
+                type: array
+              agentArgs:
+                description: AgentArgs are the ordered key value pairs (e.x. "testArg",
+                  "testValue") for the K3s pods running in agent mode.
+                items:
+                  type: string
+                type: array
+              agents:
+                description: Agents is the number of K3s pods to run in agent (worker)
+                  mode.
+                format: int32
+                type: integer
+                x-kubernetes-validations:
+                - message: invalid value for agents
+                  rule: self >= 0
+              clusterCIDR:
+                description: ClusterCIDR is the CIDR range for the pods of the cluster.
+                  Defaults to 10.42.0.0/16.
+                type: string
+                x-kubernetes-validations:
+                - message: clusterCIDR is immutable
+                  rule: self == oldSelf
+              clusterDNS:
+                description: |-
+                  ClusterDNS is the IP address for the coredns service. Needs to be in the range provided by ServiceCIDR or CoreDNS may not deploy.
+                  Defaults to 10.43.0.10.
+                type: string
+                x-kubernetes-validations:
+                - message: clusterDNS is immutable
+                  rule: self == oldSelf
+              expose:
+                description: |-
+                  Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a
+                  clusterIP which is relatively secure, but difficult to access outside of the cluster.
+                properties:
+                  ingress:
+                    properties:
+                      enabled:
+                        type: boolean
+                      ingressClassName:
+                        type: string
+                    required:
+                    - enabled
+                    - ingressClassName
+                    type: object
+                  loadbalancer:
+                    properties:
+                      enabled:
+                        type: boolean
+                    required:
+                    - enabled
+                    type: object
+                  nodePort:
+                    properties:
+                      enabled:
+                        type: boolean
+                    required:
+                    - enabled
+                    type: object
+                required:
+                - ingress
+                - loadbalancer
+                - nodePort
+                type: object
+              persistence:
+                description: |-
+                  Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
+                  persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.
+                properties:
+                  storageClassName:
+                    type: string
+                  storageRequestSize:
+                    type: string
+                  type:
+                    default: ephemeral
+                    description: Type can be ephermal, static, dynamic
+                    type: string
+                required:
+                - type
+                type: object
+              serverArgs:
+                description: ServerArgs are the ordered key value pairs (e.x. "testArg",
+                  "testValue") for the K3s pods running in server mode.
+                items:
+                  type: string
+                type: array
+              servers:
+                description: Servers is the number of K3s pods to run in server (controlplane)
+                  mode.
+                format: int32
+                type: integer
+                x-kubernetes-validations:
+                - message: cluster must have at least one server
+                  rule: self >= 1
+              serviceCIDR:
+                description: ServiceCIDR is the CIDR range for the services in the
+                  cluster. Defaults to 10.43.0.0/16.
+                type: string
+                x-kubernetes-validations:
+                - message: serviceCIDR is immutable
+                  rule: self == oldSelf
+              tlsSANs:
+                description: TLSSANs are the subjectAlternativeNames for the certificate
+                  the K3s server will use.
+                items:
+                  type: string
+                type: array
+              token:
+                description: Token is the token used to join the worker nodes to the
+                  cluster.
+                type: string
+                x-kubernetes-validations:
+                - message: token is immutable
+                  rule: self == oldSelf
+              version:
+                description: Version is a string representing the Kubernetes version
+                  to be used by the virtual nodes.
+                type: string
+            required:
+            - agents
+            - servers
+            - token
+            - version
+            type: object
+          status:
+            properties:
+              clusterCIDR:
+                type: string
+              clusterDNS:
+                type: string
+              persistence:
+                properties:
+                  storageClassName:
+                    type: string
+                  storageRequestSize:
+                    type: string
+                  type:
+                    default: ephemeral
+                    description: Type can be ephermal, static, dynamic
+                    type: string
+                required:
+                - type
+                type: object
+              serviceCIDR:
+                type: string
+              tlsSANs:
+                items:
+                  type: string
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

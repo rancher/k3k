@@ -147,7 +147,7 @@ func (a *Agent) podSpec(image, name string, args []string, statefulSet bool, aff
 				Name: "config",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: name + "-config",
+						SecretName: util.AgentConfigName(a.cluster),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",

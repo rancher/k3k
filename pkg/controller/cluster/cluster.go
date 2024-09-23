@@ -19,13 +19,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -54,18 +53,12 @@ func Add(ctx context.Context, mgr manager.Manager) error {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}
-
-	// create a new controller and add it to the manager
-	//this can be replaced by the new builder functionality in controller-runtime
-	controller, err := controller.New(clusterController, mgr, controller.Options{
-		Reconciler:              &reconciler,
-		MaxConcurrentReconciles: maxConcurrentReconciles,
-	})
-	if err != nil {
-		return err
-	}
-
-	return controller.Watch(&source.Kind{Type: &v1alpha1.Cluster{}}, &handler.EnqueueRequestForObject{})
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1alpha1.Cluster{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: maxConcurrentReconciles,
+		}).
+		Complete(&reconciler)
 }
 
 func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

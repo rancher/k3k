@@ -17,11 +17,11 @@ import (
 
 type ControlRuntimeBootstrap struct {
 	ServerCA        content `json:"serverCA"`
-	ServerCAKey     content `json:"server"`
-	ClientCA        content
-	ClientCAKey     content
-	ETCDServerCA    content
-	ETCDServerCAKey content
+	ServerCAKey     content `json:"serverCAKey"`
+	ClientCA        content `json:"clientCA"`
+	ClientCAKey     content `json:"clientCAKey"`
+	ETCDServerCA    content `json:"etcdServerCA"`
+	ETCDServerCAKey content `json:"etcdServerCAKey"`
 }
 
 type content struct {

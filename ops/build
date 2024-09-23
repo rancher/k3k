@@ -23,12 +23,23 @@ if [ "$CROSS" = "true" ] && [ "$ARCH" = "amd64" ]; then
     GOOS=windows GOARCH=amd64 go build -ldflags "$LINKFLAGS" -o bin/k3k-windows
 fi
 
+# build k3k-kubelet
+CGO_ENABLED=0 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3k-kubelet ./virtual-kubelet
+if [ "$CROSS" = "true" ] && [ "$ARCH" = "amd64" ]; then
+    CGO_ENABLED=0 GOOS=linux GOARCH=s390x go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3k-kubelet-s390x 
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3k-kubelet-arm64 
+    GOOS=freebsd GOARCH=arm64 go build -ldflags "$LINKFLAGS" -o bin/k3k-kubelet-freebsd
+    GOOS=darwin GOARCH=amd64 go build -ldflags "$LINKFLAGS" -o bin/k3k-kubelet-darwin-amd64 
+    GOOS=darwin GOARCH=arm64 go build -ldflags "$LINKFLAGS" -o bin/k3k-kubelet-darwin-aarch64
+    GOOS=windows GOARCH=amd64 go build -ldflags "$LINKFLAGS" -o bin/k3k-kubelet-windows
+fi
+
 # build k3kcli
 CGO_ENABLED=0 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3kcli ./cli
 if [ "$CROSS" = "true" ] && [ "$ARCH" = "amd64" ]; then
     CGO_ENABLED=0 GOOS=linux GOARCH=s390x go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3kcli-s390x ./cli
     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3kcli-arm64 ./cli
-    GOOS=freebsd GOARCH=arm64 go build -ldflags "$LINKFLAGS" -o bin/k3k-freebsd ./cli
+    GOOS=freebsd GOARCH=arm64 go build -ldflags "$LINKFLAGS" -o bin/k3kcli-freebsd ./cli
     GOOS=darwin GOARCH=amd64 go build -ldflags "$LINKFLAGS" -o bin/k3kcli-darwin-amd64 ./cli
     GOOS=darwin GOARCH=arm64 go build -ldflags "$LINKFLAGS" -o bin/k3kcli-darwin-aarch64 ./cli
     GOOS=windows GOARCH=amd64 go build -ldflags "$LINKFLAGS" -o bin/k3kcli-windows ./cli

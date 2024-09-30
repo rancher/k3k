@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -121,14 +121,16 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 					},
 				},
 				SecurityContext: &v1.SecurityContext{
-					Privileged: pointer.Bool(true),
+					Privileged: ptr.To(true),
 				},
 				Command: []string{
 					"/bin/sh",
 					"-c",
-					`if [ ${POD_NAME: -1} == 0 ]; then 
-				       /bin/k3s server --config /opt/rancher/k3s/init/config.yaml ` + strings.Join(s.cluster.Spec.ServerArgs, " ") + `
-					else /bin/k3s server --config /opt/rancher/k3s/server/config.yaml ` + strings.Join(s.cluster.Spec.ServerArgs, " ") + `
+					`
+					if [ ${POD_NAME: -1} == 0 ]; then 
+						/bin/k3s server --config /opt/rancher/k3s/init/config.yaml ` + strings.Join(s.cluster.Spec.ServerArgs, " ") + `
+					else 
+						/bin/k3s server --config /opt/rancher/k3s/server/config.yaml ` + strings.Join(s.cluster.Spec.ServerArgs, " ") + `
 					fi   
 					`,
 				},
@@ -236,7 +238,7 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 				Spec: v1.PersistentVolumeClaimSpec{
 					AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 					StorageClassName: &cluster.Spec.Persistence.StorageClassName,
-					Resources: v1.ResourceRequirements{
+					Resources: v1.VolumeResourceRequirements{
 						Requests: v1.ResourceList{
 							"storage": resource.MustParse(cluster.Spec.Persistence.StorageRequestSize),
 						},
@@ -253,7 +255,7 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 					Namespace: util.ClusterNamespace(cluster),
 				},
 				Spec: v1.PersistentVolumeClaimSpec{
-					Resources: v1.ResourceRequirements{
+					Resources: v1.VolumeResourceRequirements{
 						Requests: v1.ResourceList{
 							"storage": resource.MustParse(cluster.Spec.Persistence.StorageRequestSize),
 						},

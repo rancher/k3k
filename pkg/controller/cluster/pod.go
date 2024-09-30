@@ -24,13 +24,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 type PodReconciler struct {
@@ -46,18 +46,13 @@ func AddPodController(ctx context.Context, mgr manager.Manager) error {
 		Scheme: mgr.GetScheme(),
 	}
 
-	// create a new controller and add it to the manager
-	//this can be replaced by the new builder functionality in controller-runtime
-	controller, err := controller.New(clusterController, mgr, controller.Options{
-		Reconciler:              &reconciler,
-		MaxConcurrentReconciles: maxConcurrentReconciles,
-	})
-	if err != nil {
-		return err
-	}
-
-	return controller.Watch(&source.Kind{Type: &v1.Pod{}},
-		&handler.EnqueueRequestForOwner{IsController: true, OwnerType: &apps.StatefulSet{}})
+	return ctrl.NewControllerManagedBy(mgr).
+		Watches(&v1.Pod{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &apps.StatefulSet{}, handler.OnlyControllerOwner())).
+		Named("cluster-pod-controller").
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: maxConcurrentReconciles,
+		}).
+		Complete(&reconciler)
 }
 
 func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

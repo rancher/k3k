@@ -7,7 +7,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 const agentName = "k3k-agent"
@@ -91,7 +91,7 @@ func (a *Agent) StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 					Spec: v1.PersistentVolumeClaimSpec{
 						AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 						StorageClassName: &cluster.Status.Persistence.StorageClassName,
-						Resources: v1.ResourceRequirements{
+						Resources: v1.VolumeResourceRequirements{
 							Requests: v1.ResourceList{
 								"storage": resource.MustParse(cluster.Status.Persistence.StorageRequestSize),
 							},
@@ -108,7 +108,7 @@ func (a *Agent) StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 						Namespace: util.ClusterNamespace(cluster),
 					},
 					Spec: v1.PersistentVolumeClaimSpec{
-						Resources: v1.ResourceRequirements{
+						Resources: v1.VolumeResourceRequirements{
 							Requests: v1.ResourceList{
 								"storage": resource.MustParse(cluster.Status.Persistence.StorageRequestSize),
 							},
@@ -187,12 +187,12 @@ func (a *Agent) podSpec(image, name string, args []string, statefulSet bool, aff
 				Name:  name,
 				Image: image,
 				SecurityContext: &v1.SecurityContext{
-					Privileged: pointer.Bool(true),
+					Privileged: ptr.To(true),
 				},
+				Args: args,
 				Command: []string{
 					"/bin/k3s",
 				},
-				Args: args,
 				Resources: v1.ResourceRequirements{
 					Limits: limit,
 				},

@@ -113,9 +113,6 @@ spec:
                         type: boolean
                       ingressClassName:
                         type: string
-                    required:
-                    - enabled
-                    - ingressClassName
                     type: object
                   loadbalancer:
                     properties:
@@ -131,10 +128,6 @@ spec:
                     required:
                     - enabled
                     type: object
-                required:
-                - ingress
-                - loadbalancer
-                - nodePort
                 type: object
               nodeSelector:
                 additionalProperties:

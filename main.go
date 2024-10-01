@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster"
@@ -13,11 +14,20 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-var Scheme = runtime.NewScheme()
+const (
+	clusterCIDRFlagName = "cluster-cidr"
+	clusterCIDREnvVar   = "CLUSTER_CIDR"
+	KubeconfigFlagName  = "kubeconfig"
+)
+
+var (
+	Scheme      = runtime.NewScheme()
+	clusterCIDR string
+	kubeconfig  string
+)
 
 func init() {
 	_ = clientgoscheme.AddToScheme(Scheme)
@@ -25,12 +35,14 @@ func init() {
 }
 
 func main() {
-	ctrlconfig.RegisterFlags(nil)
-	flag.Parse()
-
+	fs := addFlags()
+	fs.Parse(os.Args[1:])
 	ctx := context.Background()
 
-	kubeconfig := flag.Lookup("kubeconfig").Value.String()
+	if clusterCIDR == "" {
+		clusterCIDR = os.Getenv(clusterCIDREnvVar)
+	}
+
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		klog.Fatalf("Failed to create config from kubeconfig file: %v", err)
@@ -52,12 +64,13 @@ func main() {
 		klog.Fatalf("Failed to add the new cluster controller: %v", err)
 	}
 	klog.Info("adding clusterset controller")
-	if err := clusterset.Add(ctx, mgr); err != nil {
+	if err := clusterset.Add(ctx, mgr, clusterCIDR); err != nil {
 		klog.Fatalf("Failed to add the clusterset controller: %v", err)
 	}
 
-	if err := cluster.AddWebhookHandler(ctx, mgr); err != nil {
-		klog.Fatalf("failed to add a webhook for the cluster type: %v", err)
+	klog.Info("adding networkpolicy node controller")
+	if err := clusterset.AddNodeController(ctx, mgr, clusterCIDR); err != nil {
+		klog.Fatalf("Failed to add the clusterset controller: %v", err)
 	}
 
 	if err := cluster.AddPodController(ctx, mgr); err != nil {
@@ -67,4 +80,11 @@ func main() {
 	if err := mgr.Start(ctx); err != nil {
 		klog.Fatalf("Failed to start the manager: %v", err)
 	}
+}
+
+func addFlags() *flag.FlagSet {
+	fs := flag.NewFlagSet("k3k", flag.ExitOnError)
+	fs.StringVar(&clusterCIDR, clusterCIDRFlagName, "", "The host's cluster CIDR")
+	fs.StringVar(&kubeconfig, KubeconfigFlagName, "", "Paths to a kubeconfig. Only required if out-of-cluster.")
+	return fs
 }

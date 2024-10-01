@@ -56,6 +56,7 @@ type ClusterSpec struct {
 	// Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
 	// persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.
 	Persistence *PersistenceConfig `json:"persistence,omitempty"`
+	// +optional
 	// Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a
 	// clusterIP which is relatively secure, but difficult to access outside of the cluster.
 	Expose *ExposeConfig `json:"expose,omitempty"`
@@ -91,14 +92,17 @@ type PersistenceConfig struct {
 }
 
 type ExposeConfig struct {
-	Ingress      *IngressConfig      `json:"ingress"`
-	LoadBalancer *LoadBalancerConfig `json:"loadbalancer"`
-	NodePort     *NodePortConfig     `json:"nodePort"`
+	// +optional
+	Ingress *IngressConfig `json:"ingress,omitempty"`
+	// +optional
+	LoadBalancer *LoadBalancerConfig `json:"loadbalancer,omitempty"`
+	// +optional
+	NodePort *NodePortConfig `json:"nodePort,omitempty"`
 }
 
 type IngressConfig struct {
-	Enabled          bool   `json:"enabled"`
-	IngressClassName string `json:"ingressClassName"`
+	Enabled          bool   `json:"enabled,omitempty"`
+	IngressClassName string `json:"ingressClassName,omitempty"`
 }
 
 type LoadBalancerConfig struct {

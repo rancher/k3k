@@ -11,6 +11,10 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+host:
+# clusterCIDR specifies the clusterCIDR that will be added to the default networkpolicy for clustersets
+  clusterCIDR: ""
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: true

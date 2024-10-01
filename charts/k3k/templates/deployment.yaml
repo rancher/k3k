@@ -15,14 +15,13 @@ spec:
       labels:
         {{- include "k3k.selectorLabels" . | nindent 8 }}
     spec:
-      volumes:
-        - name: webhook-serving
-          secret:
-            secretName: webhook-secret
       containers:
         - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: {{ .Chart.Name }}
+          environment:
+          - name: CLUSTER_CIDR
+            value: {{ .Values.host.clusterCIDR }}
           ports:
           - containerPort: 8080
             name: https
@@ -30,8 +29,4 @@ spec:
           - containerPort: 9443
             name: https-webhook
             protocol: TCP
-          volumeMounts:
-            - name: webhook-serving
-              readOnly: true
-              mountPath: "/tmp/k8s-webhook-server/serving-certs"
       serviceAccountName: {{ include "k3k.serviceAccountName" . }}

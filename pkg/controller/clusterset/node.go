@@ -42,6 +42,7 @@ func AddNodeController(ctx context.Context, mgr manager.Manager, clusterCIDR str
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: maxConcurrentReconciles,
 		}).
+		Named(nodeController).
 		Complete(&reconciler)
 }
 

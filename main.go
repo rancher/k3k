@@ -36,7 +36,9 @@ func init() {
 
 func main() {
 	fs := addFlags()
-	fs.Parse(os.Args[1:])
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		klog.Fatalf("Failed to parse args: %v", err)
+	}
 	ctx := context.Background()
 
 	if clusterCIDR == "" {

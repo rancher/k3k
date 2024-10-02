@@ -52,7 +52,7 @@ func AddPodController(ctx context.Context, mgr manager.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Watches(&v1.Pod{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &apps.StatefulSet{}, handler.OnlyControllerOwner())).
-		Named("cluster-pod-controller").
+		Named(podController).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: maxConcurrentReconciles,
 		}).

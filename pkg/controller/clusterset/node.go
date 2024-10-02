@@ -28,7 +28,7 @@ type NodeReconciler struct {
 	ClusterCIDR string
 }
 
-// Add adds a new controller to the manager
+// AddNodeController adds a new controller to the manager
 func AddNodeController(ctx context.Context, mgr manager.Manager, clusterCIDR string) error {
 	// initialize a new Reconciler
 	reconciler := NodeReconciler{

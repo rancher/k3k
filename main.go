@@ -24,14 +24,14 @@ const (
 )
 
 var (
-	Scheme      = runtime.NewScheme()
+	scheme      = runtime.NewScheme()
 	clusterCIDR string
 	kubeconfig  string
 )
 
 func init() {
-	_ = clientgoscheme.AddToScheme(Scheme)
-	_ = v1alpha1.AddToScheme(Scheme)
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
 }
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(restConfig, manager.Options{
-		Scheme: Scheme,
+		Scheme: scheme,
 	})
 
 	if err != nil {

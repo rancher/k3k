@@ -56,11 +56,7 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 
 	klog.Infof("got a clusterset: %v", clusterSet)
 	// create network policy
-	var (
-		setNetworkPolicy *networkingv1.NetworkPolicy
-		err              error
-	)
-	setNetworkPolicy, err = c.netpol(ctx, &clusterSet)
+	setNetworkPolicy, err := c.netpol(ctx, &clusterSet)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("unable to make a networkpolicy for cluster set: %w", err)
 	}
@@ -83,8 +79,7 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 			},
 		}
 		quota.Spec.Hard = clusterSet.Spec.MaxLimits
-		err := c.Client.Create(ctx, &quota)
-		if err != nil {
+		if err := c.Client.Create(ctx, &quota); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to create resource quota from cluster set: %w", err)
 		}
 	}

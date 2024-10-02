@@ -62,6 +62,14 @@ func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip string) (*v1.Se
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cluster.Name + "-bootstrap",
 			Namespace: util.ClusterNamespace(cluster),
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: cluster.APIVersion,
+					Kind:       cluster.Kind,
+					Name:       cluster.Name,
+					UID:        cluster.UID,
+				},
+			},
 		},
 		Data: map[string][]byte{
 			"bootstrap": bootstrapData,

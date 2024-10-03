@@ -19,8 +19,14 @@ spec:
         - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: {{ .Chart.Name }}
+          environment:
+          - name: CLUSTER_CIDR
+            value: {{ .Values.host.clusterCIDR }}
           ports:
           - containerPort: 8080
             name: https
+            protocol: TCP
+          - containerPort: 9443
+            name: https-webhook
             protocol: TCP
       serviceAccountName: {{ include "k3k.serviceAccountName" . }}

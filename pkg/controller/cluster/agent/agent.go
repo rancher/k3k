@@ -130,8 +130,12 @@ func (a *Agent) StatefulAgent(cluster *v1alpha1.Cluster) *apps.StatefulSet {
 
 func (a *Agent) podSpec(image, name string, args []string, statefulSet bool, affinitySelector *metav1.LabelSelector) v1.PodSpec {
 	var limit v1.ResourceList
+	if a.cluster.Spec.Limit != nil && a.cluster.Spec.Limit.ServerLimit != nil {
+		limit = a.cluster.Spec.Limit.ServerLimit
+	}
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 	podSpec := v1.PodSpec{
+		NodeSelector: a.cluster.Spec.NodeSelector,
 		Affinity: &v1.Affinity{
 			PodAntiAffinity: &v1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{

@@ -77,6 +77,31 @@ spec:
                 x-kubernetes-validations:
                 - message: clusterDNS is immutable
                   rule: self == oldSelf
+              clusterLimit:
+                description: Limit is the limits that apply for the server/worker
+                  nodes.
+                properties:
+                  serverLimit:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: ServerLimit is the limits (cpu/mem) that apply to
+                      the server nodes
+                    type: object
+                  workerLimit:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: WorkerLimit is the limits (cpu/mem) that apply to
+                      the agent nodes
+                    type: object
+                type: object
               expose:
                 description: |-
                   Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a
@@ -88,9 +113,6 @@ spec:
                         type: boolean
                       ingressClassName:
                         type: string
-                    required:
-                    - enabled
-                    - ingressClassName
                     type: object
                   loadbalancer:
                     properties:
@@ -106,10 +128,12 @@ spec:
                     required:
                     - enabled
                     type: object
-                required:
-                - ingress
-                - loadbalancer
-                - nodePort
+                type: object
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector is the node selector that will be applied
+                  to all server/agent pods
                 type: object
               persistence:
                 description: |-

@@ -68,8 +68,7 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	clusterName := s[1]
 	var cluster v1alpha1.Cluster
 	if err := p.Client.Get(ctx, types.NamespacedName{Name: clusterName}, &cluster); err != nil {
-		if apierrors.IsNotFound(err) {
-		}
+		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 	}

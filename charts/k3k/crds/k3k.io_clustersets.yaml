@@ -69,6 +69,10 @@ spec:
                 description: DefaultNodeSelector is the node selector that applies
                   to all clusters (server + agent) in the set
                 type: object
+              disableNetworkPolicy:
+                description: DisableNetworkPolicy is an option that will disable the
+                  creation of a default networkpolicy for cluster isolation
+                type: boolean
               maxLimits:
                 additionalProperties:
                   anyOf:

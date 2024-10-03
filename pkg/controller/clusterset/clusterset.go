@@ -7,10 +7,10 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -48,20 +48,26 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string) error {
 }
 
 func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	klog.Infof("%#v", req)
-	var clusterSet v1alpha1.ClusterSet
+	var (
+		clusterSet v1alpha1.ClusterSet
+	)
 	if err := c.Client.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, &clusterSet); err != nil {
 		return reconcile.Result{}, fmt.Errorf("unable to get the clusterset: %w", err)
 	}
 
-	klog.Infof("got a clusterset: %v", clusterSet)
-	// create network policy
-	setNetworkPolicy, err := c.netpol(ctx, &clusterSet)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("unable to make a networkpolicy for cluster set: %w", err)
-	}
-	if err := c.Client.Create(ctx, setNetworkPolicy); err != nil {
-		return reconcile.Result{}, fmt.Errorf("unable to create networkpolicy for clusterset: %w", err)
+	if !clusterSet.Spec.DisableNetworkPolicy {
+		setNetworkPolicy, err := netpol(ctx, c.ClusterCIDR, &clusterSet, c.Client)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("unable to make a networkpolicy for cluster set: %w", err)
+		}
+		if err := c.Client.Create(ctx, setNetworkPolicy); err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				if err := c.Client.Update(ctx, setNetworkPolicy); err != nil {
+					return reconcile.Result{}, fmt.Errorf("unable to update networkpolicy for clusterset: %w", err)
+				}
+			}
+			return reconcile.Result{}, fmt.Errorf("unable to create networkpolicy for clusterset: %w", err)
+		}
 	}
 	if clusterSet.Spec.MaxLimits != nil {
 		quota := v1.ResourceQuota{
@@ -86,18 +92,18 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 	return reconcile.Result{}, nil
 }
 
-func (c *ClusterSetReconciler) netpol(ctx context.Context, clusterSet *v1alpha1.ClusterSet) (*networkingv1.NetworkPolicy, error) {
+func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.ClusterSet, client ctrlruntimeclient.Client) (*networkingv1.NetworkPolicy, error) {
 	var cidrList []string
-	if c.ClusterCIDR == "" {
+	if clusterCIDR == "" {
 		var nodeList v1.NodeList
-		if err := c.Client.List(ctx, &nodeList); err != nil {
+		if err := client.List(ctx, &nodeList); err != nil {
 			return nil, err
 		}
 		for _, node := range nodeList.Items {
 			cidrList = append(cidrList, node.Spec.PodCIDRs...)
 		}
 	} else {
-		cidrList = []string{c.ClusterCIDR}
+		cidrList = []string{clusterCIDR}
 	}
 	return &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{

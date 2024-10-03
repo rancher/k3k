@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	program   = "k3k"
+	program   = "k3kcli"
 	version   = "dev"
 	gitCommit = "HEAD"
 )

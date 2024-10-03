@@ -27,6 +27,8 @@ type ClusterSetSpec struct {
 	DefaultLimits *ClusterLimit `json:"defaultLimits,omitempty"`
 	// DefaultNodeSelector is the node selector that applies to all clusters (server + agent) in the set
 	DefaultNodeSelector map[string]string `json:"defaultNodeSelector,omitempty"`
+	// DisableNetworkPolicy is an option that will disable the creation of a default networkpolicy for cluster isolation
+	DisableNetworkPolicy bool `json:"disableNetworkPolicy,omitempty"`
 }
 
 type ClusterSetStatus struct {

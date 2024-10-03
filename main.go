@@ -20,12 +20,9 @@ import (
 )
 
 const (
-	program             = "k3kcli"
-	version             = "dev"
-	gitCommit           = "HEAD"
-	clusterCIDRFlagName = "cluster-cidr"
-	clusterCIDREnvVar   = "CLUSTER_CIDR"
-	KubeconfigFlagName  = "kubeconfig"
+	program   = "k3k"
+	version   = "dev"
+	gitCommit = "HEAD"
 )
 
 var (
@@ -66,10 +63,6 @@ func main() {
 
 func run(clx *cli.Context) error {
 	ctx := context.Background()
-
-	if clusterCIDR == "" {
-		clusterCIDR = os.Getenv(clusterCIDREnvVar)
-	}
 
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {

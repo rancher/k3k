@@ -1,6 +1,12 @@
 # K3K
 
+[![Experimental](https://img.shields.io/badge/status-experimental-orange.svg)](https://shields.io/)
+
 A Kubernetes in Kubernetes tool, k3k provides a way to run multiple embedded isolated k3s clusters on your kubernetes cluster.
+
+**Experimental Tool**
+
+This project is still under development and is considered experimental. It may have limitations, bugs, or changes. Please use with caution and report any issues you encounter. We appreciate your feedback as we continue to refine and improve this tool.
 
 ## Example
 

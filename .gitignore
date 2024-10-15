@@ -6,3 +6,4 @@
 .idea
 .vscode/
 __debug*
+*-kubeconfig.yaml

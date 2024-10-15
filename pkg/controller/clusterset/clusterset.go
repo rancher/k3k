@@ -69,26 +69,27 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 			return reconcile.Result{}, fmt.Errorf("unable to create networkpolicy for clusterset: %w", err)
 		}
 	}
-	if clusterSet.Spec.MaxLimits != nil {
-		quota := v1.ResourceQuota{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "clusterset-quota",
-				Namespace: clusterSet.Namespace,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						UID:        clusterSet.UID,
-						Name:       clusterSet.Name,
-						APIVersion: clusterSet.APIVersion,
-						Kind:       clusterSet.Kind,
-					},
-				},
-			},
-		}
-		quota.Spec.Hard = clusterSet.Spec.MaxLimits
-		if err := c.Client.Create(ctx, &quota); err != nil {
-			return reconcile.Result{}, fmt.Errorf("unable to create resource quota from cluster set: %w", err)
-		}
-	}
+	// TODO: Add resource quota for clustersets
+	// if clusterSet.Spec.MaxLimits != nil {
+	// 	quota := v1.ResourceQuota{
+	// 		ObjectMeta: metav1.ObjectMeta{
+	// 			Name:      "clusterset-quota",
+	// 			Namespace: clusterSet.Namespace,
+	// 			OwnerReferences: []metav1.OwnerReference{
+	// 				{
+	// 					UID:        clusterSet.UID,
+	// 					Name:       clusterSet.Name,
+	// 					APIVersion: clusterSet.APIVersion,
+	// 					Kind:       clusterSet.Kind,
+	// 				},
+	// 			},
+	// 		},
+	// 	}
+	// 	quota.Spec.Hard = clusterSet.Spec.MaxLimits
+	// 	if err := c.Client.Create(ctx, &quota); err != nil {
+	// 		return reconcile.Result{}, fmt.Errorf("unable to create resource quota from cluster set: %w", err)
+	// 	}
+	// }
 	return reconcile.Result{}, nil
 }
 

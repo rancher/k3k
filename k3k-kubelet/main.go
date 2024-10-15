@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rancher/k3k/k3k-kubelet/pkg/config"
-	"github.com/rancher/k3k/k3k-kubelet/pkg/kubelet"
+	"github.com/rancher/k3k/k3k-kubelet/config"
+	"github.com/rancher/k3k/k3k-kubelet/kubelet"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

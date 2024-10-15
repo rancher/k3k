@@ -11,8 +11,8 @@ import (
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
-	"github.com/rancher/k3k/k3k-kubelet/pkg/config"
-	"github.com/rancher/k3k/k3k-kubelet/pkg/provider"
+	"github.com/rancher/k3k/k3k-kubelet/config"
+	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"

@@ -24,7 +24,7 @@ if [ "$CROSS" = "true" ] && [ "$ARCH" = "amd64" ]; then
 fi
 
 # build k3k-kubelet
-CGO_ENABLED=0 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3k-kubelet ./virtual-kubelet
+CGO_ENABLED=0 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3k-kubelet ./k3k-kubelet
 if [ "$CROSS" = "true" ] && [ "$ARCH" = "amd64" ]; then
     CGO_ENABLED=0 GOOS=linux GOARCH=s390x go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3k-kubelet-s390x 
     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/k3k-kubelet-arm64 

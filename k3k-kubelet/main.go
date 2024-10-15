@@ -13,7 +13,7 @@ import (
 
 var (
 	configFile string
-	c          config.Type
+	c          config.Config
 )
 
 func main() {

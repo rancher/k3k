@@ -8,7 +8,7 @@ import (
 )
 
 // Config has all virtual-kubelet startup options
-type Type struct {
+type Config struct {
 	ClusterName       string `yaml:"clusterName"`
 	ClusterNamespace  string `yaml:"clusterNamespace"`
 	HostConfigPath    string `yaml:"hostConfigPath"`
@@ -19,8 +19,8 @@ type Type struct {
 	Token             string `yaml:"token"`
 }
 
-func (t *Type) UnmarshalYAML(data []byte) error {
-	var c Type
+func (t *Config) UnmarshalYAML(data []byte) error {
+	var c Config
 	if err := yaml.Unmarshal(data, &c); err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (t *Type) UnmarshalYAML(data []byte) error {
 	return nil
 }
 
-func (t *Type) Validate() error {
+func (t *Config) Validate() error {
 	if t.ClusterName == "" {
 		return errors.New("cluster name is not provided")
 	}
@@ -59,7 +59,7 @@ func (t *Type) Validate() error {
 	return nil
 }
 
-func (t *Type) Parse(path string) error {
+func (t *Config) Parse(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil
 	}

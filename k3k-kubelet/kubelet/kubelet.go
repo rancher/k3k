@@ -60,7 +60,7 @@ type Kubelet struct {
 	Node       *nodeutil.Node
 }
 
-func New(c *config.Type) (*Kubelet, error) {
+func New(c *config.Config) (*Kubelet, error) {
 	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostConfigPath)
 	if err != nil {
 		return nil, err

@@ -9,6 +9,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	VirtualKubeletMode = "shared"
+	VirtualNodeMode    = "virtual"
+)
+
 // Server returns the secret for the server's config. Note that this doesn't set the ownerRef on the secret
 // to tie it back to the cluster.
 func Server(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret, error) {
@@ -71,6 +76,9 @@ func serverOptions(cluster *v1alpha1.Cluster) string {
 		for _, addr := range cluster.Status.TLSSANs {
 			opts = opts + "- " + addr + "\n"
 		}
+	}
+	if cluster.Spec.Mode == VirtualKubeletMode {
+		opts = opts + "disable-agent: true\negress-selector-mode: disabled\n"
 	}
 	// TODO: Add extra args to the options
 

@@ -13,6 +13,7 @@ import (
 const (
 	namespacePrefix = "k3k-"
 	k3SImageName    = "rancher/k3s"
+
 	AdminCommonName = "system:admin"
 	ServerPort      = 6443
 )

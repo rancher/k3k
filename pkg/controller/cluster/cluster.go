@@ -159,7 +159,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		return util.LogAndReturnErr("failed to create servers", err)
 	}
 
-	if err := c.agent(ctx, cluster); err != nil {
+	if err := c.agent(ctx, cluster, serviceIP); err != nil {
 		return util.LogAndReturnErr("failed to create agents", err)
 	}
 
@@ -223,17 +223,6 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 		}
 	}
 
-	// create agents configuration
-	agentsConfig := agentConfig(cluster, serviceIP)
-	if err := controllerutil.SetControllerReference(cluster, &agentsConfig, c.Scheme); err != nil {
-		return err
-	}
-	if err := c.Client.Create(ctx, &agentsConfig); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -290,46 +279,39 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 	return nil
 }
 
-func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	agent := agent.New(cluster)
+func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
+	agent := agent.New(cluster, serviceIP)
 
-	agentsDeployment := agent.Deploy()
-	if err := controllerutil.SetControllerReference(cluster, agentsDeployment, c.Scheme); err != nil {
+	agentsConfig, err := agent.Config()
+	if err != nil {
 		return err
 	}
 
-	if err := c.ensure(ctx, agentsDeployment, false); err != nil {
+	agentResources, err := agent.Resources()
+	if err != nil {
 		return err
 	}
-	return nil
-}
 
-func agentConfig(cluster *v1alpha1.Cluster, serviceIP string) v1.Secret {
-	config := agentData(serviceIP, cluster.Spec.Token)
+	agentResources = append(agentResources, agentsConfig)
 
-	return v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.AgentConfigName(cluster),
-			Namespace: util.ClusterNamespace(cluster),
-		},
-		Data: map[string][]byte{
-			"config.yaml": []byte(config),
-		},
-	}
-}
-
-func agentData(serviceIP, token string) string {
-	return fmt.Sprintf(`server: https://%s:6443
-token: %s`, serviceIP, token)
+	return c.ensureAll(ctx, cluster, agentResources)
 }
 
 func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
 	if cluster.Name == ClusterInvalidName {
 		return errors.New("invalid cluster name " + cluster.Name + " no action will be taken")
+	}
+	return nil
+}
+
+func (c *ClusterReconciler) ensureAll(ctx context.Context, cluster *v1alpha1.Cluster, objs []ctrlruntimeclient.Object) error {
+	for _, obj := range objs {
+		if err := controllerutil.SetControllerReference(cluster, obj, c.Scheme); err != nil {
+			return err
+		}
+		if err := c.ensure(ctx, obj, false); err != nil {
+			return err
+		}
 	}
 	return nil
 }

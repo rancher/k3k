@@ -1,4 +1,4 @@
-package kubelet
+package main
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
-	"github.com/rancher/k3k/k3k-kubelet/config"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
@@ -49,19 +48,17 @@ func init() {
 	_ = v1alpha1.AddToScheme(Scheme)
 }
 
-type Kubelet struct {
-	Name       string
-	ServerName string
-	Port       int
-	TLSConfig  *tls.Config
-	HostConfig *rest.Config
-	HostClient ctrlruntimeclient.Client
-	VirtClient kubernetes.Interface
-	Node       *nodeutil.Node
+type kubelet struct {
+	name       string
+	port       int
+	hostConfig *rest.Config
+	hostClient ctrlruntimeclient.Client
+	virtClient kubernetes.Interface
+	node       *nodeutil.Node
 }
 
-func New(c *config.Config) (*Kubelet, error) {
-	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostConfigPath)
+func newKubelet(c *config) (*kubelet, error) {
+	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.hostConfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +70,7 @@ func New(c *config.Config) (*Kubelet, error) {
 		return nil, err
 	}
 
-	virtConfig, err := virtRestConfig(context.Background(), c.VirtualConfigPath, hostClient, c.ClusterName, c.ClusterNamespace)
+	virtConfig, err := virtRestConfig(context.Background(), c.virtualConfigPath, hostClient, c.clusterName, c.clusterNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -82,27 +79,27 @@ func New(c *config.Config) (*Kubelet, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Kubelet{
-		Name:       c.NodeName,
-		HostConfig: hostConfig,
-		HostClient: hostClient,
-		VirtClient: virtClient,
+	return &kubelet{
+		name:       c.nodeName,
+		hostConfig: hostConfig,
+		hostClient: hostClient,
+		virtClient: virtClient,
 	}, nil
 }
 
-func (k *Kubelet) RegisterNode(srvPort, namespace, name, podIP string) error {
+func (k *kubelet) RegisterNode(srvPort, namespace, name, podIP string) error {
 	providerFunc := k.newProviderFunc(namespace, name, podIP)
 	nodeOpts := k.nodeOpts(srvPort, namespace, name, podIP)
 
 	var err error
-	k.Node, err = nodeutil.NewNode(k.Name, providerFunc, nodeutil.WithClient(k.VirtClient), nodeOpts)
+	k.node, err = nodeutil.NewNode(k.name, providerFunc, nodeutil.WithClient(k.virtClient), nodeOpts)
 	if err != nil {
 		return fmt.Errorf("unable to start kubelet: %v", err)
 	}
 	return nil
 }
 
-func (k *Kubelet) Start(ctx context.Context) {
+func (k *kubelet) Start(ctx context.Context) {
 	go func() {
 		ctx := context.Background()
 		logger, err := zap.NewProduction()
@@ -114,38 +111,38 @@ func (k *Kubelet) Start(ctx context.Context) {
 			*logger.Sugar(),
 		}
 		ctx = log.WithLogger(ctx, &wrapped)
-		err = k.Node.Run(ctx)
+		err = k.node.Run(ctx)
 		if err != nil {
 			fmt.Printf("node errored when running: %s \n", err.Error())
 			os.Exit(-1)
 		}
 	}()
-	if err := k.Node.WaitReady(context.Background(), time.Minute*1); err != nil {
+	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
 		fmt.Printf("node was not ready within timeout of 1 minute: %s \n", err.Error())
 		os.Exit(-1)
 	}
-	<-k.Node.Done()
-	if err := k.Node.Err(); err != nil {
+	<-k.node.Done()
+	if err := k.node.Err(); err != nil {
 		fmt.Printf("node stopped with an error: %s \n", err.Error())
 		os.Exit(-1)
 	}
 	fmt.Printf("node exited without an error")
 }
 
-func (k *Kubelet) newProviderFunc(namespace, name, podIP string) nodeutil.NewProviderFunc {
+func (k *kubelet) newProviderFunc(namespace, name, podIP string) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
-		utilProvider, err := provider.New(*k.HostConfig, namespace, name)
+		utilProvider, err := provider.New(*k.hostConfig, namespace, name)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to make nodeutil provider %w", err)
 		}
 		nodeProvider := provider.Node{}
 
-		provider.ConfigureNode(pc.Node, podIP, k.Port)
+		provider.ConfigureNode(pc.Node, podIP, k.port)
 		return utilProvider, &nodeProvider, nil
 	}
 }
 
-func (k *Kubelet) nodeOpts(srvPort, namespace, name, podIP string) nodeutil.NodeOpt {
+func (k *kubelet) nodeOpts(srvPort, namespace, name, podIP string) nodeutil.NodeOpt {
 	return func(c *nodeutil.NodeConfig) error {
 		c.HTTPListenAddr = fmt.Sprintf(":%s", srvPort)
 		// set up the routes
@@ -158,7 +155,7 @@ func (k *Kubelet) nodeOpts(srvPort, namespace, name, podIP string) nodeutil.Node
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
-		tlsConfig, err := loadTLSConfig(ctx, k.HostClient, name, namespace, k.Name, podIP)
+		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, podIP)
 		if err != nil {
 			return fmt.Errorf("unable to get tls config: %w", err)
 		}

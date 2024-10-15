@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rancher/k3k/k3k-kubelet/config"
-	"github.com/rancher/k3k/k3k-kubelet/kubelet"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
 var (
 	configFile string
-	c          config.Config
+	c          config
 )
 
 func main() {
@@ -24,44 +22,44 @@ func main() {
 		cli.StringFlag{
 			Name:        "cluster-name",
 			Usage:       "Name of the k3k cluster",
-			Destination: &c.ClusterName,
+			Destination: &c.clusterName,
 			EnvVar:      "CLUSTER_NAME",
 		},
 		cli.StringFlag{
 			Name:        "cluster-namespace",
 			Usage:       "Namespace of the k3k cluster",
-			Destination: &c.ClusterNamespace,
+			Destination: &c.clusterNamespace,
 			EnvVar:      "CLUSTER_NAMESPACE",
 		},
 		cli.StringFlag{
 			Name:        "cluster-token",
 			Usage:       "K3S token of the k3k cluster",
-			Destination: &c.Token,
+			Destination: &c.token,
 			EnvVar:      "CLUSTER_Token",
 		},
 		cli.StringFlag{
 			Name:        "host-config-path",
 			Usage:       "Path to the host kubeconfig, if empty then virtual-kubelet will use incluster config",
-			Destination: &c.HostConfigPath,
+			Destination: &c.hostConfigPath,
 			EnvVar:      "HOST_KUBECONFIG",
 		},
 		cli.StringFlag{
 			Name:        "virtual-config-path",
 			Usage:       "Path to the k3k cluster kubeconfig, if empty then virtual-kubelet will create its own config from k3k cluster",
-			Destination: &c.VirtualConfigPath,
+			Destination: &c.virtualConfigPath,
 			EnvVar:      "CLUSTER_NAME",
 		},
 		cli.StringFlag{
 			Name:        "kubelet-port",
 			Usage:       "kubelet API port number",
-			Destination: &c.KubeletPort,
+			Destination: &c.kubeletPort,
 			EnvVar:      "SERVER_PORT",
 			Value:       "9443",
 		},
 		cli.StringFlag{
 			Name:        "agent-pod-ip",
 			Usage:       "Agent Pod IP used for TLS SAN for the kubelet server",
-			Destination: &c.AgentPodIP,
+			Destination: &c.agentPodIP,
 			EnvVar:      "AGENT_POD_IP",
 		},
 		cli.StringFlag{
@@ -88,13 +86,13 @@ func Run(clx *cli.Context) {
 		fmt.Printf("failed to validate config: %v", err)
 		os.Exit(-1)
 	}
-	k, err := kubelet.New(&c)
+	k, err := newKubelet(&c)
 	if err != nil {
 		fmt.Printf("failed to create new virtual kubelet instance: %v", err)
 		os.Exit(-1)
 	}
 
-	if err := k.RegisterNode(c.KubeletPort, c.ClusterNamespace, c.ClusterName, c.AgentPodIP); err != nil {
+	if err := k.RegisterNode(c.kubeletPort, c.clusterNamespace, c.clusterName, c.agentPodIP); err != nil {
 		fmt.Printf("failed to register new node: %v", err)
 		os.Exit(-1)
 	}

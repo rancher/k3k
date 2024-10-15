@@ -33,6 +33,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	podController = "k3k-pod-controller"
+)
+
 type PodReconciler struct {
 	Client ctrlruntimeclient.Client
 	Scheme *runtime.Scheme
@@ -48,7 +52,7 @@ func AddPodController(ctx context.Context, mgr manager.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Watches(&v1.Pod{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &apps.StatefulSet{}, handler.OnlyControllerOwner())).
-		Named("cluster-pod-controller").
+		Named(podController).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: maxConcurrentReconciles,
 		}).

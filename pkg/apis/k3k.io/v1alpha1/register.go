@@ -21,7 +21,10 @@ func Resource(resource string) schema.GroupResource {
 func addKnownTypes(s *runtime.Scheme) error {
 	s.AddKnownTypes(SchemeGroupVersion,
 		&Cluster{},
-		&ClusterList{})
+		&ClusterList{},
+		&ClusterSet{},
+		&ClusterSetList{},
+	)
 	metav1.AddToGroupVersion(s, SchemeGroupVersion)
 	return nil
 }

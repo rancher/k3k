@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	virtualKubeletImage = "husseingalal/k3k:k3k-kubelet"
+	virtualKubeletImage = "rancher/k3k:k3k-kubelet"
 )
 
 type SharedAgent struct {

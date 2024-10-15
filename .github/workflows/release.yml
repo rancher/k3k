@@ -40,12 +40,21 @@ jobs:
         username: ${{ env.DOCKER_USERNAME }}
         password: ${{ env.DOCKER_PASSWORD }}
 
-    - name: Build container image
+    - name: Build controller image
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
         tags: rancher/k3k:${{ github.ref_name }}
+        file: package/Dockerfile
+        platforms: linux/amd64
+    
+    - name: Build Virtual Kubelet image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: rancher/k3k:k3k-kubelet
         file: package/Dockerfile
         platforms: linux/amd64
 

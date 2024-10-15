@@ -11,12 +11,12 @@ import (
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
+	"github.com/rancher/k3k/k3k-kubelet/pkg/config"
+	"github.com/rancher/k3k/k3k-kubelet/pkg/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/rancher/k3k/pkg/controller/util"
-	"github.com/rancher/k3k/virtual-kubelet/pkg/config"
-	"github.com/rancher/k3k/virtual-kubelet/pkg/provider"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/util/retry"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -37,7 +38,7 @@ var (
 	Scheme  = runtime.NewScheme()
 	backoff = wait.Backoff{
 		Steps:    5,
-		Duration: 20 * time.Second,
+		Duration: 5 * time.Second,
 		Factor:   2,
 		Jitter:   0.1,
 	}
@@ -176,8 +177,14 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		return nil, err
 	}
 	endpoint := fmt.Sprintf("%s.%s", util.ServerSvcName(&cluster), util.ClusterNamespace(&cluster))
-	b, err := bootstrap.DecodedBootstrap(cluster.Spec.Token, endpoint)
-	if err != nil {
+	var b *bootstrap.ControlRuntimeBootstrap
+	if err := retry.OnError(backoff, func(err error) bool {
+		return err == nil
+	}, func() error {
+		var err error
+		b, err = bootstrap.DecodedBootstrap(cluster.Spec.Token, endpoint)
+		return err
+	}); err != nil {
 		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
 	}
 	adminCert, adminKey, err := kubeconfig.CreateClientCertKey(
@@ -226,14 +233,21 @@ func kubeconfigBytes(url string, serverCA, clientCert, clientKey []byte) ([]byte
 }
 
 func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, ipStr string) (*tls.Config, error) {
-	var cluster v1alpha1.Cluster
+	var (
+		cluster v1alpha1.Cluster
+		b       *bootstrap.ControlRuntimeBootstrap
+	)
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster); err != nil {
 		return nil, err
 	}
-
 	endpoint := fmt.Sprintf("%s.%s", util.ServerSvcName(&cluster), util.ClusterNamespace(&cluster))
-	b, err := bootstrap.DecodedBootstrap(cluster.Spec.Token, endpoint)
-	if err != nil {
+	if err := retry.OnError(backoff, func(err error) bool {
+		return err != nil
+	}, func() error {
+		var err error
+		b, err = bootstrap.DecodedBootstrap(cluster.Spec.Token, endpoint)
+		return err
+	}); err != nil {
 		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
 	}
 	altNames := certutil.AltNames{

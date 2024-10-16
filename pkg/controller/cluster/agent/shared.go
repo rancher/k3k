@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	virtualKubeletImage = "rancher/k3k:k3k-kubelet"
+	virtualKubeletImage      = "rancher/k3k:k3k-kubelet"
+	virtualKubeletConfigPath = "/opt/rancher/k3k/config.yaml"
 )
 
 type SharedAgent struct {
@@ -91,9 +92,9 @@ func (s *SharedAgent) deployment() *apps.Deployment {
 }
 
 func (s *SharedAgent) podSpec(image, name string, affinitySelector *metav1.LabelSelector) v1.PodSpec {
-	args := []string{"--config", "/opt/rancher/k3k/config.yaml"}
+	args := []string{"--config", virtualKubeletConfigPath}
 	var limit v1.ResourceList
-	podSpec := v1.PodSpec{
+	return v1.PodSpec{
 		Affinity: &v1.Affinity{
 			PodAntiAffinity: &v1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
@@ -149,8 +150,6 @@ func (s *SharedAgent) podSpec(image, name string, affinitySelector *metav1.Label
 				},
 			},
 		}}
-
-	return podSpec
 }
 
 func (s *SharedAgent) serviceAccount() *v1.ServiceAccount {

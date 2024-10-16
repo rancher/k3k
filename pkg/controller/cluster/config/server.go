@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	VirtualKubeletMode = "shared"
-	VirtualNodeMode    = "virtual"
+	VirtualNodeMode = "virtual"
 )
 
 // Server returns the secret for the server's config. Note that this doesn't set the ownerRef on the secret
@@ -77,7 +76,7 @@ func serverOptions(cluster *v1alpha1.Cluster) string {
 			opts = opts + "- " + addr + "\n"
 		}
 	}
-	if cluster.Spec.Mode == VirtualKubeletMode {
+	if cluster.Spec.Mode != VirtualNodeMode {
 		opts = opts + "disable-agent: true\negress-selector-mode: disabled\n"
 	}
 	// TODO: Add extra args to the options

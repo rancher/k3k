@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller/util"
+	"github.com/rancher/k3k/pkg/controller"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -23,8 +23,8 @@ func (s *Server) Service(cluster *v1alpha1.Cluster) *v1.Service {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.ServerSvcName(cluster),
-			Namespace: util.ClusterNamespace(cluster),
+			Name:      ServiceName(s.cluster.Name),
+			Namespace: cluster.Namespace,
 		},
 		Spec: v1.ServiceSpec{
 			Type: serviceType,
@@ -48,22 +48,21 @@ func (s *Server) Service(cluster *v1alpha1.Cluster) *v1.Service {
 	}
 }
 
-func (s *Server) StatefulServerService(cluster *v1alpha1.Cluster) *v1.Service {
-	name := serverName
+func (s *Server) StatefulServerService() *v1.Service {
 	return &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-" + name + "headless",
-			Namespace: util.ClusterNamespace(cluster),
+			Name:      headlessServiceName(s.cluster.Name),
+			Namespace: s.cluster.Namespace,
 		},
 		Spec: v1.ServiceSpec{
 			Type:      v1.ServiceTypeClusterIP,
 			ClusterIP: v1.ClusterIPNone,
 			Selector: map[string]string{
-				"cluster": cluster.Name,
+				"cluster": s.cluster.Name,
 				"role":    "server",
 			},
 			Ports: []v1.ServicePort{
@@ -80,4 +79,19 @@ func (s *Server) StatefulServerService(cluster *v1alpha1.Cluster) *v1.Service {
 			},
 		},
 	}
+}
+
+func ServiceName(clusterName string) string {
+	return controller.ObjectName(clusterName, &v1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Service",
+		},
+	})
+}
+
+func headlessServiceName(clusterName string) string {
+	return controller.ObjectName(clusterName, &v1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Service",
+		}}, "-headless")
 }

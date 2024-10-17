@@ -22,45 +22,45 @@ func main() {
 		cli.StringFlag{
 			Name:        "cluster-name",
 			Usage:       "Name of the k3k cluster",
-			Destination: &c.clusterName,
+			Destination: &c.ClusterName,
 			EnvVar:      "CLUSTER_NAME",
 		},
 		cli.StringFlag{
 			Name:        "cluster-namespace",
 			Usage:       "Namespace of the k3k cluster",
-			Destination: &c.clusterNamespace,
+			Destination: &c.ClusterNamespace,
 			EnvVar:      "CLUSTER_NAMESPACE",
 		},
 		cli.StringFlag{
 			Name:        "cluster-token",
 			Usage:       "K3S token of the k3k cluster",
-			Destination: &c.token,
-			EnvVar:      "CLUSTER_Token",
+			Destination: &c.Token,
+			EnvVar:      "CLUSTER_TOKEN",
 		},
 		cli.StringFlag{
 			Name:        "host-config-path",
 			Usage:       "Path to the host kubeconfig, if empty then virtual-kubelet will use incluster config",
-			Destination: &c.hostConfigPath,
+			Destination: &c.HostConfigPath,
 			EnvVar:      "HOST_KUBECONFIG",
 		},
 		cli.StringFlag{
 			Name:        "virtual-config-path",
 			Usage:       "Path to the k3k cluster kubeconfig, if empty then virtual-kubelet will create its own config from k3k cluster",
-			Destination: &c.virtualConfigPath,
+			Destination: &c.VirtualConfigPath,
 			EnvVar:      "CLUSTER_NAME",
 		},
 		cli.StringFlag{
 			Name:        "kubelet-port",
 			Usage:       "kubelet API port number",
-			Destination: &c.kubeletPort,
+			Destination: &c.KubeletPort,
 			EnvVar:      "SERVER_PORT",
 			Value:       "9443",
 		},
 		cli.StringFlag{
-			Name:        "agent-pod-ip",
-			Usage:       "Agent Pod IP used for TLS SAN for the kubelet server",
-			Destination: &c.agentPodIP,
-			EnvVar:      "AGENT_POD_IP",
+			Name:        "agent-hostname",
+			Usage:       "Agent Hostname used for TLS SAN for the kubelet server",
+			Destination: &c.AgentHostname,
+			EnvVar:      "AGENT_HOSTNAME",
 		},
 		cli.StringFlag{
 			Name:        "config",
@@ -92,7 +92,7 @@ func Run(clx *cli.Context) {
 		os.Exit(-1)
 	}
 
-	if err := k.RegisterNode(c.kubeletPort, c.clusterNamespace, c.clusterName, c.agentPodIP); err != nil {
+	if err := k.RegisterNode(c.KubeletPort, c.ClusterNamespace, c.ClusterName, c.AgentHostname); err != nil {
 		fmt.Printf("failed to register new node: %v", err)
 		os.Exit(-1)
 	}

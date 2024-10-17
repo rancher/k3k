@@ -9,52 +9,56 @@ import (
 
 // Config has all virtual-kubelet startup options
 type config struct {
-	clusterName       string `yaml:"clusterName"`
-	clusterNamespace  string `yaml:"clusterNamespace"`
-	hostConfigPath    string `yaml:"hostConfigPath"`
-	virtualConfigPath string `yaml:"virtualConfigPath"`
-	kubeletPort       string `yaml:"kubeletPort"`
-	nodeName          string `yaml:"nodeName"`
-	agentPodIP        string `yaml:"agentPodIP"`
-	token             string `yaml:"token"`
+	ClusterName       string `yaml:"clusterName,omitempty"`
+	ClusterNamespace  string `yaml:"clusterNamespace,omitempty"`
+	NodeName          string `yaml:"nodeName,omitempty"`
+	Token             string `yaml:"token,omitempty"`
+	AgentHostname     string `yaml:"agentHostname,omitempty"`
+	HostConfigPath    string `yaml:"hostConfigPath,omitempty"`
+	VirtualConfigPath string `yaml:"virtualConfigPath,omitempty"`
+	KubeletPort       string `yaml:"kubeletPort,omitempty"`
 }
 
-func (t *config) UnmarshalYAML(data []byte) error {
+func (t *config) unmarshalYAML(data []byte) error {
 	var c config
+
 	if err := yaml.Unmarshal(data, &c); err != nil {
 		return err
 	}
-	if t.clusterName == "" {
-		t.clusterName = c.clusterName
-	}
-	if t.clusterNamespace == "" {
-		t.clusterNamespace = c.clusterNamespace
-	}
-	if t.hostConfigPath == "" {
-		t.hostConfigPath = c.hostConfigPath
-	}
-	if t.virtualConfigPath == "" {
-		t.virtualConfigPath = c.virtualConfigPath
-	}
-	if t.kubeletPort == "" {
-		t.kubeletPort = c.kubeletPort
-	}
-	if t.nodeName == "" {
-		t.nodeName = c.nodeName
-	}
 
+	if t.ClusterName == "" {
+		t.ClusterName = c.ClusterName
+	}
+	if t.ClusterNamespace == "" {
+		t.ClusterNamespace = c.ClusterNamespace
+	}
+	if t.HostConfigPath == "" {
+		t.HostConfigPath = c.HostConfigPath
+	}
+	if t.VirtualConfigPath == "" {
+		t.VirtualConfigPath = c.VirtualConfigPath
+	}
+	if t.KubeletPort == "" {
+		t.KubeletPort = c.KubeletPort
+	}
+	if t.AgentHostname == "" {
+		t.AgentHostname = c.AgentHostname
+	}
+	if t.NodeName == "" {
+		t.NodeName = c.NodeName
+	}
 	return nil
 }
 
 func (t *config) Validate() error {
-	if t.clusterName == "" {
+	if t.ClusterName == "" {
 		return errors.New("cluster name is not provided")
 	}
-	if t.clusterNamespace == "" {
+	if t.ClusterNamespace == "" {
 		return errors.New("cluster namespace is not provided")
 	}
-	if t.agentPodIP == "" {
-		return errors.New("agent POD IP is not provided")
+	if t.AgentHostname == "" {
+		return errors.New("agent Hostname is not provided")
 	}
 	return nil
 }
@@ -68,5 +72,5 @@ func (t *config) Parse(path string) error {
 	if err != nil {
 		return err
 	}
-	return t.UnmarshalYAML(configFileBytes)
+	return t.unmarshalYAML(configFileBytes)
 }

@@ -1,35 +1,26 @@
-package config
+package server
 
 import (
 	"fmt"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller/util"
+	"github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	VirtualNodeMode = "virtual"
-)
-
-// Server returns the secret for the server's config. Note that this doesn't set the ownerRef on the secret
-// to tie it back to the cluster.
-func Server(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret, error) {
-	name := util.ServerConfigName(cluster)
-	if init {
-		name = util.ServerInitConfigName(cluster)
-	}
-
-	cluster.Status.TLSSANs = append(cluster.Spec.TLSSANs,
+func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
+	name := configSecretName(s.cluster.Name, init)
+	s.cluster.Status.TLSSANs = append(s.cluster.Spec.TLSSANs,
 		serviceIP,
-		util.ServerSvcName(cluster),
-		fmt.Sprintf("%s.%s", util.ServerSvcName(cluster), util.ClusterNamespace(cluster)),
+		ServiceName(s.cluster.Name),
+		fmt.Sprintf("%s.%s", ServiceName(s.cluster.Name), s.cluster.Namespace),
 	)
 
-	config := serverConfigData(serviceIP, cluster)
+	config := serverConfigData(serviceIP, s.cluster)
 	if init {
-		config = initConfigData(cluster)
+		config = initConfigData(s.cluster)
 	}
 	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -38,7 +29,7 @@ func Server(cluster *v1alpha1.Cluster, init bool, serviceIP string) (*v1.Secret,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: util.ClusterNamespace(cluster),
+			Namespace: s.cluster.Namespace,
 		},
 		Data: map[string][]byte{
 			"config.yaml": []byte(config),
@@ -76,10 +67,17 @@ func serverOptions(cluster *v1alpha1.Cluster) string {
 			opts = opts + "- " + addr + "\n"
 		}
 	}
-	if cluster.Spec.Mode != VirtualNodeMode {
+	if cluster.Spec.Mode != agent.VirtualNodeMode {
 		opts = opts + "disable-agent: true\negress-selector-mode: disabled\n"
 	}
 	// TODO: Add extra args to the options
 
 	return opts
+}
+
+func configSecretName(clusterName string, init bool) string {
+	if !init {
+		return controller.ObjectName(clusterName, nil, configName)
+	}
+	return controller.ObjectName(clusterName, nil, initConfigName)
 }

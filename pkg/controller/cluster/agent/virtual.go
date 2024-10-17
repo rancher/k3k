@@ -4,12 +4,17 @@ import (
 	"fmt"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller/util"
+	"github.com/rancher/k3k/pkg/controller"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	VirtualNodeMode      = "virtual"
+	virtualNodeAgentName = "kubelet"
 )
 
 type VirtualAgent struct {
@@ -33,8 +38,8 @@ func (v *VirtualAgent) Config() (ctrlruntimeclient.Object, error) {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.AgentConfigName(v.cluster),
-			Namespace: util.ClusterNamespace(v.cluster),
+			Name:      configSecretName(v.cluster.Name),
+			Namespace: v.cluster.Namespace,
 		},
 		Data: map[string][]byte{
 			"config.yaml": []byte(config),
@@ -55,7 +60,7 @@ with-node-id: true`, serviceIP, token)
 }
 
 func (v *VirtualAgent) deployment() *apps.Deployment {
-	image := util.K3SImage(v.cluster)
+	image := controller.K3SImage(v.cluster)
 
 	const name = "k3k-agent"
 	selector := metav1.LabelSelector{
@@ -71,8 +76,8 @@ func (v *VirtualAgent) deployment() *apps.Deployment {
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      v.cluster.Name + "-" + name,
-			Namespace: util.ClusterNamespace(v.cluster),
+			Name:      v.Name(),
+			Namespace: v.cluster.Namespace,
 			Labels:    selector.MatchLabels,
 		},
 		Spec: apps.DeploymentSpec{
@@ -107,7 +112,7 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 				Name: "config",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: util.AgentConfigName(v.cluster),
+						SecretName: configSecretName(v.cluster.Name),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",
@@ -211,4 +216,8 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 	}
 
 	return podSpec
+}
+
+func (v *VirtualAgent) Name() string {
+	return controller.ObjectName(v.cluster.Name, nil, virtualNodeAgentName)
 }

@@ -11,9 +11,10 @@ import (
 
 	certutil "github.com/rancher/dynamiclistener/cert"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
-	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -60,11 +61,13 @@ func AddPodController(ctx context.Context, mgr manager.Manager) error {
 }
 
 func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	s := strings.Split(req.Namespace, "-")
-	if len(s) <= 1 {
-		return reconcile.Result{}, util.LogAndReturnErr("failed to get cluster namespace", nil)
+	s := strings.Split(req.Name, "-")
+	if len(s) < 1 {
+		return reconcile.Result{}, k3kcontroller.LogAndReturnErr("failed to get cluster namespace", nil)
 	}
-
+	if s[0] != "k3k" {
+		return reconcile.Result{}, nil
+	}
 	clusterName := s[1]
 	var cluster v1alpha1.Cluster
 	if err := p.Client.Get(ctx, types.NamespacedName{Name: clusterName}, &cluster); err != nil {
@@ -83,7 +86,7 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	for _, pod := range podList.Items {
 		klog.Infof("Handle etcd server pod [%s/%s]", pod.Namespace, pod.Name)
 		if err := p.handleServerPod(ctx, cluster, &pod); err != nil {
-			return reconcile.Result{}, util.LogAndReturnErr("failed to handle etcd pod", err)
+			return reconcile.Result{}, k3kcontroller.LogAndReturnErr("failed to handle etcd pod", err)
 		}
 	}
 	return reconcile.Result{}, nil
@@ -116,7 +119,7 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 		// remove server from etcd
 		client, err := clientv3.New(clientv3.Config{
 			Endpoints: []string{
-				fmt.Sprintf("https://%s.%s:2379", util.ServerSvcName(&cluster), pod.Namespace),
+				fmt.Sprintf("https://%s.%s:2379", server.ServiceName(cluster.Name), pod.Namespace),
 			},
 			TLS: tlsConfig,
 		})
@@ -146,9 +149,9 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 func (p *PodReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, error) {
 	klog.Infof("generating etcd TLS client certificate for cluster [%s]", cluster.Name)
 	token := cluster.Spec.Token
-	endpoint := fmt.Sprintf("%s.%s", util.ServerSvcName(cluster), util.ClusterNamespace(cluster))
+	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
 	var b *bootstrap.ControlRuntimeBootstrap
-	if err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
 		return true
 	}, func() error {
 		var err error

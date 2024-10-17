@@ -54,7 +54,7 @@ jobs:
       with:
         context: .
         push: true
-        tags: rancher/k3k:k3k-kubelet
+        tags: rancher/k3k:k3k-kubelet-dev
         file: package/Dockerfile.kubelet
         platforms: linux/amd64
 

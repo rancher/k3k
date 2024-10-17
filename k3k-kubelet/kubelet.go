@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"time"
@@ -13,16 +12,16 @@ import (
 	certutil "github.com/rancher/dynamiclistener/cert"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
-	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -33,15 +32,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	Scheme  = runtime.NewScheme()
-	backoff = wait.Backoff{
-		Steps:    5,
-		Duration: 5 * time.Second,
-		Factor:   2,
-		Jitter:   0.1,
-	}
-)
+var Scheme = runtime.NewScheme()
 
 func init() {
 	_ = clientgoscheme.AddToScheme(Scheme)
@@ -58,7 +49,7 @@ type kubelet struct {
 }
 
 func newKubelet(c *config) (*kubelet, error) {
-	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.hostConfigPath)
+	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostConfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +61,7 @@ func newKubelet(c *config) (*kubelet, error) {
 		return nil, err
 	}
 
-	virtConfig, err := virtRestConfig(context.Background(), c.virtualConfigPath, hostClient, c.clusterName, c.clusterNamespace)
+	virtConfig, err := virtRestConfig(context.Background(), c.VirtualConfigPath, hostClient, c.ClusterName, c.ClusterNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -80,16 +71,16 @@ func newKubelet(c *config) (*kubelet, error) {
 		return nil, err
 	}
 	return &kubelet{
-		name:       c.nodeName,
+		name:       c.NodeName,
 		hostConfig: hostConfig,
 		hostClient: hostClient,
 		virtClient: virtClient,
 	}, nil
 }
 
-func (k *kubelet) RegisterNode(srvPort, namespace, name, podIP string) error {
-	providerFunc := k.newProviderFunc(namespace, name, podIP)
-	nodeOpts := k.nodeOpts(srvPort, namespace, name, podIP)
+func (k *kubelet) RegisterNode(srvPort, namespace, name, hostname string) error {
+	providerFunc := k.newProviderFunc(namespace, name, hostname)
+	nodeOpts := k.nodeOpts(srvPort, namespace, name, hostname)
 
 	var err error
 	k.node, err = nodeutil.NewNode(k.name, providerFunc, nodeutil.WithClient(k.virtClient), nodeOpts)
@@ -129,7 +120,7 @@ func (k *kubelet) Start(ctx context.Context) {
 	fmt.Printf("node exited without an error")
 }
 
-func (k *kubelet) newProviderFunc(namespace, name, podIP string) nodeutil.NewProviderFunc {
+func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
 		utilProvider, err := provider.New(*k.hostConfig, namespace, name)
 		if err != nil {
@@ -137,12 +128,12 @@ func (k *kubelet) newProviderFunc(namespace, name, podIP string) nodeutil.NewPro
 		}
 		nodeProvider := provider.Node{}
 
-		provider.ConfigureNode(pc.Node, podIP, k.port)
+		provider.ConfigureNode(pc.Node, hostname, k.port)
 		return utilProvider, &nodeProvider, nil
 	}
 }
 
-func (k *kubelet) nodeOpts(srvPort, namespace, name, podIP string) nodeutil.NodeOpt {
+func (k *kubelet) nodeOpts(srvPort, namespace, name, hostname string) nodeutil.NodeOpt {
 	return func(c *nodeutil.NodeConfig) error {
 		c.HTTPListenAddr = fmt.Sprintf(":%s", srvPort)
 		// set up the routes
@@ -155,7 +146,7 @@ func (k *kubelet) nodeOpts(srvPort, namespace, name, podIP string) nodeutil.Node
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
-		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, podIP)
+		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, hostname)
 		if err != nil {
 			return fmt.Errorf("unable to get tls config: %w", err)
 		}
@@ -164,18 +155,18 @@ func (k *kubelet) nodeOpts(srvPort, namespace, name, podIP string) nodeutil.Node
 	}
 }
 
-func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace string) (*rest.Config, error) {
-	if virtualConfigPath != "" {
-		return clientcmd.BuildConfigFromFlags("", virtualConfigPath)
+func virtRestConfig(ctx context.Context, VirtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace string) (*rest.Config, error) {
+	if VirtualConfigPath != "" {
+		return clientcmd.BuildConfigFromFlags("", VirtualConfigPath)
 	}
 	// virtual kubeconfig file is empty, trying to fetch the k3k cluster kubeconfig
 	var cluster v1alpha1.Cluster
 	if err := hostClient.Get(ctx, types.NamespacedName{Namespace: clusterNamespace, Name: clusterName}, &cluster); err != nil {
 		return nil, err
 	}
-	endpoint := fmt.Sprintf("%s.%s", util.ServerSvcName(&cluster), util.ClusterNamespace(&cluster))
+	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
 	var b *bootstrap.ControlRuntimeBootstrap
-	if err := retry.OnError(backoff, func(err error) bool {
+	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err == nil
 	}, func() error {
 		var err error
@@ -185,7 +176,7 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
 	}
 	adminCert, adminKey, err := kubeconfig.CreateClientCertKey(
-		util.AdminCommonName, []string{user.SystemPrivilegedGroup},
+		controller.AdminCommonName, []string{user.SystemPrivilegedGroup},
 		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, time.Hour*24*time.Duration(356),
 		b.ClientCA.Content,
 		b.ClientCAKey.Content)
@@ -193,7 +184,7 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		return nil, err
 	}
 
-	url := fmt.Sprintf("https://%s:%d", util.ServerSvcName(&cluster), util.ServerPort)
+	url := fmt.Sprintf("https://%s:%d", server.ServiceName(cluster.Name), server.ServerPort)
 	kubeconfigData, err := kubeconfigBytes(url, []byte(b.ServerCA.Content), adminCert, adminKey)
 	if err != nil {
 		return nil, err
@@ -229,7 +220,7 @@ func kubeconfigBytes(url string, serverCA, clientCert, clientKey []byte) ([]byte
 	return kubeconfig, nil
 }
 
-func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, ipStr string) (*tls.Config, error) {
+func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, hostname string) (*tls.Config, error) {
 	var (
 		cluster v1alpha1.Cluster
 		b       *bootstrap.ControlRuntimeBootstrap
@@ -237,8 +228,8 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster); err != nil {
 		return nil, err
 	}
-	endpoint := fmt.Sprintf("%s.%s", util.ServerSvcName(&cluster), util.ClusterNamespace(&cluster))
-	if err := retry.OnError(backoff, func(err error) bool {
+	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
+	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err != nil
 	}, func() error {
 		var err error
@@ -248,7 +239,7 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
 	}
 	altNames := certutil.AltNames{
-		IPs: []net.IP{net.ParseIP(ipStr)},
+		DNSNames: []string{hostname},
 	}
 	cert, key, err := kubeconfig.CreateClientCertKey(nodeName, nil, &altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, 0, b.ServerCA.Content, b.ServerCAKey.Content)
 	if err != nil {

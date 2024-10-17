@@ -7,20 +7,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
-	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/authentication/user"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
@@ -28,15 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	Scheme  = runtime.NewScheme()
-	backoff = wait.Backoff{
-		Steps:    5,
-		Duration: 20 * time.Second,
-		Factor:   2,
-		Jitter:   0.1,
-	}
-)
+var Scheme = runtime.NewScheme()
 
 func init() {
 	_ = clientgoscheme.AddToScheme(Scheme)
@@ -120,7 +110,7 @@ var (
 
 func create(clx *cli.Context) error {
 	ctx := context.Background()
-	if err := validateCreateFlags(clx); err != nil {
+	if err := validateCreateFlags(); err != nil {
 		return err
 	}
 
@@ -173,13 +163,13 @@ func create(clx *cli.Context) error {
 
 	logrus.Infof("Extracting Kubeconfig for [%s] cluster", name)
 	cfg := &kubeconfig.KubeConfig{
-		CN:         util.AdminCommonName,
+		CN:         controller.AdminCommonName,
 		ORG:        []string{user.SystemPrivilegedGroup},
 		ExpiryDate: 0,
 	}
 	logrus.Infof("waiting for cluster to be available..")
 	var kubeconfig []byte
-	if err := retry.OnError(backoff, apierrors.IsNotFound, func() error {
+	if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = cfg.Extract(ctx, ctrlClient, cluster, host[0])
 		if err != nil {
 			return err
@@ -203,7 +193,7 @@ func create(clx *cli.Context) error {
 	return os.WriteFile(cluster.Name+"-kubeconfig.yaml", kubeconfig, 0644)
 }
 
-func validateCreateFlags(clx *cli.Context) error {
+func validateCreateFlags() error {
 	if persistenceType != server.EphermalNodesType &&
 		persistenceType != server.DynamicNodesType {
 		return errors.New("invalid persistence type")

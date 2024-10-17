@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/rancher/k3k/pkg/controller/util"
+	"github.com/rancher/k3k/pkg/controller"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,12 +15,13 @@ const (
 	nginxSSLPassthroughAnnotation  = "nginx.ingress.kubernetes.io/ssl-passthrough"
 	nginxBackendProtocolAnnotation = "nginx.ingress.kubernetes.io/backend-protocol"
 	nginxSSLRedirectAnnotation     = "nginx.ingress.kubernetes.io/ssl-redirect"
-	serverPort                     = 6443
-	etcdPort                       = 2379
+
+	serverPort = 6443
+	etcdPort   = 2379
 )
 
 func (s *Server) Ingress(ctx context.Context, client client.Client) (*networkingv1.Ingress, error) {
-	addresses, err := util.Addresses(ctx, client)
+	addresses, err := controller.Addresses(ctx, client)
 	if err != nil {
 		return nil, err
 	}
@@ -31,8 +32,12 @@ func (s *Server) Ingress(ctx context.Context, client client.Client) (*networking
 			APIVersion: "networking.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.cluster.Name + "-server-ingress",
-			Namespace: util.ClusterNamespace(s.cluster),
+			Name: controller.ObjectName(s.cluster.Name, &networkingv1.Ingress{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "Ingress",
+				},
+			}),
+			Namespace: s.cluster.Namespace,
 		},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: &s.cluster.Spec.Expose.Ingress.IngressClassName,
@@ -59,7 +64,7 @@ func (s *Server) ingressRules(addresses []string) []networkingv1.IngressRule {
 							PathType: &pathTypePrefix,
 							Backend: networkingv1.IngressBackend{
 								Service: &networkingv1.IngressServiceBackend{
-									Name: util.ServerSvcName(s.cluster),
+									Name: ServiceName(s.cluster.Name),
 									Port: networkingv1.ServiceBackendPort{
 										Number: serverPort,
 									},

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller/util"
+	"github.com/rancher/k3k/pkg/controller"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -17,12 +17,12 @@ import (
 )
 
 const (
-	serverName         = "k3k-"
-	k3kSystemNamespace = serverName + "system"
-	initServerName     = serverName + "init-server"
-	initContainerName  = serverName + "server-check"
-	initContainerImage = "alpine/curl"
+	k3kSystemNamespace = "k3k-system"
+	serverName         = "server"
+	configName         = "server-config"
+	initConfigName     = "init-server-config"
 
+	ServerPort        = 6443
 	EphermalNodesType = "ephermal"
 	DynamicNodesType  = "dynamic"
 )
@@ -40,7 +40,7 @@ func New(cluster *v1alpha1.Cluster, client client.Client) *Server {
 	}
 }
 
-func (s *Server) podSpec(ctx context.Context, image, name string, persistent bool, affinitySelector *metav1.LabelSelector) v1.PodSpec {
+func (s *Server) podSpec(image, name string, persistent bool, affinitySelector *metav1.LabelSelector) v1.PodSpec {
 	var limit v1.ResourceList
 	if s.cluster.Spec.Limit != nil && s.cluster.Spec.Limit.ServerLimit != nil {
 		limit = s.cluster.Spec.Limit.ServerLimit
@@ -62,7 +62,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 				Name: "initconfig",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: util.ServerInitConfigName(s.cluster),
+						SecretName: configSecretName(s.cluster.Name, true),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",
@@ -76,7 +76,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 				Name: "config",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: util.ServerConfigName(s.cluster),
+						SecretName: configSecretName(s.cluster.Name, false),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",
@@ -220,18 +220,18 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	return podSpec
 }
 
-func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) (*apps.StatefulSet, error) {
+func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) {
 	var (
 		replicas   int32
 		pvClaims   []v1.PersistentVolumeClaim
 		persistent bool
 	)
-	image := util.K3SImage(cluster)
-	name := serverName + "server"
+	image := controller.K3SImage(s.cluster)
+	name := controller.ObjectName(s.cluster.Name, nil, serverName)
 
-	replicas = *cluster.Spec.Servers
+	replicas = *s.cluster.Spec.Servers
 
-	if cluster.Spec.Persistence != nil && cluster.Spec.Persistence.Type != EphermalNodesType {
+	if s.cluster.Spec.Persistence != nil && s.cluster.Spec.Persistence.Type != EphermalNodesType {
 		persistent = true
 		pvClaims = []v1.PersistentVolumeClaim{
 			{
@@ -241,14 +241,14 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "varlibrancherk3s",
-					Namespace: util.ClusterNamespace(cluster),
+					Namespace: s.cluster.Namespace,
 				},
 				Spec: v1.PersistentVolumeClaimSpec{
 					AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-					StorageClassName: &cluster.Spec.Persistence.StorageClassName,
+					StorageClassName: &s.cluster.Spec.Persistence.StorageClassName,
 					Resources: v1.VolumeResourceRequirements{
 						Requests: v1.ResourceList{
-							"storage": resource.MustParse(cluster.Spec.Persistence.StorageRequestSize),
+							"storage": resource.MustParse(s.cluster.Spec.Persistence.StorageRequestSize),
 						},
 					},
 				},
@@ -260,16 +260,16 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "varlibkubelet",
-					Namespace: util.ClusterNamespace(cluster),
+					Namespace: s.cluster.Namespace,
 				},
 				Spec: v1.PersistentVolumeClaimSpec{
 					Resources: v1.VolumeResourceRequirements{
 						Requests: v1.ResourceList{
-							"storage": resource.MustParse(cluster.Spec.Persistence.StorageRequestSize),
+							"storage": resource.MustParse(s.cluster.Spec.Persistence.StorageRequestSize),
 						},
 					},
 					AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-					StorageClassName: &cluster.Spec.Persistence.StorageClassName,
+					StorageClassName: &s.cluster.Spec.Persistence.StorageClassName,
 				},
 			},
 		}
@@ -301,7 +301,7 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      addons.Name,
-				Namespace: util.ClusterNamespace(s.cluster),
+				Namespace: s.cluster.Namespace,
 			},
 			Data: make(map[string][]byte, len(addons.Data)),
 		}
@@ -335,12 +335,12 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 
 	selector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			"cluster": cluster.Name,
+			"cluster": s.cluster.Name,
 			"role":    "server",
 		},
 	}
 
-	podSpec := s.podSpec(ctx, image, name, persistent, &selector)
+	podSpec := s.podSpec(image, name, persistent, &selector)
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
 
@@ -350,13 +350,13 @@ func (s *Server) StatefulServer(ctx context.Context, cluster *v1alpha1.Cluster) 
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-" + name,
-			Namespace: util.ClusterNamespace(cluster),
+			Name:      name,
+			Namespace: s.cluster.Namespace,
 			Labels:    selector.MatchLabels,
 		},
 		Spec: apps.StatefulSetSpec{
 			Replicas:             &replicas,
-			ServiceName:          cluster.Name + "-" + name + "-headless",
+			ServiceName:          headlessServiceName(s.cluster.Name),
 			Selector:             &selector,
 			VolumeClaimTemplates: pvClaims,
 			Template: v1.PodTemplateSpec{

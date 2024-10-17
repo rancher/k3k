@@ -6,13 +6,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func ConfigureNode(node *v1.Node, podIP string, servicePort int) {
+func ConfigureNode(node *v1.Node, hostname string, servicePort int) {
 	node.Status.Conditions = nodeConditions()
 	node.Status.DaemonEndpoints.KubeletEndpoint.Port = int32(servicePort)
 	node.Status.Addresses = []v1.NodeAddress{
 		{
-			Type:    v1.NodeExternalIP,
-			Address: podIP,
+			Type:    v1.NodeHostName,
+			Address: hostname,
 		},
 	}
 	node.Status.Capacity = v1.ResourceList{

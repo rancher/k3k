@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -26,10 +27,11 @@ const (
 )
 
 var (
-	scheme      = runtime.NewScheme()
-	clusterCIDR string
-	kubeconfig  string
-	flags       = []cli.Flag{
+	scheme           = runtime.NewScheme()
+	clusterCIDR      string
+	sharedAgentImage string
+	kubeconfig       string
+	flags            = []cli.Flag{
 		cli.StringFlag{
 			Name:        "kubeconfig",
 			EnvVar:      "KUBECONFIG",
@@ -41,7 +43,15 @@ var (
 			EnvVar:      "CLUSTER_CIDR",
 			Usage:       "Cluster CIDR to be added to the networkpolicy of the clustersets",
 			Destination: &clusterCIDR,
-		}}
+		},
+		cli.StringFlag{
+			Name:        "shared-agent-image",
+			EnvVar:      "SHARED_AGENT_IMAGE",
+			Usage:       "K3K Virtual Kubelet image ",
+			Value:       "rancher/k3k:k3k-kubelet-dev",
+			Destination: &sharedAgentImage,
+		},
+	}
 )
 
 func init() {
@@ -76,8 +86,7 @@ func run(clx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create new controller runtime manager: %v", err)
 	}
-
-	if err := cluster.Add(ctx, mgr); err != nil {
+	if err := cluster.Add(ctx, mgr, sharedAgentImage); err != nil {
 		return fmt.Errorf("Failed to add the new cluster controller: %v", err)
 	}
 

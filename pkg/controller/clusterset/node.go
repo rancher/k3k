@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller/util"
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,7 +45,7 @@ func AddNodeController(ctx context.Context, mgr manager.Manager) error {
 func (n *NodeReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	var clusterSetList v1alpha1.ClusterSetList
 	if err := n.Client.List(ctx, &clusterSetList); err != nil {
-		return reconcile.Result{}, util.LogAndReturnErr("failed to list clusterSets", err)
+		return reconcile.Result{}, k3kcontroller.LogAndReturnErr("failed to list clusterSets", err)
 	}
 
 	if len(clusterSetList.Items) <= 0 {

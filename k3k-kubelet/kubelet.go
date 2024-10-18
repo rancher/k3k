@@ -96,7 +96,7 @@ func (k *kubelet) Start(ctx context.Context) {
 		logger, err := zap.NewProduction()
 		if err != nil {
 			fmt.Printf("unable to create logger: %s", err.Error())
-			os.Exit(-1)
+			os.Exit(1)
 		}
 		wrapped := LogWrapper{
 			*logger.Sugar(),
@@ -105,19 +105,19 @@ func (k *kubelet) Start(ctx context.Context) {
 		err = k.node.Run(ctx)
 		if err != nil {
 			fmt.Printf("node errored when running: %s \n", err.Error())
-			os.Exit(-1)
+			os.Exit(1)
 		}
 	}()
 	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
 		fmt.Printf("node was not ready within timeout of 1 minute: %s \n", err.Error())
-		os.Exit(-1)
+		os.Exit(1)
 	}
 	<-k.node.Done()
 	if err := k.node.Err(); err != nil {
 		fmt.Printf("node stopped with an error: %s \n", err.Error())
-		os.Exit(-1)
+		os.Exit(1)
 	}
-	fmt.Printf("node exited without an error")
+	fmt.Print("node exited without an error")
 }
 
 func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.NewProviderFunc {
@@ -138,8 +138,7 @@ func (k *kubelet) nodeOpts(srvPort, namespace, name, hostname string) nodeutil.N
 		c.HTTPListenAddr = fmt.Sprintf(":%s", srvPort)
 		// set up the routes
 		mux := http.NewServeMux()
-		err := nodeutil.AttachProviderRoutes(mux)(c)
-		if err != nil {
+		if err := nodeutil.AttachProviderRoutes(mux)(c); err != nil {
 			return fmt.Errorf("unable to attach routes: %w", err)
 		}
 		c.Handler = mux
@@ -212,12 +211,7 @@ func kubeconfigBytes(url string, serverCA, clientCert, clientKey []byte) ([]byte
 	config.Contexts["default"] = context
 	config.CurrentContext = "default"
 
-	kubeconfig, err := clientcmd.Write(*config)
-	if err != nil {
-		return nil, err
-	}
-
-	return kubeconfig, nil
+	return clientcmd.Write(*config)
 }
 
 func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, hostname string) (*tls.Config, error) {

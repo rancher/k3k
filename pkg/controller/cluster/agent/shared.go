@@ -51,11 +51,13 @@ func (s *SharedAgent) Config() (ctrlruntimeclient.Object, error) {
 }
 
 func sharedAgentData(cluster *v1alpha1.Cluster) string {
+	nodeName := cluster.Name + "-" + "k3k-kubelet"
 	return fmt.Sprintf(`clusterName: %s
 clusterNamespace: %s
 nodeName: %s
 agentHostname: %s
-token: %s`, cluster.Name, cluster.Namespace, cluster.Name+"-"+"k3k-kubelet", cluster.Name+"-"+"k3k-kubelet", cluster.Spec.Token)
+token: %s`,
+		cluster.Name, cluster.Namespace, nodeName, nodeName, cluster.Spec.Token)
 }
 
 func (s *SharedAgent) Resources() ([]ctrlruntimeclient.Object, error) {

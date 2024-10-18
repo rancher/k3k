@@ -20,9 +20,8 @@ type Agent interface {
 func New(cluster *v1alpha1.Cluster, serviceIP, sharedAgentImage string) Agent {
 	if cluster.Spec.Mode == VirtualNodeMode {
 		return NewVirtualAgent(cluster, serviceIP)
-	} else {
-		return NewSharedAgent(cluster, serviceIP, sharedAgentImage)
 	}
+	return NewSharedAgent(cluster, serviceIP, sharedAgentImage)
 }
 
 func configSecretName(clusterName string) string {

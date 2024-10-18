@@ -77,7 +77,7 @@ func serverOptions(cluster *v1alpha1.Cluster) string {
 
 func configSecretName(clusterName string, init bool) string {
 	if !init {
-		return controller.ObjectName(clusterName, nil, configName)
+		return controller.SafeConcatNameWithPrefix(clusterName, configName)
 	}
-	return controller.ObjectName(clusterName, nil, initConfigName)
+	return controller.SafeConcatNameWithPrefix(clusterName, initConfigName)
 }

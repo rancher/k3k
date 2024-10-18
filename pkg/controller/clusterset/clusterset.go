@@ -108,7 +108,7 @@ func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.Cluste
 	}
 	return &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k3kcontroller.ObjectName(clusterSet.Name, nil),
+			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
 			Namespace: clusterSet.Namespace,
 		},
 		TypeMeta: metav1.TypeMeta{

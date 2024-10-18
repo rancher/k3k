@@ -29,7 +29,7 @@ type KubeConfig struct {
 
 func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string) ([]byte, error) {
 	nn := types.NamespacedName{
-		Name:      controller.ObjectName(cluster.Name, nil, "bootstrap"),
+		Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
 		Namespace: cluster.Namespace,
 	}
 

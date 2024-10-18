@@ -82,16 +82,9 @@ func (s *Server) StatefulServerService() *v1.Service {
 }
 
 func ServiceName(clusterName string) string {
-	return controller.ObjectName(clusterName, &v1.Service{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "Service",
-		},
-	})
+	return controller.SafeConcatNameWithPrefix(clusterName, "service")
 }
 
 func headlessServiceName(clusterName string) string {
-	return controller.ObjectName(clusterName, &v1.Service{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "Service",
-		}}, "-headless")
+	return controller.SafeConcatNameWithPrefix(clusterName, "service", "headless")
 }

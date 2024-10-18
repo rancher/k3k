@@ -32,11 +32,7 @@ func (s *Server) Ingress(ctx context.Context, client client.Client) (*networking
 			APIVersion: "networking.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: controller.ObjectName(s.cluster.Name, &networkingv1.Ingress{
-				TypeMeta: metav1.TypeMeta{
-					Kind: "Ingress",
-				},
-			}),
+			Name:      controller.SafeConcatNameWithPrefix(s.cluster.Name, "ingress"),
 			Namespace: s.cluster.Namespace,
 		},
 		Spec: networkingv1.IngressSpec{

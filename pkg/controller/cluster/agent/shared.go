@@ -245,5 +245,5 @@ func (s *SharedAgent) roleBinding() *rbacv1.RoleBinding {
 }
 
 func (s *SharedAgent) Name() string {
-	return controller.ObjectName(s.cluster.Name, nil, sharedNodeAgentName)
+	return controller.SafeConcatNameWithPrefix(s.cluster.Name, sharedNodeAgentName)
 }

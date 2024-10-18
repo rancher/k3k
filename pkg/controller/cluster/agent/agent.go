@@ -25,5 +25,5 @@ func New(cluster *v1alpha1.Cluster, serviceIP, sharedAgentImage string) Agent {
 }
 
 func configSecretName(clusterName string) string {
-	return controller.ObjectName(clusterName, nil, configName)
+	return controller.SafeConcatNameWithPrefix(clusterName, configName)
 }

@@ -60,7 +60,7 @@ func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip string) (*v1.Se
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      controller.ObjectName(cluster.Name, nil, "bootstrap"),
+			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
 			Namespace: cluster.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{

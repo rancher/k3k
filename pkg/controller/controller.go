@@ -72,22 +72,12 @@ func Addresses(ctx context.Context, client ctrlruntimeclient.Client) ([]string, 
 	return addresses, nil
 }
 
-// ObjectName will create a concatenated name based on the object's kind name that is being sent
-// along with a prefix and the cluster name as well.
-func ObjectName(clusterName string, object ctrlruntimeclient.Object, any ...string) string {
-	names := []string{namePrefix}
-	if clusterName != "" {
-		names = append(names, clusterName)
-	}
-	var objectKind string
-	if object != nil {
-		objectKind = strings.ToLower(object.GetObjectKind().GroupVersionKind().Kind)
-		names = append(names, objectKind)
-	}
-	return SafeConcatName(append(names, any...)...)
+// SafeConcatNameWithPrefix runs the SafeConcatName with extra prefix.
+func SafeConcatNameWithPrefix(name ...string) string {
+	return SafeConcatName(append([]string{namePrefix}, name...)...)
 }
 
-// safeConcatName concatenates the given strings and ensures the returned name is under 64 characters
+// SafeConcatName concatenates the given strings and ensures the returned name is under 64 characters
 // by cutting the string off at 57 characters and setting the last 6 with an encoded version of the concatenated string.
 func SafeConcatName(name ...string) string {
 	fullPath := strings.Join(name, "-")

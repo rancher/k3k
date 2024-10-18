@@ -166,7 +166,7 @@ func virtRestConfig(ctx context.Context, VirtualConfigPath string, hostClient ct
 	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
 	var b *bootstrap.ControlRuntimeBootstrap
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
-		return err == nil
+		return err != nil
 	}, func() error {
 		var err error
 		b, err = bootstrap.DecodedBootstrap(cluster.Spec.Token, endpoint)

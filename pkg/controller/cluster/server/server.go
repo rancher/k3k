@@ -227,7 +227,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		persistent bool
 	)
 	image := controller.K3SImage(s.cluster)
-	name := controller.ObjectName(s.cluster.Name, nil, serverName)
+	name := controller.SafeConcatNameWithPrefix(s.cluster.Name, serverName)
 
 	replicas = *s.cluster.Spec.Servers
 

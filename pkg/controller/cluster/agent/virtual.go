@@ -219,5 +219,5 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 }
 
 func (v *VirtualAgent) Name() string {
-	return controller.ObjectName(v.cluster.Name, nil, virtualNodeAgentName)
+	return controller.SafeConcatNameWithPrefix(v.cluster.Name, virtualNodeAgentName)
 }

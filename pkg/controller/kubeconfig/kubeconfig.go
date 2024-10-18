@@ -10,8 +10,9 @@ import (
 
 	certutil "github.com/rancher/dynamiclistener/cert"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
-	"github.com/rancher/k3k/pkg/controller/util"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
@@ -28,8 +29,8 @@ type KubeConfig struct {
 
 func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string) ([]byte, error) {
 	nn := types.NamespacedName{
-		Name:      cluster.Name + "-bootstrap",
-		Namespace: util.ClusterNamespace(cluster),
+		Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
+		Namespace: cluster.Namespace,
 	}
 
 	var bootstrapSecret v1.Secret
@@ -57,8 +58,8 @@ func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster 
 	}
 	// get the server service to extract the right IP
 	nn = types.NamespacedName{
-		Name:      util.ServerSvcName(cluster),
-		Namespace: util.ClusterNamespace(cluster),
+		Name:      server.ServiceName(cluster.Name),
+		Namespace: cluster.Namespace,
 	}
 
 	var k3kService v1.Service
@@ -66,7 +67,7 @@ func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster 
 		return nil, err
 	}
 
-	url := fmt.Sprintf("https://%s:%d", k3kService.Spec.ClusterIP, util.ServerPort)
+	url := fmt.Sprintf("https://%s:%d", k3kService.Spec.ClusterIP, server.ServerPort)
 	if k3kService.Spec.Type == v1.ServiceTypeNodePort {
 		nodePort := k3kService.Spec.Ports[0].NodePort
 		url = fmt.Sprintf("https://%s:%d", hostServerIP, nodePort)

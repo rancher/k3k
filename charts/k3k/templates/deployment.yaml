@@ -19,9 +19,11 @@ spec:
         - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: {{ .Chart.Name }}
-          environment:
+          env:
           - name: CLUSTER_CIDR
             value: {{ .Values.host.clusterCIDR }}
+          - name: SHARED_AGENT_IMAGE
+            value: "{{ .Values.sharedAgent.image.repository }}:{{ .Values.sharedAgent.image.tag }}"
           ports:
           - containerPort: 8080
             name: https

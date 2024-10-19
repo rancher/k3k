@@ -102,7 +102,7 @@ func (k *kubelet) start(ctx context.Context) {
 		}
 		ctx = log.WithLogger(ctx, &wrapped)
 		if err := k.node.Run(ctx); err != nil {
-			fmt.Printf("node errored when running: %s \n", err.Error())
+			fmt.Println("node errored when running:", err.Error())
 			os.Exit(1)
 		}
 	}()

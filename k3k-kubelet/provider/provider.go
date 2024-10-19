@@ -310,6 +310,6 @@ func (p *Provider) translateFrom(hostPod *corev1.Pod) *corev1.Pod {
 	return virtualPod
 }
 
-func (p *Provider) hostName(virtualNamespace string, virtualName string) string {
+func (p *Provider) hostName(virtualNamespace, virtualName string) string {
 	return controller.SafeConcatName(p.ClusterName, p.ClusterNamespace, virtualNamespace, virtualName)
 }

@@ -7,7 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// Config has all virtual-kubelet startup options
+// config has all virtual-kubelet startup options
 type config struct {
 	ClusterName       string `yaml:"clusterName,omitempty"`
 	ClusterNamespace  string `yaml:"clusterNamespace,omitempty"`
@@ -19,58 +19,58 @@ type config struct {
 	KubeletPort       string `yaml:"kubeletPort,omitempty"`
 }
 
-func (t *config) unmarshalYAML(data []byte) error {
-	var c config
+func (c *config) unmarshalYAML(data []byte) error {
+	var conf config
 
-	if err := yaml.Unmarshal(data, &c); err != nil {
+	if err := yaml.Unmarshal(data, &conf); err != nil {
 		return err
 	}
 
-	if t.ClusterName == "" {
-		t.ClusterName = c.ClusterName
+	if c.ClusterName == "" {
+		c.ClusterName = conf.ClusterName
 	}
-	if t.ClusterNamespace == "" {
-		t.ClusterNamespace = c.ClusterNamespace
+	if c.ClusterNamespace == "" {
+		c.ClusterNamespace = conf.ClusterNamespace
 	}
-	if t.HostConfigPath == "" {
-		t.HostConfigPath = c.HostConfigPath
+	if c.HostConfigPath == "" {
+		c.HostConfigPath = conf.HostConfigPath
 	}
-	if t.VirtualConfigPath == "" {
-		t.VirtualConfigPath = c.VirtualConfigPath
+	if c.VirtualConfigPath == "" {
+		c.VirtualConfigPath = conf.VirtualConfigPath
 	}
-	if t.KubeletPort == "" {
-		t.KubeletPort = c.KubeletPort
+	if c.KubeletPort == "" {
+		c.KubeletPort = conf.KubeletPort
 	}
-	if t.AgentHostname == "" {
-		t.AgentHostname = c.AgentHostname
+	if c.AgentHostname == "" {
+		c.AgentHostname = conf.AgentHostname
 	}
-	if t.NodeName == "" {
-		t.NodeName = c.NodeName
+	if c.NodeName == "" {
+		c.NodeName = conf.NodeName
 	}
 	return nil
 }
 
-func (t *config) Validate() error {
-	if t.ClusterName == "" {
+func (c *config) validate() error {
+	if c.ClusterName == "" {
 		return errors.New("cluster name is not provided")
 	}
-	if t.ClusterNamespace == "" {
+	if c.ClusterNamespace == "" {
 		return errors.New("cluster namespace is not provided")
 	}
-	if t.AgentHostname == "" {
+	if c.AgentHostname == "" {
 		return errors.New("agent Hostname is not provided")
 	}
 	return nil
 }
 
-func (t *config) Parse(path string) error {
+func (c *config) parse(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil
 	}
 
-	configFileBytes, err := os.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	return t.unmarshalYAML(configFileBytes)
+	return c.unmarshalYAML(b)
 }

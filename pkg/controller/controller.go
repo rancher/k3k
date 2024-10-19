@@ -64,7 +64,7 @@ func Addresses(ctx context.Context, client ctrlruntimeclient.Client) ([]string, 
 		return nil, err
 	}
 
-	var addresses []string
+	addresses := make([]string, len(nodeList.Items))
 	for _, node := range nodeList.Items {
 		addresses = append(addresses, nodeAddress(&node))
 	}

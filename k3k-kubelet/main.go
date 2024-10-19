@@ -70,32 +70,33 @@ func main() {
 			Value:       "/etc/rancher/k3k/config.yaml",
 		},
 	}
-	app.Action = Run
+	app.Action = run
 	if err := app.Run(os.Args); err != nil {
 		logrus.Fatal(err)
 	}
 }
 
-func Run(clx *cli.Context) {
-	if err := cfg.Parse(configFile); err != nil {
+func run(clx *cli.Context) {
+	if err := cfg.parse(configFile); err != nil {
 		fmt.Printf("failed to parse config file %s: %v", configFile, err)
 		os.Exit(1)
 	}
 
-	if err := cfg.Validate(); err != nil {
+	if err := cfg.validate(); err != nil {
 		fmt.Printf("failed to validate config: %v", err)
 		os.Exit(1)
 	}
-	k, err := newKubelet(&cfg)
+	ctx := context.Background()
+	k, err := newKubelet(ctx, &cfg)
 	if err != nil {
 		fmt.Printf("failed to create new virtual kubelet instance: %v", err)
 		os.Exit(1)
 	}
 
-	if err := k.RegisterNode(cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname); err != nil {
+	if err := k.registerNode(ctx, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname); err != nil {
 		fmt.Printf("failed to register new node: %v", err)
 		os.Exit(1)
 	}
 
-	k.Start(context.Background())
+	k.start(ctx)
 }

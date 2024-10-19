@@ -32,11 +32,11 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var Scheme = runtime.NewScheme()
+var scheme = runtime.NewScheme()
 
 func init() {
-	_ = clientgoscheme.AddToScheme(Scheme)
-	_ = v1alpha1.AddToScheme(Scheme)
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
 }
 
 type kubelet struct {
@@ -48,20 +48,20 @@ type kubelet struct {
 	node       *nodeutil.Node
 }
 
-func newKubelet(c *config) (*kubelet, error) {
+func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostConfigPath)
 	if err != nil {
 		return nil, err
 	}
 
 	hostClient, err := ctrlruntimeclient.New(hostConfig, ctrlruntimeclient.Options{
-		Scheme: Scheme,
+		Scheme: scheme,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	virtConfig, err := virtRestConfig(context.Background(), c.VirtualConfigPath, hostClient, c.ClusterName, c.ClusterNamespace)
+	virtConfig, err := virtRestConfig(ctx, c.VirtualConfigPath, hostClient, c.ClusterName, c.ClusterNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -78,9 +78,9 @@ func newKubelet(c *config) (*kubelet, error) {
 	}, nil
 }
 
-func (k *kubelet) RegisterNode(srvPort, namespace, name, hostname string) error {
+func (k *kubelet) registerNode(ctx context.Context, srvPort, namespace, name, hostname string) error {
 	providerFunc := k.newProviderFunc(namespace, name, hostname)
-	nodeOpts := k.nodeOpts(srvPort, namespace, name, hostname)
+	nodeOpts := k.nodeOpts(ctx, srvPort, namespace, name, hostname)
 
 	var err error
 	k.node, err = nodeutil.NewNode(k.name, providerFunc, nodeutil.WithClient(k.virtClient), nodeOpts)
@@ -90,34 +90,32 @@ func (k *kubelet) RegisterNode(srvPort, namespace, name, hostname string) error 
 	return nil
 }
 
-func (k *kubelet) Start(ctx context.Context) {
+func (k *kubelet) start(ctx context.Context) {
 	go func() {
-		ctx := context.Background()
 		logger, err := zap.NewProduction()
 		if err != nil {
-			fmt.Printf("unable to create logger: %s", err.Error())
+			fmt.Println("unable to create logger:", err.Error())
 			os.Exit(1)
 		}
 		wrapped := LogWrapper{
 			*logger.Sugar(),
 		}
 		ctx = log.WithLogger(ctx, &wrapped)
-		err = k.node.Run(ctx)
-		if err != nil {
+		if err := k.node.Run(ctx); err != nil {
 			fmt.Printf("node errored when running: %s \n", err.Error())
 			os.Exit(1)
 		}
 	}()
 	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
-		fmt.Printf("node was not ready within timeout of 1 minute: %s \n", err.Error())
+		fmt.Println("node was not ready within timeout of 1 minute:", err.Error())
 		os.Exit(1)
 	}
 	<-k.node.Done()
 	if err := k.node.Err(); err != nil {
-		fmt.Printf("node stopped with an error: %s \n", err.Error())
+		fmt.Println("node stopped with an error:", err.Error())
 		os.Exit(1)
 	}
-	fmt.Print("node exited without an error")
+	fmt.Println("node exited without an error")
 }
 
 func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.NewProviderFunc {
@@ -133,7 +131,7 @@ func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.New
 	}
 }
 
-func (k *kubelet) nodeOpts(srvPort, namespace, name, hostname string) nodeutil.NodeOpt {
+func (k *kubelet) nodeOpts(ctx context.Context, srvPort, namespace, name, hostname string) nodeutil.NodeOpt {
 	return func(c *nodeutil.NodeConfig) error {
 		c.HTTPListenAddr = fmt.Sprintf(":%s", srvPort)
 		// set up the routes
@@ -143,8 +141,6 @@ func (k *kubelet) nodeOpts(srvPort, namespace, name, hostname string) nodeutil.N
 		}
 		c.Handler = mux
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
 		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, hostname)
 		if err != nil {
 			return fmt.Errorf("unable to get tls config: %w", err)
@@ -154,16 +150,16 @@ func (k *kubelet) nodeOpts(srvPort, namespace, name, hostname string) nodeutil.N
 	}
 }
 
-func virtRestConfig(ctx context.Context, VirtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace string) (*rest.Config, error) {
-	if VirtualConfigPath != "" {
-		return clientcmd.BuildConfigFromFlags("", VirtualConfigPath)
+func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace string) (*rest.Config, error) {
+	if virtualConfigPath != "" {
+		return clientcmd.BuildConfigFromFlags("", virtualConfigPath)
 	}
 	// virtual kubeconfig file is empty, trying to fetch the k3k cluster kubeconfig
 	var cluster v1alpha1.Cluster
 	if err := hostClient.Get(ctx, types.NamespacedName{Namespace: clusterNamespace, Name: clusterName}, &cluster); err != nil {
 		return nil, err
 	}
-	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
+	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
 	var b *bootstrap.ControlRuntimeBootstrap
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err != nil
@@ -246,7 +242,10 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 	// create rootCA CertPool
 	certs, err := certutil.ParseCertsPEM([]byte(b.ServerCA.Content))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create certs: %w", err)
+		return nil, fmt.Errorf("unable to create ca certs: %w", err)
+	}
+	if len(certs) < 1 {
+		return nil, fmt.Errorf("ca cert is not parsed correctly")
 	}
 	pool := x509.NewCertPool()
 	pool.AddCert(certs[0])

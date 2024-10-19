@@ -47,10 +47,8 @@ func (v *VirtualAgent) Config() (ctrlruntimeclient.Object, error) {
 	}, nil
 }
 
-func (v *VirtualAgent) Resources() ([]ctrlruntimeclient.Object, error) {
-	var objs []ctrlruntimeclient.Object
-	objs = append(objs, v.deployment())
-	return objs, nil
+func (v *VirtualAgent) Resources() []ctrlruntimeclient.Object {
+	return []ctrlruntimeclient.Object{v.deployment()}
 }
 
 func virtualAgentData(serviceIP, token string) string {

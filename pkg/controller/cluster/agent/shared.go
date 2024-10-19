@@ -60,10 +60,8 @@ token: %s`,
 		cluster.Name, cluster.Namespace, nodeName, nodeName, cluster.Spec.Token)
 }
 
-func (s *SharedAgent) Resources() ([]ctrlruntimeclient.Object, error) {
-	var objs []ctrlruntimeclient.Object
-	objs = append(objs, s.serviceAccount(), s.role(), s.roleBinding(), s.service(), s.deployment())
-	return objs, nil
+func (s *SharedAgent) Resources() []ctrlruntimeclient.Object {
+	return []ctrlruntimeclient.Object{s.serviceAccount(), s.role(), s.roleBinding(), s.service(), s.deployment()}
 }
 
 func (s *SharedAgent) deployment() *apps.Deployment {

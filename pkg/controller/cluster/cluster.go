@@ -283,16 +283,11 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 
 func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
 	agent := agent.New(cluster, serviceIP, c.SharedAgentImage)
-
 	agentsConfig, err := agent.Config()
 	if err != nil {
 		return err
 	}
-	agentResources, err := agent.Resources()
-	if err != nil {
-		return err
-	}
-
+	agentResources := agent.Resources()
 	agentResources = append(agentResources, agentsConfig)
 
 	return c.ensureAll(ctx, cluster, agentResources)

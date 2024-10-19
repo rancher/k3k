@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
@@ -16,6 +15,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
+	k3klog "github.com/rancher/k3k/pkg/log"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
@@ -32,7 +32,10 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var scheme = runtime.NewScheme()
+var (
+	scheme         = runtime.NewScheme()
+	k3kKubeletName = "k3k-kubelet"
+)
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -46,9 +49,10 @@ type kubelet struct {
 	hostClient ctrlruntimeclient.Client
 	virtClient kubernetes.Interface
 	node       *nodeutil.Node
+	logger     *k3klog.Logger
 }
 
-func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
+func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet, error) {
 	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostConfigPath)
 	if err != nil {
 		return nil, err
@@ -75,6 +79,7 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 		hostConfig: hostConfig,
 		hostClient: hostClient,
 		virtClient: virtClient,
+		logger:     logger.Named(k3kKubeletName),
 	}, nil
 }
 
@@ -92,30 +97,19 @@ func (k *kubelet) registerNode(ctx context.Context, srvPort, namespace, name, ho
 
 func (k *kubelet) start(ctx context.Context) {
 	go func() {
-		logger, err := zap.NewProduction()
-		if err != nil {
-			fmt.Println("unable to create logger:", err.Error())
-			os.Exit(1)
-		}
-		wrapped := LogWrapper{
-			*logger.Sugar(),
-		}
-		ctx = log.WithLogger(ctx, &wrapped)
+		ctx = log.WithLogger(ctx, k.logger)
 		if err := k.node.Run(ctx); err != nil {
-			fmt.Println("node errored when running:", err.Error())
-			os.Exit(1)
+			k.logger.Fatalw("node errored when running", zap.Error(err))
 		}
 	}()
 	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
-		fmt.Println("node was not ready within timeout of 1 minute:", err.Error())
-		os.Exit(1)
+		k.logger.Fatalw("node was not ready within timeout of 1 minute", zap.Error(err))
 	}
 	<-k.node.Done()
 	if err := k.node.Err(); err != nil {
-		fmt.Println("node stopped with an error:", err.Error())
-		os.Exit(1)
+		k.logger.Fatalw("node stopped with an error", zap.Error(err))
 	}
-	fmt.Println("node exited without an error")
+	k.logger.Info("node exited without an error")
 }
 
 func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.NewProviderFunc {
@@ -254,20 +248,4 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 		RootCAs:      pool,
 		Certificates: []tls.Certificate{clientCert},
 	}, nil
-}
-
-type LogWrapper struct {
-	zap.SugaredLogger
-}
-
-func (l *LogWrapper) WithError(err error) log.Logger {
-	return l
-}
-
-func (l *LogWrapper) WithField(string, interface{}) log.Logger {
-	return l
-}
-
-func (l *LogWrapper) WithFields(field log.Fields) log.Logger {
-	return l
 }

@@ -2,16 +2,19 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
+	"github.com/rancher/k3k/pkg/log"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"go.uber.org/zap"
 )
 
 var (
 	configFile string
 	cfg        config
+	logger     *log.Logger
+	debug      bool
 )
 
 func main() {
@@ -69,6 +72,16 @@ func main() {
 			EnvVar:      "CONFIG_FILE",
 			Value:       "/etc/rancher/k3k/config.yaml",
 		},
+		cli.BoolFlag{
+			Name:        "debug",
+			Usage:       "Enable debug logging",
+			Destination: &debug,
+			EnvVar:      "DEBUG",
+		},
+	}
+	app.Before = func(clx *cli.Context) error {
+		logger = log.New(debug)
+		return nil
 	}
 	app.Action = run
 	if err := app.Run(os.Args); err != nil {
@@ -77,25 +90,21 @@ func main() {
 }
 
 func run(clx *cli.Context) {
+	ctx := context.Background()
 	if err := cfg.parse(configFile); err != nil {
-		fmt.Printf("failed to parse config file %s: %v", configFile, err)
-		os.Exit(1)
+		logger.Fatalw("failed to parse config file", "path", configFile, zap.Error(err))
 	}
 
 	if err := cfg.validate(); err != nil {
-		fmt.Printf("failed to validate config: %v", err)
-		os.Exit(1)
+		logger.Fatalw("failed to validate config", zap.Error(err))
 	}
-	ctx := context.Background()
-	k, err := newKubelet(ctx, &cfg)
+	k, err := newKubelet(ctx, &cfg, logger)
 	if err != nil {
-		fmt.Printf("failed to create new virtual kubelet instance: %v", err)
-		os.Exit(1)
+		logger.Fatalw("failed to create new virtual kubelet instance", zap.Error(err))
 	}
 
 	if err := k.registerNode(ctx, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname); err != nil {
-		fmt.Printf("failed to register new node: %v", err)
-		os.Exit(1)
+		logger.Fatalw("failed to register new node", zap.Error(err))
 	}
 
 	k.start(ctx)

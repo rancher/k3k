@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
@@ -29,17 +30,21 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrlserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 var (
-	scheme         = runtime.NewScheme()
+	baseScheme     = runtime.NewScheme()
 	k3kKubeletName = "k3k-kubelet"
 )
 
 func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = v1alpha1.AddToScheme(scheme)
+	_ = clientgoscheme.AddToScheme(baseScheme)
+	_ = v1alpha1.AddToScheme(baseScheme)
 }
 
 type kubelet struct {
@@ -48,6 +53,8 @@ type kubelet struct {
 	hostConfig *rest.Config
 	hostClient ctrlruntimeclient.Client
 	virtClient kubernetes.Interface
+	hostMgr    manager.Manager
+	virtualMgr manager.Manager
 	node       *nodeutil.Node
 	logger     *k3klog.Logger
 }
@@ -59,7 +66,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	}
 
 	hostClient, err := ctrlruntimeclient.New(hostConfig, ctrlruntimeclient.Options{
-		Scheme: scheme,
+		Scheme: baseScheme,
 	})
 	if err != nil {
 		return nil, err
@@ -74,12 +81,48 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	if err != nil {
 		return nil, err
 	}
+
+	hostMgr, err := ctrl.NewManager(hostConfig, manager.Options{
+		Scheme: baseScheme,
+		Metrics: ctrlserver.Options{
+			BindAddress: ":8083",
+		},
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				c.ClusterNamespace: {},
+			},
+		},
+	})
+	if err != nil {
+		fmt.Printf("unable to create controller-runtime mgr for host cluster: %s", err.Error())
+		os.Exit(-1)
+	}
+
+	virtualScheme := runtime.NewScheme()
+	// virtual client will only use core types (for now), no need to add anything other than the basics
+	err = clientgoscheme.AddToScheme(virtualScheme)
+	if err != nil {
+		fmt.Printf("unable to add client go types to virtual cluster scheme: %s", err.Error())
+		os.Exit(-1)
+	}
+	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
+		Scheme: virtualScheme,
+		Metrics: ctrlserver.Options{
+			BindAddress: ":8084",
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
 	return &kubelet{
 		name:       c.NodeName,
 		hostConfig: hostConfig,
 		hostClient: hostClient,
+		hostMgr:    hostMgr,
 		virtClient: virtClient,
 		logger:     logger.Named(k3kKubeletName),
+		virtualMgr: virtualMgr,
 	}, nil
 }
 
@@ -96,12 +139,33 @@ func (k *kubelet) registerNode(ctx context.Context, srvPort, namespace, name, ho
 }
 
 func (k *kubelet) start(ctx context.Context) {
+	// any one of the following 3 tasks (host manager, virtual manager, node) crashing will stop the
+	// program, and all 3 of them block on start, so we start them here in go-routines
+	go func() {
+		err := k.hostMgr.Start(context.Background())
+		if err != nil {
+			fmt.Printf("host manager stopped: %s \n", err.Error())
+			os.Exit(-1)
+		}
+	}()
+
+	go func() {
+		err := k.virtualMgr.Start(context.Background())
+		if err != nil {
+			fmt.Printf("host manager stopped: %s \n", err.Error())
+			os.Exit(-1)
+		}
+	}()
+
+	// run the node async so that we can wait for it to be ready in another call
+
 	go func() {
 		ctx = log.WithLogger(ctx, k.logger)
 		if err := k.node.Run(ctx); err != nil {
 			k.logger.Fatalw("node errored when running", zap.Error(err))
 		}
 	}()
+
 	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
 		k.logger.Fatalw("node was not ready within timeout of 1 minute", zap.Error(err))
 	}
@@ -114,7 +178,7 @@ func (k *kubelet) start(ctx context.Context) {
 
 func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
-		utilProvider, err := provider.New(*k.hostConfig, namespace, name)
+		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, namespace, name)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to make nodeutil provider %w", err)
 		}

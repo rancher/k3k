@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller/util"
+	"github.com/rancher/k3k/pkg/controller"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -36,7 +36,7 @@ func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip string) (*v1.Se
 	token := cluster.Spec.Token
 
 	var bootstrap *ControlRuntimeBootstrap
-	if err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return true
 	}, func() error {
 		var err error
@@ -60,8 +60,8 @@ func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip string) (*v1.Se
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name + "-bootstrap",
-			Namespace: util.ClusterNamespace(cluster),
+			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
+			Namespace: cluster.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: cluster.APIVersion,

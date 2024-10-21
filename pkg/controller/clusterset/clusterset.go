@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -20,7 +21,6 @@ import (
 
 const (
 	clusterSetController    = "k3k-clusterset-controller"
-	networkPolicyName       = "k3k-cluster-netpol"
 	allTrafficCIDR          = "0.0.0.0/0"
 	maxConcurrentReconciles = 1
 )
@@ -108,7 +108,7 @@ func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.Cluste
 	}
 	return &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      networkPolicyName,
+			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
 			Namespace: clusterSet.Namespace,
 		},
 		TypeMeta: metav1.TypeMeta{

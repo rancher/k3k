@@ -135,6 +135,15 @@ spec:
                 description: NodeSelector is the node selector that will be applied
                   to all server/agent pods
                 type: object
+              mode:
+                description: Mode is the cluster provisioning mode which can be either
+                  "virtual" or "shared". Defaults to "shared"
+                type: string
+                x-kubernetes-validations:
+                - message: mode is immutable
+                  rule: self == oldSelf
+                - message: invalid value for mode
+                  rule: self == "virtual" || self == "shared"
               persistence:
                 description: |-
                   Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
@@ -191,6 +200,7 @@ spec:
                 type: string
             required:
             - agents
+            - mode
             - servers
             - token
             - version

@@ -10,14 +10,13 @@ import (
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
-	"github.com/rancher/k3k/pkg/controller/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/authentication/user"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
@@ -31,19 +30,13 @@ func init() {
 }
 
 var (
-	Scheme         = runtime.NewScheme()
-	name           string
-	cn             string
-	org            cli.StringSlice
-	altNames       cli.StringSlice
-	expirationDays int64
-	configName     string
-	backoff        = wait.Backoff{
-		Steps:    5,
-		Duration: 20 * time.Second,
-		Factor:   2,
-		Jitter:   0.1,
-	}
+	Scheme                  = runtime.NewScheme()
+	name                    string
+	cn                      string
+	org                     cli.StringSlice
+	altNames                cli.StringSlice
+	expirationDays          int64
+	configName              string
 	generateKubeconfigFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "name",
@@ -59,7 +52,7 @@ var (
 			Name:        "cn",
 			Usage:       "Common name (CN) of the generated certificates for the kubeconfig",
 			Destination: &cn,
-			Value:       util.AdminCommonName,
+			Value:       controller.AdminCommonName,
 		},
 		cli.StringSliceFlag{
 			Name:  "org",
@@ -141,7 +134,7 @@ func generate(clx *cli.Context) error {
 	}
 	logrus.Infof("waiting for cluster to be available..")
 	var kubeconfig []byte
-	if err := retry.OnError(backoff, apierrors.IsNotFound, func() error {
+	if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = cfg.Extract(ctx, ctrlClient, &cluster, host[0])
 		if err != nil {
 			return err

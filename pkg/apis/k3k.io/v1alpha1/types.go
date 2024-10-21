@@ -52,6 +52,10 @@ type ClusterSpec struct {
 	TLSSANs []string `json:"tlsSANs,omitempty"`
 	// Addons is a list of secrets containing raw YAML which will be deployed in the virtual K3k cluster on startup.
 	Addons []Addon `json:"addons,omitempty"`
+	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
+	// +kubebuilder:validation:XValidation:message="invalid value for mode",rule="self == virtual || self == shared"
+	// Mode is the cluster provisioning mode which can be either "virtual" or "shared". Defaults to "shared"
+	Mode string `json:"mode"`
 
 	// Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
 	// persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.

@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	"github.com/rancher/k3k/pkg/log"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -45,15 +45,17 @@ type ClusterReconciler struct {
 	Client           ctrlruntimeclient.Client
 	Scheme           *runtime.Scheme
 	SharedAgentImage string
+	logger           *log.Logger
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage string) error {
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage string, logger *log.Logger) error {
 	// initialize a new Reconciler
 	reconciler := ClusterReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
 		SharedAgentImage: sharedAgentImage,
+		logger:           logger.Named(clusterController),
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Cluster{}).
@@ -64,36 +66,29 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage string) erro
 }
 
 func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-
 	var (
 		cluster v1alpha1.Cluster
 		podList v1.PodList
 	)
-
+	log := c.logger.With("Cluster", req.NamespacedName)
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
-
 	if cluster.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
 			controllerutil.AddFinalizer(&cluster, clusterFinalizerName)
 			if err := c.Client.Update(ctx, &cluster); err != nil {
-				return reconcile.Result{}, k3kcontroller.LogAndReturnErr("failed to add cluster finalizer", err)
+				return reconcile.Result{}, err
 			}
 		}
-
-		klog.Infof("enqueue cluster [%s]", cluster.Name)
-		if err := c.createCluster(ctx, &cluster); err != nil {
-			return reconcile.Result{}, k3kcontroller.LogAndReturnErr("failed to create cluster", err)
-		}
-		return reconcile.Result{}, nil
+		log.Info("enqueue cluster")
+		return reconcile.Result{}, c.createCluster(ctx, &cluster, log)
 	}
 
 	// remove finalizer from the server pods and update them.
 	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
 	listOpts := &ctrlruntimeclient.ListOptions{Namespace: cluster.Namespace}
 	matchingLabels.ApplyToList(listOpts)
-
 	if err := c.Client.List(ctx, &podList, listOpts); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
@@ -101,26 +96,24 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		if controllerutil.ContainsFinalizer(&pod, etcdPodFinalizerName) {
 			controllerutil.RemoveFinalizer(&pod, etcdPodFinalizerName)
 			if err := c.Client.Update(ctx, &pod); err != nil {
-				return reconcile.Result{}, k3kcontroller.LogAndReturnErr("failed to remove etcd finalizer", err)
+				return reconcile.Result{}, err
 			}
 		}
 	}
-
 	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
 		// remove finalizer from the cluster and update it.
 		controllerutil.RemoveFinalizer(&cluster, clusterFinalizerName)
 		if err := c.Client.Update(ctx, &cluster); err != nil {
-			return reconcile.Result{}, k3kcontroller.LogAndReturnErr("failed to remove cluster finalizer", err)
+			return reconcile.Result{}, err
 		}
 	}
-	klog.Infof("deleting cluster [%s]", cluster.Name)
-
+	log.Info("deleting cluster")
 	return reconcile.Result{}, nil
 }
 
-func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1.Cluster, log *zap.SugaredLogger) error {
 	if err := c.validate(cluster); err != nil {
-		klog.Errorf("invalid change: %v", err)
+		log.Errorw("invalid change", zap.Error(err))
 		return nil
 	}
 	s := server.New(cluster, c.Client)
@@ -133,7 +126,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		}
 	}
 	if err := c.Client.Update(ctx, cluster); err != nil {
-		return k3kcontroller.LogAndReturnErr("failed to update cluster with persistence type", err)
+		return err
 	}
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
@@ -146,35 +139,35 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		cluster.Status.ServiceCIDR = defaultClusterServiceCIDR
 	}
 
-	klog.Infof("creating cluster service")
+	log.Info("creating cluster service")
 	serviceIP, err := c.createClusterService(ctx, cluster, s)
 	if err != nil {
-		return k3kcontroller.LogAndReturnErr("failed to create cluster service", err)
+		return err
 	}
 
 	if err := c.createClusterConfigs(ctx, cluster, s, serviceIP); err != nil {
-		return k3kcontroller.LogAndReturnErr("failed to create cluster configs", err)
+		return err
 	}
 
 	// creating statefulsets in case the user chose a persistence type other than ephermal
 	if err := c.server(ctx, cluster, s); err != nil {
-		return k3kcontroller.LogAndReturnErr("failed to create servers", err)
+		return err
 	}
 
 	if err := c.agent(ctx, cluster, serviceIP); err != nil {
-		return k3kcontroller.LogAndReturnErr("failed to create agents", err)
+		return err
 	}
 
 	if cluster.Spec.Expose != nil {
 		if cluster.Spec.Expose.Ingress != nil {
 			serverIngress, err := s.Ingress(ctx, c.Client)
 			if err != nil {
-				return k3kcontroller.LogAndReturnErr("failed to create ingress object", err)
+				return err
 			}
 
 			if err := c.Client.Create(ctx, serverIngress); err != nil {
 				if !apierrors.IsAlreadyExists(err) {
-					return k3kcontroller.LogAndReturnErr("failed to create server ingress", err)
+					return err
 				}
 			}
 		}
@@ -182,12 +175,12 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 
 	bootstrapSecret, err := bootstrap.Generate(ctx, cluster, serviceIP)
 	if err != nil {
-		return k3kcontroller.LogAndReturnErr("failed to generate new kubeconfig", err)
+		return err
 	}
 
 	if err := c.Client.Create(ctx, bootstrapSecret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return k3kcontroller.LogAndReturnErr("failed to create kubeconfig secret", err)
+			return err
 		}
 	}
 

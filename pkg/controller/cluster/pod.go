@@ -15,16 +15,16 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
-	"github.com/sirupsen/logrus"
+	"github.com/rancher/k3k/pkg/log"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -41,14 +41,16 @@ const (
 type PodReconciler struct {
 	Client ctrlruntimeclient.Client
 	Scheme *runtime.Scheme
+	logger *log.Logger
 }
 
 // Add adds a new controller to the manager
-func AddPodController(ctx context.Context, mgr manager.Manager) error {
+func AddPodController(ctx context.Context, mgr manager.Manager, logger *log.Logger) error {
 	// initialize a new Reconciler
 	reconciler := PodReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		logger: logger.Named(podController),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -61,9 +63,11 @@ func AddPodController(ctx context.Context, mgr manager.Manager) error {
 }
 
 func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	log := p.logger.With("Pod", req.NamespacedName)
+
 	s := strings.Split(req.Name, "-")
 	if len(s) < 1 {
-		return reconcile.Result{}, k3kcontroller.LogAndReturnErr("failed to get cluster namespace", nil)
+		return reconcile.Result{}, nil
 	}
 	if s[0] != "k3k" {
 		return reconcile.Result{}, nil
@@ -84,15 +88,15 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 	for _, pod := range podList.Items {
-		klog.Infof("Handle etcd server pod [%s/%s]", pod.Namespace, pod.Name)
-		if err := p.handleServerPod(ctx, cluster, &pod); err != nil {
-			return reconcile.Result{}, k3kcontroller.LogAndReturnErr("failed to handle etcd pod", err)
+		log.Info("Handle etcd server pod")
+		if err := p.handleServerPod(ctx, cluster, &pod, log); err != nil {
+			return reconcile.Result{}, err
 		}
 	}
 	return reconcile.Result{}, nil
 }
 
-func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
+func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod, log *zap.SugaredLogger) error {
 	if _, ok := pod.Labels["role"]; ok {
 		if pod.Labels["role"] != "server" {
 			return nil
@@ -112,7 +116,7 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 			}
 			return nil
 		}
-		tlsConfig, err := p.getETCDTLS(&cluster)
+		tlsConfig, err := p.getETCDTLS(&cluster, log)
 		if err != nil {
 			return err
 		}
@@ -127,7 +131,7 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 			return err
 		}
 
-		if err := removePeer(ctx, client, pod.Name, pod.Status.PodIP); err != nil {
+		if err := removePeer(ctx, client, pod.Name, pod.Status.PodIP, log); err != nil {
 			return err
 		}
 		// remove our finalizer from the list and update it.
@@ -146,10 +150,10 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 	return nil
 }
 
-func (p *PodReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, error) {
-	klog.Infof("generating etcd TLS client certificate for cluster [%s]", cluster.Name)
+func (p *PodReconciler) getETCDTLS(cluster *v1alpha1.Cluster, log *zap.SugaredLogger) (*tls.Config, error) {
+	log.Infow("generating etcd TLS client certificate", "Cluster", cluster.Name, "Namespace", cluster.Namespace)
 	token := cluster.Spec.Token
-	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
+	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
 	var b *bootstrap.ControlRuntimeBootstrap
 	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
 		return true
@@ -184,7 +188,7 @@ func (p *PodReconciler) getETCDTLS(cluster *v1alpha1.Cluster) (*tls.Config, erro
 }
 
 // removePeer removes a peer from the cluster. The peer name and IP address must both match.
-func removePeer(ctx context.Context, client *clientv3.Client, name, address string) error {
+func removePeer(ctx context.Context, client *clientv3.Client, name, address string, log *zap.SugaredLogger) error {
 	ctx, cancel := context.WithTimeout(ctx, memberRemovalTimeout)
 	defer cancel()
 	members, err := client.MemberList(ctx)
@@ -202,7 +206,7 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 				return err
 			}
 			if u.Hostname() == address {
-				logrus.Infof("Removing name=%s id=%d address=%s from etcd", member.Name, member.ID, address)
+				log.Infow("Removing member from etcd", "name", member.Name, "id", member.ID, "address", address)
 				_, err := client.MemberRemove(ctx, member.ID)
 				if errors.Is(err, rpctypes.ErrGRPCMemberNotFound) {
 					return nil

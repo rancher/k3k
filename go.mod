@@ -17,6 +17,7 @@ replace (
 )
 
 require (
+	github.com/go-logr/zapr v1.3.0
 	github.com/prometheus/client_model v0.6.1
 	github.com/rancher/dynamiclistener v1.27.5
 	github.com/sirupsen/logrus v1.9.3
@@ -30,8 +31,6 @@ require (
 	k8s.io/apimachinery v0.31.1
 	k8s.io/apiserver v0.31.0
 	k8s.io/client-go v0.31.0
-	k8s.io/klog v1.0.0
-	k8s.io/klog/v2 v2.130.1
 	k8s.io/metrics v0.29.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.17.5
@@ -123,6 +122,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.29.2 // indirect
 	k8s.io/component-base v0.29.2 // indirect
+	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kms v0.29.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.28.0 // indirect

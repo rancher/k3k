@@ -2,10 +2,10 @@ package clusterset
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/log"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,15 +29,17 @@ type ClusterSetReconciler struct {
 	Client      ctrlruntimeclient.Client
 	Scheme      *runtime.Scheme
 	ClusterCIDR string
+	logger      *log.Logger
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string) error {
+func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string, logger *log.Logger) error {
 	// initialize a new Reconciler
 	reconciler := ClusterSetReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
 		ClusterCIDR: clusterCIDR,
+		logger:      logger.Named(clusterSetController),
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ClusterSet{}).
@@ -50,23 +52,25 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string) error {
 func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	var (
 		clusterSet v1alpha1.ClusterSet
+		log        = c.logger.With("ClusterSet", req.NamespacedName)
 	)
 	if err := c.Client.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, &clusterSet); err != nil {
-		return reconcile.Result{}, fmt.Errorf("unable to get the clusterset: %w", err)
+		return reconcile.Result{}, err
 	}
 
 	if !clusterSet.Spec.DisableNetworkPolicy {
+		log.Info("Creating NetworkPolicy")
 		setNetworkPolicy, err := netpol(ctx, c.ClusterCIDR, &clusterSet, c.Client)
 		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("unable to make a networkpolicy for cluster set: %w", err)
+			return reconcile.Result{}, err
 		}
 		if err := c.Client.Create(ctx, setNetworkPolicy); err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				if err := c.Client.Update(ctx, setNetworkPolicy); err != nil {
-					return reconcile.Result{}, fmt.Errorf("unable to update networkpolicy for clusterset: %w", err)
+					return reconcile.Result{}, err
 				}
 			}
-			return reconcile.Result{}, fmt.Errorf("unable to create networkpolicy for clusterset: %w", err)
+			return reconcile.Result{}, err
 		}
 	}
 	// TODO: Add resource quota for clustersets

@@ -10,7 +10,6 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/klog"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -31,12 +30,6 @@ var Backoff = wait.Backoff{
 func K3SImage(cluster *v1alpha1.Cluster) string {
 	return k3SImageName + ":" + cluster.Spec.Version
 }
-
-func LogAndReturnErr(errString string, err error) error {
-	klog.Errorf("%s: %v", errString, err)
-	return err
-}
-
 func nodeAddress(node *v1.Node) string {
 	var externalIP string
 	var internalIP string

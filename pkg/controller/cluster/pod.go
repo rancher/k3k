@@ -88,7 +88,7 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 	for _, pod := range podList.Items {
-		log.Infof("Handle etcd server pod [%s/%s]", pod.Namespace, pod.Name)
+		log.Info("Handle etcd server pod")
 		if err := p.handleServerPod(ctx, cluster, &pod, log); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -151,9 +151,9 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 }
 
 func (p *PodReconciler) getETCDTLS(cluster *v1alpha1.Cluster, log *zap.SugaredLogger) (*tls.Config, error) {
-	log.Infow("generating etcd TLS client certificate", "Cluster", cluster.Namespace+"/"+cluster.Name)
+	log.Infow("generating etcd TLS client certificate", "Cluster", cluster.Name, "Namespace", cluster.Namespace)
 	token := cluster.Spec.Token
-	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
+	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
 	var b *bootstrap.ControlRuntimeBootstrap
 	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
 		return true

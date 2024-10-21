@@ -109,7 +109,7 @@ func (k *kubelet) start(ctx context.Context) {
 	if err := k.node.Err(); err != nil {
 		k.logger.Fatalw("node stopped with an error", zap.Error(err))
 	}
-	k.logger.Info("node exited without an error")
+	k.logger.Info("node exited successfully")
 }
 
 func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.NewProviderFunc {

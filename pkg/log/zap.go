@@ -17,21 +17,21 @@ func New(debug bool) *Logger {
 	return &Logger{newZappLogger(debug).Sugar()}
 }
 
-func (k *Logger) WithError(err error) log.Logger {
-	return k
+func (l *Logger) WithError(err error) log.Logger {
+	return l
 }
 
-func (k *Logger) WithField(string, interface{}) log.Logger {
-	return k
+func (l *Logger) WithField(string, interface{}) log.Logger {
+	return l
 }
 
-func (k *Logger) WithFields(field log.Fields) log.Logger {
-	return k
+func (l *Logger) WithFields(field log.Fields) log.Logger {
+	return l
 }
 
-func (k *Logger) Named(name string) *Logger {
-	k.SugaredLogger = k.SugaredLogger.Named(name)
-	return k
+func (l *Logger) Named(name string) *Logger {
+	l.SugaredLogger = l.SugaredLogger.Named(name)
+	return l
 }
 
 func newZappLogger(debug bool) *zap.Logger {

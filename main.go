@@ -79,7 +79,7 @@ func main() {
 		return nil
 	}
 	if err := app.Run(os.Args); err != nil {
-		logger.Fatalw("Failed to run k3k controller", zap.Error(err))
+		logger.Fatalw("failed to run k3k controller", zap.Error(err))
 	}
 
 }

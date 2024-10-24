@@ -14,7 +14,7 @@ import (
 
 const (
 	VirtualNodeMode      = "virtual"
-	virtualNodeAgentName = "kubelet"
+	virtualNodeAgentName = "agent"
 )
 
 type VirtualAgent struct {
@@ -25,7 +25,7 @@ type VirtualAgent struct {
 func NewVirtualAgent(cluster *v1alpha1.Cluster, serviceIP string) Agent {
 	return &VirtualAgent{
 		cluster:   cluster,
-		serviceIP: cluster.Spec.Mode,
+		serviceIP: serviceIP,
 	}
 }
 

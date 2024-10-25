@@ -31,12 +31,14 @@ const (
 type Server struct {
 	cluster *v1alpha1.Cluster
 	client  client.Client
+	token   string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client) *Server {
+func New(cluster *v1alpha1.Cluster, client client.Client, token string) *Server {
 	return &Server{
 		cluster: cluster,
 		client:  client,
+		token:   token,
 	}
 }
 

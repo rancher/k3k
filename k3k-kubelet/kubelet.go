@@ -50,6 +50,7 @@ type kubelet struct {
 	virtClient kubernetes.Interface
 	node       *nodeutil.Node
 	logger     *k3klog.Logger
+	token      string
 }
 
 func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet, error) {
@@ -64,8 +65,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	if err != nil {
 		return nil, err
 	}
-
-	virtConfig, err := virtRestConfig(ctx, c.VirtualConfigPath, hostClient, c.ClusterName, c.ClusterNamespace)
+	virtConfig, err := virtRestConfig(ctx, c.VirtualConfigPath, hostClient, c.ClusterName, c.ClusterNamespace, c.Token, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +80,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		hostClient: hostClient,
 		virtClient: virtClient,
 		logger:     logger.Named(k3kKubeletName),
+		token:      c.Token,
 	}, nil
 }
 
@@ -135,7 +136,7 @@ func (k *kubelet) nodeOpts(ctx context.Context, srvPort, namespace, name, hostna
 		}
 		c.Handler = mux
 
-		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, hostname)
+		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, hostname, k.token)
 		if err != nil {
 			return fmt.Errorf("unable to get tls config: %w", err)
 		}
@@ -144,7 +145,7 @@ func (k *kubelet) nodeOpts(ctx context.Context, srvPort, namespace, name, hostna
 	}
 }
 
-func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace string) (*rest.Config, error) {
+func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, token string, logger *k3klog.Logger) (*rest.Config, error) {
 	if virtualConfigPath != "" {
 		return clientcmd.BuildConfigFromFlags("", virtualConfigPath)
 	}
@@ -159,7 +160,8 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		return err != nil
 	}, func() error {
 		var err error
-		b, err = bootstrap.DecodedBootstrap(cluster.Spec.Token, endpoint)
+		b, err = bootstrap.DecodedBootstrap(token, endpoint)
+		logger.Infow("decoded bootstrap", zap.Error(err))
 		return err
 	}); err != nil {
 		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
@@ -204,7 +206,7 @@ func kubeconfigBytes(url string, serverCA, clientCert, clientKey []byte) ([]byte
 	return clientcmd.Write(*config)
 }
 
-func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, hostname string) (*tls.Config, error) {
+func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, hostname, token string) (*tls.Config, error) {
 	var (
 		cluster v1alpha1.Cluster
 		b       *bootstrap.ControlRuntimeBootstrap
@@ -217,7 +219,7 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 		return err != nil
 	}, func() error {
 		var err error
-		b, err = bootstrap.DecodedBootstrap(cluster.Spec.Token, endpoint)
+		b, err = bootstrap.DecodedBootstrap(token, endpoint)
 		return err
 	}); err != nil {
 		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)

@@ -129,12 +129,6 @@ spec:
                     - enabled
                     type: object
                 type: object
-              nodeSelector:
-                additionalProperties:
-                  type: string
-                description: NodeSelector is the node selector that will be applied
-                  to all server/agent pods
-                type: object
               mode:
                 description: Mode is the cluster provisioning mode which can be either
                   "virtual" or "shared". Defaults to "shared"
@@ -144,6 +138,12 @@ spec:
                   rule: self == oldSelf
                 - message: invalid value for mode
                   rule: self == "virtual" || self == "shared"
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector is the node selector that will be applied
+                  to all server/agent pods
+                type: object
               persistence:
                 description: |-
                   Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
@@ -187,13 +187,21 @@ spec:
                 items:
                   type: string
                 type: array
-              token:
-                description: Token is the token used to join the worker nodes to the
-                  cluster.
-                type: string
-                x-kubernetes-validations:
-                - message: token is immutable
-                  rule: self == oldSelf
+              tokenSecretRef:
+                description: |-
+                  TokenSecretRef is Secret reference used as a token join server and worker nodes to the cluster. The controller
+                  assumes that the secret has a field "token" in its data, any other fields in the secret will be ignored.
+                properties:
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               version:
                 description: Version is a string representing the Kubernetes version
                   to be used by the virtual nodes.
@@ -202,7 +210,6 @@ spec:
             - agents
             - mode
             - servers
-            - token
             - version
             type: object
           status:

@@ -11,13 +11,13 @@ import (
 const (
 	// ClusterNameLabel is the key for the label that contains the name of the virtual cluster
 	// this resource was made in
-	ClusterNameLabel = "virt.cattle.io/clusterName"
+	ClusterNameLabel = "k3k.io/clusterName"
 	// ResourceNameAnnotation is the key for the annotation that contains the original name of this
 	// resource in the virtual cluster
-	ResourceNameAnnotation = "virt.cattle.io/name"
+	ResourceNameAnnotation = "k3k.io/name"
 	// ResourceNamespaceAnnotation is the key for the annotation that contains the original namespace of this
 	// resource in the virtual cluster
-	ResourceNamespaceAnnotation = "virt.cattle.io/namespace"
+	ResourceNamespaceAnnotation = "k3k.io/namespace"
 )
 
 type ToHostTranslater struct {
@@ -70,8 +70,8 @@ func (t *ToHostTranslater) TranslateFrom(obj client.Object) {
 	annotations := obj.GetAnnotations()
 	// TODO: It's possible that this was erased by a change on the host cluster
 	// In this case, we need to have some sort of fallback or error return
-	name, _ := annotations[ResourceNameAnnotation]
-	namespace, _ := annotations[ResourceNamespaceAnnotation]
+	name := annotations[ResourceNameAnnotation]
+	namespace := annotations[ResourceNamespaceAnnotation]
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
 	delete(annotations, ResourceNameAnnotation)

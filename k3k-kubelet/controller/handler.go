@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	k3klog "github.com/rancher/k3k/pkg/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,6 +29,8 @@ type ControllerHandler struct {
 	// Translater is the translater that will be used to adjust objects before they
 	// are made on the host cluster
 	Translater translate.ToHostTranslater
+	// Logger is the logger that the controller will use to log errors
+	Logger *k3klog.Logger
 	// controllers are the controllers which are currently running
 	controllers map[schema.GroupVersionKind]updateableReconciler
 }
@@ -65,6 +68,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 				c.Translater.TranslateTo(s)
 				return s, nil
 			},
+			Logger: c.Logger,
 		}
 	case *v1.ConfigMap:
 		r = &ConfigMapSyncer{
@@ -75,6 +79,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 				c.Translater.TranslateTo(s)
 				return s, nil
 			},
+			Logger: c.Logger,
 		}
 	default:
 		// TODO: Technically, the configmap/secret syncers are relatively generic, and this
@@ -104,7 +109,7 @@ func (c *ControllerHandler) RemoveResource(ctx context.Context, obj client.Objec
 	ctrl, ok := c.controllers[obj.GetObjectKind().GroupVersionKind()]
 	c.RUnlock()
 	if !ok {
-		return fmt.Errorf("no controller found for gvk %s", obj.GetObjectKind().GroupVersionKind().String())
+		return fmt.Errorf("no controller found for gvk" + obj.GetObjectKind().GroupVersionKind().String())
 	}
 	return ctrl.RemoveResource(ctx, obj.GetNamespace(), obj.GetName())
 }

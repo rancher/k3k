@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
@@ -94,16 +93,14 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		},
 	})
 	if err != nil {
-		fmt.Printf("unable to create controller-runtime mgr for host cluster: %s", err.Error())
-		os.Exit(-1)
+		return nil, fmt.Errorf("unable to create controller-runtime mgr for host cluster: %s", err.Error())
 	}
 
 	virtualScheme := runtime.NewScheme()
 	// virtual client will only use core types (for now), no need to add anything other than the basics
 	err = clientgoscheme.AddToScheme(virtualScheme)
 	if err != nil {
-		fmt.Printf("unable to add client go types to virtual cluster scheme: %s", err.Error())
-		os.Exit(-1)
+		return nil, fmt.Errorf("unable to add client go types to virtual cluster scheme: %s", err.Error())
 	}
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
 		Scheme: virtualScheme,
@@ -120,9 +117,9 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		hostConfig: hostConfig,
 		hostClient: hostClient,
 		hostMgr:    hostMgr,
+		virtualMgr: virtualMgr,
 		virtClient: virtClient,
 		logger:     logger.Named(k3kKubeletName),
-		virtualMgr: virtualMgr,
 	}, nil
 }
 
@@ -142,18 +139,16 @@ func (k *kubelet) start(ctx context.Context) {
 	// any one of the following 3 tasks (host manager, virtual manager, node) crashing will stop the
 	// program, and all 3 of them block on start, so we start them here in go-routines
 	go func() {
-		err := k.hostMgr.Start(context.Background())
+		err := k.hostMgr.Start(ctx)
 		if err != nil {
-			fmt.Printf("host manager stopped: %s \n", err.Error())
-			os.Exit(-1)
+			k.logger.Fatalw("host manager stopped", zap.Error(err))
 		}
 	}()
 
 	go func() {
-		err := k.virtualMgr.Start(context.Background())
+		err := k.virtualMgr.Start(ctx)
 		if err != nil {
-			fmt.Printf("host manager stopped: %s \n", err.Error())
-			os.Exit(-1)
+			k.logger.Fatalw("virtual manager stopped", zap.Error(err))
 		}
 	}()
 

@@ -10,9 +10,9 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/rancher/k3k/k3k-kubelet/controller"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	k3klog "github.com/rancher/k3k/pkg/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -30,12 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-const (
-	clusterNameLabel       = "virt.cattle.io/clusterName"
-	podNameAnnotation      = "virt.cattle.io/podName"
-	podNamespaceAnnotation = "virt.cattle.io/podNamespace"
-)
-
 // Provider implements nodetuil.Provider from virtual Kubelet.
 // TODO: Implement NotifyPods and the required usage so that this can be an async provider
 type Provider struct {
@@ -48,15 +42,11 @@ type Provider struct {
 	MetricsClient    metricset.Interface
 	ClusterNamespace string
 	ClusterName      string
-	logger           zap.SugaredLogger
+	logger           *k3klog.Logger
 }
 
-func New(hostConfig rest.Config, hostMgr manager.Manager, virtualMgr manager.Manager, Namespace string, Name string) (*Provider, error) {
+func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3klog.Logger, Namespace, Name string) (*Provider, error) {
 	coreClient, err := cv1.NewForConfig(&hostConfig)
-	if err != nil {
-		return nil, err
-	}
-	logger, err := zap.NewProduction()
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +61,7 @@ func New(hostConfig rest.Config, hostMgr manager.Manager, virtualMgr manager.Man
 			HostClient:    hostMgr.GetClient(),
 			VirtualClient: virtualMgr.GetClient(),
 			Translater:    translater,
+			Logger:        logger,
 		},
 		HostClient:       hostMgr.GetClient(),
 		VirtualClient:    virtualMgr.GetClient(),
@@ -79,7 +70,7 @@ func New(hostConfig rest.Config, hostMgr manager.Manager, virtualMgr manager.Man
 		CoreClient:       coreClient,
 		ClusterNamespace: Namespace,
 		ClusterName:      Name,
-		logger:           *logger.Sugar(),
+		logger:           logger,
 	}
 
 	return &p, nil
@@ -233,11 +224,11 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 
 	// volumes will often refer to resources in the virtual cluster, but instead need to refer to the sync'd
 	// host cluster version
-	err := p.transformVolumes(ctx, pod.Namespace, tPod.Spec.Volumes)
-	if err != nil {
+	if err := p.transformVolumes(ctx, pod.Namespace, tPod.Spec.Volumes); err != nil {
 		return fmt.Errorf("unable to sync volumes for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
-	p.logger.Infof("Creating pod %s/%s for pod %s/%s", tPod.Namespace, tPod.Name, pod.Namespace, pod.Name)
+	p.logger.Infow("Creating pod", "Host Namespace", tPod.Namespace, "Host Name", tPod.Name,
+		"Virtual Namespace", pod.Namespace, "Virtual Name", pod.Name)
 	return p.HostClient.Create(ctx, tPod)
 }
 
@@ -343,8 +334,7 @@ func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 	if err != nil {
 		return fmt.Errorf("unable to delete pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
-	err = p.pruneUnusedVolumes(ctx, pod)
-	if err != nil {
+	if err = p.pruneUnusedVolumes(ctx, pod); err != nil {
 		// note that we don't return an error here. The pod was sucessfully deleted, another process
 		// should clean this without affecting the user
 		p.logger.Errorf("failed to prune leftover volumes for %s/%s: %w, resources may be left", pod.Namespace, pod.Name, err)
@@ -399,8 +389,8 @@ func (p *Provider) pruneUnusedVolumes(ctx context.Context, pod *corev1.Pod) erro
 		if err != nil {
 			return fmt.Errorf("unable to get configMap %s/%s for pod volume: %w", pod.Namespace, configMapName, err)
 		}
-		err = p.Handler.RemoveResource(ctx, &configMap)
-		if err != nil {
+
+		if err = p.Handler.RemoveResource(ctx, &configMap); err != nil {
 			return fmt.Errorf("unable to remove configMap %s/%s for pod volume: %w", pod.Namespace, configMapName, err)
 		}
 	}
@@ -447,7 +437,7 @@ func (p *Provider) GetPodStatus(ctx context.Context, namespace, name string) (*c
 // to return a version after DeepCopy.
 func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	selector := labels.NewSelector()
-	requirement, err := labels.NewRequirement(clusterNameLabel, selection.Equals, []string{p.ClusterName})
+	requirement, err := labels.NewRequirement(translate.ClusterNameLabel, selection.Equals, []string{p.ClusterName})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create label selector: %w", err)
 	}
@@ -468,8 +458,8 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 // getSecretsAndConfigmaps retrieves a list of all secrets/configmaps that are in use by a given pod. Useful
 // for removing/seeing which virtual cluster resources need to be in the host cluster.
 func getSecretsAndConfigmaps(pod *corev1.Pod) ([]string, []string) {
-	secrets := []string{}
-	configMaps := []string{}
+	var secrets []string
+	var configMaps []string
 	for _, volume := range pod.Spec.Volumes {
 		if volume.Secret != nil {
 			secrets = append(secrets, volume.Secret.SecretName)

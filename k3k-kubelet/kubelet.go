@@ -173,7 +173,7 @@ func (k *kubelet) start(ctx context.Context) {
 
 func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
-		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, namespace, name)
+		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, namespace, name)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to make nodeutil provider %w", err)
 		}

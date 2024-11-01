@@ -11,11 +11,12 @@ import (
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/controller/cluster"
+	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,6 +46,7 @@ var (
 	persistenceType  string
 	storageClassName string
 	version          string
+	mode             string
 
 	clusterCreateFlags = []cli.Flag{
 		cli.StringFlag{
@@ -105,6 +107,12 @@ var (
 			Destination: &version,
 			Value:       "v1.26.1-k3s1",
 		},
+		cli.StringFlag{
+			Name:        "mode",
+			Usage:       "k3k mode type",
+			Destination: &mode,
+			Value:       "shared",
+		},
 	}
 )
 
@@ -126,10 +134,18 @@ func create(clx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	if token != "" {
+		logrus.Infof("Creating cluster token secret")
+		obj := k3kcluster.TokenSecretObj(token, name, cmds.Namespace())
+		if err := ctrlClient.Create(ctx, &obj); err != nil {
+			return err
+		}
+	}
 	logrus.Infof("Creating a new cluster [%s]", name)
 	cluster := newCluster(
 		name,
 		cmds.Namespace(),
+		mode,
 		token,
 		int32(servers),
 		int32(agents),
@@ -198,13 +214,10 @@ func validateCreateFlags() error {
 		persistenceType != server.DynamicNodesType {
 		return errors.New("invalid persistence type")
 	}
-	if token == "" {
-		return errors.New("empty cluster token")
-	}
 	if name == "" {
 		return errors.New("empty cluster name")
 	}
-	if name == cluster.ClusterInvalidName {
+	if name == k3kcluster.ClusterInvalidName {
 		return errors.New("invalid cluster name")
 	}
 	if servers <= 0 {
@@ -217,8 +230,8 @@ func validateCreateFlags() error {
 	return nil
 }
 
-func newCluster(name, namespace, token string, servers, agents int32, clusterCIDR, serviceCIDR string, serverArgs, agentArgs []string) *v1alpha1.Cluster {
-	return &v1alpha1.Cluster{
+func newCluster(name, namespace, mode, token string, servers, agents int32, clusterCIDR, serviceCIDR string, serverArgs, agentArgs []string) *v1alpha1.Cluster {
+	cluster := &v1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -228,7 +241,6 @@ func newCluster(name, namespace, token string, servers, agents int32, clusterCID
 			APIVersion: "k3k.io/v1alpha1",
 		},
 		Spec: v1alpha1.ClusterSpec{
-			Token:       token,
 			Servers:     &servers,
 			Agents:      &agents,
 			ClusterCIDR: clusterCIDR,
@@ -236,10 +248,18 @@ func newCluster(name, namespace, token string, servers, agents int32, clusterCID
 			ServerArgs:  serverArgs,
 			AgentArgs:   agentArgs,
 			Version:     version,
+			Mode:        mode,
 			Persistence: &v1alpha1.PersistenceConfig{
 				Type:             persistenceType,
 				StorageClassName: storageClassName,
 			},
 		},
 	}
+	if token != "" {
+		cluster.Spec.TokenSecretRef = &v1.SecretReference{
+			Name:      k3kcluster.TokenSecretName(name),
+			Namespace: namespace,
+		}
+	}
+	return cluster
 }

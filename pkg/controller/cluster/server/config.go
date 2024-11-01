@@ -18,9 +18,9 @@ func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
 		fmt.Sprintf("%s.%s", ServiceName(s.cluster.Name), s.cluster.Namespace),
 	)
 
-	config := serverConfigData(serviceIP, s.cluster)
+	config := serverConfigData(serviceIP, s.cluster, s.token)
 	if init {
-		config = initConfigData(s.cluster)
+		config = initConfigData(s.cluster, s.token)
 	}
 	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -37,20 +37,20 @@ func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
 	}, nil
 }
 
-func serverConfigData(serviceIP string, cluster *v1alpha1.Cluster) string {
-	return "cluster-init: true\nserver: https://" + serviceIP + ":6443\n" + serverOptions(cluster)
+func serverConfigData(serviceIP string, cluster *v1alpha1.Cluster, token string) string {
+	return "cluster-init: true\nserver: https://" + serviceIP + ":6443\n" + serverOptions(cluster, token)
 }
 
-func initConfigData(cluster *v1alpha1.Cluster) string {
-	return "cluster-init: true\n" + serverOptions(cluster)
+func initConfigData(cluster *v1alpha1.Cluster, token string) string {
+	return "cluster-init: true\n" + serverOptions(cluster, token)
 }
 
-func serverOptions(cluster *v1alpha1.Cluster) string {
+func serverOptions(cluster *v1alpha1.Cluster, token string) string {
 	var opts string
 
 	// TODO: generate token if not found
-	if cluster.Spec.Token != "" {
-		opts = "token: " + cluster.Spec.Token + "\n"
+	if token != "" {
+		opts = "token: " + token + "\n"
 	}
 	if cluster.Status.ClusterCIDR != "" {
 		opts = opts + "cluster-cidr: " + cluster.Status.ClusterCIDR + "\n"

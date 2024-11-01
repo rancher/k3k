@@ -20,17 +20,19 @@ const (
 type VirtualAgent struct {
 	cluster   *v1alpha1.Cluster
 	serviceIP string
+	token     string
 }
 
-func NewVirtualAgent(cluster *v1alpha1.Cluster, serviceIP string) Agent {
+func NewVirtualAgent(cluster *v1alpha1.Cluster, serviceIP, token string) Agent {
 	return &VirtualAgent{
 		cluster:   cluster,
 		serviceIP: serviceIP,
+		token:     token,
 	}
 }
 
 func (v *VirtualAgent) Config() (ctrlruntimeclient.Object, error) {
-	config := virtualAgentData(v.serviceIP, v.cluster.Spec.Token)
+	config := virtualAgentData(v.serviceIP, v.token)
 
 	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{

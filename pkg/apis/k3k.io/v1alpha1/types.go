@@ -27,13 +27,15 @@ type ClusterSpec struct {
 	// +kubebuilder:validation:XValidation:message="invalid value for agents",rule="self >= 0"
 	// Agents is the number of K3s pods to run in agent (worker) mode.
 	Agents *int32 `json:"agents"`
+	// +optional
 	// NodeSelector is the node selector that will be applied to all server/agent pods
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// Limit is the limits that apply for the server/worker nodes.
 	Limit *ClusterLimit `json:"clusterLimit,omitempty"`
-	// +kubebuilder:validation:XValidation:message="token is immutable",rule="self == oldSelf"
-	// Token is the token used to join the worker nodes to the cluster.
-	Token string `json:"token"`
+	// +optional
+	// TokenSecretRef is Secret reference used as a token join server and worker nodes to the cluster. The controller
+	// assumes that the secret has a field "token" in its data, any other fields in the secret will be ignored.
+	TokenSecretRef *v1.SecretReference `json:"tokenSecretRef"`
 	// +kubebuilder:validation:XValidation:message="clusterCIDR is immutable",rule="self == oldSelf"
 	// ClusterCIDR is the CIDR range for the pods of the cluster. Defaults to 10.42.0.0/16.
 	ClusterCIDR string `json:"clusterCIDR,omitempty"`
@@ -53,7 +55,7 @@ type ClusterSpec struct {
 	// Addons is a list of secrets containing raw YAML which will be deployed in the virtual K3k cluster on startup.
 	Addons []Addon `json:"addons,omitempty"`
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
-	// +kubebuilder:validation:XValidation:message="invalid value for mode",rule="self == virtual || self == shared"
+	// +kubebuilder:validation:XValidation:message="invalid value for mode",rule="self == \"virtual\" || self == \"shared\""
 	// Mode is the cluster provisioning mode which can be either "virtual" or "shared". Defaults to "shared"
 	Mode string `json:"mode"`
 

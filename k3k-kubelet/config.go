@@ -47,6 +47,9 @@ func (c *config) unmarshalYAML(data []byte) error {
 	if c.NodeName == "" {
 		c.NodeName = conf.NodeName
 	}
+	if c.Token == "" {
+		c.Token = conf.Token
+	}
 	return nil
 }
 

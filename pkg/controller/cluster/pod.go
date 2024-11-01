@@ -116,7 +116,7 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 			}
 			return nil
 		}
-		tlsConfig, err := p.getETCDTLS(&cluster, log)
+		tlsConfig, err := p.getETCDTLS(ctx, &cluster, log)
 		if err != nil {
 			return err
 		}
@@ -150,9 +150,12 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 	return nil
 }
 
-func (p *PodReconciler) getETCDTLS(cluster *v1alpha1.Cluster, log *zap.SugaredLogger) (*tls.Config, error) {
+func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluster, log *zap.SugaredLogger) (*tls.Config, error) {
 	log.Infow("generating etcd TLS client certificate", "Cluster", cluster.Name, "Namespace", cluster.Namespace)
-	token := cluster.Spec.Token
+	token, err := p.clusterToken(ctx, cluster)
+	if err != nil {
+		return nil, err
+	}
 	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
 	var b *bootstrap.ControlRuntimeBootstrap
 	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
@@ -217,4 +220,22 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 	}
 
 	return nil
+}
+
+func (p *PodReconciler) clusterToken(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
+	var tokenSecret v1.Secret
+	nn := types.NamespacedName{
+		Name:      TokenSecretName(cluster.Name),
+		Namespace: cluster.Namespace,
+	}
+	if cluster.Spec.TokenSecretRef != nil {
+		nn.Name = TokenSecretName(cluster.Name)
+	}
+	if err := p.Client.Get(ctx, nn, &tokenSecret); err != nil {
+		return "", err
+	}
+	if _, ok := tokenSecret.Data["token"]; !ok {
+		return "", fmt.Errorf("no token field in secret %s/%s", nn.Namespace, nn.Name)
+	}
+	return string(tokenSecret.Data["token"]), nil
 }

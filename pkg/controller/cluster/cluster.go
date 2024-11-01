@@ -116,7 +116,12 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		log.Errorw("invalid change", zap.Error(err))
 		return nil
 	}
-	s := server.New(cluster, c.Client)
+	token, err := c.token(ctx, cluster)
+	if err != nil {
+		return err
+	}
+
+	s := server.New(cluster, c.Client, token)
 
 	if cluster.Spec.Persistence != nil {
 		cluster.Status.Persistence = cluster.Spec.Persistence
@@ -154,7 +159,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		return err
 	}
 
-	if err := c.agent(ctx, cluster, serviceIP); err != nil {
+	if err := c.agent(ctx, cluster, serviceIP, token); err != nil {
 		return err
 	}
 
@@ -173,7 +178,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		}
 	}
 
-	bootstrapSecret, err := bootstrap.Generate(ctx, cluster, serviceIP)
+	bootstrapSecret, err := bootstrap.Generate(ctx, cluster, serviceIP, token)
 	if err != nil {
 		return err
 	}
@@ -274,8 +279,8 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 	return nil
 }
 
-func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
-	agent := agent.New(cluster, serviceIP, c.SharedAgentImage)
+func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
+	agent := agent.New(cluster, serviceIP, c.SharedAgentImage, token)
 	agentsConfig, err := agent.Config()
 	if err != nil {
 		return err

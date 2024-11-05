@@ -28,7 +28,8 @@ type ClusterSpec struct {
 	// Agents is the number of K3s pods to run in agent (worker) mode.
 	Agents *int32 `json:"agents"`
 	// +optional
-	// NodeSelector is the node selector that will be applied to all server/agent pods
+	// NodeSelector is the node selector that will be applied to all server/agent pods.
+	// In "shared" mode the node selector will be applied also to the workloads.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// Limit is the limits that apply for the server/worker nodes.
 	Limit *ClusterLimit `json:"clusterLimit,omitempty"`

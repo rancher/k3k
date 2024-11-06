@@ -10,6 +10,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/rancher/k3k/k3k-kubelet/controller"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3klog "github.com/rancher/k3k/pkg/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
@@ -215,12 +216,24 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	tPod := pod.DeepCopy()
 	p.Translater.TranslateTo(tPod)
 
+	// get Cluster definition
+	clusterKey := types.NamespacedName{
+		Namespace: p.ClusterNamespace,
+		Name:      p.ClusterName,
+	}
+	var cluster v1alpha1.Cluster
+	if err := p.HostClient.Get(ctx, clusterKey, &cluster); err != nil {
+		return fmt.Errorf("unable to get cluster %s in namespace %s: %w", p.ClusterName, p.ClusterNamespace, err)
+	}
+
 	// these values shouldn't be set on create
 	tPod.UID = ""
 	tPod.ResourceVersion = ""
 
 	// the node was scheduled on the virtual kubelet, but leaving it this way will make it pending indefinitely
 	tPod.Spec.NodeName = ""
+
+	tPod.Spec.NodeSelector = cluster.Spec.NodeSelector
 
 	// volumes will often refer to resources in the virtual cluster, but instead need to refer to the sync'd
 	// host cluster version

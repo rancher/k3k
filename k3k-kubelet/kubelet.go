@@ -124,8 +124,8 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	}, nil
 }
 
-func (k *kubelet) registerNode(ctx context.Context, srvPort, namespace, name, hostname string) error {
-	providerFunc := k.newProviderFunc(namespace, name, hostname)
+func (k *kubelet) registerNode(ctx context.Context, ip, srvPort, namespace, name, hostname string) error {
+	providerFunc := k.newProviderFunc(namespace, name, hostname, ip)
 	nodeOpts := k.nodeOpts(ctx, srvPort, namespace, name, hostname)
 
 	var err error
@@ -172,7 +172,7 @@ func (k *kubelet) start(ctx context.Context) {
 	k.logger.Info("node exited successfully")
 }
 
-func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.NewProviderFunc {
+func (k *kubelet) newProviderFunc(namespace, name, hostname, ip string) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
 		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, namespace, name)
 		if err != nil {
@@ -180,7 +180,7 @@ func (k *kubelet) newProviderFunc(namespace, name, hostname string) nodeutil.New
 		}
 		nodeProvider := provider.Node{}
 
-		provider.ConfigureNode(pc.Node, hostname, k.port)
+		provider.ConfigureNode(pc.Node, hostname, k.port, ip)
 		return utilProvider, &nodeProvider, nil
 	}
 }

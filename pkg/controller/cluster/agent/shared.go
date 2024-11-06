@@ -35,7 +35,7 @@ func NewSharedAgent(cluster *v1alpha1.Cluster, serviceIP, sharedAgentImage, toke
 }
 
 func (s *SharedAgent) Config() (ctrlruntimeclient.Object, error) {
-	config := sharedAgentData(s.cluster, s.token, s.Name())
+	config := sharedAgentData(s.cluster, s.token, s.Name(), s.serviceIP)
 
 	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -52,13 +52,14 @@ func (s *SharedAgent) Config() (ctrlruntimeclient.Object, error) {
 	}, nil
 }
 
-func sharedAgentData(cluster *v1alpha1.Cluster, token, nodeName string) string {
+func sharedAgentData(cluster *v1alpha1.Cluster, token, nodeName, ip string) string {
 	return fmt.Sprintf(`clusterName: %s
 clusterNamespace: %s
 nodeName: %s
 agentHostname: %s
+agentIP: %s
 token: %s`,
-		cluster.Name, cluster.Namespace, nodeName, nodeName, token)
+		cluster.Name, cluster.Namespace, nodeName, nodeName, ip, token)
 }
 
 func (s *SharedAgent) Resources() []ctrlruntimeclient.Object {

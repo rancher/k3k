@@ -4,10 +4,12 @@ import (
 	"context"
 	"os"
 
+	"github.com/go-logr/zapr"
 	"github.com/rancher/k3k/pkg/log"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
+	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -66,6 +68,12 @@ func main() {
 			EnvVar:      "AGENT_HOSTNAME",
 		},
 		cli.StringFlag{
+			Name:        "agent-ip",
+			Usage:       "Agent IP used for registring the virtual kubelet to the cluster",
+			Destination: &cfg.AgentIP,
+			EnvVar:      "AGENT_IP",
+		},
+		cli.StringFlag{
 			Name:        "config",
 			Usage:       "Path to k3k-kubelet config file",
 			Destination: &configFile,
@@ -81,6 +89,7 @@ func main() {
 	}
 	app.Before = func(clx *cli.Context) error {
 		logger = log.New(debug)
+		ctrlruntimelog.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
 		return nil
 	}
 	app.Action = run
@@ -103,7 +112,7 @@ func run(clx *cli.Context) {
 		logger.Fatalw("failed to create new virtual kubelet instance", zap.Error(err))
 	}
 
-	if err := k.registerNode(ctx, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname); err != nil {
+	if err := k.registerNode(ctx, cfg.AgentIP, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname); err != nil {
 		logger.Fatalw("failed to register new node", zap.Error(err))
 	}
 

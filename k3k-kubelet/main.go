@@ -69,7 +69,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:        "agent-ip",
-			Usage:       "Agent IP used for registring the virtual kubelet to the cluster",
+			Usage:       "Agent IP used for registering the virtual kubelet to the cluster",
 			Destination: &cfg.AgentIP,
 			EnvVar:      "AGENT_IP",
 		},

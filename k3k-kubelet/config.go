@@ -17,6 +17,7 @@ type config struct {
 	HostConfigPath    string `yaml:"hostConfigPath,omitempty"`
 	VirtualConfigPath string `yaml:"virtualConfigPath,omitempty"`
 	KubeletPort       string `yaml:"kubeletPort,omitempty"`
+	AgentIP           string `yaml:"agentIP,omitempty"`
 }
 
 func (c *config) unmarshalYAML(data []byte) error {
@@ -49,6 +50,9 @@ func (c *config) unmarshalYAML(data []byte) error {
 	}
 	if c.Token == "" {
 		c.Token = conf.Token
+	}
+	if c.AgentIP == "" {
+		c.AgentIP = conf.AgentIP
 	}
 	return nil
 }

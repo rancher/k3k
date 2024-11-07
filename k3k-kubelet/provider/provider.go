@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/rancher/k3k/k3k-kubelet/controller"
@@ -15,6 +16,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -240,6 +242,10 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	if err := p.transformVolumes(ctx, pod.Namespace, tPod.Spec.Volumes); err != nil {
 		return fmt.Errorf("unable to sync volumes for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
+	// sync serviceaccount token to a the host cluster
+	if err := p.transformTokens(ctx, pod, tPod); err != nil {
+		return fmt.Errorf("unable to transform tokens for pod %s/%s: %w", pod.Namespace, pod.Name, err)
+	}
 	p.logger.Infow("Creating pod", "Host Namespace", tPod.Namespace, "Host Name", tPod.Name,
 		"Virtual Namespace", pod.Namespace, "Virtual Name", pod.Name)
 	return p.HostClient.Create(ctx, tPod)
@@ -249,28 +255,44 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 // if one/more volumes couldn't be transformed
 func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, volumes []corev1.Volume) error {
 	for _, volume := range volumes {
+		var optional bool
+		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
+			continue
+		}
 		// note: this needs to handle downward api volumes as well, but more thought is needed on how to do that
 		if volume.ConfigMap != nil {
-			if err := p.syncConfigmap(ctx, podNamespace, volume.ConfigMap.Name); err != nil {
+			if volume.ConfigMap.Optional != nil {
+				optional = *volume.ConfigMap.Optional
+			}
+			if err := p.syncConfigmap(ctx, podNamespace, volume.ConfigMap.Name, optional); err != nil {
 				return fmt.Errorf("unable to sync configmap volume %s: %w", volume.Name, err)
 			}
 			volume.ConfigMap.Name = p.Translater.TranslateName(podNamespace, volume.ConfigMap.Name)
 		} else if volume.Secret != nil {
-			if err := p.syncSecret(ctx, podNamespace, volume.Secret.SecretName); err != nil {
+			if volume.Secret.Optional != nil {
+				optional = *volume.Secret.Optional
+			}
+			if err := p.syncSecret(ctx, podNamespace, volume.Secret.SecretName, optional); err != nil {
 				return fmt.Errorf("unable to sync secret volume %s: %w", volume.Name, err)
 			}
 			volume.Secret.SecretName = p.Translater.TranslateName(podNamespace, volume.Secret.SecretName)
 		} else if volume.Projected != nil {
 			for _, source := range volume.Projected.Sources {
 				if source.ConfigMap != nil {
+					if source.ConfigMap.Optional != nil {
+						optional = *source.ConfigMap.Optional
+					}
 					configMapName := source.ConfigMap.Name
-					if err := p.syncConfigmap(ctx, podNamespace, configMapName); err != nil {
+					if err := p.syncConfigmap(ctx, podNamespace, configMapName, optional); err != nil {
 						return fmt.Errorf("unable to sync projected configmap %s: %w", configMapName, err)
 					}
 					source.ConfigMap.Name = p.Translater.TranslateName(podNamespace, configMapName)
 				} else if source.Secret != nil {
+					if source.Secret.Optional != nil {
+						optional = *source.Secret.Optional
+					}
 					secretName := source.Secret.Name
-					if err := p.syncSecret(ctx, podNamespace, secretName); err != nil {
+					if err := p.syncSecret(ctx, podNamespace, secretName, optional); err != nil {
 						return fmt.Errorf("unable to sync projected secret %s: %w", secretName, err)
 					}
 				}
@@ -280,7 +302,7 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 	return nil
 }
 
-func (p *Provider) syncConfigmap(ctx context.Context, podNamespace string, configMapName string) error {
+func (p *Provider) syncConfigmap(ctx context.Context, podNamespace string, configMapName string, optional bool) error {
 	var configMap corev1.ConfigMap
 	nsName := types.NamespacedName{
 		Namespace: podNamespace,
@@ -288,6 +310,10 @@ func (p *Provider) syncConfigmap(ctx context.Context, podNamespace string, confi
 	}
 	err := p.VirtualClient.Get(ctx, nsName, &configMap)
 	if err != nil {
+		// check if its optional configmap
+		if apierrors.IsNotFound(err) && optional {
+			return nil
+		}
 		return fmt.Errorf("unable to get configmap to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
 	}
 	err = p.Handler.AddResource(ctx, &configMap)
@@ -297,7 +323,7 @@ func (p *Provider) syncConfigmap(ctx context.Context, podNamespace string, confi
 	return nil
 }
 
-func (p *Provider) syncSecret(ctx context.Context, podNamespace string, secretName string) error {
+func (p *Provider) syncSecret(ctx context.Context, podNamespace string, secretName string, optional bool) error {
 	var secret corev1.Secret
 	nsName := types.NamespacedName{
 		Namespace: podNamespace,
@@ -305,7 +331,10 @@ func (p *Provider) syncSecret(ctx context.Context, podNamespace string, secretNa
 	}
 	err := p.VirtualClient.Get(ctx, nsName, &secret)
 	if err != nil {
-		return fmt.Errorf("unable to get configmap to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
+		if apierrors.IsNotFound(err) && optional {
+			return nil
+		}
+		return fmt.Errorf("unable to get secret to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
 	}
 	err = p.Handler.AddResource(ctx, &secret)
 	if err != nil {
@@ -415,7 +444,7 @@ func (p *Provider) pruneUnusedVolumes(ctx context.Context, pod *corev1.Pod) erro
 // concurrently outside of the calling goroutine. Therefore it is recommended
 // to return a version after DeepCopy.
 func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
-	p.logger.Errorf("got a request for get pod %s, %s", namespace, name)
+	p.logger.Infow("got a request for get pod", "Namespace", namespace, "Name", name)
 	hostNamespaceName := types.NamespacedName{
 		Namespace: p.ClusterNamespace,
 		Name:      p.Translater.TranslateName(namespace, name),
@@ -434,13 +463,12 @@ func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.
 // concurrently outside of the calling goroutine. Therefore it is recommended
 // to return a version after DeepCopy.
 func (p *Provider) GetPodStatus(ctx context.Context, namespace, name string) (*corev1.PodStatus, error) {
-	p.logger.Errorf("got a request for pod status %s, %s", namespace, name)
+	p.logger.Infow("got a request for pod status", "Namespace", namespace, "Name", name)
 	pod, err := p.GetPod(ctx, namespace, name)
 	if err != nil {
-		p.logger.Errorf("error when getting pod %s, %s: %w", namespace, name, err)
 		return nil, fmt.Errorf("unable to get pod for status: %w", err)
 	}
-	p.logger.Errorf("got pod status %s, %s: %+v", namespace, name, pod.Status)
+	p.logger.Debugw("got pod status", "Namespace", namespace, "Name", name, "Status", pod.Status)
 	return pod.Status.DeepCopy(), nil
 }
 

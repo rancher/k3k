@@ -84,17 +84,17 @@ spec:
                   + agent) in the set
                 type: object
               mode:
+                default: shared
                 description: |-
                   Mode is the cluster provisioning mode that applies to all the clusters.
-                  It can be either "virtual" or "shared". Defaults to "shared".
+                  It can be either "shared" or "virtual". Defaults to "shared".
+                enum:
+                - shared
+                - virtual
                 type: string
                 x-kubernetes-validations:
                 - message: mode is immutable
                   rule: self == oldSelf
-                - message: invalid value for mode
-                  rule: self == "virtual" || self == "shared"
-            required:
-            - mode
             type: object
           status:
             description: Status is the status of the ClusterSet

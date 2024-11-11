@@ -130,14 +130,16 @@ spec:
                     type: object
                 type: object
               mode:
+                default: shared
                 description: Mode is the cluster provisioning mode which can be either
-                  "virtual" or "shared". Defaults to "shared"
+                  "shared" or "virtual". Defaults to "shared"
+                enum:
+                - shared
+                - virtual
                 type: string
                 x-kubernetes-validations:
                 - message: mode is immutable
                   rule: self == oldSelf
-                - message: invalid value for mode
-                  rule: self == "virtual" || self == "shared"
               nodeSelector:
                 additionalProperties:
                   type: string

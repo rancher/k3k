@@ -104,6 +104,7 @@ var _ = Describe("ClusterSet Controller", func() {
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						DisableNetworkPolicy: true,
+						Mode:                 v1alpha1.Virtual,
 					},
 				}
 
@@ -123,6 +124,52 @@ var _ = Describe("ClusterSet Controller", func() {
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
 					Should(BeTrue())
+			})
+		})
+
+		When("created specifing the mode", func() {
+			It("should create a shared mode by default", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+				Expect(clusterSet.Spec.Mode).To(Equal(v1alpha1.Shared))
+			})
+
+			It("should create a virtual mode if specified", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						Mode: v1alpha1.Virtual,
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+				Expect(clusterSet.Spec.Mode).To(Equal(v1alpha1.Virtual))
+			})
+
+			It("should fail for a non-existing mode", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						Mode: "foobar",
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(HaveOccurred())
 			})
 		})
 	})

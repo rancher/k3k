@@ -34,10 +34,11 @@ type ClusterSetSpec struct {
 	DisableNetworkPolicy bool `json:"disableNetworkPolicy,omitempty"`
 
 	// Mode is the cluster provisioning mode that applies to all the clusters.
-	// It can be either "virtual" or "shared". Defaults to "shared".
+	// It can be either "shared" or "virtual". Defaults to "shared".
+	// +kubebuilder:default="shared"
+	// +kubebuilder:validation:Enum=shared;virtual
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
-	// +kubebuilder:validation:XValidation:message="invalid value for mode",rule="self == \"virtual\" || self == \"shared\""
-	Mode string `json:"mode"`
+	Mode ClusterMode `json:"mode,omitempty"`
 }
 
 type ClusterSetStatus struct {

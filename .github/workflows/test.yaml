@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+
+permissions:
+    contents: read
+
+env:
+  GO_VERSION: "1.22"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version: ${{env.GO_VERSION}}
+
+    - name: Install tools
+      run: |
+        go install github.com/onsi/ginkgo/v2/ginkgo
+        go get github.com/onsi/gomega/...
+
+        # With Golang 1.22 we need to use the release-0.18 branch
+        go install sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.18
+
+        ENVTEST_BIN=$(setup-envtest use -p path)
+        sudo mkdir -p /usr/local/kubebuilder/bin
+        sudo cp $ENVTEST_BIN/* /usr/local/kubebuilder/bin
+
+    - name: Run tests
+      run: |
+        ginkgo run ./...

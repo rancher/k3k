@@ -88,8 +88,8 @@ type ClusterSpec struct {
 type ClusterMode string
 
 const (
-	Shared  = ClusterMode("shared")  // e.g., 12e6
-	Virtual = ClusterMode("virtual") // e.g., 12Mi (12 * 2^20)
+	Shared  = ClusterMode("shared")
+	Virtual = ClusterMode("virtual")
 )
 
 type ClusterLimit struct {

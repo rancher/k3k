@@ -49,11 +49,11 @@ var _ = Describe("ClusterSet Controller", func() {
 				clusterSetNetworkPolicy := &networkingv1.NetworkPolicy{}
 
 				Eventually(func() bool {
-					deployKey := types.NamespacedName{
+					key := types.NamespacedName{
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
 						Namespace: namespace,
 					}
-					err := k8sClient.Get(ctx, deployKey, clusterSetNetworkPolicy)
+					err := k8sClient.Get(ctx, key, clusterSetNetworkPolicy)
 					return err == nil
 				}, time.Minute, time.Second).Should(BeTrue())
 
@@ -113,11 +113,11 @@ var _ = Describe("ClusterSet Controller", func() {
 
 				// wait for a bit for the network policy, but it should not be created
 				Eventually(func() bool {
-					deployKey := types.NamespacedName{
+					key := types.NamespacedName{
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
 						Namespace: namespace,
 					}
-					err := k8sClient.Get(ctx, deployKey, &networkingv1.NetworkPolicy{})
+					err := k8sClient.Get(ctx, key, &networkingv1.NetworkPolicy{})
 					return apierrors.IsNotFound(err)
 				}).
 					MustPassRepeatedly(5).

@@ -23,12 +23,21 @@ type ClusterSet struct {
 type ClusterSetSpec struct {
 	// MaxLimits are the limits that apply to all clusters (server + agent) in the set
 	MaxLimits v1.ResourceList `json:"maxLimits,omitempty"`
+
 	// DefaultLimits are the limits used for servers/agents when a cluster in the set doesn't provide any
 	DefaultLimits *ClusterLimit `json:"defaultLimits,omitempty"`
+
 	// DefaultNodeSelector is the node selector that applies to all clusters (server + agent) in the set
 	DefaultNodeSelector map[string]string `json:"defaultNodeSelector,omitempty"`
+
 	// DisableNetworkPolicy is an option that will disable the creation of a default networkpolicy for cluster isolation
 	DisableNetworkPolicy bool `json:"disableNetworkPolicy,omitempty"`
+
+	// Mode is the cluster provisioning mode that applies to all the clusters.
+	// It can be either "virtual" or "shared". Defaults to "shared".
+	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
+	// +kubebuilder:validation:XValidation:message="invalid value for mode",rule="self == \"virtual\" || self == \"shared\""
+	Mode string `json:"mode"`
 }
 
 type ClusterSetStatus struct {

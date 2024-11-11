@@ -141,8 +141,9 @@ spec:
               nodeSelector:
                 additionalProperties:
                   type: string
-                description: NodeSelector is the node selector that will be applied
-                  to all server/agent pods
+                description: |-
+                  NodeSelector is the node selector that will be applied to all server/agent pods.
+                  In "shared" mode the node selector will be applied also to the workloads.
                 type: object
               persistence:
                 description: |-

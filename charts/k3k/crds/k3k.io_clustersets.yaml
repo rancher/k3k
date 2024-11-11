@@ -83,6 +83,18 @@ spec:
                 description: MaxLimits are the limits that apply to all clusters (server
                   + agent) in the set
                 type: object
+              mode:
+                description: |-
+                  Mode is the cluster provisioning mode that applies to all the clusters.
+                  It can be either "virtual" or "shared". Defaults to "shared".
+                type: string
+                x-kubernetes-validations:
+                - message: mode is immutable
+                  rule: self == oldSelf
+                - message: invalid value for mode
+                  rule: self == "virtual" || self == "shared"
+            required:
+            - mode
             type: object
           status:
             description: Status is the status of the ClusterSet

@@ -2,6 +2,7 @@ package clusterset
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
@@ -11,7 +12,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -50,12 +51,32 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string, logger *l
 }
 
 func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	var (
-		clusterSet v1alpha1.ClusterSet
-		log        = c.logger.With("ClusterSet", req.NamespacedName)
-	)
-	if err := c.Client.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, &clusterSet); err != nil {
+	log := c.logger.With("ClusterSet", req.NamespacedName)
+
+	var clusterSet v1alpha1.ClusterSet
+	if err := c.Client.Get(ctx, req.NamespacedName, &clusterSet); err != nil {
 		return reconcile.Result{}, err
+	}
+
+	// Check if a ClusterSet in the same namespace already exists.
+	// We retry in case of timeout because it could happen the Informer needs to sync
+	clusterSetList := &v1alpha1.ClusterSetList{}
+	listOpts := &ctrlruntimeclient.ListOptions{Namespace: req.Namespace}
+	err := retry.OnError(retry.DefaultBackoff, apierrors.IsTimeout, func() error {
+		return c.Client.List(ctx, clusterSetList, listOpts)
+	})
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	for _, cs := range clusterSetList.Items {
+		if cs.Name != req.Name {
+			//TODO: should we update the Status condition of the ClusterSet, instead of deleting it?
+			if err := c.Client.Delete(context.Background(), &clusterSet); err != nil {
+				return reconcile.Result{}, err
+			}
+			return reconcile.Result{}, fmt.Errorf("a ClusterSet in this namespace already exists: %s", cs.Name)
+		}
 	}
 
 	if !clusterSet.Spec.DisableNetworkPolicy {

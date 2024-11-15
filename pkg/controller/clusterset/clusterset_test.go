@@ -172,5 +172,41 @@ var _ = Describe("ClusterSet Controller", func() {
 				Expect(err).To(HaveOccurred())
 			})
 		})
+
+		FWhen("a ClusterSet in the same namespace was already there", func() {
+			It("should delete the last one", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				clusterSet2 := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+				}
+
+				err = k8sClient.Create(ctx, clusterSet2)
+				Expect(err).To(Not(HaveOccurred()))
+
+				Eventually(func() bool {
+					namespacedKey := types.NamespacedName{
+						Name:      clusterSet2.Name,
+						Namespace: namespace,
+					}
+
+					var deletedClusterSet v1alpha1.ClusterSet
+					err = k8sClient.Get(ctx, namespacedKey, &deletedClusterSet)
+
+					return apierrors.IsNotFound(err)
+				}, time.Minute, time.Second).Should(BeTrue())
+			})
+		})
 	})
 })

@@ -173,7 +173,7 @@ var _ = Describe("ClusterSet Controller", func() {
 			})
 		})
 
-		FWhen("a ClusterSet in the same namespace was already there", func() {
+		When("a ClusterSet in the same namespace was already there", func() {
 			It("should delete the last one", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: v1.ObjectMeta{

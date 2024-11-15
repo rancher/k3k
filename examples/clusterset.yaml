@@ -1,0 +1,6 @@
+apiVersion: k3k.io/v1alpha1
+kind: ClusterSet
+metadata:
+  name: clusterset-example
+spec:
+  mode: "shared"

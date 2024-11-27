@@ -112,7 +112,7 @@ var _ = Describe("ClusterSet Controller", func() {
 		})
 
 		When("created with DisableNetworkPolicy", func() {
-			It("should not create a NetworkPolicy", func() {
+			It("should not create a NetworkPolicy if true", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: v1.ObjectMeta{
 						GenerateName: "clusterset-",
@@ -133,6 +133,48 @@ var _ = Describe("ClusterSet Controller", func() {
 						Namespace: namespace,
 					}
 					err := k8sClient.Get(ctx, key, &networkingv1.NetworkPolicy{})
+					return apierrors.IsNotFound(err)
+				}).
+					MustPassRepeatedly(5).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+			})
+
+			It("should delete the NetworkPolicy if changed to false", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// look for network policy
+				clusterSetNetworkPolicy := &networkingv1.NetworkPolicy{}
+
+				Eventually(func() bool {
+					key := types.NamespacedName{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Namespace: namespace,
+					}
+					err := k8sClient.Get(ctx, key, clusterSetNetworkPolicy)
+					return err == nil
+				}, time.Minute, time.Second).Should(BeTrue())
+
+				clusterSet.Spec.DisableNetworkPolicy = true
+				err = k8sClient.Update(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait for a bit for the network policy to being deleted
+				Eventually(func() bool {
+					key := types.NamespacedName{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Namespace: namespace,
+					}
+					err := k8sClient.Get(ctx, key, clusterSetNetworkPolicy)
 					return apierrors.IsNotFound(err)
 				}).
 					MustPassRepeatedly(5).

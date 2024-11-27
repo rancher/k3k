@@ -6,6 +6,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/log"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -57,27 +58,8 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !clusterSet.Spec.DisableNetworkPolicy {
-		log.Info("Creating NetworkPolicy")
-
-		setNetworkPolicy, err := netpol(ctx, c.ClusterCIDR, &clusterSet, c.Client)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		err = ctrl.SetControllerReference(&clusterSet, setNetworkPolicy, c.Scheme)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		if err := c.Client.Create(ctx, setNetworkPolicy); err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				if err := c.Client.Update(ctx, setNetworkPolicy); err != nil {
-					return reconcile.Result{}, err
-				}
-			}
-			return reconcile.Result{}, err
-		}
+	if err := c.reconcileNetworkPolicy(ctx, log, &clusterSet); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	// TODO: Add resource quota for clustersets
@@ -102,6 +84,33 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 	// 	}
 	// }
 	return reconcile.Result{}, nil
+}
+
+func (c *ClusterSetReconciler) reconcileNetworkPolicy(ctx context.Context, log *zap.SugaredLogger, clusterSet *v1alpha1.ClusterSet) error {
+	log.Info("reconciling NetworkPolicy")
+
+	networkPolicy, err := netpol(ctx, c.ClusterCIDR, clusterSet, c.Client)
+	if err != nil {
+		return err
+	}
+
+	if err = ctrl.SetControllerReference(clusterSet, networkPolicy, c.Scheme); err != nil {
+		return err
+	}
+
+	// if disabled then delete the existing network policy
+	if clusterSet.Spec.DisableNetworkPolicy {
+		err := c.Client.Delete(ctx, networkPolicy)
+		return client.IgnoreNotFound(err)
+	}
+
+	// otherwise try to create/update
+	err = c.Client.Create(ctx, networkPolicy)
+	if apierrors.IsAlreadyExists(err) {
+		return c.Client.Update(ctx, networkPolicy)
+	}
+
+	return err
 }
 
 func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.ClusterSet, client ctrlruntimeclient.Client) (*networkingv1.NetworkPolicy, error) {

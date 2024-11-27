@@ -101,6 +101,14 @@ spec:
                 description: MaxLimits are the limits that apply to all clusters (server
                   + agent) in the set
                 type: object
+              podSecurityAdmissionLevel:
+                description: PodSecurityAdmissionLevel is the policy level applied
+                  to the pods in the namespace.
+                enum:
+                - privileged
+                - baseline
+                - restricted
+                type: string
             type: object
           status:
             description: Status is the status of the ClusterSet

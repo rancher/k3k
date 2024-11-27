@@ -42,7 +42,21 @@ type ClusterSetSpec struct {
 	//
 	// AllowedNodeTypes are the allowed cluster provisioning modes. Defaults to [shared].
 	AllowedNodeTypes []ClusterMode `json:"allowedNodeTypes,omitempty"`
+
+	// PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.
+	PodSecurityAdmissionLevel *PodSecurityAdmissionLevel `json:"podSecurityAdmissionLevel,omitempty"`
 }
+
+// +kubebuilder:validation:Enum=privileged;baseline;restricted
+//
+// PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.
+type PodSecurityAdmissionLevel string
+
+const (
+	PrivilegedPodSecurityAdmissionLevel = PodSecurityAdmissionLevel("privileged")
+	BaselinePodSecurityAdmissionLevel   = PodSecurityAdmissionLevel("baseline")
+	RestrictedPodSecurityAdmissionLevel = PodSecurityAdmissionLevel("restricted")
+)
 
 type ClusterSetStatus struct {
 

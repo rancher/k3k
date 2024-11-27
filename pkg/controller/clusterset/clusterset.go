@@ -2,6 +2,7 @@ package clusterset
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
@@ -12,6 +13,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,6 +62,10 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 	}
 
 	if err := c.reconcileNetworkPolicy(ctx, log, &clusterSet); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if err := c.reconcileNamespacePodSecurityLabels(ctx, log, &clusterSet); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -179,4 +185,47 @@ func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.Cluste
 			},
 		},
 	}, nil
+}
+
+func (c *ClusterSetReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, log *zap.SugaredLogger, clusterSet *v1alpha1.ClusterSet) error {
+	log.Info("reconciling Namespace")
+
+	var ns v1.Namespace
+	key := types.NamespacedName{Name: clusterSet.Namespace}
+	if err := c.Client.Get(ctx, key, &ns); err != nil {
+		return err
+	}
+
+	newLabels := map[string]string{}
+	for k, v := range ns.Labels {
+		newLabels[k] = v
+	}
+
+	// cleanup of old labels
+	delete(newLabels, "pod-security.kubernetes.io/enforce")
+	delete(newLabels, "pod-security.kubernetes.io/enforce-version")
+	delete(newLabels, "pod-security.kubernetes.io/warn")
+	delete(newLabels, "pod-security.kubernetes.io/warn-version")
+
+	// if a PSA level is specified add the proper labels
+	if clusterSet.Spec.PodSecurityAdmissionLevel != nil {
+		psaLevel := *clusterSet.Spec.PodSecurityAdmissionLevel
+
+		newLabels["pod-security.kubernetes.io/enforce"] = string(psaLevel)
+		newLabels["pod-security.kubernetes.io/enforce-version"] = "latest"
+
+		// skip the 'warn' only for the privileged PSA level
+		if psaLevel != v1alpha1.PrivilegedPodSecurityAdmissionLevel {
+			newLabels["pod-security.kubernetes.io/warn"] = string(psaLevel)
+			newLabels["pod-security.kubernetes.io/warn-version"] = "latest"
+		}
+	}
+
+	if !reflect.DeepEqual(ns.Labels, newLabels) {
+		log.Debug("labels changed, updating namespace")
+
+		ns.Labels = newLabels
+		return c.Client.Update(ctx, &ns)
+	}
+	return nil
 }

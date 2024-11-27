@@ -130,19 +130,26 @@ spec:
                     type: object
                 type: object
               mode:
+                allOf:
+                - enum:
+                  - shared
+                  - virtual
+                - enum:
+                  - shared
+                  - virtual
+                default: shared
                 description: Mode is the cluster provisioning mode which can be either
-                  "virtual" or "shared". Defaults to "shared"
+                  "shared" or "virtual". Defaults to "shared"
                 type: string
                 x-kubernetes-validations:
                 - message: mode is immutable
                   rule: self == oldSelf
-                - message: invalid value for mode
-                  rule: self == "virtual" || self == "shared"
               nodeSelector:
                 additionalProperties:
                   type: string
-                description: NodeSelector is the node selector that will be applied
-                  to all server/agent pods
+                description: |-
+                  NodeSelector is the node selector that will be applied to all server/agent pods.
+                  In "shared" mode the node selector will be applied also to the workloads.
                 type: object
               persistence:
                 description: |-

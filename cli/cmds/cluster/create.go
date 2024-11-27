@@ -226,6 +226,9 @@ func validateCreateFlags() error {
 	if cmds.Kubeconfig == "" && os.Getenv("KUBECONFIG") == "" {
 		return errors.New("empty kubeconfig")
 	}
+	if mode != "shared" && mode != "virtual" {
+		return errors.New(`mode should be one of "shared" or "virtual"`)
+	}
 
 	return nil
 }
@@ -248,7 +251,7 @@ func newCluster(name, namespace, mode, token string, servers, agents int32, clus
 			ServerArgs:  serverArgs,
 			AgentArgs:   agentArgs,
 			Version:     version,
-			Mode:        mode,
+			Mode:        v1alpha1.ClusterMode(mode),
 			Persistence: &v1alpha1.PersistenceConfig{
 				Type:             persistenceType,
 				StorageClassName: storageClassName,

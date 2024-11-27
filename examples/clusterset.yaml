@@ -1,0 +1,9 @@
+apiVersion: k3k.io/v1alpha1
+kind: ClusterSet
+metadata:
+  name: clusterset-example
+# spec:
+  # disableNetworkPolicy: false
+  # allowedNodeTypes:
+  # - "shared"
+  # - "virtual"

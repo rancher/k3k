@@ -36,8 +36,26 @@ spec:
           metadata:
             type: object
           spec:
+            default: {}
             description: Spec is the spec of the ClusterSet
             properties:
+              allowedNodeTypes:
+                default:
+                - shared
+                description: AllowedNodeTypes are the allowed cluster provisioning
+                  modes. Defaults to [shared].
+                items:
+                  description: ClusterMode is the possible provisioning mode of a
+                    Cluster.
+                  enum:
+                  - shared
+                  - virtual
+                  type: string
+                minItems: 1
+                type: array
+                x-kubernetes-validations:
+                - message: mode is immutable
+                  rule: self == oldSelf
               defaultLimits:
                 description: DefaultLimits are the limits used for servers/agents
                   when a cluster in the set doesn't provide any
@@ -83,18 +101,6 @@ spec:
                 description: MaxLimits are the limits that apply to all clusters (server
                   + agent) in the set
                 type: object
-              mode:
-                default: shared
-                description: |-
-                  Mode is the cluster provisioning mode that applies to all the clusters.
-                  It can be either "shared" or "virtual". Defaults to "shared".
-                enum:
-                - shared
-                - virtual
-                type: string
-                x-kubernetes-validations:
-                - message: mode is immutable
-                  rule: self == oldSelf
             type: object
           status:
             description: Status is the status of the ClusterSet
@@ -180,7 +186,7 @@ spec:
                 format: int64
                 type: integer
               summary:
-                description: Sumamry is a summary of the status (error, ready)
+                description: Summary is a summary of the status
                 type: string
             type: object
         required:

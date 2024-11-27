@@ -34,6 +34,22 @@ var _ = Describe("ClusterSet Controller", func() {
 		})
 
 		When("created with a default spec", func() {
+			It("should have only the 'shared' allowedNodeTypes", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				allowedModeTypes := clusterSet.Spec.AllowedNodeTypes
+				Expect(allowedModeTypes).To(HaveLen(1))
+				Expect(allowedModeTypes).To(ContainElement(v1alpha1.SharedClusterMode))
+			})
+
 			It("should create a NetworkPolicy", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: v1.ObjectMeta{
@@ -104,7 +120,6 @@ var _ = Describe("ClusterSet Controller", func() {
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						DisableNetworkPolicy: true,
-						Mode:                 v1alpha1.VirtualClusterMode,
 					},
 				}
 
@@ -128,33 +143,50 @@ var _ = Describe("ClusterSet Controller", func() {
 		})
 
 		When("created specifing the mode", func() {
-			It("should create a shared mode by default", func() {
-				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
-					},
-				}
-
-				err := k8sClient.Create(ctx, clusterSet)
-				Expect(err).To(Not(HaveOccurred()))
-				Expect(clusterSet.Spec.Mode).To(Equal(v1alpha1.SharedClusterMode))
-			})
-
-			It("should create a virtual mode if specified", func() {
+			It("should have the 'virtual' mode if specified", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: v1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
-						Mode: v1alpha1.VirtualClusterMode,
+						AllowedNodeTypes: []v1alpha1.ClusterMode{
+							v1alpha1.VirtualClusterMode,
+						},
 					},
 				}
 
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
-				Expect(clusterSet.Spec.Mode).To(Equal(v1alpha1.VirtualClusterMode))
+
+				allowedModeTypes := clusterSet.Spec.AllowedNodeTypes
+				Expect(allowedModeTypes).To(HaveLen(1))
+				Expect(allowedModeTypes).To(ContainElement(v1alpha1.VirtualClusterMode))
+			})
+
+			It("should have both modes if specified", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						AllowedNodeTypes: []v1alpha1.ClusterMode{
+							v1alpha1.SharedClusterMode,
+							v1alpha1.VirtualClusterMode,
+						},
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				allowedModeTypes := clusterSet.Spec.AllowedNodeTypes
+				Expect(allowedModeTypes).To(HaveLen(2))
+				Expect(allowedModeTypes).To(ContainElements(
+					v1alpha1.SharedClusterMode,
+					v1alpha1.VirtualClusterMode,
+				))
 			})
 
 			It("should fail for a non-existing mode", func() {
@@ -164,48 +196,16 @@ var _ = Describe("ClusterSet Controller", func() {
 						Namespace:    namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
-						Mode: "foobar",
+						AllowedNodeTypes: []v1alpha1.ClusterMode{
+							v1alpha1.SharedClusterMode,
+							v1alpha1.VirtualClusterMode,
+							v1alpha1.ClusterMode("non-existing"),
+						},
 					},
 				}
 
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(HaveOccurred())
-			})
-		})
-
-		When("a ClusterSet in the same namespace was already there", func() {
-			It("should delete the last one", func() {
-				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
-					},
-				}
-
-				err := k8sClient.Create(ctx, clusterSet)
-				Expect(err).To(Not(HaveOccurred()))
-
-				clusterSet2 := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
-					},
-				}
-
-				err = k8sClient.Create(ctx, clusterSet2)
-				Expect(err).To(Not(HaveOccurred()))
-
-				Eventually(func() bool {
-					namespacedKey := types.NamespacedName{
-						Name:      clusterSet2.Name,
-						Namespace: namespace,
-					}
-
-					var deletedClusterSet v1alpha1.ClusterSet
-					err = k8sClient.Get(ctx, namespacedKey, &deletedClusterSet)
-
-					return apierrors.IsNotFound(err)
-				}, time.Minute, time.Second).Should(BeTrue())
 			})
 		})
 	})

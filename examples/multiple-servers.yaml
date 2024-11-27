@@ -3,6 +3,7 @@ kind: Cluster
 metadata:
   name: example1
 spec:
+  mode: "shared"
   servers: 1
   agents: 3
   token: test

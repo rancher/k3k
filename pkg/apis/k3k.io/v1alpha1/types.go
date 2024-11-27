@@ -84,7 +84,10 @@ type ClusterSpec struct {
 	Expose *ExposeConfig `json:"expose,omitempty"`
 }
 
-// ClusterMode lists the two possible provisioning mode of a Cluster.
+// +kubebuilder:validation:Enum=shared;virtual
+// +kubebuilder:default="shared"
+//
+// ClusterMode is the possible provisioning mode of a Cluster.
 type ClusterMode string
 
 const (

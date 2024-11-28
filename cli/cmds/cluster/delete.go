@@ -44,5 +44,6 @@ func delete(clx *cli.Context) error {
 			Namespace: cmds.Namespace(),
 		},
 	}
+
 	return ctrlClient.Delete(ctx, &cluster)
 }

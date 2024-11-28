@@ -100,6 +100,7 @@ func main() {
 
 func run(clx *cli.Context) {
 	ctx := context.Background()
+
 	if err := cfg.parse(configFile); err != nil {
 		logger.Fatalw("failed to parse config file", "path", configFile, zap.Error(err))
 	}

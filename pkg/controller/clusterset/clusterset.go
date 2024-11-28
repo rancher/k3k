@@ -94,7 +94,7 @@ func (c *ClusterSetReconciler) reconcileNetworkPolicy(ctx context.Context, log *
 		return err
 	}
 
-	if err = ctrl.SetControllerReference(clusterSet, networkPolicy, c.Scheme); err != nil {
+	if err := ctrl.SetControllerReference(clusterSet, networkPolicy, c.Scheme); err != nil {
 		return err
 	}
 
@@ -105,12 +105,15 @@ func (c *ClusterSetReconciler) reconcileNetworkPolicy(ctx context.Context, log *
 	}
 
 	// otherwise try to create/update
-	err = c.Client.Create(ctx, networkPolicy)
-	if apierrors.IsAlreadyExists(err) {
-		return c.Client.Update(ctx, networkPolicy)
+	if err := c.Client.Create(ctx, networkPolicy); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return c.Client.Update(ctx, networkPolicy)
+		}
+
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.ClusterSet, client ctrlruntimeclient.Client) (*networkingv1.NetworkPolicy, error) {

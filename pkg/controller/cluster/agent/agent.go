@@ -20,6 +20,7 @@ func New(cluster *v1alpha1.Cluster, serviceIP, sharedAgentImage, token string) A
 	if cluster.Spec.Mode == VirtualNodeMode {
 		return NewVirtualAgent(cluster, serviceIP, token)
 	}
+
 	return NewSharedAgent(cluster, serviceIP, sharedAgentImage, token)
 }
 

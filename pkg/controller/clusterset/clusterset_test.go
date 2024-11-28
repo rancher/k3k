@@ -19,9 +19,7 @@ import (
 )
 
 var _ = Describe("ClusterSet Controller", func() {
-
 	Context("creating a ClusterSet", func() {
-
 		var (
 			namespace string
 		)

@@ -74,7 +74,9 @@ func (s *SharedAgent) deployment() *apps.Deployment {
 			"mode":    "shared",
 		},
 	}
+
 	name := s.Name()
+
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",

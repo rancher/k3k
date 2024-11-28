@@ -1,6 +1,6 @@
 ## Virtual Kubelet
 
-This package provides an impelementation of a virtual cluster node using [virtual-kubelet](https://github.com/virtual-kubelet/virtual-kubelet).
+The shared mode of k3k is an impelementation of a virtual cluster node using [virtual-kubelet](https://github.com/virtual-kubelet/virtual-kubelet).
 
 The implementation is based on several projects, including:
 - [Virtual Kubelet](https://github.com/virtual-kubelet/virtual-kubelet)

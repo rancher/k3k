@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -71,7 +72,8 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	if err != nil {
 		return nil, err
 	}
-	virtConfig, err := virtRestConfig(ctx, c.VirtualConfigPath, hostClient, c.ClusterName, c.ClusterNamespace, c.Token, logger)
+
+	virtConfig, err := virtRestConfig(ctx, c.VirtualConfigPath, c.ClusterName, c.ClusterNamespace, c.Token, hostClient, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -93,25 +95,25 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unable to create controller-runtime mgr for host cluster: %s", err.Error())
+		return nil, errors.New("unable to create controller-runtime mgr for host cluster: " + err.Error())
 	}
 
 	virtualScheme := runtime.NewScheme()
 	// virtual client will only use core types (for now), no need to add anything other than the basics
-	err = clientgoscheme.AddToScheme(virtualScheme)
-	if err != nil {
-		return nil, fmt.Errorf("unable to add client go types to virtual cluster scheme: %s", err.Error())
+	if err := clientgoscheme.AddToScheme(virtualScheme); err != nil {
+		return nil, errors.New("unable to add client go types to virtual cluster scheme: " + err.Error())
 	}
+
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
 		Scheme: virtualScheme,
 		Metrics: ctrlserver.Options{
 			BindAddress: ":8084",
 		},
 	})
-
 	if err != nil {
 		return nil, err
 	}
+
 	return &kubelet{
 		name:       c.NodeName,
 		hostConfig: hostConfig,
@@ -128,11 +130,12 @@ func (k *kubelet) registerNode(ctx context.Context, ip, srvPort, namespace, name
 	providerFunc := k.newProviderFunc(namespace, name, hostname, ip)
 	nodeOpts := k.nodeOpts(ctx, srvPort, namespace, name, hostname)
 
-	var err error
-	k.node, err = nodeutil.NewNode(k.name, providerFunc, nodeutil.WithClient(k.virtClient), nodeOpts)
+	node, err := nodeutil.NewNode(k.name, providerFunc, nodeutil.WithClient(k.virtClient), nodeOpts)
 	if err != nil {
 		return fmt.Errorf("unable to start kubelet: %v", err)
 	}
+	k.node = node
+
 	return nil
 }
 
@@ -140,15 +143,13 @@ func (k *kubelet) start(ctx context.Context) {
 	// any one of the following 3 tasks (host manager, virtual manager, node) crashing will stop the
 	// program, and all 3 of them block on start, so we start them here in go-routines
 	go func() {
-		err := k.hostMgr.Start(ctx)
-		if err != nil {
+		if err := k.hostMgr.Start(ctx); err != nil {
 			k.logger.Fatalw("host manager stopped", zap.Error(err))
 		}
 	}()
 
 	go func() {
-		err := k.virtualMgr.Start(ctx)
-		if err != nil {
+		if err := k.virtualMgr.Start(ctx); err != nil {
 			k.logger.Fatalw("virtual manager stopped", zap.Error(err))
 		}
 	}()
@@ -165,10 +166,12 @@ func (k *kubelet) start(ctx context.Context) {
 	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
 		k.logger.Fatalw("node was not ready within timeout of 1 minute", zap.Error(err))
 	}
+
 	<-k.node.Done()
 	if err := k.node.Err(); err != nil {
 		k.logger.Fatalw("node stopped with an error", zap.Error(err))
 	}
+
 	k.logger.Info("node exited successfully")
 }
 
@@ -176,10 +179,10 @@ func (k *kubelet) newProviderFunc(namespace, name, hostname, ip string) nodeutil
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
 		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, namespace, name)
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to make nodeutil provider %w", err)
+			return nil, nil, err
 		}
-		nodeProvider := provider.Node{}
 
+		var nodeProvider provider.Node
 		provider.ConfigureNode(pc.Node, hostname, k.port, ip)
 		return utilProvider, &nodeProvider, nil
 	}
@@ -187,33 +190,37 @@ func (k *kubelet) newProviderFunc(namespace, name, hostname, ip string) nodeutil
 
 func (k *kubelet) nodeOpts(ctx context.Context, srvPort, namespace, name, hostname string) nodeutil.NodeOpt {
 	return func(c *nodeutil.NodeConfig) error {
-		c.HTTPListenAddr = fmt.Sprintf(":%s", srvPort)
+		c.HTTPListenAddr = ":" + srvPort
+
 		// set up the routes
 		mux := http.NewServeMux()
 		if err := nodeutil.AttachProviderRoutes(mux)(c); err != nil {
-			return fmt.Errorf("unable to attach routes: %w", err)
+			return err
 		}
 		c.Handler = mux
 
 		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, hostname, k.token)
 		if err != nil {
-			return fmt.Errorf("unable to get tls config: %w", err)
+			return err
 		}
 		c.TLSConfig = tlsConfig
+
 		return nil
 	}
 }
 
-func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, token string, logger *k3klog.Logger) (*rest.Config, error) {
+func virtRestConfig(ctx context.Context, virtualConfigPath, clusterName, clusterNamespace, token string, hostClient ctrlruntimeclient.Client, logger *k3klog.Logger) (*rest.Config, error) {
 	if virtualConfigPath != "" {
 		return clientcmd.BuildConfigFromFlags("", virtualConfigPath)
 	}
+
 	// virtual kubeconfig file is empty, trying to fetch the k3k cluster kubeconfig
 	var cluster v1alpha1.Cluster
 	if err := hostClient.Get(ctx, types.NamespacedName{Namespace: clusterNamespace, Name: clusterName}, &cluster); err != nil {
 		return nil, err
 	}
 	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
+
 	var b *bootstrap.ControlRuntimeBootstrap
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err != nil
@@ -223,8 +230,9 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		logger.Infow("decoded bootstrap", zap.Error(err))
 		return err
 	}); err != nil {
-		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
+		return nil, err
 	}
+
 	adminCert, adminKey, err := kubeconfig.CreateClientCertKey(
 		controller.AdminCommonName, []string{user.SystemPrivilegedGroup},
 		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, time.Hour*24*time.Duration(356),
@@ -239,6 +247,7 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 	if err != nil {
 		return nil, err
 	}
+
 	return clientcmd.RESTConfigFromKubeConfig(kubeconfigData)
 }
 
@@ -273,7 +282,8 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster); err != nil {
 		return nil, err
 	}
-	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
+
+	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err != nil
 	}, func() error {
@@ -281,27 +291,31 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 		b, err = bootstrap.DecodedBootstrap(token, endpoint)
 		return err
 	}); err != nil {
-		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
+		return nil, err
 	}
 	altNames := certutil.AltNames{
 		DNSNames: []string{hostname},
 	}
+
 	cert, key, err := kubeconfig.CreateClientCertKey(nodeName, nil, &altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, 0, b.ServerCA.Content, b.ServerCAKey.Content)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get cert and key: %w", err)
+		return nil, err
 	}
+
 	clientCert, err := tls.X509KeyPair(cert, key)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get key pair: %w", err)
+		return nil, err
 	}
+
 	// create rootCA CertPool
 	certs, err := certutil.ParseCertsPEM([]byte(b.ServerCA.Content))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create ca certs: %w", err)
+		return nil, err
 	}
 	if len(certs) < 1 {
-		return nil, fmt.Errorf("ca cert is not parsed correctly")
+		return nil, errors.New("ca cert is not parsed correctly")
 	}
+
 	pool := x509.NewCertPool()
 	pool.AddCert(certs[0])
 

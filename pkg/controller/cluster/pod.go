@@ -120,10 +120,11 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 		if err != nil {
 			return err
 		}
+
 		// remove server from etcd
 		client, err := clientv3.New(clientv3.Config{
 			Endpoints: []string{
-				fmt.Sprintf("https://%s.%s:2379", server.ServiceName(cluster.Name), pod.Namespace),
+				"https://" + server.ServiceName(cluster.Name) + "." + pod.Namespace + ":2379",
 			},
 			TLS: tlsConfig,
 		})
@@ -156,6 +157,7 @@ func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluste
 	if err != nil {
 		return nil, err
 	}
+
 	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
 	var b *bootstrap.ControlRuntimeBootstrap
 	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
@@ -172,15 +174,18 @@ func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluste
 	if err != nil {
 		return nil, err
 	}
+
 	clientCert, err := tls.X509KeyPair(etcdCert, etcdKey)
 	if err != nil {
 		return nil, err
 	}
+
 	// create rootCA CertPool
 	cert, err := certutil.ParseCertsPEM([]byte(b.ETCDServerCA.Content))
 	if err != nil {
 		return nil, err
 	}
+
 	pool := x509.NewCertPool()
 	pool.AddCert(cert[0])
 

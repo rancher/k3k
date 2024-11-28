@@ -118,6 +118,7 @@ var (
 
 func create(clx *cli.Context) error {
 	ctx := context.Background()
+
 	if err := validateCreateFlags(); err != nil {
 		return err
 	}
@@ -226,8 +227,8 @@ func validateCreateFlags() error {
 	if cmds.Kubeconfig == "" && os.Getenv("KUBECONFIG") == "" {
 		return errors.New("empty kubeconfig")
 	}
-	if mode != "shared" && mode != "virtual" {
-		return errors.New(`mode should be one of "shared" or "virtual"`)
+	if mode != k3kcluster.OperatingModeShared && mode != k3kcluster.OperatingModeVirtual {
+		return errors.New("mode should be one of " + k3kcluster.OperatingModeShared + " or " + k3kcluster.OperatingModeVirtual)
 	}
 
 	return nil

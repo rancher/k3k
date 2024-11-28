@@ -93,7 +93,6 @@ func NewCommand() cli.Command {
 }
 
 func generate(clx *cli.Context) error {
-	var cluster v1alpha1.Cluster
 	ctx := context.Background()
 
 	restConfig, err := clientcmd.BuildConfigFromFlags("", cmds.Kubeconfig)
@@ -107,6 +106,8 @@ func generate(clx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	var cluster v1alpha1.Cluster
 	clusterKey := types.NamespacedName{
 		Name:      name,
 		Namespace: cmds.Namespace(),
@@ -126,12 +127,14 @@ func generate(clx *cli.Context) error {
 	if org == nil {
 		org = cli.StringSlice{user.SystemPrivilegedGroup}
 	}
+
 	cfg := kubeconfig.KubeConfig{
 		CN:         cn,
 		ORG:        org,
 		ExpiryDate: time.Hour * 24 * time.Duration(expirationDays),
 		AltNames:   certAltNames,
 	}
+
 	logrus.Infof("waiting for cluster to be available..")
 	var kubeconfig []byte
 	if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
@@ -143,6 +146,7 @@ func generate(clx *cli.Context) error {
 	}); err != nil {
 		return err
 	}
+
 	pwd, err := os.Getwd()
 	if err != nil {
 		return err

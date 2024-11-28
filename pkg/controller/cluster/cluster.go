@@ -39,6 +39,9 @@ const (
 	defaultClusterServiceCIDR    = "10.45.0.0/16"
 	defaultStoragePersistentSize = "1G"
 	memberRemovalTimeout         = time.Minute * 1
+
+	OperatingModeVirtual = "virtual"
+	OperatingModeShared  = "shared"
 )
 
 type ClusterReconciler struct {

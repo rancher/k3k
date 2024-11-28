@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -55,6 +56,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 	}
 	// we need to manually lock/unlock since we intned on write locking to add a new controller
 	c.RUnlock()
+
 	var r updateableReconciler
 	switch obj.(type) {
 	case *v1.Secret:
@@ -68,7 +70,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 				c.Translater.TranslateTo(s)
 				return s, nil
 			},
-			Logger: c.Logger,
+			logger: c.Logger,
 		}
 	case *v1.ConfigMap:
 		r = &ConfigMapSyncer{
@@ -82,17 +84,16 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 			Logger: c.Logger,
 		}
 	default:
-		// TODO: Technically, the configmap/secret syncers are relatively generic, and this
-		// logic could be used for other types.
 		return fmt.Errorf("unrecognized type: %T", obj)
 
 	}
-	err := ctrl.NewControllerManagedBy(c.Mgr).
+
+	if err := ctrl.NewControllerManagedBy(c.Mgr).
 		For(&v1.ConfigMap{}).
-		Complete(r)
-	if err != nil {
-		return fmt.Errorf("unable to start configmap controller: %w", err)
+		Complete(r); err != nil {
+		return err
 	}
+
 	c.Lock()
 	if c.controllers == nil {
 		c.controllers = map[schema.GroupVersionKind]updateableReconciler{}
@@ -109,7 +110,8 @@ func (c *ControllerHandler) RemoveResource(ctx context.Context, obj client.Objec
 	ctrl, ok := c.controllers[obj.GetObjectKind().GroupVersionKind()]
 	c.RUnlock()
 	if !ok {
-		return fmt.Errorf("no controller found for gvk" + obj.GetObjectKind().GroupVersionKind().String())
+		return errors.New("no controller found for gvk" + obj.GetObjectKind().GroupVersionKind().String())
 	}
+
 	return ctrl.RemoveResource(ctx, obj.GetNamespace(), obj.GetName())
 }

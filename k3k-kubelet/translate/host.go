@@ -2,7 +2,6 @@ package translate
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/rancher/k3k/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,14 +35,17 @@ type ToHostTranslater struct {
 func (t *ToHostTranslater) TranslateTo(obj client.Object) {
 	// owning objects may be in the virtual cluster, but may not be in the host cluster
 	obj.SetOwnerReferences(nil)
+
 	// add some annotations to make it easier to track source object
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
 	}
+
 	annotations[ResourceNameAnnotation] = obj.GetName()
 	annotations[ResourceNamespaceAnnotation] = obj.GetNamespace()
 	obj.SetAnnotations(annotations)
+
 	// add a label to quickly identify objects owned by a given virtual cluster
 	labels := obj.GetLabels()
 	if labels == nil {
@@ -72,6 +74,7 @@ func (t *ToHostTranslater) TranslateFrom(obj client.Object) {
 	// In this case, we need to have some sort of fallback or error return
 	name := annotations[ResourceNameAnnotation]
 	namespace := annotations[ResourceNamespaceAnnotation]
+
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
 	delete(annotations, ResourceNameAnnotation)
@@ -96,10 +99,13 @@ func (t *ToHostTranslater) TranslateName(namespace string, name string) string {
 	// - a valid k8s name
 	// - idempotently calculatable
 	// - unique for this combination of name/namespace/cluster
-	namePrefix := fmt.Sprintf("%s-%s-%s", name, namespace, t.ClusterName)
+	namePrefix := name + "-" + namespace + "-" + t.ClusterName
+
 	// use + as a separator since it can't be in an object name
-	nameKey := fmt.Sprintf("%s+%s+%s", name, namespace, t.ClusterName)
+	nameKey := name + "+" + namespace + "+" + t.ClusterName
+
 	// it's possible that the suffix will be in the name, so we use hex to make it valid for k8s
 	nameSuffix := hex.EncodeToString([]byte(nameKey))
+
 	return controller.SafeConcatName(namePrefix, nameSuffix)
 }

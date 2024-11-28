@@ -8,7 +8,7 @@ set -x
 CODEGEN_GIT_PKG=https://github.com/kubernetes/code-generator.git
 git clone --depth 1 ${CODEGEN_GIT_PKG} || true
 
-K8S_VERSION=$(cat go.mod | grep "=> k8s.io/apiserver" | rev | cut -d " " -f 1 | rev)
+K8S_VERSION=$(cat go.mod | grep -m1 "k8s.io/apiserver" | cut -d " " -f 2)
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CODEGEN_PKG=./code-generator
 

@@ -15,10 +15,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -44,13 +48,51 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string, logger *l
 		ClusterCIDR: clusterCIDR,
 		logger:      logger.Named(clusterSetController),
 	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ClusterSet{}).
 		Owns(&networkingv1.NetworkPolicy{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: maxConcurrentReconciles,
 		}).
+		Watches(
+			&v1.Namespace{},
+			handler.EnqueueRequestsFromMapFunc(namespaceEventHandler(reconciler)),
+			builder.WithPredicates(namespaceLabelsPredicate()),
+		).
 		Complete(&reconciler)
+}
+
+// namespaceEventHandler will enqueue reconciling requests for all the ClusterSets in the changed namespace
+func namespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		var requests []reconcile.Request
+		var set v1alpha1.ClusterSetList
+
+		_ = reconciler.Client.List(ctx, &set, client.InNamespace(obj.GetName()))
+		for _, clusterSet := range set.Items {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      clusterSet.Name,
+					Namespace: obj.GetName(),
+				},
+			})
+		}
+
+		return requests
+	}
+}
+
+// namespaceLabelsPredicate returns a predicate that will allow a reconciliation if the labels of a Namespace changed
+func namespaceLabelsPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldObj := e.ObjectOld.(*v1.Namespace)
+			newObj := e.ObjectNew.(*v1.Namespace)
+
+			return !reflect.DeepEqual(oldObj.Labels, newObj.Labels)
+		},
+	}
 }
 
 func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -120,7 +162,7 @@ func (c *ClusterSetReconciler) reconcileNetworkPolicy(ctx context.Context, log *
 	return err
 }
 
-func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.ClusterSet, client ctrlruntimeclient.Client) (*networkingv1.NetworkPolicy, error) {
+func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.ClusterSet, client client.Client) (*networkingv1.NetworkPolicy, error) {
 	var cidrList []string
 
 	if clusterCIDR != "" {

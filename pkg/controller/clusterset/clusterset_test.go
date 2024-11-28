@@ -303,5 +303,165 @@ var _ = Describe("ClusterSet Controller", func() {
 				Expect(err).To(HaveOccurred())
 			})
 		})
+
+		When("created specifing the podSecurityAdmissionLevel", func() {
+			It("should add and update the proper pod-security labels to the namespace", func() {
+				var (
+					privileged = v1alpha1.PrivilegedPodSecurityAdmissionLevel
+					baseline   = v1alpha1.BaselinePodSecurityAdmissionLevel
+					restricted = v1alpha1.RestrictedPodSecurityAdmissionLevel
+				)
+
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						PodSecurityAdmissionLevel: &privileged,
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				var ns corev1.Namespace
+
+				// Check privileged
+
+				// wait a bit for the namespace to be updated
+				Eventually(func() bool {
+					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &ns)
+					Expect(err).To(Not(HaveOccurred()))
+					enforceValue := ns.Labels["pod-security.kubernetes.io/enforce"]
+					return enforceValue == "privileged"
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "privileged"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "latest"))
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/warn")))
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/warn-version")))
+
+				// Check baseline
+
+				clusterSet.Spec.PodSecurityAdmissionLevel = &baseline
+				err = k8sClient.Update(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait a bit for the namespace to be updated
+				Eventually(func() bool {
+					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &ns)
+					Expect(err).To(Not(HaveOccurred()))
+					enforceValue := ns.Labels["pod-security.kubernetes.io/enforce"]
+					return enforceValue == "baseline"
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "baseline"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "latest"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/warn", "baseline"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/warn-version", "latest"))
+
+				// Check restricted
+
+				clusterSet.Spec.PodSecurityAdmissionLevel = &restricted
+				err = k8sClient.Update(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait a bit for the namespace to be updated
+				Eventually(func() bool {
+					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &ns)
+					Expect(err).To(Not(HaveOccurred()))
+					enforceValue := ns.Labels["pod-security.kubernetes.io/enforce"]
+					return enforceValue == "restricted"
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "restricted"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "latest"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/warn", "restricted"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/warn-version", "latest"))
+
+				// check cleanup
+
+				clusterSet.Spec.PodSecurityAdmissionLevel = nil
+				err = k8sClient.Update(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait a bit for the namespace to be updated
+				Eventually(func() bool {
+					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &ns)
+					Expect(err).To(Not(HaveOccurred()))
+					_, found := ns.Labels["pod-security.kubernetes.io/enforce"]
+					return found
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeFalse())
+
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/enforce")))
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/enforce-version")))
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/warn")))
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/warn-version")))
+			})
+
+			It("should restore the labels if Namespace is updated", func() {
+				privileged := v1alpha1.PrivilegedPodSecurityAdmissionLevel
+
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						PodSecurityAdmissionLevel: &privileged,
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				var ns corev1.Namespace
+
+				// wait a bit for the namespace to be updated
+				Eventually(func() bool {
+					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &ns)
+					Expect(err).To(Not(HaveOccurred()))
+					enforceValue := ns.Labels["pod-security.kubernetes.io/enforce"]
+					return enforceValue == "privileged"
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "privileged"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "latest"))
+
+				ns.Labels["pod-security.kubernetes.io/enforce"] = "baseline"
+				err = k8sClient.Update(ctx, &ns)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait a bit for the namespace to be restored
+				Eventually(func() bool {
+					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &ns)
+					Expect(err).To(Not(HaveOccurred()))
+					enforceValue := ns.Labels["pod-security.kubernetes.io/enforce"]
+					return enforceValue == "privileged"
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "privileged"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "latest"))
+			})
+		})
 	})
 })

@@ -7,3 +7,4 @@ metadata:
   # allowedNodeTypes:
   # - "shared"
   # - "virtual"
+  # podSecurityAdmissionLevel: "baseline"

@@ -44,6 +44,7 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string, logger *l
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ClusterSet{}).
+		Owns(&networkingv1.NetworkPolicy{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: maxConcurrentReconciles,
 		}).
@@ -115,7 +116,10 @@ func (c *ClusterSetReconciler) reconcileNetworkPolicy(ctx context.Context, log *
 
 func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.ClusterSet, client ctrlruntimeclient.Client) (*networkingv1.NetworkPolicy, error) {
 	var cidrList []string
-	if clusterCIDR == "" {
+
+	if clusterCIDR != "" {
+		cidrList = []string{clusterCIDR}
+	} else {
 		var nodeList v1.NodeList
 		if err := client.List(ctx, &nodeList); err != nil {
 			return nil, err
@@ -123,8 +127,6 @@ func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.Cluste
 		for _, node := range nodeList.Items {
 			cidrList = append(cidrList, node.Spec.PodCIDRs...)
 		}
-	} else {
-		cidrList = []string{clusterCIDR}
 	}
 
 	return &networkingv1.NetworkPolicy{

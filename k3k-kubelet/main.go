@@ -59,7 +59,7 @@ func main() {
 			Usage:       "kubelet API port number",
 			Destination: &cfg.KubeletPort,
 			EnvVar:      "SERVER_PORT",
-			Value:       "9443",
+			Value:       "10250",
 		},
 		cli.StringFlag{
 			Name:        "agent-hostname",
@@ -68,10 +68,10 @@ func main() {
 			EnvVar:      "AGENT_HOSTNAME",
 		},
 		cli.StringFlag{
-			Name:        "agent-ip",
-			Usage:       "Agent IP used for registering the virtual kubelet to the cluster",
-			Destination: &cfg.AgentIP,
-			EnvVar:      "AGENT_IP",
+			Name:        "server-ip",
+			Usage:       "Server IP used for registering the virtual kubelet to the cluster",
+			Destination: &cfg.ServerIP,
+			EnvVar:      "SERVER_IP",
 		},
 		cli.StringFlag{
 			Name:        "config",
@@ -112,7 +112,7 @@ func run(clx *cli.Context) {
 		logger.Fatalw("failed to create new virtual kubelet instance", zap.Error(err))
 	}
 
-	if err := k.registerNode(ctx, cfg.AgentIP, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname); err != nil {
+	if err := k.registerNode(ctx, k.agentIP, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, cfg.ServerIP, k.dnsIP); err != nil {
 		logger.Fatalw("failed to register new node", zap.Error(err))
 	}
 

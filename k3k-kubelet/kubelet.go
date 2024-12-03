@@ -5,10 +5,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
+	k3kkubeletcontroller "github.com/rancher/k3k/k3k-kubelet/controller"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -20,6 +22,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/authentication/user"
@@ -50,6 +53,9 @@ type kubelet struct {
 	name       string
 	port       int
 	hostConfig *rest.Config
+	virtConfig *rest.Config
+	agentIP    string
+	dnsIP      string
 	hostClient ctrlruntimeclient.Client
 	virtClient kubernetes.Interface
 	hostMgr    manager.Manager
@@ -109,24 +115,50 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		},
 	})
 
-	if err != nil {
-		return nil, err
+	logger.Info("adding service syncer controller")
+	if k3kkubeletcontroller.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
+		return nil, fmt.Errorf("failed to add service syncer controller: %v", err)
 	}
+
+	clusterIP, err := clusterIP(ctx, c.AgentHostname, c.ClusterNamespace, hostClient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract the clusterIP for the server service %s", err.Error())
+	}
+
+	// get the cluster's DNS IP to be injected to pods
+	var dnsService v1.Service
+	dnsName := controller.SafeConcatNameWithPrefix(c.ClusterName, "kube-dns")
+	if err := hostClient.Get(ctx, types.NamespacedName{Name: dnsName, Namespace: c.ClusterNamespace}, &dnsService); err != nil {
+		return nil, fmt.Errorf("failed to get the DNS service for the cluster %s", err.Error())
+	}
+
 	return &kubelet{
 		name:       c.NodeName,
 		hostConfig: hostConfig,
 		hostClient: hostClient,
+		virtConfig: virtConfig,
+		virtClient: virtClient,
 		hostMgr:    hostMgr,
 		virtualMgr: virtualMgr,
-		virtClient: virtClient,
+		agentIP:    clusterIP,
 		logger:     logger.Named(k3kKubeletName),
 		token:      c.Token,
+		dnsIP:      dnsService.Spec.ClusterIP,
 	}, nil
 }
 
-func (k *kubelet) registerNode(ctx context.Context, ip, srvPort, namespace, name, hostname string) error {
-	providerFunc := k.newProviderFunc(namespace, name, hostname, ip)
-	nodeOpts := k.nodeOpts(ctx, srvPort, namespace, name, hostname)
+func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostClient ctrlruntimeclient.Client) (string, error) {
+	var service v1.Service
+	serviceKey := types.NamespacedName{Namespace: clusterNamespace, Name: serviceName}
+	if err := hostClient.Get(ctx, serviceKey, &service); err != nil {
+		return "", err
+	}
+	return service.Spec.ClusterIP, nil
+}
+
+func (k *kubelet) registerNode(ctx context.Context, agentIP, srvPort, namespace, name, hostname, serverIP, dnsIP string) error {
+	providerFunc := k.newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP)
+	nodeOpts := k.nodeOpts(ctx, srvPort, namespace, name, hostname, agentIP)
 
 	var err error
 	k.node, err = nodeutil.NewNode(k.name, providerFunc, nodeutil.WithClient(k.virtClient), nodeOpts)
@@ -172,20 +204,20 @@ func (k *kubelet) start(ctx context.Context) {
 	k.logger.Info("node exited successfully")
 }
 
-func (k *kubelet) newProviderFunc(namespace, name, hostname, ip string) nodeutil.NewProviderFunc {
+func (k *kubelet) newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP string) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
-		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, namespace, name)
+		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, namespace, name, serverIP, dnsIP)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to make nodeutil provider %w", err)
 		}
 		nodeProvider := provider.Node{}
 
-		provider.ConfigureNode(pc.Node, hostname, k.port, ip)
+		provider.ConfigureNode(pc.Node, hostname, k.port, agentIP)
 		return utilProvider, &nodeProvider, nil
 	}
 }
 
-func (k *kubelet) nodeOpts(ctx context.Context, srvPort, namespace, name, hostname string) nodeutil.NodeOpt {
+func (k *kubelet) nodeOpts(ctx context.Context, srvPort, namespace, name, hostname, agentIP string) nodeutil.NodeOpt {
 	return func(c *nodeutil.NodeConfig) error {
 		c.HTTPListenAddr = fmt.Sprintf(":%s", srvPort)
 		// set up the routes
@@ -195,7 +227,7 @@ func (k *kubelet) nodeOpts(ctx context.Context, srvPort, namespace, name, hostna
 		}
 		c.Handler = mux
 
-		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, hostname, k.token)
+		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, hostname, k.token, agentIP)
 		if err != nil {
 			return fmt.Errorf("unable to get tls config: %w", err)
 		}
@@ -265,7 +297,7 @@ func kubeconfigBytes(url string, serverCA, clientCert, clientKey []byte) ([]byte
 	return clientcmd.Write(*config)
 }
 
-func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, hostname, token string) (*tls.Config, error) {
+func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, hostname, token, agentIP string) (*tls.Config, error) {
 	var (
 		cluster v1alpha1.Cluster
 		b       *bootstrap.ControlRuntimeBootstrap
@@ -283,8 +315,10 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 	}); err != nil {
 		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
 	}
+	ip := net.ParseIP(agentIP)
 	altNames := certutil.AltNames{
 		DNSNames: []string{hostname},
+		IPs:      []net.IP{ip},
 	}
 	cert, key, err := kubeconfig.CreateClientCertKey(nodeName, nil, &altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, 0, b.ServerCA.Content, b.ServerCAKey.Content)
 	if err != nil {

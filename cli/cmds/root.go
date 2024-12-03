@@ -55,5 +55,6 @@ func Namespace() string {
 	if namespace == "" {
 		return defaultNamespace
 	}
+
 	return namespace
 }

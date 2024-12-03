@@ -54,6 +54,7 @@ func (c *config) unmarshalYAML(data []byte) error {
 	if c.AgentIP == "" {
 		c.AgentIP = conf.AgentIP
 	}
+
 	return nil
 }
 
@@ -67,6 +68,7 @@ func (c *config) validate() error {
 	if c.AgentHostname == "" {
 		return errors.New("agent Hostname is not provided")
 	}
+
 	return nil
 }
 
@@ -79,5 +81,6 @@ func (c *config) parse(path string) error {
 	if err != nil {
 		return err
 	}
+
 	return c.unmarshalYAML(b)
 }

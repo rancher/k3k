@@ -7,7 +7,6 @@ import (
 	"github.com/rancher/k3k/pkg/log"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -16,9 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const (
-	nodeController = "k3k-node-controller"
-)
+const nodeController = "k3k-node-controller"
 
 type NodeReconciler struct {
 	Client      ctrlruntimeclient.Client
@@ -64,14 +61,13 @@ func (n *NodeReconciler) Reconcile(ctx context.Context, req reconcile.Request) (
 }
 
 func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterSetList v1alpha1.ClusterSetList, log *zap.SugaredLogger) error {
-	var setNetworkPolicy *networkingv1.NetworkPolicy
 	for _, cs := range clusterSetList.Items {
 		if cs.Spec.DisableNetworkPolicy {
 			continue
 		}
-		var err error
+
 		log.Infow("Updating NetworkPolicy for ClusterSet", "name", cs.Name, "namespace", cs.Namespace)
-		setNetworkPolicy, err = netpol(ctx, "", &cs, n.Client)
+		setNetworkPolicy, err := netpol(ctx, "", &cs, n.Client)
 		if err != nil {
 			return err
 		}

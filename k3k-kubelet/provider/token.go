@@ -30,6 +30,7 @@ func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) e
 			return err
 		}
 	}
+
 	// extracting the tokens data from the secret we just created
 	virtualSecretKey := types.NamespacedName{
 		Name:      virtualSecret.Name,
@@ -38,11 +39,13 @@ func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) e
 	if err := p.VirtualClient.Get(ctx, virtualSecretKey, virtualSecret); err != nil {
 		return err
 	}
+
 	// To avoid race conditions we need to check if the secret's data has been populated
 	// including the token, ca.crt and namespace
 	if len(virtualSecret.Data) < 3 {
 		return fmt.Errorf("token secret %s/%s data is empty", virtualSecret.Namespace, virtualSecret.Name)
 	}
+
 	hostSecret := virtualSecret.DeepCopy()
 	hostSecret.Type = ""
 	hostSecret.Annotations = make(map[string]string)
@@ -54,6 +57,7 @@ func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) e
 		}
 	}
 	p.translateToken(tPod, hostSecret.Name)
+
 	return nil
 }
 
@@ -90,6 +94,7 @@ func removeKubeAccessVolume(pod *corev1.Pod) {
 			pod.Spec.Volumes = append(pod.Spec.Volumes[:i], pod.Spec.Volumes[i+1:]...)
 		}
 	}
+
 	for i, container := range pod.Spec.Containers {
 		for j, mountPath := range container.VolumeMounts {
 			if strings.HasPrefix(mountPath.Name, kubeAPIAccessPrefix) {
@@ -109,6 +114,7 @@ func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
 			},
 		},
 	})
+
 	for i := range pod.Spec.Containers {
 		pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, corev1.VolumeMount{
 			Name:      tokenVolumeName,

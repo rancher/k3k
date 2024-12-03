@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/rancher/k3k/pkg/controller"
@@ -17,7 +16,7 @@ import (
 )
 
 type ConfigMapSyncer struct {
-	mutex sync.RWMutex
+	mu sync.RWMutex
 	// VirtualClient is the client for the virtual cluster
 	VirtualClient client.Client
 	// CoreClient is the client for the host cluster
@@ -41,16 +40,14 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 	var virtual corev1.ConfigMap
 
 	if err := c.VirtualClient.Get(ctx, req.NamespacedName, &virtual); err != nil {
-		return reconcile.Result{
-			Requeue: true,
-		}, fmt.Errorf("unable to get configmap %s/%s from virtual cluster: %w", req.Namespace, req.Name, err)
+		return reconcile.Result{Requeue: true}, err
 	}
+
 	translated, err := c.TranslateFunc(&virtual)
 	if err != nil {
-		return reconcile.Result{
-			Requeue: true,
-		}, fmt.Errorf("unable to translate configmap %s/%s from virtual cluster: %w", req.Namespace, req.Name, err)
+		return reconcile.Result{Requeue: true}, err
 	}
+
 	translatedKey := types.NamespacedName{
 		Namespace: translated.Namespace,
 		Name:      translated.Name,
@@ -61,29 +58,28 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 			err = c.HostClient.Create(ctx, translated)
 			// for simplicity's sake, we don't check for conflict errors. The existing object will get
 			// picked up on in the next re-enqueue
-			return reconcile.Result{
-					Requeue: true,
-				}, fmt.Errorf("unable to create host configmap %s/%s for virtual configmap %s/%s: %w",
-					translated.Namespace, translated.Name, req.Namespace, req.Name, err)
+			return reconcile.Result{Requeue: true}, err
 		}
-		return reconcile.Result{Requeue: true}, fmt.Errorf("unable to get host configmap %s/%s: %w", translated.Namespace, translated.Name, err)
+
+		return reconcile.Result{Requeue: true}, err
 	}
 	// we are going to use the host in order to avoid conflicts on update
 	host.Data = translated.Data
 	if host.Labels == nil {
 		host.Labels = make(map[string]string, len(translated.Labels))
 	}
+
 	// we don't want to override labels made on the host cluster by other applications
 	// but we do need to make sure the labels that the kubelet uses to track host cluster values
 	// are being tracked appropriately
 	for key, value := range translated.Labels {
 		host.Labels[key] = value
 	}
+
 	if err = c.HostClient.Update(ctx, &host); err != nil {
 		return reconcile.Result{
-				Requeue: true,
-			}, fmt.Errorf("unable to update host configmap %s/%s for virtual configmap %s/%s: %w",
-				translated.Namespace, translated.Name, req.Namespace, req.Name, err)
+			Requeue: true,
+		}, err
 
 	}
 	return reconcile.Result{}, nil
@@ -92,8 +88,8 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 // isWatching is a utility method to determine if a key is in objs without the caller needing
 // to handle mutex lock/unlock.
 func (c *ConfigMapSyncer) isWatching(key types.NamespacedName) bool {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.objs.Has(key)
 }
 
@@ -108,19 +104,21 @@ func (c *ConfigMapSyncer) AddResource(ctx context.Context, namespace, name strin
 	if c.isWatching(objKey) {
 		return nil
 	}
+
 	// lock in write mode since we are now adding the key
-	c.mutex.Lock()
+	c.mu.Lock()
 	if c.objs == nil {
 		c.objs = sets.Set[types.NamespacedName]{}
 	}
 	c.objs = c.objs.Insert(objKey)
-	c.mutex.Unlock()
-	_, err := c.Reconcile(ctx, reconcile.Request{
+	c.mu.Unlock()
+
+	if _, err := c.Reconcile(ctx, reconcile.Request{
 		NamespacedName: objKey,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to reconcile new object %s/%s: %w", objKey.Namespace, objKey.Name, err)
+	}); err != nil {
+		return err
 	}
+
 	return nil
 }
 
@@ -141,26 +139,27 @@ func (c *ConfigMapSyncer) RemoveResource(ctx context.Context, namespace, name st
 	}, func() error {
 		return c.removeHostConfigMap(ctx, namespace, name)
 	}); err != nil {
-		return fmt.Errorf("unable to remove configmap: %w", err)
+		return err
 	}
-	c.mutex.Lock()
+	c.mu.Lock()
 	if c.objs == nil {
 		c.objs = sets.Set[types.NamespacedName]{}
 	}
 	c.objs = c.objs.Delete(objKey)
-	c.mutex.Unlock()
+	c.mu.Unlock()
 	return nil
 }
 
 func (c *ConfigMapSyncer) removeHostConfigMap(ctx context.Context, virtualNamespace, virtualName string) error {
 	var vConfigMap corev1.ConfigMap
-	err := c.VirtualClient.Get(ctx, types.NamespacedName{Namespace: virtualNamespace, Name: virtualName}, &vConfigMap)
-	if err != nil {
-		return fmt.Errorf("unable to get virtual configmap %s/%s: %w", virtualNamespace, virtualName, err)
+	if err := c.VirtualClient.Get(ctx, types.NamespacedName{Namespace: virtualNamespace, Name: virtualName}, &vConfigMap); err != nil {
+		return err
 	}
+
 	translated, err := c.TranslateFunc(&vConfigMap)
 	if err != nil {
-		return fmt.Errorf("unable to translate virtual secret: %s/%s: %w", virtualNamespace, virtualName, err)
+		return err
 	}
+
 	return c.HostClient.Delete(ctx, translated)
 }

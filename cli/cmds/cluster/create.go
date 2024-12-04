@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -20,6 +21,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/authentication/user"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
@@ -183,9 +185,17 @@ func create(clx *cli.Context) error {
 		ORG:        []string{user.SystemPrivilegedGroup},
 		ExpiryDate: 0,
 	}
+
 	logrus.Infof("waiting for cluster to be available..")
+
+	// retry every 5s for at most 2m
+	availableBackoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Cap:      2 * time.Minute,
+	}
+
 	var kubeconfig []byte
-	if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
+	if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = cfg.Extract(ctx, ctrlClient, cluster, host[0])
 		if err != nil {
 			return err

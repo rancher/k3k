@@ -121,7 +121,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		return err
 	}
 
-	s := server.New(cluster, c.Client, token)
+	s := server.New(cluster, c.Client, token, string(cluster.Spec.Mode))
 
 	if cluster.Spec.Persistence != nil {
 		cluster.Status.Persistence = cluster.Spec.Persistence

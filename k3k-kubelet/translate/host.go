@@ -60,6 +60,7 @@ func (t *ToHostTranslater) TranslateTo(obj client.Object) {
 	// and doesn't collide with other resources
 	obj.SetName(t.TranslateName(obj.GetNamespace(), obj.GetName()))
 	obj.SetNamespace(t.ClusterNamespace)
+	obj.SetFinalizers(nil)
 }
 
 func (t *ToHostTranslater) TranslateFrom(obj client.Object) {

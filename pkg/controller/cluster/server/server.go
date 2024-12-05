@@ -6,6 +6,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -31,14 +32,16 @@ const (
 type Server struct {
 	cluster *v1alpha1.Cluster
 	client  client.Client
+	mode    string
 	token   string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client, token string) *Server {
+func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string) *Server {
 	return &Server{
 		cluster: cluster,
 		client:  client,
 		token:   token,
+		mode:    mode,
 	}
 }
 
@@ -130,9 +133,6 @@ func (s *Server) podSpec(image, name string, persistent bool, affinitySelector *
 						},
 					},
 				},
-				SecurityContext: &v1.SecurityContext{
-					Privileged: ptr.To(true),
-				},
 				Command: []string{
 					"/bin/sh",
 					"-c",
@@ -219,6 +219,12 @@ func (s *Server) podSpec(image, name string, persistent bool, affinitySelector *
 		},
 	}
 
+	// start the pod unprivileged in shared mode
+	if s.mode == agent.VirtualNodeMode {
+		podSpec.Containers[0].SecurityContext = &v1.SecurityContext{
+			Privileged: ptr.To(true),
+		}
+	}
 	return podSpec
 }
 

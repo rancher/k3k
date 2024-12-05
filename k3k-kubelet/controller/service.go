@@ -25,7 +25,6 @@ const (
 	serviceFinalizerName    = "service.k3k.io/finalizer"
 )
 
-// TODO: change into a generic syncer
 type ServiceReconciler struct {
 	virtualClient    ctrlruntimeclient.Client
 	hostClient       ctrlruntimeclient.Client
@@ -64,7 +63,6 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 
 func (s *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := s.logger.With("Cluster", s.clusterName, "Service", req.NamespacedName)
-	// skip kubernetes service
 	if req.Name == "kubernetes" || req.Name == "kube-dns" {
 		return reconcile.Result{}, nil
 	}
@@ -84,6 +82,8 @@ func (s *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	if err := controllerutil.SetControllerReference(&cluster, syncedService, s.HostScheme); err != nil {
 		return reconcile.Result{}, err
 	}
+
+	// handle deletion
 	if !virtService.DeletionTimestamp.IsZero() {
 		// deleting the synced service if exists
 		if err := s.hostClient.Delete(ctx, syncedService); err != nil {
@@ -98,6 +98,7 @@ func (s *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 		return reconcile.Result{}, nil
 	}
+
 	// Add finalizer if it does not exist
 	if !controllerutil.ContainsFinalizer(&virtService, serviceFinalizerName) {
 		controllerutil.AddFinalizer(&virtService, serviceFinalizerName)
@@ -105,7 +106,7 @@ func (s *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			return reconcile.Result{}, err
 		}
 	}
-
+	// create or update the service on host
 	if err := s.hostClient.Get(ctx, types.NamespacedName{Name: syncedService.Name, Namespace: s.clusterNamespace}, &hostService); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the service for the first time on the host cluster")

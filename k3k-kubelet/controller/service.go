@@ -122,6 +122,5 @@ func (s *ServiceReconciler) service(obj *v1.Service) *v1.Service {
 	hostService := obj.DeepCopy()
 	s.Translater.TranslateTo(hostService)
 	// don't sync finalizers to the host
-	hostService.Finalizers = nil
 	return hostService
 }

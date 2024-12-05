@@ -188,19 +188,17 @@ func create(clx *cli.Context) error {
 
 	logrus.Infof("waiting for cluster to be available..")
 
-	// retry every 5s for at most 2m
+	// retry every 5s for at most 2m, or 25 times
 	availableBackoff := wait.Backoff{
 		Duration: 5 * time.Second,
 		Cap:      2 * time.Minute,
+		Steps:    25,
 	}
 
 	var kubeconfig []byte
 	if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = cfg.Extract(ctx, ctrlClient, cluster, host[0])
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	}); err != nil {
 		return err
 	}

@@ -537,7 +537,7 @@ func (p *Provider) configureNetworking(podName, podNamespace string, pod *corev1
 				p.dnsIP,
 			},
 			Searches: []string{
-				podNamespace + ".svc.cluster.local", "svc.cluster.local", "cluster.local", "hgalal.az",
+				podNamespace + ".svc.cluster.local", "svc.cluster.local", "cluster.local",
 			},
 		}
 	}

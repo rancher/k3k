@@ -115,6 +115,9 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 			BindAddress: ":8084",
 		},
 	})
+	if err != nil {
+		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
+	}
 
 	logger.Info("adding service syncer controller")
 	if err := k3kkubeletcontroller.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {

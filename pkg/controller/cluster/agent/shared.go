@@ -3,12 +3,14 @@ package agent
 import (
 	"fmt"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -57,13 +59,13 @@ func sharedAgentData(cluster *v1alpha1.Cluster, token, nodeName, ip string) stri
 clusterNamespace: %s
 nodeName: %s
 agentHostname: %s
-agentIP: %s
+serverIP: %s
 token: %s`,
 		cluster.Name, cluster.Namespace, nodeName, nodeName, ip, token)
 }
 
 func (s *SharedAgent) Resources() []ctrlruntimeclient.Object {
-	return []ctrlruntimeclient.Object{s.serviceAccount(), s.role(), s.roleBinding(), s.service(), s.deployment()}
+	return []ctrlruntimeclient.Object{s.serviceAccount(), s.role(), s.roleBinding(), s.service(), s.deployment(), s.dnsService()}
 }
 
 func (s *SharedAgent) deployment() *apps.Deployment {
@@ -169,7 +171,47 @@ func (s *SharedAgent) service() *v1.Service {
 				{
 					Name:     "k3s-kubelet-port",
 					Protocol: v1.ProtocolTCP,
-					Port:     9443,
+					Port:     10250,
+				},
+			},
+		},
+	}
+}
+
+func (s *SharedAgent) dnsService() *v1.Service {
+	return &v1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      s.DNSName(),
+			Namespace: s.cluster.Namespace,
+		},
+		Spec: v1.ServiceSpec{
+			Type: v1.ServiceTypeClusterIP,
+			Selector: map[string]string{
+				translate.ClusterNameLabel: s.cluster.Name,
+				"k8s-app":                  "kube-dns",
+			},
+			Ports: []v1.ServicePort{
+				{
+					Name:       "dns",
+					Protocol:   v1.ProtocolUDP,
+					Port:       53,
+					TargetPort: intstr.FromInt32(53),
+				},
+				{
+					Name:       "dns-tcp",
+					Protocol:   v1.ProtocolTCP,
+					Port:       53,
+					TargetPort: intstr.FromInt32(53),
+				},
+				{
+					Name:       "metrics",
+					Protocol:   v1.ProtocolTCP,
+					Port:       9153,
+					TargetPort: intstr.FromInt32(9153),
 				},
 			},
 		},
@@ -203,12 +245,7 @@ func (s *SharedAgent) role() *rbacv1.Role {
 			{
 				Verbs:     []string{"*"},
 				APIGroups: []string{""},
-				Resources: []string{"pods", "secrets", "configmaps"},
-			},
-			{
-				Verbs:     []string{"get", "watch", "list"},
-				APIGroups: []string{""},
-				Resources: []string{"services"},
+				Resources: []string{"pods", "secrets", "configmaps", "services"},
 			},
 			{
 				Verbs:     []string{"get", "watch", "list"},
@@ -246,4 +283,8 @@ func (s *SharedAgent) roleBinding() *rbacv1.RoleBinding {
 
 func (s *SharedAgent) Name() string {
 	return controller.SafeConcatNameWithPrefix(s.cluster.Name, sharedNodeAgentName)
+}
+
+func (s *SharedAgent) DNSName() string {
+	return controller.SafeConcatNameWithPrefix(s.cluster.Name, "kube-dns")
 }

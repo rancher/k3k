@@ -45,17 +45,19 @@ type Provider struct {
 	MetricsClient    metricset.Interface
 	ClusterNamespace string
 	ClusterName      string
+	serverIP         string
+	dnsIP            string
 	logger           *k3klog.Logger
 }
 
-func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3klog.Logger, Namespace, Name string) (*Provider, error) {
+func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3klog.Logger, namespace, name, serverIP, dnsIP string) (*Provider, error) {
 	coreClient, err := cv1.NewForConfig(&hostConfig)
 	if err != nil {
 		return nil, err
 	}
 	translater := translate.ToHostTranslater{
-		ClusterName:      Name,
-		ClusterNamespace: Namespace,
+		ClusterName:      name,
+		ClusterNamespace: namespace,
 	}
 	p := Provider{
 		Handler: controller.ControllerHandler{
@@ -71,9 +73,11 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 		Translater:       translater,
 		ClientConfig:     hostConfig,
 		CoreClient:       coreClient,
-		ClusterNamespace: Namespace,
-		ClusterName:      Name,
+		ClusterNamespace: namespace,
+		ClusterName:      name,
 		logger:           logger,
+		serverIP:         serverIP,
+		dnsIP:            dnsIP,
 	}
 
 	return &p, nil
@@ -246,8 +250,11 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	if err := p.transformTokens(ctx, pod, tPod); err != nil {
 		return fmt.Errorf("unable to transform tokens for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
+	// inject networking information to the pod including the virtual cluster controlplane endpoint
+	p.configureNetworking(pod.Name, pod.Namespace, tPod)
+
 	p.logger.Infow("Creating pod", "Host Namespace", tPod.Namespace, "Host Name", tPod.Name,
-		"Virtual Namespace", pod.Namespace, "Virtual Name", pod.Name)
+		"Virtual Namespace", pod.Namespace, "Virtual Name", "env", pod.Name, pod.Spec.Containers[0].Env)
 	return p.HostClient.Create(ctx, tPod)
 }
 
@@ -444,7 +451,7 @@ func (p *Provider) pruneUnusedVolumes(ctx context.Context, pod *corev1.Pod) erro
 // concurrently outside of the calling goroutine. Therefore it is recommended
 // to return a version after DeepCopy.
 func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
-	p.logger.Infow("got a request for get pod", "Namespace", namespace, "Name", name)
+	p.logger.Debugw("got a request for get pod", "Namespace", namespace, "Name", name)
 	hostNamespaceName := types.NamespacedName{
 		Namespace: p.ClusterNamespace,
 		Name:      p.Translater.TranslateName(namespace, name),
@@ -463,7 +470,7 @@ func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.
 // concurrently outside of the calling goroutine. Therefore it is recommended
 // to return a version after DeepCopy.
 func (p *Provider) GetPodStatus(ctx context.Context, namespace, name string) (*corev1.PodStatus, error) {
-	p.logger.Infow("got a request for pod status", "Namespace", namespace, "Name", name)
+	p.logger.Debugw("got a request for pod status", "Namespace", namespace, "Name", name)
 	pod, err := p.GetPod(ctx, namespace, name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get pod for status: %w", err)
@@ -494,6 +501,47 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 		retPods = append(retPods, &pod)
 	}
 	return retPods, nil
+}
+
+func (p *Provider) configureNetworking(podName, podNamespace string, pod *corev1.Pod) {
+	// inject networking information to the pod's environment variables
+	for i := range pod.Spec.Containers {
+		pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env,
+			corev1.EnvVar{
+				Name:  "KUBERNETES_PORT_443_TCP",
+				Value: "tcp://" + p.serverIP + ":6443",
+			},
+			corev1.EnvVar{
+				Name:  "KUBERNETES_PORT",
+				Value: "tcp://" + p.serverIP + ":6443",
+			},
+			corev1.EnvVar{
+				Name:  "KUBERNETES_PORT_443_TCP_ADDR",
+				Value: p.serverIP,
+			},
+			corev1.EnvVar{
+				Name:  "KUBERNETES_SERVICE_HOST",
+				Value: p.serverIP,
+			},
+			corev1.EnvVar{
+				Name:  "KUBERNETES_SERVICE_PORT",
+				Value: "6443",
+			},
+		)
+	}
+	// injecting cluster DNS IP to the pods except for coredns pod
+	if !strings.HasPrefix(podName, "coredns") {
+		pod.Spec.DNSPolicy = corev1.DNSNone
+		pod.Spec.DNSConfig = &corev1.PodDNSConfig{
+			Nameservers: []string{
+				p.dnsIP,
+			},
+			Searches: []string{
+				podNamespace + ".svc.cluster.local", "svc.cluster.local", "cluster.local",
+			},
+		}
+	}
+
 }
 
 // getSecretsAndConfigmaps retrieves a list of all secrets/configmaps that are in use by a given pod. Useful

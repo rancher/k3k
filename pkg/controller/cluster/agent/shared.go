@@ -245,7 +245,7 @@ func (s *SharedAgent) role() *rbacv1.Role {
 			{
 				Verbs:     []string{"*"},
 				APIGroups: []string{""},
-				Resources: []string{"pods", "secrets", "configmaps", "services"},
+				Resources: []string{"pods", "pods/log", "pods/exec", "secrets", "configmaps", "services"},
 			},
 			{
 				Verbs:     []string{"get", "watch", "list"},

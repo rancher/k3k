@@ -2,20 +2,24 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/rancher/k3k/k3k-kubelet/controller"
+	"github.com/rancher/k3k/k3k-kubelet/provider/collectors"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3klog "github.com/rancher/k3k/pkg/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -24,10 +28,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes/scheme"
 	cv1 "k8s.io/client-go/kubernetes/typed/core/v1"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/transport/spdy"
+	compbasemetrics "k8s.io/component-base/metrics"
 	metricset "k8s.io/metrics/pkg/client/clientset/versioned"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -42,7 +48,7 @@ type Provider struct {
 	VirtualClient    client.Client
 	ClientConfig     rest.Config
 	CoreClient       cv1.CoreV1Interface
-	MetricsClient    metricset.Interface
+	MetricsClient    metricset.Interface // TODO: do we need this?
 	ClusterNamespace string
 	ClusterName      string
 	serverIP         string
@@ -55,10 +61,12 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 	if err != nil {
 		return nil, err
 	}
+
 	translater := translate.ToHostTranslater{
 		ClusterName:      name,
 		ClusterNamespace: namespace,
 	}
+
 	p := Provider{
 		Handler: controller.ControllerHandler{
 			Mgr:           virtualMgr,
@@ -177,13 +185,96 @@ func (p *Provider) AttachToContainer(ctx context.Context, namespace, podName, co
 }
 
 // GetStatsSummary gets the stats for the node, including running pods
-func (p *Provider) GetStatsSummary(context.Context) (*statsv1alpha1.Summary, error) {
-	return nil, fmt.Errorf("not implemented")
+func (p *Provider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary, error) {
+	p.logger.Debug("GetStatsSummary")
+
+	nodeList := &v1.NodeList{}
+	if err := p.CoreClient.RESTClient().Get().Resource("nodes").Do(ctx).Into(nodeList); err != nil {
+		return nil, fmt.Errorf("unable to get nodes of cluster %s in namespace %s: %w", p.ClusterName, p.ClusterNamespace, err)
+	}
+
+	// fetch the stats from all the nodes
+	var nodeStats statsv1alpha1.NodeStats
+	var allPodsStats []statsv1alpha1.PodStats
+
+	for _, n := range nodeList.Items {
+		res, err := p.CoreClient.RESTClient().
+			Get().
+			Resource("nodes").
+			Name(n.Name).
+			SubResource("proxy").
+			Suffix("stats/summary").
+			DoRaw(ctx)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"unable to get stats of node '%s', from cluster %s in namespace %s: %w",
+				n.Name, p.ClusterName, p.ClusterNamespace, err,
+			)
+		}
+
+		stats := &statsv1alpha1.Summary{}
+		if err := json.Unmarshal(res, stats); err != nil {
+			return nil, err
+		}
+
+		// TODO: we should probably calculate somehow the node stats from the different nodes of the host
+		// or reflect different nodes from the virtual kubelet.
+		// For the moment let's just pick one random node stats.
+		nodeStats = stats.Node
+		allPodsStats = append(allPodsStats, stats.Pods...)
+	}
+
+	pods, err := p.GetPods(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	podsNameMap := make(map[string]*v1.Pod)
+	for _, pod := range pods {
+		hostPodName := p.Translater.TranslateName(pod.Namespace, pod.Name)
+		podsNameMap[hostPodName] = pod
+	}
+
+	filteredStats := &statsv1alpha1.Summary{
+		Node: nodeStats,
+		Pods: make([]statsv1alpha1.PodStats, 0),
+	}
+
+	for _, podStat := range allPodsStats {
+		// skip pods that are not in the cluster namespace
+		if podStat.PodRef.Namespace != p.ClusterNamespace {
+			continue
+		}
+
+		// rewrite the PodReference to match the data of the virtual cluster
+		if pod, found := podsNameMap[podStat.PodRef.Name]; found {
+			podStat.PodRef = statsv1alpha1.PodReference{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+				UID:       string(pod.UID),
+			}
+			filteredStats.Pods = append(filteredStats.Pods, podStat)
+		}
+	}
+
+	return filteredStats, nil
 }
 
 // GetMetricsResource gets the metrics for the node, including running pods
-func (p *Provider) GetMetricsResource(context.Context) ([]*dto.MetricFamily, error) {
-	return nil, fmt.Errorf("not implemented")
+func (p *Provider) GetMetricsResource(ctx context.Context) ([]*dto.MetricFamily, error) {
+	statsSummary, err := p.GetStatsSummary(ctx)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error fetching MetricsResource")
+	}
+
+	registry := compbasemetrics.NewKubeRegistry()
+	registry.CustomMustRegister(collectors.NewKubeletResourceMetricsCollector(statsSummary))
+
+	metricFamily, err := registry.Gather()
+	if err != nil {
+		return nil, errors.Wrapf(err, "error gathering metrics from collector")
+	}
+	return metricFamily, nil
 }
 
 // PortForward forwards a local port to a port on the pod

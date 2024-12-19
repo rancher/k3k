@@ -214,10 +214,10 @@ func (k *kubelet) newProviderFunc(namespace, name, hostname, agentIP, serverIP, 
 		if err != nil {
 			return nil, nil, errors.New("unable to make nodeutil provider: " + err.Error())
 		}
-		nodeProvider := provider.Node{}
 
 		provider.ConfigureNode(pc.Node, hostname, k.port, agentIP)
-		return utilProvider, &nodeProvider, nil
+
+		return utilProvider, &provider.Node{}, nil
 	}
 }
 

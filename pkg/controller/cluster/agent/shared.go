@@ -16,7 +16,7 @@ import (
 
 const (
 	sharedKubeletConfigPath = "/opt/rancher/k3k/config.yaml"
-	sharedNodeAgentName     = "kubelet"
+	SharedNodeAgentName     = "kubelet"
 	SharedNodeMode          = "shared"
 )
 
@@ -69,8 +69,6 @@ func (s *SharedAgent) Resources() []ctrlruntimeclient.Object {
 		s.serviceAccount(),
 		s.role(),
 		s.roleBinding(),
-		s.clusterRole(),
-		s.clusterRoleBinding(),
 		s.service(),
 		s.deployment(),
 		s.dnsService(),
@@ -293,55 +291,8 @@ func (s *SharedAgent) roleBinding() *rbacv1.RoleBinding {
 	}
 }
 
-func (s *SharedAgent) clusterRole() *rbacv1.ClusterRole {
-	return &rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ClusterRole",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.Name(),
-			Namespace: s.cluster.Namespace,
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{""},
-				// nodes and nodes/proxy are needed to gather the stats and metrics from the host from
-				// '/api/v1/nodes/<node>/proxy/stats/summary' and '/api/v1/nodes/<node>/proxy/metrics/resource' endpoints
-				// in the GetStatsSummary and GetMetricsResource provider implementation of the Virtual Kubelet
-				Resources: []string{"nodes", "nodes/proxy"},
-				Verbs:     []string{"*"},
-			},
-		},
-	}
-}
-
-func (s *SharedAgent) clusterRoleBinding() *rbacv1.ClusterRoleBinding {
-	return &rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ClusterRoleBinding",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: s.Name(),
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     s.Name(),
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      s.Name(),
-				Namespace: s.cluster.Namespace,
-			},
-		},
-	}
-}
-
 func (s *SharedAgent) Name() string {
-	return controller.SafeConcatNameWithPrefix(s.cluster.Name, sharedNodeAgentName)
+	return controller.SafeConcatNameWithPrefix(s.cluster.Name, SharedNodeAgentName)
 }
 
 func (s *SharedAgent) DNSName() string {

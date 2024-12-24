@@ -8,19 +8,21 @@ import (
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	"github.com/rancher/k3k/pkg/log"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
+	ctrlruntimecontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -59,7 +61,7 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage string, logg
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Cluster{}).
-		WithOptions(controller.Options{
+		WithOptions(ctrlruntimecontroller.Options{
 			MaxConcurrentReconciles: maxConcurrentReconciles,
 		}).
 		Complete(&reconciler)
@@ -100,6 +102,11 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			}
 		}
 	}
+
+	if err := c.unbindNodeProxyClusterRole(ctx, &cluster); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
 		// remove finalizer from the cluster and update it.
 		controllerutil.RemoveFinalizer(&cluster, clusterFinalizerName)
@@ -129,9 +136,6 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 			// default to 1G of request size
 			cluster.Status.Persistence.StorageRequestSize = defaultStoragePersistentSize
 		}
-	}
-	if err := c.Client.Update(ctx, cluster); err != nil {
-		return err
 	}
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
@@ -187,6 +191,10 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
+	}
+
+	if err := c.bindNodeProxyClusterRole(ctx, cluster); err != nil {
+		return err
 	}
 
 	return c.Client.Update(ctx, cluster)
@@ -277,6 +285,56 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 	}
 
 	return nil
+}
+
+func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	if err := c.Client.Get(ctx, types.NamespacedName{Name: "k3k-node-proxy"}, clusterRoleBinding); err != nil {
+		return fmt.Errorf("failed to get or find k3k-node-proxy ClusterRoleBinding: %w", err)
+	}
+
+	subjectName := controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName)
+
+	found := false
+	for _, subject := range clusterRoleBinding.Subjects {
+		if subject.Name == subjectName && subject.Namespace == cluster.Namespace {
+			found = true
+		}
+	}
+
+	if !found {
+		clusterRoleBinding.Subjects = append(clusterRoleBinding.Subjects, rbacv1.Subject{
+			Kind:      "ServiceAccount",
+			Name:      subjectName,
+			Namespace: cluster.Namespace,
+		})
+	}
+
+	return c.Client.Update(ctx, clusterRoleBinding)
+}
+
+func (c *ClusterReconciler) unbindNodeProxyClusterRole(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	if err := c.Client.Get(ctx, types.NamespacedName{Name: "k3k-node-proxy"}, clusterRoleBinding); err != nil {
+		return fmt.Errorf("failed to get or find k3k-node-proxy ClusterRoleBinding: %w", err)
+	}
+
+	subjectName := controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName)
+
+	var cleanedSubjects []rbacv1.Subject
+	for _, subject := range clusterRoleBinding.Subjects {
+		if subject.Name != subjectName || subject.Namespace != cluster.Namespace {
+			cleanedSubjects = append(cleanedSubjects, subject)
+		}
+	}
+
+	// if no subject was removed, all good
+	if reflect.DeepEqual(clusterRoleBinding.Subjects, cleanedSubjects) {
+		return nil
+	}
+
+	clusterRoleBinding.Subjects = cleanedSubjects
+	return c.Client.Update(ctx, clusterRoleBinding)
 }
 
 func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {

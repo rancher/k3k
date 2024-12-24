@@ -34,7 +34,6 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/transport/spdy"
 	compbasemetrics "k8s.io/component-base/metrics"
-	metricset "k8s.io/metrics/pkg/client/clientset/versioned"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -48,7 +47,6 @@ type Provider struct {
 	VirtualClient    client.Client
 	ClientConfig     rest.Config
 	CoreClient       cv1.CoreV1Interface
-	MetricsClient    metricset.Interface // TODO: do we need this?
 	ClusterNamespace string
 	ClusterName      string
 	serverIP         string

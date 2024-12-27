@@ -12,3 +12,26 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "k3k.serviceAccountName" . }}
     namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "k3k.fullname" . }}-node-proxy
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "nodes"
+  - "nodes/proxy"
+  verbs:
+  - "get"
+  - "list"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "k3k.fullname" . }}-node-proxy
+roleRef:
+  kind: ClusterRole
+  name: {{ include "k3k.fullname" . }}-node-proxy
+  apiGroup: rbac.authorization.k8s.io

@@ -16,7 +16,7 @@ import (
 
 const (
 	sharedKubeletConfigPath = "/opt/rancher/k3k/config.yaml"
-	sharedNodeAgentName     = "kubelet"
+	SharedNodeAgentName     = "kubelet"
 	SharedNodeMode          = "shared"
 )
 
@@ -65,43 +65,50 @@ token: %s`,
 }
 
 func (s *SharedAgent) Resources() []ctrlruntimeclient.Object {
-	return []ctrlruntimeclient.Object{s.serviceAccount(), s.role(), s.roleBinding(), s.service(), s.deployment(), s.dnsService()}
+	return []ctrlruntimeclient.Object{
+		s.serviceAccount(),
+		s.role(),
+		s.roleBinding(),
+		s.service(),
+		s.deployment(),
+		s.dnsService(),
+	}
 }
 
 func (s *SharedAgent) deployment() *apps.Deployment {
-	selector := metav1.LabelSelector{
+	selector := &metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			"cluster": s.cluster.Name,
 			"type":    "agent",
 			"mode":    "shared",
 		},
 	}
-	name := s.Name()
+
 	return &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      s.Name(),
 			Namespace: s.cluster.Namespace,
 			Labels:    selector.MatchLabels,
 		},
 		Spec: apps.DeploymentSpec{
-			Selector: &selector,
+			Selector: selector,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector.MatchLabels,
 				},
-				Spec: s.podSpec(s.sharedAgentImage, name, &selector),
+				Spec: s.podSpec(selector),
 			},
 		},
 	}
 }
 
-func (s *SharedAgent) podSpec(image, name string, affinitySelector *metav1.LabelSelector) v1.PodSpec {
-	args := []string{"--config", sharedKubeletConfigPath}
+func (s *SharedAgent) podSpec(affinitySelector *metav1.LabelSelector) v1.PodSpec {
 	var limit v1.ResourceList
+
 	return v1.PodSpec{
 		Affinity: &v1.Affinity{
 			PodAntiAffinity: &v1.PodAntiAffinity{
@@ -132,13 +139,16 @@ func (s *SharedAgent) podSpec(image, name string, affinitySelector *metav1.Label
 		},
 		Containers: []v1.Container{
 			{
-				Name:            name,
-				Image:           image,
+				Name:            s.Name(),
+				Image:           s.sharedAgentImage,
 				ImagePullPolicy: v1.PullAlways,
 				Resources: v1.ResourceRequirements{
 					Limits: limit,
 				},
-				Args: args,
+				Args: []string{
+					"--config",
+					sharedKubeletConfigPath,
+				},
 				VolumeMounts: []v1.VolumeMount{
 					{
 						Name:      "config",
@@ -243,14 +253,14 @@ func (s *SharedAgent) role() *rbacv1.Role {
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
-				Verbs:     []string{"*"},
 				APIGroups: []string{""},
 				Resources: []string{"pods", "pods/log", "pods/exec", "secrets", "configmaps", "services"},
+				Verbs:     []string{"*"},
 			},
 			{
-				Verbs:     []string{"get", "watch", "list"},
 				APIGroups: []string{"k3k.io"},
 				Resources: []string{"clusters"},
+				Verbs:     []string{"get", "watch", "list"},
 			},
 		},
 	}
@@ -282,7 +292,7 @@ func (s *SharedAgent) roleBinding() *rbacv1.RoleBinding {
 }
 
 func (s *SharedAgent) Name() string {
-	return controller.SafeConcatNameWithPrefix(s.cluster.Name, sharedNodeAgentName)
+	return controller.SafeConcatNameWithPrefix(s.cluster.Name, SharedNodeAgentName)
 }
 
 func (s *SharedAgent) DNSName() string {

@@ -51,6 +51,8 @@ func init() {
 }
 
 type kubelet struct {
+	virtualCluster v1alpha1.Cluster
+
 	name       string
 	port       int
 	hostConfig *rest.Config
@@ -136,7 +138,14 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, errors.New("failed to get the DNS service for the cluster: " + err.Error())
 	}
 
+	var virtualCluster v1alpha1.Cluster
+	if err := hostClient.Get(ctx, types.NamespacedName{Name: c.ClusterName, Namespace: c.ClusterNamespace}, &virtualCluster); err != nil {
+		return nil, errors.New("failed to get virtualCluster spec: " + err.Error())
+	}
+
 	return &kubelet{
+		virtualCluster: virtualCluster,
+
 		name:       c.NodeName,
 		hostConfig: hostConfig,
 		hostClient: hostClient,
@@ -215,7 +224,7 @@ func (k *kubelet) newProviderFunc(namespace, name, hostname, agentIP, serverIP, 
 			return nil, nil, errors.New("unable to make nodeutil provider: " + err.Error())
 		}
 
-		provider.ConfigureNode(pc.Node, hostname, k.port, agentIP)
+		provider.ConfigureNode(k.logger, pc.Node, hostname, k.port, agentIP, utilProvider.CoreClient, utilProvider.VirtualClient, k.virtualCluster)
 
 		return utilProvider, &provider.Node{}, nil
 	}

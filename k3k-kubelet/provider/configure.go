@@ -90,12 +90,12 @@ func nodeConditions() []v1.NodeCondition {
 	}
 }
 
-// updateNodeCapacity will update the virtual node capacity (and the allocatable field) with the sum of all the available nodes.
+// updateNodeCapacity will update the virtual node capacity (and the allocatable field) with the sum of all the resource in the host nodes.
 // If the nodeLabels are specified only the matching nodes will be considered.
 func updateNodeCapacity(coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualNodeName string, nodeLabels map[string]string) error {
 	ctx := context.Background()
 
-	capacity, err := getCapacityFromNodes(ctx, coreClient, nodeLabels)
+	capacity, allocatable, err := getResourcesFromNodes(ctx, coreClient, nodeLabels)
 	if err != nil {
 		return err
 	}
@@ -106,14 +106,14 @@ func updateNodeCapacity(coreClient typedv1.CoreV1Interface, virtualClient client
 	}
 
 	virtualNode.Status.Capacity = capacity
-	virtualNode.Status.Allocatable = capacity
+	virtualNode.Status.Allocatable = allocatable
 
 	return virtualClient.Status().Update(ctx, &virtualNode)
 }
 
-// getCapacityFromNodes will return a sum of all the resource capacities of the host nodes.
+// getResourcesFromNodes will return a sum of all the resource capacity of the host nodes, and the allocatable resources.
 // If some node labels are specified only the matching nodes will be considered.
-func getCapacityFromNodes(ctx context.Context, coreClient typedv1.CoreV1Interface, nodeLabels map[string]string) (v1.ResourceList, error) {
+func getResourcesFromNodes(ctx context.Context, coreClient typedv1.CoreV1Interface, nodeLabels map[string]string) (v1.ResourceList, v1.ResourceList, error) {
 	listOpts := metav1.ListOptions{}
 	if nodeLabels != nil {
 		labelSelector := metav1.LabelSelector{MatchLabels: nodeLabels}
@@ -122,11 +122,12 @@ func getCapacityFromNodes(ctx context.Context, coreClient typedv1.CoreV1Interfac
 
 	nodeList, err := coreClient.Nodes().List(ctx, listOpts)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// sum all
-	allVirtualResources := corev1.ResourceList{}
+	virtualCapacityResources := corev1.ResourceList{}
+	virtualAvailableResources := corev1.ResourceList{}
 
 	for _, node := range nodeList.Items {
 
@@ -144,12 +145,19 @@ func getCapacityFromNodes(ctx context.Context, coreClient typedv1.CoreV1Interfac
 
 		// add all the available metrics to the virtual node
 		for resourceName, resourceQuantity := range node.Status.Capacity {
-			virtualResource := allVirtualResources[resourceName]
+			virtualResource := virtualCapacityResources[resourceName]
 
 			(&virtualResource).Add(resourceQuantity)
-			allVirtualResources[resourceName] = virtualResource
+			virtualCapacityResources[resourceName] = virtualResource
+		}
+
+		for resourceName, resourceQuantity := range node.Status.Allocatable {
+			virtualResource := virtualAvailableResources[resourceName]
+
+			(&virtualResource).Add(resourceQuantity)
+			virtualAvailableResources[resourceName] = virtualResource
 		}
 	}
 
-	return allVirtualResources, nil
+	return virtualCapacityResources, virtualAvailableResources, nil
 }

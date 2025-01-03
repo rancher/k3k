@@ -1,4 +1,9 @@
 FROM alpine
-COPY bin/k3k /usr/bin/
-COPY bin/k3kcli /usr/bin/
+
+ARG BIN_K3K=bin/k3k
+ARG BIN_K3KCLI=bin/k3kcli
+
+COPY ${BIN_K3K} /usr/bin/
+COPY ${BIN_K3KCLI} /usr/bin/
+
 CMD ["k3k"]

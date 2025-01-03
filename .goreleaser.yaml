@@ -1,0 +1,90 @@
+version: 2
+
+release:
+  draft: true
+  replace_existing_draft: true
+  prerelease: auto
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: k3k
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - "amd64"
+      - "arm64"
+      - "s390x"
+
+  - id: k3k-kubelet
+    main: ./k3k-kubelet
+    binary: k3k-kubelet
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - "amd64"
+      - "arm64"
+      - "s390x"
+  
+  - id: k3kcli
+    main: ./cli
+    binary: k3kcli
+    env:
+      - CGO_ENABLED=0
+    goarch:
+      - "amd64"
+      - "arm64"
+
+archives:
+  - format: binary
+    name_template: >-
+      {{ .Binary }}-{{- .Os }}-{{ .Arch }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+# For the image_templates we are using the following expression to build images for the correct registry
+#    {{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}
+#
+# REGISTRY=        -> rancher/k3k:vX.Y.Z
+# REGISTRY=ghcr.io -> ghcr.io/rancher/k3k:latest:vX.Y.Z
+#
+dockers:
+  - id: k3k
+    use: docker
+    ids:
+      - k3k
+      - k3kcli
+    dockerfile: "package/Dockerfile"
+    skip_push: false
+    image_templates:
+      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}:{{ .Tag }}"
+    build_flag_templates:
+      - "--build-arg=BIN_K3K=k3k"
+      - "--build-arg=BIN_K3KCLI=k3kcli"
+
+  - id: k3k-kubelet
+    use: docker
+    ids:
+      - k3k-kubelet
+    dockerfile: "package/Dockerfile.kubelet"
+    skip_push: false
+    image_templates:
+      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet:{{ .Tag }}"
+    build_flag_templates:
+      - "--build-arg=BIN_K3K_KUBELET=k3k-kubelet"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

@@ -1,0 +1,61 @@
+name: Release - Delete Draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        description: The tag of the release
+
+permissions:
+    contents: write
+    packages: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  release-delete:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check tag
+      if: "${{ github.event.inputs.tag == '' }}"
+      run: echo "::error::Missing tag from input" && exit 1
+    
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Check if release is draft
+      run: |
+        CURRENT_TAG=${{ github.event.inputs.tag }}
+        isDraft=$(gh release view ${CURRENT_TAG} --json isDraft --jq ".isDraft")
+        if [ "$isDraft" = true ]; then
+          echo "Release ${CURRENT_TAG} is draft"
+        else
+          echo "::error::Cannot delete non-draft release" && exit 1
+        fi
+
+    - name: Delete packages from Github Container Registry
+      run: |
+        CURRENT_TAG=${{ github.event.inputs.tag }}
+        echo "Deleting packages with tag ${CURRENT_TAG}"
+
+        JQ_QUERY=".[] | select(.metadata.container.tags[] == \"${CURRENT_TAG}\")"
+
+        for package in k3k k3k-kubelet
+        do
+          echo "Deleting ${package} image"
+          PACKAGE_TO_DELETE=$(gh api /user/packages/container/${package}/versions --jq "${JQ_QUERY}")
+          echo $PACKAGE_TO_DELETE | jq
+
+          PACKAGE_ID=$(echo $PACKAGE_TO_DELETE | jq .id)
+          echo "Deleting ${PACKAGE_ID}"
+          gh api --method DELETE /user/packages/container/${package}/versions/${PACKAGE_ID}  
+        done
+
+    - name: Delete Github release
+      run: |
+        CURRENT_TAG=${{ github.event.inputs.tag }}
+        echo "Deleting release ${CURRENT_TAG}"
+        gh release delete ${CURRENT_TAG}

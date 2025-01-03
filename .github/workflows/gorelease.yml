@@ -1,8 +1,6 @@
 name: Gorelease
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
     inputs:
       registry:
@@ -26,36 +24,3 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-
-    - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
-      if: "${{ github.event.inputs.registry == 'dockerhub' }}"
-      with:
-        secrets: |
-          secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
-          secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials password | DOCKER_PASSWORD ;
-
-    - name: Login to Docker Container Registry
-      uses: docker/login-action@v3
-      if: "${{ github.event.inputs.registry == 'dockerhub' }}"
-      with:
-        username: ${{ env.DOCKER_USERNAME }}
-        password: ${{ env.DOCKER_PASSWORD }}
-    
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v3
-      if: "${{ github.event.inputs.registry == 'ghcr.io' }}"
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@v6
-      with:
-        distribution: goreleaser
-        version: v2
-        args: --snapshot --clean --skip archive

@@ -1,6 +1,8 @@
 name: Gorelease
 
 on:
+  push:
+  pull_request:
   workflow_dispatch:
     inputs:
       registry:

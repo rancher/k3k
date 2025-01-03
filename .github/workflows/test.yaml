@@ -22,6 +22,11 @@ jobs:
     - uses: actions/setup-go@v5
       with:
         go-version: ${{env.GO_VERSION}}
+    
+    - name: Check go modules
+      run: |
+        go mod tidy
+        test -z "$(git status --porcelain)"
 
     - name: Install tools
       run: |

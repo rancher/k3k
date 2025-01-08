@@ -29,5 +29,6 @@ jobs:
         version: v2
         args: --clean --snapshot
       env:
-        REPO:  ${{ github.repository }}
+        REPO: ${{ github.repository }}
+        REGISTRY:
         

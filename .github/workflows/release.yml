@@ -82,5 +82,5 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
         GORELEASER_CURRENT_TAG: ${{ steps.release-tag.outputs.CURRENT_TAG }}
-        REGISTRY:  ${{ env.REGISTRY }}
-        REPO:  ${{ github.repository }}
+        REGISTRY: ${{ env.REGISTRY }}
+        REPO: ${{ github.repository }}

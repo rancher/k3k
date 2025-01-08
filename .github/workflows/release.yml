@@ -31,6 +31,8 @@ jobs:
 
     - name: Set up Go
       uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
 
     - name: "Read secrets"
       uses: rancher-eio/read-vault-secrets@main

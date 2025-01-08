@@ -20,7 +20,7 @@ jobs:
 
     steps:
     - name: Check tag
-      if: "${{ github.event.inputs.tag == '' }}"
+      if: inputs.tag == ''
       run: echo "::error::Missing tag from input" && exit 1
     
     - name: Checkout code
@@ -28,7 +28,7 @@ jobs:
     
     - name: Check if release is draft
       run: |
-        CURRENT_TAG=${{ github.event.inputs.tag }}
+        CURRENT_TAG=${{ inputs.tag }}
         isDraft=$(gh release view ${CURRENT_TAG} --json isDraft --jq ".isDraft")
         if [ "$isDraft" = true ]; then
           echo "Release ${CURRENT_TAG} is draft"
@@ -38,7 +38,7 @@ jobs:
 
     - name: Delete packages from Github Container Registry
       run: |
-        CURRENT_TAG=${{ github.event.inputs.tag }}
+        CURRENT_TAG=${{ inputs.tag }}
         echo "Deleting packages with tag ${CURRENT_TAG}"
 
         JQ_QUERY=".[] | select(.metadata.container.tags[] == \"${CURRENT_TAG}\")"
@@ -56,6 +56,6 @@ jobs:
 
     - name: Delete Github release
       run: |
-        CURRENT_TAG=${{ github.event.inputs.tag }}
+        CURRENT_TAG=${{ inputs.tag }}
         echo "Deleting release ${CURRENT_TAG}"
         gh release delete ${CURRENT_TAG}

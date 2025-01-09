@@ -45,7 +45,7 @@ jobs:
 
     # Manually dispatched workflows (or forks) will use ghcr.io
     - name: Setup ghcr.io
-      if: github.event == 'workflow_dispatch' || github.repository_owner != 'rancher'
+      if: github.event_name == 'workflow_dispatch' || github.repository_owner != 'rancher'
       run: |
         echo "REGISTRY=ghcr.io"                     >> $GITHUB_ENV
         echo "DOCKER_USERNAME=${{ github.actor }}"  >> $GITHUB_ENV

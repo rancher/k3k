@@ -1,62 +1,86 @@
+name: Release
+
 on:
   push:
     tags:
     - "v*"
+  workflow_dispatch:
+    inputs:
+      commit:
+        type: string
+        description: Checkout a specific commit
 
-env:
-    GH_TOKEN: ${{ github.token }}
-
-name: Release
 permissions:
     contents: write
-    id-token: write
+    packages: write
+
 jobs:
-  release-cross-arch:
+  release:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Cross Arch Build
-      run: |
-        make ci
-      env:
-        CROSS: "true"
+      with:
+        fetch-depth: 0
+        fetch-tags: true
     
+    - name: Checkout code at the specific commit
+      if: inputs.commit != ''
+      run: git checkout ${{ inputs.commit }}
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
     - name: "Read secrets"
       uses: rancher-eio/read-vault-secrets@main
+      if: github.repository_owner == 'rancher'
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
           secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials password | DOCKER_PASSWORD ;
 
-    - name: release binaries
+    # Manually dispatched workflows (or forks) will use ghcr.io
+    - name: Setup ghcr.io
+      if: github.event == 'workflow_dispatch' || github.repository_owner != 'rancher'
       run: |
-        gh release upload ${{ github.ref_name }} bin/*
-    
-    - name: Login to Container Registry
+        echo "REGISTRY=ghcr.io"                     >> $GITHUB_ENV
+        echo "DOCKER_USERNAME=${{ github.actor }}"  >> $GITHUB_ENV
+        echo "DOCKER_PASSWORD=${{ github.token }}"  >> $GITHUB_ENV
+
+    - name: Login to container registry
       uses: docker/login-action@v3
       with:
+        registry: ${{ env.REGISTRY }}
         username: ${{ env.DOCKER_USERNAME }}
         password: ${{ env.DOCKER_PASSWORD }}
-
-    - name: Build controller image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: rancher/k3k:${{ github.ref_name }}
-        file: package/Dockerfile
-        platforms: linux/amd64
     
-    - name: Build Virtual Kubelet image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: rancher/k3k:k3k-kubelet-dev
-        file: package/Dockerfile.kubelet
-        platforms: linux/amd64
+    # If the tag does not exists the workflow was manually triggered.
+    # That means we are creating temporary nightly builds, with a "fake" local tag
+    - name: Check release tag
+      id: release-tag
+      run: |
+        CURRENT_TAG=$(git describe --tag --always)
 
-      
-        
+        if git show-ref --tags ${CURRENT_TAG} --quiet; then
+          echo "tag ${CURRENT_TAG} already exists";
+        else
+          echo "tag ${CURRENT_TAG} does not exist"
+          git tag ${CURRENT_TAG}
+        fi
+
+        echo "CURRENT_TAG=${CURRENT_TAG}" >> "$GITHUB_OUTPUT"
+
+    - name: Run GoReleaser
+      uses: goreleaser/goreleaser-action@v6
+      with:
+        distribution: goreleaser
+        version: v2
+        args: --clean
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        GORELEASER_CURRENT_TAG: ${{ steps.release-tag.outputs.CURRENT_TAG }}
+        REGISTRY: ${{ env.REGISTRY }}
+        REPO: ${{ github.repository }}

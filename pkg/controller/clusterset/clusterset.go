@@ -2,6 +2,7 @@ package clusterset
 
 import (
 	"context"
+	"errors"
 	"reflect"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -60,6 +61,10 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string, logger *l
 			handler.EnqueueRequestsFromMapFunc(namespaceEventHandler(reconciler)),
 			builder.WithPredicates(namespaceLabelsPredicate()),
 		).
+		Watches(
+			&v1alpha1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc(sameNamespaceEventHandler(reconciler)),
+		).
 		Complete(&reconciler)
 }
 
@@ -75,6 +80,26 @@ func namespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
 				NamespacedName: types.NamespacedName{
 					Name:      clusterSet.Name,
 					Namespace: obj.GetName(),
+				},
+			})
+		}
+
+		return requests
+	}
+}
+
+// namespaceEventHandler will enqueue reconciling requests for all the ClusterSets in the changed namespace
+func sameNamespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		var requests []reconcile.Request
+
+		var set v1alpha1.ClusterSetList
+		_ = reconciler.Client.List(ctx, &set, client.InNamespace(obj.GetNamespace()))
+		for _, clusterSet := range set.Items {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      clusterSet.Name,
+					Namespace: obj.GetNamespace(),
 				},
 			})
 		}
@@ -108,6 +133,10 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 	}
 
 	if err := c.reconcileNamespacePodSecurityLabels(ctx, log, &clusterSet); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if err := c.reconcileClusters(ctx, log, &clusterSet); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -270,4 +299,34 @@ func (c *ClusterSetReconciler) reconcileNamespacePodSecurityLabels(ctx context.C
 		return c.Client.Update(ctx, &ns)
 	}
 	return nil
+}
+
+func (c *ClusterSetReconciler) reconcileClusters(ctx context.Context, log *zap.SugaredLogger, clusterSet *v1alpha1.ClusterSet) error {
+	log.Info("reconciling Clusters")
+
+	var clusters v1alpha1.ClusterList
+	if err := c.Client.List(ctx, &clusters, ctrlruntimeclient.InNamespace(clusterSet.Namespace)); err != nil {
+		return err
+	}
+
+	var err error
+
+	for _, cluster := range clusters.Items {
+		oldClusterSpec := cluster.Spec
+
+		if cluster.Spec.PriorityClass != clusterSet.Spec.DefaultPriorityClass {
+			cluster.Spec.PriorityClass = clusterSet.Spec.DefaultPriorityClass
+		}
+
+		if !reflect.DeepEqual(cluster.Spec.NodeSelector, clusterSet.Spec.DefaultNodeSelector) {
+			cluster.Spec.NodeSelector = clusterSet.Spec.DefaultNodeSelector
+		}
+
+		if !reflect.DeepEqual(oldClusterSpec, cluster.Spec) {
+			// continue updating also the other clusters even if an error occurred
+			err = errors.Join(c.Client.Update(ctx, &cluster))
+		}
+	}
+
+	return err
 }

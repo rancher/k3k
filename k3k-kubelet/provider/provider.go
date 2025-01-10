@@ -393,6 +393,8 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 					}
 				}
 			}
+		} else if volume.PersistentVolumeClaim != nil {
+			volume.PersistentVolumeClaim.ClaimName = p.Translater.TranslateName(podNamespace, volume.PersistentVolumeClaim.ClaimName)
 		}
 	}
 	return nil

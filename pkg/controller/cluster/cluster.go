@@ -339,11 +339,11 @@ func (c *ClusterReconciler) unbindNodeProxyClusterRole(ctx context.Context, clus
 
 func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
 	agent := agent.New(cluster, serviceIP, c.SharedAgentImage, token)
-	agentsConfig, err := agent.Config()
+	agentsConfig := agent.Config()
+	agentResources, err := agent.Resources()
 	if err != nil {
 		return err
 	}
-	agentResources := agent.Resources()
 	agentResources = append(agentResources, agentsConfig)
 
 	return c.ensureAll(ctx, cluster, agentResources)

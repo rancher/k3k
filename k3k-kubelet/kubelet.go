@@ -12,12 +12,13 @@ import (
 
 	certutil "github.com/rancher/dynamiclistener/cert"
 	k3kkubeletcontroller "github.com/rancher/k3k/k3k-kubelet/controller"
+	k3kwebhook "github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
-	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	k3klog "github.com/rancher/k3k/pkg/log"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
@@ -38,6 +39,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	ctrlserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 var (
@@ -111,8 +113,12 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	if err != nil {
 		return nil, errors.New("unable to add client go types to virtual cluster scheme: " + err.Error())
 	}
+	webhookServer := webhook.NewServer(webhook.Options{
+		CertDir: "/opt/rancher/k3k-webhook",
+	})
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
-		Scheme: virtualScheme,
+		Scheme:        virtualScheme,
+		WebhookServer: webhookServer,
 		Metrics: ctrlserver.Options{
 			BindAddress: ":8084",
 		},
@@ -120,10 +126,19 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	if err != nil {
 		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
 	}
+	logger.Info("adding pod mutator webhook")
+	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.NodeName, logger); err != nil {
+		return nil, errors.New("unable to add pod mutator webhook for virtual cluster: " + err.Error())
+	}
 
 	logger.Info("adding service syncer controller")
 	if err := k3kkubeletcontroller.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
 		return nil, errors.New("failed to add service syncer controller: " + err.Error())
+	}
+
+	logger.Info("adding pvc syncer controller")
+	if err := k3kkubeletcontroller.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
+		return nil, errors.New("failed to add pvc syncer controller: " + err.Error())
 	}
 
 	clusterIP, err := clusterIP(ctx, c.AgentHostname, c.ClusterNamespace, hostClient)
@@ -270,7 +285,7 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 	}); err != nil {
 		return nil, errors.New("unable to decode bootstrap: " + err.Error())
 	}
-	adminCert, adminKey, err := kubeconfig.CreateClientCertKey(
+	adminCert, adminKey, err := certs.CreateClientCertKey(
 		controller.AdminCommonName, []string{user.SystemPrivilegedGroup},
 		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, time.Hour*24*time.Duration(356),
 		b.ClientCA.Content,
@@ -333,7 +348,7 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 		DNSNames: []string{hostname},
 		IPs:      []net.IP{ip},
 	}
-	cert, key, err := kubeconfig.CreateClientCertKey(nodeName, nil, &altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, 0, b.ServerCA.Content, b.ServerCAKey.Content)
+	cert, key, err := certs.CreateClientCertKey(nodeName, nil, &altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, 0, b.ServerCA.Content, b.ServerCAKey.Content)
 	if err != nil {
 		return nil, errors.New("unable to get cert and key: " + err.Error())
 	}

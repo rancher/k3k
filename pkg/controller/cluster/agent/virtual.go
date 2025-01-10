@@ -31,7 +31,7 @@ func NewVirtualAgent(cluster *v1alpha1.Cluster, serviceIP, token string) Agent {
 	}
 }
 
-func (v *VirtualAgent) Config() (ctrlruntimeclient.Object, error) {
+func (v *VirtualAgent) Config() ctrlruntimeclient.Object {
 	config := virtualAgentData(v.serviceIP, v.token)
 
 	return &v1.Secret{
@@ -46,11 +46,11 @@ func (v *VirtualAgent) Config() (ctrlruntimeclient.Object, error) {
 		Data: map[string][]byte{
 			"config.yaml": []byte(config),
 		},
-	}, nil
+	}
 }
 
-func (v *VirtualAgent) Resources() []ctrlruntimeclient.Object {
-	return []ctrlruntimeclient.Object{v.deployment()}
+func (v *VirtualAgent) Resources() ([]ctrlruntimeclient.Object, error) {
+	return []ctrlruntimeclient.Object{v.deployment()}, nil
 }
 
 func virtualAgentData(serviceIP, token string) string {

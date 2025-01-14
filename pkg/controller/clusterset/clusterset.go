@@ -88,12 +88,12 @@ func namespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
 	}
 }
 
-// namespaceEventHandler will enqueue reconciling requests for all the ClusterSets in the changed namespace
+// sameNamespaceEventHandler will enqueue reconciling requests for all the ClusterSets in the changed namespace
 func sameNamespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		var requests []reconcile.Request
-
 		var set v1alpha1.ClusterSetList
+
 		_ = reconciler.Client.List(ctx, &set, client.InNamespace(obj.GetNamespace()))
 		for _, clusterSet := range set.Items {
 			requests = append(requests, reconcile.Request{

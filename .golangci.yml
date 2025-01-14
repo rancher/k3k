@@ -1,0 +1,33 @@
+linters:
+  enable:
+  # default linters
+  - errcheck
+  - gosimple
+  - govet
+  - ineffassign
+  - staticcheck
+  - unused
+
+  # others
+  - errname
+  # - errorlint
+  - exhaustive
+  # - gci
+  - ginkgolinter
+  # - gochecknoglobals
+  # - gochecknoinits
+  # - gocognit
+  # - goconst
+  # - gocritic
+  # - gofumpt
+  # - gosec
+  - loggercheck
+  # - misspell
+  # - mnd
+  - nakedret
+  # - nestif
+  # - revive
+  # - stylecheck
+  - unparam
+  - usestdlibvars
+  # - wsl

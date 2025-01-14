@@ -51,7 +51,8 @@ func (s *Server) podSpec(image, name string, persistent bool, affinitySelector *
 		limit = s.cluster.Spec.Limit.ServerLimit
 	}
 	podSpec := v1.PodSpec{
-		NodeSelector: s.cluster.Spec.NodeSelector,
+		NodeSelector:      s.cluster.Spec.NodeSelector,
+		PriorityClassName: s.cluster.Spec.PriorityClass,
 		Affinity: &v1.Affinity{
 			PodAntiAffinity: &v1.PodAntiAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{

@@ -167,6 +167,11 @@ spec:
                 required:
                 - type
                 type: object
+              priorityClass:
+                description: |-
+                  PriorityClass is the priorityClassName that will be applied to all server/agent pods.
+                  In "shared" mode the priorityClassName will be applied also to the workloads.
+                type: string
               serverArgs:
                 description: ServerArgs are the ordered key value pairs (e.x. "testArg",
                   "testValue") for the K3s pods running in server mode.

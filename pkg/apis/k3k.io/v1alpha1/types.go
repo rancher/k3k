@@ -35,6 +35,10 @@ type ClusterSpec struct {
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
+	// PriorityClass is the priorityClassName that will be applied to all server/agent pods.
+	// In "shared" mode the priorityClassName will be applied also to the workloads.
+	PriorityClass string `json:"priorityClass,omitempty"`
+
 	// Limit is the limits that apply for the server/worker nodes.
 	Limit *ClusterLimit `json:"clusterLimit,omitempty"`
 

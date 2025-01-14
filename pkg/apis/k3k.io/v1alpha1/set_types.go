@@ -33,6 +33,9 @@ type ClusterSetSpec struct {
 	// DefaultNodeSelector is the node selector that applies to all clusters (server + agent) in the set
 	DefaultNodeSelector map[string]string `json:"defaultNodeSelector,omitempty"`
 
+	// DefaultPriorityClass is the priorityClassName applied to all pods of all clusters in the set
+	DefaultPriorityClass string `json:"defaultPriorityClass,omitempty"`
+
 	// DisableNetworkPolicy is an option that will disable the creation of a default networkpolicy for cluster isolation
 	DisableNetworkPolicy bool `json:"disableNetworkPolicy,omitempty"`
 

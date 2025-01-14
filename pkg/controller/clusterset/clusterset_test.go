@@ -2,6 +2,7 @@ package clusterset_test
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -13,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -461,6 +463,207 @@ var _ = Describe("ClusterSet Controller", func() {
 
 				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "privileged"))
 				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "latest"))
+			})
+		})
+
+		When("a cluster in the same namespace is present", func() {
+			It("should update it if needed", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						DefaultPriorityClass: "foobar",
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				cluster := &v1alpha1.Cluster{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "cluster-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSpec{
+						Mode:    v1alpha1.SharedClusterMode,
+						Servers: ptr.To(int32(1)),
+						Agents:  ptr.To(int32(0)),
+					},
+				}
+
+				err = k8sClient.Create(ctx, cluster)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait a bit
+				Eventually(func() bool {
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, cluster)
+					Expect(err).To(Not(HaveOccurred()))
+					return cluster.Spec.PriorityClass == clusterSet.Spec.DefaultPriorityClass
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+			})
+
+			It("should update the nodeSelector", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						DefaultNodeSelector: map[string]string{"label-1": "value-1"},
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				cluster := &v1alpha1.Cluster{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "cluster-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSpec{
+						Mode:    v1alpha1.SharedClusterMode,
+						Servers: ptr.To(int32(1)),
+						Agents:  ptr.To(int32(0)),
+					},
+				}
+
+				err = k8sClient.Create(ctx, cluster)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait a bit
+				Eventually(func() bool {
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, cluster)
+					Expect(err).To(Not(HaveOccurred()))
+					return reflect.DeepEqual(cluster.Spec.NodeSelector, clusterSet.Spec.DefaultNodeSelector)
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+			})
+
+			It("should update the nodeSelector if changed", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						DefaultNodeSelector: map[string]string{"label-1": "value-1"},
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				cluster := &v1alpha1.Cluster{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "cluster-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSpec{
+						Mode:         v1alpha1.SharedClusterMode,
+						Servers:      ptr.To(int32(1)),
+						Agents:       ptr.To(int32(0)),
+						NodeSelector: map[string]string{"label-1": "value-1"},
+					},
+				}
+
+				err = k8sClient.Create(ctx, cluster)
+				Expect(err).To(Not(HaveOccurred()))
+
+				Expect(cluster.Spec.NodeSelector).To(Equal(clusterSet.Spec.DefaultNodeSelector))
+
+				// update the ClusterSet
+				clusterSet.Spec.DefaultNodeSelector["label-2"] = "value-2"
+				err = k8sClient.Update(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+				Expect(cluster.Spec.NodeSelector).To(Not(Equal(clusterSet.Spec.DefaultNodeSelector)))
+
+				// wait a bit
+				Eventually(func() bool {
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, cluster)
+					Expect(err).To(Not(HaveOccurred()))
+					return reflect.DeepEqual(cluster.Spec.NodeSelector, clusterSet.Spec.DefaultNodeSelector)
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+
+				// Update the Cluster
+				cluster.Spec.NodeSelector["label-3"] = "value-3"
+				err = k8sClient.Update(ctx, cluster)
+				Expect(err).To(Not(HaveOccurred()))
+				Expect(cluster.Spec.NodeSelector).To(Not(Equal(clusterSet.Spec.DefaultNodeSelector)))
+
+				// wait a bit and check it's restored
+				Eventually(func() bool {
+					var updatedCluster v1alpha1.Cluster
+
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, &updatedCluster)
+					Expect(err).To(Not(HaveOccurred()))
+					return reflect.DeepEqual(updatedCluster.Spec.NodeSelector, clusterSet.Spec.DefaultNodeSelector)
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+			})
+		})
+
+		When("a cluster in a different namespace is present", func() {
+			It("should not be update", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						DefaultPriorityClass: "foobar",
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				namespace2 := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{GenerateName: "ns-"}}
+				err = k8sClient.Create(ctx, namespace2)
+				Expect(err).To(Not(HaveOccurred()))
+
+				cluster := &v1alpha1.Cluster{
+					ObjectMeta: v1.ObjectMeta{
+						GenerateName: "cluster-",
+						Namespace:    namespace2.Name,
+					},
+					Spec: v1alpha1.ClusterSpec{
+						Mode:    v1alpha1.SharedClusterMode,
+						Servers: ptr.To(int32(1)),
+						Agents:  ptr.To(int32(0)),
+					},
+				}
+
+				err = k8sClient.Create(ctx, cluster)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// it should not change!
+				Eventually(func() bool {
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, cluster)
+					Expect(err).To(Not(HaveOccurred()))
+					return cluster.Spec.PriorityClass != clusterSet.Spec.DefaultPriorityClass
+				}).
+					MustPassRepeatedly(5).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
 			})
 		})
 	})

@@ -329,7 +329,14 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	tPod.Spec.NodeName = ""
 
 	tPod.Spec.NodeSelector = cluster.Spec.NodeSelector
-	tPod.Spec.PriorityClassName = cluster.Spec.PriorityClass
+
+	// if the priorityCluss for the virtual cluster is set then override the provided value
+	// Note: the core-dns and local-path-provisioner pod are scheduled by k3s with the
+	// 'system-cluster-critical' and 'system-node-critical' default priority classes.
+	if cluster.Spec.PriorityClass != "" {
+		tPod.Spec.PriorityClassName = cluster.Spec.PriorityClass
+		tPod.Spec.Priority = nil
+	}
 
 	// volumes will often refer to resources in the virtual cluster, but instead need to refer to the sync'd
 	// host cluster version

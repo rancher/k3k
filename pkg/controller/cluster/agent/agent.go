@@ -12,8 +12,8 @@ const (
 
 type Agent interface {
 	Name() string
-	Config() (ctrlruntimeclient.Object, error)
-	Resources() []ctrlruntimeclient.Object
+	Config() ctrlruntimeclient.Object
+	Resources() ([]ctrlruntimeclient.Object, error)
 }
 
 func New(cluster *v1alpha1.Cluster, serviceIP, sharedAgentImage, token string) Agent {

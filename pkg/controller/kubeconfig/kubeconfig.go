@@ -11,6 +11,7 @@ import (
 	certutil "github.com/rancher/dynamiclistener/cert"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	v1 "k8s.io/api/core/v1"
@@ -48,7 +49,7 @@ func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster 
 		return nil, err
 	}
 
-	adminCert, adminKey, err := CreateClientCertKey(
+	adminCert, adminKey, err := certs.CreateClientCertKey(
 		k.CN, k.ORG,
 		&k.AltNames, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, k.ExpiryDate,
 		bootstrap.ClientCA.Content,

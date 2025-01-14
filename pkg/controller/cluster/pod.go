@@ -12,9 +12,9 @@ import (
 	certutil "github.com/rancher/dynamiclistener/cert"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
-	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/rancher/k3k/pkg/log"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -168,7 +168,7 @@ func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluste
 		return nil, err
 	}
 
-	etcdCert, etcdKey, err := kubeconfig.CreateClientCertKey("etcd-client", nil, nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, 0, b.ETCDServerCA.Content, b.ETCDServerCAKey.Content)
+	etcdCert, etcdKey, err := certs.CreateClientCertKey("etcd-client", nil, nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, 0, b.ETCDServerCA.Content, b.ETCDServerCAKey.Content)
 	if err != nil {
 		return nil, err
 	}

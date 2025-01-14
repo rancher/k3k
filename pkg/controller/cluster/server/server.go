@@ -219,7 +219,6 @@ func (s *Server) podSpec(image, name string, persistent bool, affinitySelector *
 			},
 		},
 	}
-
 	// start the pod unprivileged in shared mode
 	if s.mode == agent.VirtualNodeMode {
 		podSpec.Containers[0].SecurityContext = &v1.SecurityContext{
@@ -286,7 +285,6 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 	var volumes []v1.Volume
 	var volumeMounts []v1.VolumeMount
-
 	for _, addon := range s.cluster.Spec.Addons {
 		namespace := k3kSystemNamespace
 		if addon.SecretNamespace != "" {

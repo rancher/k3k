@@ -18,6 +18,7 @@ import (
 	k3klog "github.com/rancher/k3k/pkg/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
+	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,6 +38,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
+
+// check at compile time if the Provider implements the nodeutil.Provider interface
+var _ nodeutil.Provider = (*Provider)(nil)
 
 // Provider implements nodetuil.Provider from virtual Kubelet.
 // TODO: Implement NotifyPods and the required usage so that this can be an async provider
@@ -451,25 +455,75 @@ func (p *Provider) syncSecret(ctx context.Context, podNamespace string, secretNa
 
 // UpdatePod takes a Kubernetes Pod and updates it within the provider.
 func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
-	hostName := p.Translater.TranslateName(pod.Namespace, pod.Name)
-	currentPod, err := p.GetPod(ctx, p.ClusterNamespace, hostName)
-	if err != nil {
-		return fmt.Errorf("unable to get current pod for update: %w", err)
+	p.logger.Debugw("got a request for update pod")
+
+	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
+	// See: https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
+
+	// Update Pod in the virtual cluster
+
+	var currentVirtualPod v1.Pod
+	if err := p.VirtualClient.Get(ctx, client.ObjectKeyFromObject(pod), &currentVirtualPod); err != nil {
+		return fmt.Errorf("unable to get pod to update from virtual cluster: %w", err)
 	}
-	tPod := pod.DeepCopy()
-	p.Translater.TranslateTo(tPod)
-	tPod.UID = currentPod.UID
-	// this is a bit dangerous since another process could have made changes that the user didn't know about
-	tPod.ResourceVersion = currentPod.ResourceVersion
 
-	// Volumes may refer to resources (configmaps/secrets) from the host cluster
-	// So we need the configuration as calculated during create time
-	tPod.Spec.Volumes = currentPod.Spec.Volumes
-	tPod.Spec.Containers = currentPod.Spec.Containers
-	tPod.Spec.InitContainers = currentPod.Spec.InitContainers
-	tPod.Spec.NodeName = currentPod.Spec.NodeName
+	currentVirtualPod.Spec.Containers = updateContainerImages(currentVirtualPod.Spec.Containers, pod.Spec.Containers)
+	currentVirtualPod.Spec.InitContainers = updateContainerImages(currentVirtualPod.Spec.InitContainers, pod.Spec.InitContainers)
 
-	return p.HostClient.Update(ctx, tPod)
+	currentVirtualPod.Spec.ActiveDeadlineSeconds = pod.Spec.ActiveDeadlineSeconds
+	currentVirtualPod.Spec.Tolerations = pod.Spec.Tolerations
+
+	// in the virtual cluster we can update also the labels and annotations
+	currentVirtualPod.Annotations = pod.Annotations
+	currentVirtualPod.Labels = pod.Labels
+
+	if err := p.VirtualClient.Update(ctx, &currentVirtualPod); err != nil {
+		return fmt.Errorf("unable to update pod in the virtual cluster: %w", err)
+	}
+
+	// Update Pod in the host cluster
+
+	hostNamespaceName := types.NamespacedName{
+		Namespace: p.ClusterNamespace,
+		Name:      p.Translater.TranslateName(pod.Namespace, pod.Name),
+	}
+
+	var currentHostPod corev1.Pod
+	if err := p.HostClient.Get(ctx, hostNamespaceName, &currentHostPod); err != nil {
+		return fmt.Errorf("unable to get pod to update from host cluster: %w", err)
+	}
+
+	currentHostPod.Spec.Containers = updateContainerImages(currentHostPod.Spec.Containers, pod.Spec.Containers)
+	currentHostPod.Spec.InitContainers = updateContainerImages(currentHostPod.Spec.InitContainers, pod.Spec.InitContainers)
+
+	// update ActiveDeadlineSeconds and Tolerations
+	currentHostPod.Spec.ActiveDeadlineSeconds = pod.Spec.ActiveDeadlineSeconds
+	currentHostPod.Spec.Tolerations = pod.Spec.Tolerations
+
+	fmt.Println("UPDATED IMAGE currentPod", currentHostPod.Spec.Containers[0].Image)
+
+	if err := p.HostClient.Update(ctx, &currentHostPod); err != nil {
+		return fmt.Errorf("unable to update pod in the host cluster: %w", err)
+	}
+
+	return nil
+}
+
+// updateContainerImages will update the images of the original container images with the same name
+func updateContainerImages(original, updated []v1.Container) []v1.Container {
+	newImages := make(map[string]string)
+
+	for _, c := range updated {
+		newImages[c.Name] = c.Image
+	}
+
+	for i, c := range original {
+		if updatedImage, found := newImages[c.Name]; found {
+			original[i].Image = updatedImage
+		}
+	}
+
+	return original
 }
 
 // DeletePod takes a Kubernetes Pod and deletes it from the provider. Once a pod is deleted, the provider is

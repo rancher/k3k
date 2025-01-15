@@ -500,8 +500,6 @@ func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 	currentHostPod.Spec.ActiveDeadlineSeconds = pod.Spec.ActiveDeadlineSeconds
 	currentHostPod.Spec.Tolerations = pod.Spec.Tolerations
 
-	fmt.Println("UPDATED IMAGE currentPod", currentHostPod.Spec.Containers[0].Image)
-
 	if err := p.HostClient.Update(ctx, &currentHostPod); err != nil {
 		return fmt.Errorf("unable to update pod in the host cluster: %w", err)
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/rancher/k3k/k3k-kubelet/controller"
+	"github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider/collectors"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -338,6 +339,10 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 		tPod.Spec.Priority = nil
 	}
 
+	// fieldpath annotations
+	if err := p.fetchFieldPathAnnotations(pod, tPod); err != nil {
+		return fmt.Errorf("unable to fetch fieldpath annotations for pod %s/%s: %w", pod.Namespace, pod.Name, err)
+	}
 	// volumes will often refer to resources in the virtual cluster, but instead need to refer to the sync'd
 	// host cluster version
 	if err := p.transformVolumes(ctx, pod.Namespace, tPod.Spec.Volumes); err != nil {
@@ -664,4 +669,38 @@ func getSecretsAndConfigmaps(pod *corev1.Pod) ([]string, []string) {
 		}
 	}
 	return secrets, configMaps
+}
+
+// fetchFieldPathAnnotations will retrieve all annotations created by the pod mutator webhook
+// to assign env fieldpaths to pods
+func (p *Provider) fetchFieldPathAnnotations(pod, tPod *v1.Pod) error {
+	for name, value := range pod.Annotations {
+		var (
+			containerIndex int
+			envName        string
+			err            error
+		)
+		if strings.Contains(name, webhook.FieldpathField) {
+			s := strings.SplitN(name, "_", 3)
+			if len(s) != 3 {
+				continue
+			}
+			containerIndex, err = strconv.Atoi(s[1])
+			if err != nil {
+				return err
+			}
+			envName = s[2]
+
+			// re-adding these envs to the pod
+			tPod.Spec.Containers[containerIndex].Env = append(tPod.Spec.Containers[containerIndex].Env, v1.EnvVar{
+				Name: envName,
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: value,
+					},
+				},
+			})
+		}
+	}
+	return nil
 }

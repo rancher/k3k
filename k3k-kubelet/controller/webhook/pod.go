@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/log"
@@ -19,10 +21,11 @@ import (
 )
 
 const (
-	webhookName    = "nodename.podmutator.k3k.io"
+	webhookName    = "podmutator.k3k.io"
 	webhookTimeout = int32(10)
 	webhookPort    = "9443"
 	webhookPath    = "/mutate--v1-pod"
+	FieldpathField = "k3k.io/fieldpath"
 )
 
 type webhookHandler struct {
@@ -36,6 +39,7 @@ type webhookHandler struct {
 
 // AddPodMutatorWebhook will add a mutator webhook to the virtual cluster to
 // modify the nodeName of the created pods with the name of the virtual kubelet node name
+// as well as remove any status fields of the downward apis env fields
 func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName string, logger *log.Logger) error {
 	handler := webhookHandler{
 		client:           mgr.GetClient(),
@@ -63,10 +67,27 @@ func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error 
 	if !ok {
 		return fmt.Errorf("invalid request: object was type %t not cluster", obj)
 	}
-	w.logger.Infow("recieved request", "Pod", pod.Name, "Namespace", pod.Namespace)
+	w.logger.Infow("mutator webhook request", "Pod", pod.Name, "Namespace", pod.Namespace)
 	if pod.Spec.NodeName == "" {
 		pod.Spec.NodeName = w.nodeName
 	}
+	// look for status.* fields in the env
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	for i, container := range pod.Spec.Containers {
+		for j, env := range container.Env {
+			if env.ValueFrom != nil {
+				if env.ValueFrom.FieldRef != nil {
+					if strings.Contains(env.ValueFrom.FieldRef.FieldPath, "status.") {
+						pod.Annotations[FieldpathField+"_"+strconv.Itoa(i)+"_"+env.Name] = env.ValueFrom.FieldRef.FieldPath
+						pod.Spec.Containers[i].Env = removeEnv(pod.Spec.Containers[i].Env, j)
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -117,4 +138,9 @@ func (w *webhookHandler) configuration(ctx context.Context, hostClient ctrlrunti
 			},
 		},
 	}, nil
+}
+
+func removeEnv(envs []v1.EnvVar, i int) []v1.EnvVar {
+	envs[i] = envs[len(envs)-1]
+	return envs[:len(envs)-1]
 }

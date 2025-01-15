@@ -340,7 +340,7 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	// fieldpath annotations
-	if err := p.fetchFieldPathAnnotations(pod, tPod); err != nil {
+	if err := p.configureFieldPathEnv(pod, tPod); err != nil {
 		return fmt.Errorf("unable to fetch fieldpath annotations for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 	// volumes will often refer to resources in the virtual cluster, but instead need to refer to the sync'd
@@ -673,24 +673,13 @@ func getSecretsAndConfigmaps(pod *corev1.Pod) ([]string, []string) {
 
 // fetchFieldPathAnnotations will retrieve all annotations created by the pod mutator webhook
 // to assign env fieldpaths to pods
-func (p *Provider) fetchFieldPathAnnotations(pod, tPod *v1.Pod) error {
+func (p *Provider) configureFieldPathEnv(pod, tPod *v1.Pod) error {
 	for name, value := range pod.Annotations {
-		var (
-			containerIndex int
-			envName        string
-			err            error
-		)
 		if strings.Contains(name, webhook.FieldpathField) {
-			s := strings.SplitN(name, "_", 3)
-			if len(s) != 3 {
-				continue
-			}
-			containerIndex, err = strconv.Atoi(s[1])
+			containerIndex, envName, err := webhook.ParseFieldPathAnnotationKey(name)
 			if err != nil {
 				return err
 			}
-			envName = s[2]
-
 			// re-adding these envs to the pod
 			tPod.Spec.Containers[containerIndex].Env = append(tPod.Spec.Containers[containerIndex].Env, v1.EnvVar{
 				Name: envName,
@@ -700,6 +689,8 @@ func (p *Provider) fetchFieldPathAnnotations(pod, tPod *v1.Pod) error {
 					},
 				},
 			})
+			// removing the annotation from the pod
+			delete(tPod.Annotations, name)
 		}
 	}
 	return nil

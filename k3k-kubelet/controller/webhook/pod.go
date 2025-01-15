@@ -77,17 +77,18 @@ func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error 
 	}
 	for i, container := range pod.Spec.Containers {
 		for j, env := range container.Env {
-			if env.ValueFrom != nil {
-				if env.ValueFrom.FieldRef != nil {
-					if strings.Contains(env.ValueFrom.FieldRef.FieldPath, "status.") {
-						pod.Annotations[FieldpathField+"_"+strconv.Itoa(i)+"_"+env.Name] = env.ValueFrom.FieldRef.FieldPath
-						pod.Spec.Containers[i].Env = removeEnv(pod.Spec.Containers[i].Env, j)
-					}
-				}
+			if env.ValueFrom == nil || env.ValueFrom.FieldRef == nil {
+				continue
+			}
+
+			fieldPath := env.ValueFrom.FieldRef.FieldPath
+			if strings.Contains(fieldPath, "status.") {
+				annotationKey := fmt.Sprintf("%s_%d_%s", FieldpathField, i, env.Name)
+				pod.Annotations[annotationKey] = fieldPath
+				pod.Spec.Containers[i].Env = removeEnv(pod.Spec.Containers[i].Env, j)
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -143,4 +144,18 @@ func (w *webhookHandler) configuration(ctx context.Context, hostClient ctrlrunti
 func removeEnv(envs []v1.EnvVar, i int) []v1.EnvVar {
 	envs[i] = envs[len(envs)-1]
 	return envs[:len(envs)-1]
+}
+
+func ParseFieldPathAnnotationKey(annotationKey string) (int, string, error) {
+	s := strings.SplitN(annotationKey, "_", 3)
+	if len(s) != 3 {
+		return -1, "", errors.New("fieldpath annotation is not set correctly")
+	}
+	containerIndex, err := strconv.Atoi(s[1])
+	if err != nil {
+		return -1, "", err
+	}
+	envName := s[2]
+
+	return containerIndex, envName, nil
 }

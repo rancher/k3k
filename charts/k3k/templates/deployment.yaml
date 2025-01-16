@@ -4,7 +4,7 @@ metadata:
   name: {{ include "k3k.fullname" . }}
   labels:
     {{- include "k3k.labels" . | nindent 4 }}
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.image.replicaCount }}
   selector:
@@ -16,14 +16,14 @@ spec:
         {{- include "k3k.selectorLabels" . | nindent 8 }}
     spec:
       containers:
-        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        - image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: {{ .Chart.Name }}
           env:
           - name: CLUSTER_CIDR
             value: {{ .Values.host.clusterCIDR }}
           - name: SHARED_AGENT_IMAGE
-            value: "{{ .Values.sharedAgent.image.repository }}:{{ .Values.sharedAgent.image.tag }}"
+            value: "{{ .Values.sharedAgent.image.repository }}:{{ default .Chart.AppVersion .Values.sharedAgent.image.tag }}"
           ports:
           - containerPort: 8080
             name: https

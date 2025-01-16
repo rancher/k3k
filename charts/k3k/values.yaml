@@ -1,19 +1,17 @@
 replicaCount: 1
-namespace: k3k-system
 
 image:
-  repository: rancher/k3k 
-  pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "v0.2.1"
+  repository: rancher/k3k
+  tag: ""
+  pullPolicy: ""
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
 host:
-# clusterCIDR specifies the clusterCIDR that will be added to the default networkpolicy for clustersets, if not set
-# the controller will collect the PodCIDRs of all the nodes on the system.
+  # clusterCIDR specifies the clusterCIDR that will be added to the default networkpolicy for clustersets, if not set
+  # the controller will collect the PodCIDRs of all the nodes on the system.
   clusterCIDR: ""
 
 serviceAccount:
@@ -26,5 +24,5 @@ serviceAccount:
 # configuration related to the shared agent mode in k3k
 sharedAgent:
   image:
-    repository: "rancher/k3k"
-    tag: "k3k-kubelet-dev"
+    repository: "rancher/k3k-kubelet"
+    tag: ""

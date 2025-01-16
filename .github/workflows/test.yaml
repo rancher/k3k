@@ -37,5 +37,39 @@ jobs:
         sudo cp $ENVTEST_BIN/* /usr/local/kubebuilder/bin
 
     - name: Run tests
+      run: ginkgo -v -r --skip-file=tests
+  
+  tests-e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+    
+    - name: Check go modules
       run: |
-        ginkgo run ./...
+        go mod tidy
+        test -z "$(git status --porcelain)"
+
+    - name: Install Ginkgo
+      run: go install github.com/onsi/ginkgo/v2/ginkgo
+    
+    - name: Build
+      run: ./scripts/build
+
+    - name: Run tests
+      run: ginkgo -v ./tests
+
+    - name: Archive k3s logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: k3s-logs
+        path: /tmp/k3s.log

@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/pkg/errors"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/rancher/k3k/k3k-kubelet/controller"
 	"github.com/rancher/k3k/k3k-kubelet/controller/webhook"
@@ -28,8 +28,11 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	cv1 "k8s.io/client-go/kubernetes/typed/core/v1"
+
+	"errors"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
@@ -58,6 +61,10 @@ type Provider struct {
 	dnsIP            string
 	logger           *k3klog.Logger
 }
+
+var (
+	ErrRetryTimeout = errors.New("provider timed out")
+)
 
 func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3klog.Logger, namespace, name, serverIP, dnsIP string) (*Provider, error) {
 	coreClient, err := cv1.NewForConfig(&hostConfig)
@@ -267,7 +274,7 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary,
 func (p *Provider) GetMetricsResource(ctx context.Context) ([]*dto.MetricFamily, error) {
 	statsSummary, err := p.GetStatsSummary(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error fetching MetricsResource")
+		return nil, errors.Join(err, errors.New("error fetching MetricsResource"))
 	}
 
 	registry := compbasemetrics.NewKubeRegistry()
@@ -275,7 +282,7 @@ func (p *Provider) GetMetricsResource(ctx context.Context) ([]*dto.MetricFamily,
 
 	metricFamily, err := registry.Gather()
 	if err != nil {
-		return nil, errors.Wrapf(err, "error gathering metrics from collector")
+		return nil, errors.Join(err, errors.New("error gathering metrics from collector"))
 	}
 	return metricFamily, nil
 }
@@ -311,8 +318,13 @@ func (p *Provider) PortForward(ctx context.Context, namespace, pod string, port 
 	return fw.ForwardPorts()
 }
 
-// CreatePod takes a Kubernetes Pod and deploys it within the provider.
+// CreatePod executes createPod with retry
 func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
+	return p.withRetry(ctx, p.createPod, pod)
+}
+
+// createPod takes a Kubernetes Pod and deploys it within the provider.
+func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	tPod := pod.DeepCopy()
 	p.Translater.TranslateTo(tPod)
 
@@ -362,6 +374,28 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	p.logger.Infow("Creating pod", "Host Namespace", tPod.Namespace, "Host Name", tPod.Name,
 		"Virtual Namespace", pod.Namespace, "Virtual Name", "env", pod.Name, pod.Spec.Containers[0].Env)
 	return p.HostClient.Create(ctx, tPod)
+}
+
+// withRetry retries passed function with interval and timeout
+func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *v1.Pod) error, pod *v1.Pod) error {
+	const (
+		interval = 2 * time.Second
+		timeout  = 10 * time.Second
+	)
+	var allErrors error
+	// retryFn will retry until the operation succeed, or the timeout occurs
+	retryFn := func(ctx context.Context) (bool, error) {
+		if lastErr := f(ctx, pod); lastErr != nil {
+			// log that the retry failed?
+			allErrors = errors.Join(allErrors, lastErr)
+			return false, nil
+		}
+		return true, nil
+	}
+	if err := wait.PollUntilContextTimeout(ctx, interval, timeout, true, retryFn); err != nil {
+		return errors.Join(allErrors, ErrRetryTimeout)
+	}
+	return nil
 }
 
 // transformVolumes changes the volumes to the representation in the host cluster. Will return an error
@@ -417,6 +451,7 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 	return nil
 }
 
+// syncConfigmap will add the configmap object to the queue of the syncer controller to be synced to the host cluster
 func (p *Provider) syncConfigmap(ctx context.Context, podNamespace string, configMapName string, optional bool) error {
 	var configMap corev1.ConfigMap
 	nsName := types.NamespacedName{
@@ -438,6 +473,7 @@ func (p *Provider) syncConfigmap(ctx context.Context, podNamespace string, confi
 	return nil
 }
 
+// syncSecret will add the secret object to the queue of the syncer controller to be synced to the host cluster
 func (p *Provider) syncSecret(ctx context.Context, podNamespace string, secretName string, optional bool) error {
 	var secret corev1.Secret
 	nsName := types.NamespacedName{
@@ -453,13 +489,17 @@ func (p *Provider) syncSecret(ctx context.Context, podNamespace string, secretNa
 	}
 	err = p.Handler.AddResource(ctx, &secret)
 	if err != nil {
-		return fmt.Errorf("unable to add configmap to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
+		return fmt.Errorf("unable to add secret to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
 	}
 	return nil
 }
 
-// UpdatePod takes a Kubernetes Pod and updates it within the provider.
+// UpdatePod executes updatePod with retry
 func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
+	return p.withRetry(ctx, p.updatePod, pod)
+}
+
+func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 	p.logger.Debugw("got a request for update pod")
 
 	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
@@ -529,10 +569,15 @@ func updateContainerImages(original, updated []v1.Container) []v1.Container {
 	return original
 }
 
-// DeletePod takes a Kubernetes Pod and deletes it from the provider. Once a pod is deleted, the provider is
+// DeletePod executes deletePod with retry
+func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
+	return p.withRetry(ctx, p.deletePod, pod)
+}
+
+// deletePod takes a Kubernetes Pod and deletes it from the provider. Once a pod is deleted, the provider is
 // expected to call the NotifyPods callback with a terminal pod status where all the containers are in a terminal
 // state, as well as the pod. DeletePod may be called multiple times for the same pod.
-func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
+func (p *Provider) deletePod(ctx context.Context, pod *corev1.Pod) error {
 	p.logger.Infof("Got request to delete pod %s", pod.Name)
 	hostName := p.Translater.TranslateName(pod.Namespace, pod.Name)
 	err := p.CoreClient.Pods(p.ClusterNamespace).Delete(ctx, hostName, metav1.DeleteOptions{})
@@ -659,6 +704,9 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	return retPods, nil
 }
 
+// configureNetworking will inject network information to each pod to connect them to the
+// virtual cluster api server, as well as confiugre DNS information to connect them to the
+// synced coredns on the host cluster.
 func (p *Provider) configureNetworking(podName, podNamespace string, pod *corev1.Pod) {
 	// inject networking information to the pod's environment variables
 	for i := range pod.Spec.Containers {
@@ -697,7 +745,6 @@ func (p *Provider) configureNetworking(podName, podNamespace string, pod *corev1
 			},
 		}
 	}
-
 }
 
 // getSecretsAndConfigmaps retrieves a list of all secrets/configmaps that are in use by a given pod. Useful

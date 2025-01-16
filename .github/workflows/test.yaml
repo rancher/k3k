@@ -66,7 +66,14 @@ jobs:
       run: go install github.com/onsi/ginkgo/v2/ginkgo
     
     - name: Build
-      run: ./scripts/build
+      run: |
+        ./scripts/build
+
+        # add k3kcli to $PATH
+        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+    - name: Check k3kcli
+      run: k3kcli -v
 
     - name: Run tests
       run: ginkgo -v ./tests

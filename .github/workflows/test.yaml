@@ -23,6 +23,8 @@ jobs:
     - name: Check go modules
       run: |
         go mod tidy
+
+        git --no-pager diff go.mod go.sum
         test -z "$(git status --porcelain)"
 
     - name: Install tools
@@ -56,6 +58,8 @@ jobs:
     - name: Check go modules
       run: |
         go mod tidy
+
+        git --no-pager diff go.mod go.sum
         test -z "$(git status --porcelain)"
 
     - name: Install Ginkgo

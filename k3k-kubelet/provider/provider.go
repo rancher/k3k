@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/rancher/k3k/k3k-kubelet/controller"
 	"github.com/rancher/k3k/k3k-kubelet/controller/webhook"
@@ -32,6 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	cv1 "k8s.io/client-go/kubernetes/typed/core/v1"
+
+	"errors"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
@@ -61,9 +62,8 @@ type Provider struct {
 	logger           *k3klog.Logger
 }
 
-const (
-	interval = 2 * time.Second
-	timeout  = 10 * time.Second
+var (
+	ErrRetryTimeout = errors.New("provider timed out")
 )
 
 func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3klog.Logger, namespace, name, serverIP, dnsIP string) (*Provider, error) {
@@ -274,7 +274,7 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary,
 func (p *Provider) GetMetricsResource(ctx context.Context) ([]*dto.MetricFamily, error) {
 	statsSummary, err := p.GetStatsSummary(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error fetching MetricsResource")
+		return nil, errors.Join(err, errors.New("error fetching MetricsResource"))
 	}
 
 	registry := compbasemetrics.NewKubeRegistry()
@@ -282,7 +282,7 @@ func (p *Provider) GetMetricsResource(ctx context.Context) ([]*dto.MetricFamily,
 
 	metricFamily, err := registry.Gather()
 	if err != nil {
-		return nil, errors.Wrapf(err, "error gathering metrics from collector")
+		return nil, errors.Join(err, errors.New("error gathering metrics from collector"))
 	}
 	return metricFamily, nil
 }
@@ -320,7 +320,7 @@ func (p *Provider) PortForward(ctx context.Context, namespace, pod string, port 
 
 // CreatePod executes createPod with retry
 func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
-	return p.withRetry(ctx, p.createPod, pod, interval, timeout)
+	return p.withRetry(ctx, p.createPod, pod)
 }
 
 // createPod takes a Kubernetes Pod and deploys it within the provider.
@@ -377,21 +377,23 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 }
 
 // withRetry retries passed function with interval and timeout
-func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *v1.Pod) error, pod *v1.Pod, interval, timeout time.Duration) error {
-	var lastErr error
-	err := wait.PollUntilContextTimeout(context.Background(), interval, timeout, true,
-		func(_ context.Context) (bool, error) {
-			if lastErr = f(ctx, pod); lastErr != nil {
-				return false, nil
-			}
-			return true, nil
-		})
-	if err != nil {
-		const message = "failed to create pod with provider"
-		if lastErr != nil {
-			return errors.Wrap(lastErr, message)
+func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *v1.Pod) error, pod *v1.Pod) error {
+	const (
+		interval = 2 * time.Second
+		timeout  = 10 * time.Second
+	)
+	var allErrors error
+	// retryFn will retry until the operation succeed, or the timeout occurs
+	retryFn := func(ctx context.Context) (bool, error) {
+		if lastErr := f(ctx, pod); lastErr != nil {
+			// log that the retry failed?
+			allErrors = errors.Join(allErrors, lastErr)
+			return false, nil
 		}
-		return errors.Wrap(err, message)
+		return true, nil
+	}
+	if err := wait.PollUntilContextTimeout(ctx, interval, timeout, true, retryFn); err != nil {
+		return errors.Join(allErrors, ErrRetryTimeout)
 	}
 	return nil
 }
@@ -494,7 +496,7 @@ func (p *Provider) syncSecret(ctx context.Context, podNamespace string, secretNa
 
 // UpdatePod executes updatePod with retry
 func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
-	return p.withRetry(ctx, p.updatePod, pod, interval, timeout)
+	return p.withRetry(ctx, p.updatePod, pod)
 }
 
 func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
@@ -569,7 +571,7 @@ func updateContainerImages(original, updated []v1.Container) []v1.Container {
 
 // DeletePod executes deletePod with retry
 func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
-	return p.withRetry(ctx, p.deletePod, pod, interval, timeout)
+	return p.withRetry(ctx, p.deletePod, pod)
 }
 
 // deletePod takes a Kubernetes Pod and deletes it from the provider. Once a pod is deleted, the provider is

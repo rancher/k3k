@@ -488,8 +488,8 @@ var _ = Describe("ClusterSet Controller", func() {
 					},
 					Spec: v1alpha1.ClusterSpec{
 						Mode:    v1alpha1.SharedClusterMode,
-						Servers: ptr.To(int32(1)),
-						Agents:  ptr.To(int32(0)),
+						Servers: ptr.To[int32](1),
+						Agents:  ptr.To[int32](0),
 					},
 				}
 
@@ -529,8 +529,8 @@ var _ = Describe("ClusterSet Controller", func() {
 					},
 					Spec: v1alpha1.ClusterSpec{
 						Mode:    v1alpha1.SharedClusterMode,
-						Servers: ptr.To(int32(1)),
-						Agents:  ptr.To(int32(0)),
+						Servers: ptr.To[int32](1),
+						Agents:  ptr.To[int32](0),
 					},
 				}
 
@@ -570,8 +570,8 @@ var _ = Describe("ClusterSet Controller", func() {
 					},
 					Spec: v1alpha1.ClusterSpec{
 						Mode:         v1alpha1.SharedClusterMode,
-						Servers:      ptr.To(int32(1)),
-						Agents:       ptr.To(int32(0)),
+						Servers:      ptr.To[int32](1),
+						Agents:       ptr.To[int32](0),
 						NodeSelector: map[string]string{"label-1": "value-1"},
 					},
 				}
@@ -645,8 +645,8 @@ var _ = Describe("ClusterSet Controller", func() {
 					},
 					Spec: v1alpha1.ClusterSpec{
 						Mode:    v1alpha1.SharedClusterMode,
-						Servers: ptr.To(int32(1)),
-						Agents:  ptr.To(int32(0)),
+						Servers: ptr.To[int32](1),
+						Agents:  ptr.To[int32](0),
 					},
 				}
 

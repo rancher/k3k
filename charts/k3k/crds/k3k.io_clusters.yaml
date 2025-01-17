@@ -36,6 +36,7 @@ spec:
           metadata:
             type: object
           spec:
+            default: {}
             properties:
               addons:
                 description: Addons is a list of secrets containing raw YAML which
@@ -55,6 +56,7 @@ spec:
                   type: string
                 type: array
               agents:
+                default: 0
                 description: Agents is the number of K3s pods to run in agent (worker)
                   mode.
                 format: int32
@@ -179,6 +181,7 @@ spec:
                   type: string
                 type: array
               servers:
+                default: 1
                 description: Servers is the number of K3s pods to run in server (controlplane)
                   mode.
                 format: int32
@@ -218,11 +221,6 @@ spec:
                 description: Version is a string representing the Kubernetes version
                   to be used by the virtual nodes.
                 type: string
-            required:
-            - agents
-            - mode
-            - servers
-            - version
             type: object
           status:
             properties:

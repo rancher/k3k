@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimecontroller "sigs.k8s.io/controller-runtime/pkg/controller"
@@ -44,6 +45,7 @@ const (
 )
 
 type ClusterReconciler struct {
+	DiscoveryClient  *discovery.DiscoveryClient
 	Client           ctrlruntimeclient.Client
 	Scheme           *runtime.Scheme
 	SharedAgentImage string
@@ -52,13 +54,21 @@ type ClusterReconciler struct {
 
 // Add adds a new controller to the manager
 func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage string, logger *log.Logger) error {
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
+	if err != nil {
+		return err
+	}
+
 	// initialize a new Reconciler
 	reconciler := ClusterReconciler{
+		DiscoveryClient:  discoveryClient,
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
 		SharedAgentImage: sharedAgentImage,
 		logger:           logger.Named(clusterController),
 	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Cluster{}).
 		WithOptions(ctrlruntimecontroller.Options{
@@ -76,6 +86,21 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
+
+	// if the Version is not specified fallback to the host Kubernetes version, update, and requeue
+	if cluster.Spec.Version == "" {
+		hostVersion, err := c.DiscoveryClient.ServerVersion()
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		cluster.Spec.Version = fmt.Sprintf("v%s.%s.0-k3s1", hostVersion.Major, hostVersion.Minor)
+		if err := c.Client.Update(ctx, &cluster); err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{Requeue: true}, nil
+	}
+
 	if cluster.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
 			controllerutil.AddFinalizer(&cluster, clusterFinalizerName)

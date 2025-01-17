@@ -171,9 +171,8 @@ func (s *SharedAgent) podSpec(affinitySelector *metav1.LabelSelector) v1.PodSpec
 		},
 		Containers: []v1.Container{
 			{
-				Name:            s.Name(),
-				Image:           s.sharedAgentImage,
-				ImagePullPolicy: v1.PullAlways,
+				Name:  s.Name(),
+				Image: s.sharedAgentImage,
 				Resources: v1.ResourceRequirements{
 					Limits: limit,
 				},

@@ -3,6 +3,7 @@ package k3k_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -10,7 +11,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 var _ = When("a cluster is installed", func() {
@@ -32,44 +33,56 @@ var _ = When("a cluster is installed", func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Mode:    v1alpha1.SharedClusterMode,
-				Servers: pointer.Int32(1),
-				Agents:  pointer.Int32(0),
+				Servers: ptr.To[int32](1),
+				Agents:  ptr.To[int32](0),
+				Version: "v1.26.1-k3s1",
 			},
 		}
 
 		err := k8sClient.Create(context.Background(), &cluster)
 		Expect(err).To(Not(HaveOccurred()))
 
-		fmt.Fprintf(GinkgoWriter, "### cluster ###\n%+v\n", cluster)
+		By("checking server and kubelet readiness state")
 
-		// check that at least the server Pod is in Ready state
+		// check that the server Pod and the Kubelet are in Ready state
 		Eventually(func() bool {
 			podList, err := k8s.CoreV1().Pods(namespace).List(context.Background(), v1.ListOptions{})
 			Expect(err).To(Not(HaveOccurred()))
 
-			isReady := false
+			serverRunning := false
+			kubeletRunning := false
 
-		outer:
 			for _, pod := range podList.Items {
+				imageName := pod.Spec.Containers[0].Image
+				imageName = strings.Split(imageName, ":")[0] // remove tag
 
-				for _, condition := range pod.Status.Conditions {
-					if condition.Status != corev1.ConditionTrue {
-						continue
-					}
+				switch imageName {
+				case "rancher/k3s":
+					serverRunning = pod.Status.Phase == corev1.PodRunning
+				case "rancher/k3k-kubelet":
+					kubeletRunning = pod.Status.Phase == corev1.PodRunning
+				}
 
-					fmt.Fprintf(GinkgoWriter, "### pod: %s %+v\n", pod.Name, condition.Type)
-
-					if condition.Type == corev1.PodReady {
-						isReady = true
-						break outer
-					}
+				if serverRunning && kubeletRunning {
+					return true
 				}
 			}
 
-			return isReady
+			return false
+		}).
+			WithTimeout(time.Minute).
+			WithPolling(time.Second * 5).
+			Should(BeTrue())
+
+		By("checking the existence of the bootstrap secret")
+		secretName := fmt.Sprintf("k3k-%s-bootstrap", cluster.Name)
+
+		Eventually(func() error {
+			_, err := k8s.CoreV1().Secrets(namespace).Get(context.Background(), secretName, v1.GetOptions{})
+			return err
 		}).
 			WithTimeout(time.Minute * 2).
 			WithPolling(time.Second * 5).
-			Should(BeTrue())
+			Should(BeNil())
 	})
 })

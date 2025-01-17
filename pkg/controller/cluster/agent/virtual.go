@@ -161,9 +161,8 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 		},
 		Containers: []v1.Container{
 			{
-				Name:            name,
-				Image:           image,
-				ImagePullPolicy: v1.PullAlways,
+				Name:  name,
+				Image: image,
 				SecurityContext: &v1.SecurityContext{
 					Privileged: ptr.To(true),
 				},

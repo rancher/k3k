@@ -30,9 +30,7 @@ jobs:
     - name: Install tools
       run: |
         go install github.com/onsi/ginkgo/v2/ginkgo
-
-        # With Golang 1.22 we need to use the release-0.18 branch
-        go install sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.18
+        go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
         ENVTEST_BIN=$(setup-envtest use -p path)
         sudo mkdir -p /usr/local/kubebuilder/bin

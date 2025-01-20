@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/zapr"
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/buildinfo"
 	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/clusterset"
 	"github.com/rancher/k3k/pkg/log"
@@ -20,12 +21,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-)
-
-const (
-	program   = "k3k"
-	version   = "dev"
-	gitCommit = "HEAD"
 )
 
 var (
@@ -73,7 +68,7 @@ func main() {
 	app := cmds.NewApp()
 	app.Flags = flags
 	app.Action = run
-	app.Version = version + " (" + gitCommit + ")"
+	app.Version = buildinfo.Version
 	app.Before = func(clx *cli.Context) error {
 		logger = log.New(debug)
 		return nil
@@ -81,11 +76,12 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		logger.Fatalw("failed to run k3k controller", zap.Error(err))
 	}
-
 }
 
 func run(clx *cli.Context) error {
 	ctx := context.Background()
+
+	logger.Info("Starting k3k - Version: " + buildinfo.Version)
 
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {

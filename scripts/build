@@ -4,15 +4,21 @@ set -e pipefail
 
 TAG=$(git describe --tag --always)
 
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    TAG="${TAG}-dirty"
+fi
+
+LDFLAGS="-X \"github.com/rancher/k3k/pkg/buildinfo.Version=${TAG}\""
+
 echo "Building k3k..."
 echo "Current TAG: ${TAG}"
 
 export CGO_ENABLED=0
-GOOS=linux GOARCH=amd64 go build -o bin/k3k
-GOOS=linux GOARCH=amd64 go build -o bin/k3k-kubelet ./k3k-kubelet
+GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o bin/k3k
+GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o bin/k3k-kubelet ./k3k-kubelet
 
 # build the cli for the local OS and ARCH
-go build -o bin/k3kcli ./cli
+go build -ldflags="${LDFLAGS}" -o bin/k3kcli ./cli
 
 docker build -f package/Dockerfile -t rancher/k3k:dev -t rancher/k3k:${TAG} .
 docker build -f package/Dockerfile.kubelet -t rancher/k3k-kubelet:dev -t rancher/k3k-kubelet:${TAG} .

@@ -1,4 +1,4 @@
-ARG GOLANG=rancher/hardened-build-base:v1.22.2b1
+ARG GOLANG=rancher/hardened-build-base:v1.23.4b1
 FROM ${GOLANG}
 
 ARG DAPPER_HOST_ARCH
@@ -17,9 +17,7 @@ ENV CONTROLLER_GEN_VERSION v0.14.0
 RUN go install sigs.k8s.io/controller-tools/cmd/controller-gen@${CONTROLLER_GEN_VERSION}
 
 # Tool to setup the envtest framework to run the controllers integration tests
-# Note: With Golang 1.22 we need to use the release-0.18 branch
-ENV SETUP_ENVTEST_VERSION release-0.18
-RUN go install sigs.k8s.io/controller-runtime/tools/setup-envtest@${SETUP_ENVTEST_VERSION} && \
+RUN go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest && \
     ENVTEST_BIN=$(setup-envtest use -p path) && \
     mkdir -p /usr/local/kubebuilder/bin && \
     cp $ENVTEST_BIN/* /usr/local/kubebuilder/bin

@@ -9,6 +9,23 @@ permissions:
     contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        args: --timeout=5m
+        version: v1.60
+
   tests:
     runs-on: ubuntu-latest
 

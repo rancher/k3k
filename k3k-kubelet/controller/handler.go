@@ -109,7 +109,7 @@ func (c *ControllerHandler) RemoveResource(ctx context.Context, obj client.Objec
 	ctrl, ok := c.controllers[obj.GetObjectKind().GroupVersionKind()]
 	c.RUnlock()
 	if !ok {
-		return fmt.Errorf("no controller found for gvk" + obj.GetObjectKind().GroupVersionKind().String())
+		return fmt.Errorf("no controller found for gvk %s", obj.GetObjectKind().GroupVersionKind())
 	}
 	return ctrl.RemoveResource(ctx, obj.GetNamespace(), obj.GetName())
 }

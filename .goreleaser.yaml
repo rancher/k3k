@@ -20,6 +20,9 @@ builds:
       - "amd64"
       - "arm64"
       - "s390x"
+    ldflags:
+      - -w -s # strip debug info and symbol table
+      - -X "github.com/rancher/k3k/pkg/buildinfo.Version={{ .Tag }}"
 
   - id: k3k-kubelet
     main: ./k3k-kubelet
@@ -32,7 +35,10 @@ builds:
       - "amd64"
       - "arm64"
       - "s390x"
-  
+    ldflags:
+      - -w -s # strip debug info and symbol table
+      - -X "github.com/rancher/k3k/pkg/buildinfo.Version={{ .Tag }}"
+
   - id: k3kcli
     main: ./cli
     binary: k3kcli
@@ -41,6 +47,9 @@ builds:
     goarch:
       - "amd64"
       - "arm64"
+    ldflags:
+      - -w -s # strip debug info and symbol table
+      - -X "github.com/rancher/k3k/pkg/buildinfo.Version={{ .Tag }}"
 
 archives:
   - format: binary

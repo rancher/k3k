@@ -87,18 +87,19 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
-	// if the Version is not specified fallback to the host Kubernetes version, update, and requeue
-	if cluster.Spec.Version == "" {
+	// if the Version is not specified we will try to use the same Kubernetes version of the host.
+	// This version is stored in the Status object, and it will not be updated if already set.
+	if cluster.Spec.Version == "" && cluster.Status.HostVersion == "" {
 		hostVersion, err := c.DiscoveryClient.ServerVersion()
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 
-		cluster.Spec.Version = fmt.Sprintf("v%s.%s.0-k3s1", hostVersion.Major, hostVersion.Minor)
-		if err := c.Client.Update(ctx, &cluster); err != nil {
+		// update Status HostVersion
+		cluster.Status.HostVersion = fmt.Sprintf("v%s.%s.0-k3s1", hostVersion.Major, hostVersion.Minor)
+		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
-		return reconcile.Result{Requeue: true}, nil
 	}
 
 	if cluster.DeletionTimestamp.IsZero() {

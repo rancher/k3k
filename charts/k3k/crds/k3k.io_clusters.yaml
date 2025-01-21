@@ -228,6 +228,8 @@ spec:
                 type: string
               clusterDNS:
                 type: string
+              hostVersion:
+                type: string
               persistence:
                 properties:
                   storageClassName:
@@ -248,8 +250,6 @@ spec:
                   type: string
                 type: array
             type: object
-        required:
-        - spec
         type: object
     served: true
     storage: true

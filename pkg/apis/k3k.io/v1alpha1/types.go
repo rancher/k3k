@@ -14,24 +14,35 @@ type Cluster struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta   `json:",inline"`
 
+	// +kubebuilder:default={}
+	// +optional
 	Spec   ClusterSpec   `json:"spec"`
 	Status ClusterStatus `json:"status,omitempty"`
 }
 
 type ClusterSpec struct {
 	// Version is a string representing the Kubernetes version to be used by the virtual nodes.
+	//
+	// +optional
 	Version string `json:"version"`
 
 	// Servers is the number of K3s pods to run in server (controlplane) mode.
+	//
+	// +kubebuilder:default=1
 	// +kubebuilder:validation:XValidation:message="cluster must have at least one server",rule="self >= 1"
+	// +optional
 	Servers *int32 `json:"servers"`
 
 	// Agents is the number of K3s pods to run in agent (worker) mode.
+	//
+	// +kubebuilder:default=0
 	// +kubebuilder:validation:XValidation:message="invalid value for agents",rule="self >= 0"
+	// +optional
 	Agents *int32 `json:"agents"`
 
 	// NodeSelector is the node selector that will be applied to all server/agent pods.
 	// In "shared" mode the node selector will be applied also to the workloads.
+	//
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
@@ -73,10 +84,12 @@ type ClusterSpec struct {
 	Addons []Addon `json:"addons,omitempty"`
 
 	// Mode is the cluster provisioning mode which can be either "shared" or "virtual". Defaults to "shared"
+	//
 	// +kubebuilder:default="shared"
 	// +kubebuilder:validation:Enum=shared;virtual
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
-	Mode ClusterMode `json:"mode"`
+	// +optional
+	Mode ClusterMode `json:"mode,omitempty"`
 
 	// Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
 	// persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.
@@ -151,6 +164,7 @@ type NodePortConfig struct {
 }
 
 type ClusterStatus struct {
+	HostVersion string             `json:"hostVersion,omitempty"`
 	ClusterCIDR string             `json:"clusterCIDR,omitempty"`
 	ServiceCIDR string             `json:"serviceCIDR,omitempty"`
 	ClusterDNS  string             `json:"clusterDNS,omitempty"`

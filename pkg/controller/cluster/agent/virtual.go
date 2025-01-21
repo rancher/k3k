@@ -97,16 +97,6 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 	var limit v1.ResourceList
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 	podSpec := v1.PodSpec{
-		Affinity: &v1.Affinity{
-			PodAntiAffinity: &v1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-					{
-						LabelSelector: affinitySelector,
-						TopologyKey:   "kubernetes.io/hostname",
-					},
-				},
-			},
-		},
 		Volumes: []v1.Volume{
 			{
 				Name: "config",

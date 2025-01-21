@@ -45,7 +45,7 @@ func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string) *S
 	}
 }
 
-func (s *Server) podSpec(image, name string, persistent bool, affinitySelector *metav1.LabelSelector) v1.PodSpec {
+func (s *Server) podSpec(image, name string, persistent bool) v1.PodSpec {
 	var limit v1.ResourceList
 	if s.cluster.Spec.Limit != nil && s.cluster.Spec.Limit.ServerLimit != nil {
 		limit = s.cluster.Spec.Limit.ServerLimit
@@ -53,16 +53,6 @@ func (s *Server) podSpec(image, name string, persistent bool, affinitySelector *
 	podSpec := v1.PodSpec{
 		NodeSelector:      s.cluster.Spec.NodeSelector,
 		PriorityClassName: s.cluster.Spec.PriorityClass,
-		Affinity: &v1.Affinity{
-			PodAntiAffinity: &v1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-					{
-						LabelSelector: affinitySelector,
-						TopologyKey:   "kubernetes.io/hostname",
-					},
-				},
-			},
-		},
 		Volumes: []v1.Volume{
 			{
 				Name: "initconfig",
@@ -347,7 +337,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		},
 	}
 
-	podSpec := s.podSpec(image, name, persistent, &selector)
+	podSpec := s.podSpec(image, name, persistent)
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
 

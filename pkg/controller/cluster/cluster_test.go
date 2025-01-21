@@ -2,6 +2,7 @@ package cluster_test
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -46,16 +47,21 @@ var _ = Describe("Cluster Controller", func() {
 				Expect(cluster.Spec.Mode).To(Equal(v1alpha1.SharedClusterMode))
 				Expect(cluster.Spec.Agents).To(Equal(ptr.To[int32](0)))
 				Expect(cluster.Spec.Servers).To(Equal(ptr.To[int32](1)))
+				Expect(cluster.Spec.Version).To(BeEmpty())
+
+				serverVersion, err := k8s.DiscoveryClient.ServerVersion()
+				Expect(err).To(Not(HaveOccurred()))
+				expectedHostVersion := fmt.Sprintf("v%s.%s.0-k3s1", serverVersion.Major, serverVersion.Minor)
 
 				Eventually(func() string {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)
 					Expect(err).To(Not(HaveOccurred()))
-					return cluster.Spec.Version
+					return cluster.Status.HostVersion
 
 				}).
 					WithTimeout(time.Second * 30).
 					WithPolling(time.Second).
-					Should(Not(BeEmpty()))
+					Should(Equal(expectedHostVersion))
 			})
 		})
 	})

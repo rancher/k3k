@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -29,6 +30,7 @@ func TestController(t *testing.T) {
 
 var (
 	testEnv   *envtest.Environment
+	k8s       *kubernetes.Clientset
 	k8sClient client.Client
 	ctx       context.Context
 	cancel    context.CancelFunc
@@ -44,6 +46,9 @@ var _ = BeforeSuite(func() {
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 
+	k8s, err = kubernetes.NewForConfig(cfg)
+	Expect(err).NotTo(HaveOccurred())
+
 	scheme := buildScheme()
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
@@ -52,9 +57,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())
-	nopLogger := &log.Logger{SugaredLogger: zap.NewNop().Sugar()}
-
-	err = cluster.Add(ctx, mgr, "", nopLogger)
+	err = cluster.Add(ctx, mgr, "", &log.Logger{SugaredLogger: zap.NewNop().Sugar()})
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

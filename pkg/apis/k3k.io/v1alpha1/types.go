@@ -89,7 +89,7 @@ type ClusterSpec struct {
 	// +kubebuilder:validation:Enum=shared;virtual
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
 	// +optional
-	Mode ClusterMode `json:"mode"`
+	Mode ClusterMode `json:"mode,omitempty"`
 
 	// Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
 	// persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.

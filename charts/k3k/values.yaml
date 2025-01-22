@@ -26,3 +26,4 @@ sharedAgent:
   image:
     repository: "rancher/k3k-kubelet"
     tag: ""
+    pullPolicy: ""

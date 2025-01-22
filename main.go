@@ -24,13 +24,14 @@ import (
 )
 
 var (
-	scheme           = runtime.NewScheme()
-	clusterCIDR      string
-	sharedAgentImage string
-	kubeconfig       string
-	debug            bool
-	logger           *log.Logger
-	flags            = []cli.Flag{
+	scheme                     = runtime.NewScheme()
+	clusterCIDR                string
+	sharedAgentImage           string
+	sharedAgentImagePullPolicy string
+	kubeconfig                 string
+	debug                      bool
+	logger                     *log.Logger
+	flags                      = []cli.Flag{
 		cli.StringFlag{
 			Name:        "kubeconfig",
 			EnvVar:      "KUBECONFIG",
@@ -49,6 +50,12 @@ var (
 			Usage:       "K3K Virtual Kubelet image",
 			Value:       "rancher/k3k:k3k-kubelet-dev",
 			Destination: &sharedAgentImage,
+		},
+		cli.StringFlag{
+			Name:        "shared-agent-pull-policy",
+			EnvVar:      "SHARED_AGENT_PULL_POLICY",
+			Usage:       "K3K Virtual Kubelet image pull policy",
+			Destination: &sharedAgentImagePullPolicy,
 		},
 		cli.BoolFlag{
 			Name:        "debug",
@@ -98,7 +105,7 @@ func run(clx *cli.Context) error {
 
 	ctrlruntimelog.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
 	logger.Info("adding cluster controller")
-	if err := cluster.Add(ctx, mgr, sharedAgentImage, logger); err != nil {
+	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, logger); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 

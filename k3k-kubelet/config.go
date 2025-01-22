@@ -18,6 +18,7 @@ type config struct {
 	VirtualConfigPath string `yaml:"virtualConfigPath,omitempty"`
 	KubeletPort       string `yaml:"kubeletPort,omitempty"`
 	ServerIP          string `yaml:"serverIP,omitempty"`
+	Version           string `yaml:"version,omitempty"`
 }
 
 func (c *config) unmarshalYAML(data []byte) error {
@@ -53,6 +54,9 @@ func (c *config) unmarshalYAML(data []byte) error {
 	}
 	if c.ServerIP == "" {
 		c.ServerIP = conf.ServerIP
+	}
+	if c.Version == "" {
+		c.Version = conf.Version
 	}
 	return nil
 }

@@ -16,11 +16,11 @@ type Agent interface {
 	Resources() ([]ctrlruntimeclient.Object, error)
 }
 
-func New(cluster *v1alpha1.Cluster, serviceIP, sharedAgentImage, token string) Agent {
+func New(cluster *v1alpha1.Cluster, serviceIP, sharedAgentImage, sharedAgentImagePullPolicy, token string) Agent {
 	if cluster.Spec.Mode == VirtualNodeMode {
 		return NewVirtualAgent(cluster, serviceIP, token)
 	}
-	return NewSharedAgent(cluster, serviceIP, sharedAgentImage, token)
+	return NewSharedAgent(cluster, serviceIP, sharedAgentImage, sharedAgentImagePullPolicy, token)
 }
 
 func configSecretName(clusterName string) string {

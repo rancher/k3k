@@ -57,7 +57,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())
-	err = cluster.Add(ctx, mgr, "", &log.Logger{SugaredLogger: zap.NewNop().Sugar()})
+	err = cluster.Add(ctx, mgr, "", "", &log.Logger{SugaredLogger: zap.NewNop().Sugar()})
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

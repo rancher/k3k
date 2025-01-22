@@ -712,7 +712,7 @@ func (p *Provider) configureNetworking(podName, podNamespace string, pod *corev1
 	// inject serverIP to hostalias for the pod
 	KubernetesHostAlias := corev1.HostAlias{
 		IP:        serverIP,
-		Hostnames: []string{"kubernetes", "kubernetes.default", "kubernetes.default.svc.cluster.local"},
+		Hostnames: []string{"kubernetes", "kubernetes.default", "kubernetes.default.svc", "kubernetes.default.svc.cluster", "kubernetes.default.svc.cluster.local"},
 	}
 	pod.Spec.HostAliases = append(pod.Spec.HostAliases, KubernetesHostAlias)
 	// inject networking information to the pod's environment variables

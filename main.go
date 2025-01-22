@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/rancher/k3k/pkg/log"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
@@ -54,7 +56,7 @@ var (
 		cli.StringFlag{
 			Name:        "shared-agent-pull-policy",
 			EnvVar:      "SHARED_AGENT_PULL_POLICY",
-			Usage:       "K3K Virtual Kubelet image pull policy",
+			Usage:       "K3K Virtual Kubelet image pull policy must be one of Always, IfNotPresent or Never",
 			Destination: &sharedAgentImagePullPolicy,
 		},
 		cli.BoolFlag{
@@ -77,6 +79,9 @@ func main() {
 	app.Action = run
 	app.Version = buildinfo.Version
 	app.Before = func(clx *cli.Context) error {
+		if err := validate(); err != nil {
+			return err
+		}
 		logger = log.New(debug)
 		return nil
 	}
@@ -130,5 +135,16 @@ func run(clx *cli.Context) error {
 		return fmt.Errorf("failed to start the manager: %v", err)
 	}
 
+	return nil
+}
+
+func validate() error {
+	if sharedAgentImagePullPolicy != "" {
+		if sharedAgentImagePullPolicy != string(v1.PullAlways) &&
+			sharedAgentImagePullPolicy != string(v1.PullIfNotPresent) &&
+			sharedAgentImagePullPolicy != string(v1.PullNever) {
+			return errors.New("invalid value for shared agent image policy")
+		}
+	}
 	return nil
 }

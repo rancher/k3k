@@ -2,7 +2,7 @@
 
 set -e pipefail
 
-TAG=$(git describe --tag --always)
+TAG=$(git describe --tag --always --match="v[0-9]*")
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
     TAG="${TAG}-dirty"

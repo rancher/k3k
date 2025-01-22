@@ -16,7 +16,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,65 +51,65 @@ var (
 	mode             string
 
 	clusterCreateFlags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "name",
 			Usage:       "name of the cluster",
 			Destination: &name,
 		},
-		cli.Int64Flag{
+		&cli.Int64Flag{
 			Name:        "servers",
 			Usage:       "number of servers",
 			Destination: &servers,
 			Value:       1,
 		},
-		cli.Int64Flag{
+		&cli.Int64Flag{
 			Name:        "agents",
 			Usage:       "number of agents",
 			Destination: &agents,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "token",
 			Usage:       "token of the cluster",
 			Destination: &token,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "cluster-cidr",
 			Usage:       "cluster CIDR",
 			Destination: &clusterCIDR,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "service-cidr",
 			Usage:       "service CIDR",
 			Destination: &serviceCIDR,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "persistence-type",
 			Usage:       "Persistence mode for the nodes (ephermal, static, dynamic)",
 			Value:       server.EphermalNodesType,
 			Destination: &persistenceType,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "storage-class-name",
 			Usage:       "Storage class name for dynamic persistence type",
 			Destination: &storageClassName,
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "server-args",
 			Usage: "servers extra arguments",
 			Value: &serverArgs,
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "agent-args",
 			Usage: "agents extra arguments",
 			Value: &agentArgs,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "version",
 			Usage:       "k3s version",
 			Destination: &version,
 			Value:       "v1.26.1-k3s1",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "mode",
 			Usage:       "k3k mode type",
 			Destination: &mode,
@@ -153,8 +153,8 @@ func create(clx *cli.Context) error {
 		int32(agents),
 		clusterCIDR,
 		serviceCIDR,
-		serverArgs,
-		agentArgs,
+		serverArgs.Value(),
+		agentArgs.Value(),
 	)
 
 	cluster.Spec.Expose = &v1alpha1.ExposeConfig{

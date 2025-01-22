@@ -9,7 +9,7 @@ import (
 	"github.com/rancher/k3k/cli/cmds/kubeconfig"
 	"github.com/rancher/k3k/pkg/buildinfo"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 		fmt.Println("k3kcli Version: " + buildinfo.Version)
 	}
 
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		cluster.NewCommand(),
 		kubeconfig.NewCommand(),
 	}

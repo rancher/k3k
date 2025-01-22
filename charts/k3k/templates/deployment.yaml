@@ -24,6 +24,8 @@ spec:
             value: {{ .Values.host.clusterCIDR }}
           - name: SHARED_AGENT_IMAGE
             value: "{{ .Values.sharedAgent.image.repository }}:{{ default .Chart.AppVersion .Values.sharedAgent.image.tag }}"
+          - name: SHARED_AGENT_PULL_POLICY
+            value: {{ .Values.sharedAgent.image.pullPolicy }}
           ports:
           - containerPort: 8080
             name: https

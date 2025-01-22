@@ -187,8 +187,8 @@ func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostCl
 	return service.Spec.ClusterIP, nil
 }
 
-func (k *kubelet) registerNode(ctx context.Context, agentIP, srvPort, namespace, name, hostname, serverIP, dnsIP string) error {
-	providerFunc := k.newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP)
+func (k *kubelet) registerNode(ctx context.Context, agentIP, srvPort, namespace, name, hostname, serverIP, dnsIP, version string) error {
+	providerFunc := k.newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP, version)
 	nodeOpts := k.nodeOpts(ctx, srvPort, namespace, name, hostname, agentIP)
 
 	var err error
@@ -235,14 +235,14 @@ func (k *kubelet) start(ctx context.Context) {
 	k.logger.Info("node exited successfully")
 }
 
-func (k *kubelet) newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP string) nodeutil.NewProviderFunc {
+func (k *kubelet) newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP, version string) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
 		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, namespace, name, serverIP, dnsIP)
 		if err != nil {
 			return nil, nil, errors.New("unable to make nodeutil provider: " + err.Error())
 		}
 
-		provider.ConfigureNode(k.logger, pc.Node, hostname, k.port, agentIP, utilProvider.CoreClient, utilProvider.VirtualClient, k.virtualCluster)
+		provider.ConfigureNode(k.logger, pc.Node, hostname, k.port, agentIP, utilProvider.CoreClient, utilProvider.VirtualClient, k.virtualCluster, version)
 
 		return utilProvider, &provider.Node{}, nil
 	}

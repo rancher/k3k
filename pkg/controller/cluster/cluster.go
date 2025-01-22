@@ -45,15 +45,16 @@ const (
 )
 
 type ClusterReconciler struct {
-	DiscoveryClient  *discovery.DiscoveryClient
-	Client           ctrlruntimeclient.Client
-	Scheme           *runtime.Scheme
-	SharedAgentImage string
-	logger           *log.Logger
+	DiscoveryClient            *discovery.DiscoveryClient
+	Client                     ctrlruntimeclient.Client
+	Scheme                     *runtime.Scheme
+	SharedAgentImage           string
+	SharedAgentImagePullPolicy string
+	logger                     *log.Logger
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage string, logger *log.Logger) error {
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy string, logger *log.Logger) error {
 
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
@@ -62,11 +63,12 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage string, logg
 
 	// initialize a new Reconciler
 	reconciler := ClusterReconciler{
-		DiscoveryClient:  discoveryClient,
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		SharedAgentImage: sharedAgentImage,
-		logger:           logger.Named(clusterController),
+		DiscoveryClient:            discoveryClient,
+		Client:                     mgr.GetClient(),
+		Scheme:                     mgr.GetScheme(),
+		SharedAgentImage:           sharedAgentImage,
+		SharedAgentImagePullPolicy: sharedAgentImagePullPolicy,
+		logger:                     logger.Named(clusterController),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -364,7 +366,7 @@ func (c *ClusterReconciler) unbindNodeProxyClusterRole(ctx context.Context, clus
 }
 
 func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
-	agent := agent.New(cluster, serviceIP, c.SharedAgentImage, token)
+	agent := agent.New(cluster, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token)
 	agentsConfig := agent.Config()
 	agentResources, err := agent.Resources()
 	if err != nil {

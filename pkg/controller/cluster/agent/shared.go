@@ -26,18 +26,20 @@ const (
 )
 
 type SharedAgent struct {
-	cluster          *v1alpha1.Cluster
-	serviceIP        string
-	sharedAgentImage string
-	token            string
+	cluster         *v1alpha1.Cluster
+	serviceIP       string
+	image           string
+	imagePullPolicy string
+	token           string
 }
 
-func NewSharedAgent(cluster *v1alpha1.Cluster, serviceIP, sharedAgentImage, token string) Agent {
+func NewSharedAgent(cluster *v1alpha1.Cluster, serviceIP, image, imagePullPolicy, token string) Agent {
 	return &SharedAgent{
-		cluster:          cluster,
-		serviceIP:        serviceIP,
-		sharedAgentImage: sharedAgentImage,
-		token:            token,
+		cluster:         cluster,
+		serviceIP:       serviceIP,
+		image:           image,
+		imagePullPolicy: imagePullPolicy,
+		token:           token,
 	}
 }
 
@@ -60,13 +62,18 @@ func (s *SharedAgent) Config() ctrlruntimeclient.Object {
 }
 
 func sharedAgentData(cluster *v1alpha1.Cluster, token, nodeName, ip string) string {
+	version := cluster.Spec.Version
+	if cluster.Spec.Version == "" {
+		version = cluster.Status.HostVersion
+	}
 	return fmt.Sprintf(`clusterName: %s
 clusterNamespace: %s
 nodeName: %s
 agentHostname: %s
 serverIP: %s
-token: %s`,
-		cluster.Name, cluster.Namespace, nodeName, nodeName, ip, token)
+token: %s
+version: %s`,
+		cluster.Name, cluster.Namespace, nodeName, nodeName, ip, token, version)
 }
 
 func (s *SharedAgent) Resources() ([]ctrlruntimeclient.Object, error) {
@@ -161,8 +168,9 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 		},
 		Containers: []v1.Container{
 			{
-				Name:  s.Name(),
-				Image: s.sharedAgentImage,
+				Name:            s.Name(),
+				Image:           s.image,
+				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
 				Resources: v1.ResourceRequirements{
 					Limits: limit,
 				},

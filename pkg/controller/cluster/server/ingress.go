@@ -16,8 +16,9 @@ const (
 	nginxBackendProtocolAnnotation = "nginx.ingress.kubernetes.io/backend-protocol"
 	nginxSSLRedirectAnnotation     = "nginx.ingress.kubernetes.io/ssl-redirect"
 
-	serverPort = 6443
-	etcdPort   = 2379
+	servicePort = 443
+	serverPort  = 6443
+	etcdPort    = 2379
 )
 
 func (s *Server) Ingress(ctx context.Context, client client.Client) (*networkingv1.Ingress, error) {

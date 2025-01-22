@@ -23,6 +23,12 @@ const (
 func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) error {
 	p.logger.Infow("transforming token", "Pod", pod.Name, "Namespace", pod.Namespace, "serviceAccountName", pod.Spec.ServiceAccountName)
 
+	// skip this process if the kube-api-access is already removed from the pod
+	// this is needed in case users already adds their own custom tokens like in rancher imported clusters
+	if !isKubeAccessVolumeFound(pod) {
+		return nil
+	}
+
 	virtualSecretName := k3kcontroller.SafeConcatNameWithPrefix(pod.Spec.ServiceAccountName, "token")
 	virtualSecret := virtualSecret(virtualSecretName, pod.Namespace, pod.Spec.ServiceAccountName)
 	if err := p.VirtualClient.Create(ctx, virtualSecret); err != nil {
@@ -84,12 +90,30 @@ func (p *Provider) translateToken(pod *corev1.Pod, hostSecretName string) {
 	addKubeAccessVolume(pod, hostSecretName)
 }
 
+func isKubeAccessVolumeFound(pod *corev1.Pod) bool {
+	for _, volume := range pod.Spec.Volumes {
+		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func removeKubeAccessVolume(pod *corev1.Pod) {
 	for i, volume := range pod.Spec.Volumes {
 		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
 			pod.Spec.Volumes = append(pod.Spec.Volumes[:i], pod.Spec.Volumes[i+1:]...)
 		}
 	}
+	// init containers
+	for i, container := range pod.Spec.InitContainers {
+		for j, mountPath := range container.VolumeMounts {
+			if strings.HasPrefix(mountPath.Name, kubeAPIAccessPrefix) {
+				pod.Spec.InitContainers[i].VolumeMounts = append(pod.Spec.InitContainers[i].VolumeMounts[:j], pod.Spec.InitContainers[i].VolumeMounts[j+1:]...)
+			}
+		}
+	}
+
 	for i, container := range pod.Spec.Containers {
 		for j, mountPath := range container.VolumeMounts {
 			if strings.HasPrefix(mountPath.Name, kubeAPIAccessPrefix) {
@@ -109,6 +133,14 @@ func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
 			},
 		},
 	})
+
+	for i := range pod.Spec.InitContainers {
+		pod.Spec.InitContainers[i].VolumeMounts = append(pod.Spec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
+			Name:      tokenVolumeName,
+			MountPath: serviceAccountTokenMountPath,
+		})
+	}
+
 	for i := range pod.Spec.Containers {
 		pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, corev1.VolumeMount{
 			Name:      tokenVolumeName,

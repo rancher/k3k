@@ -74,6 +74,12 @@ func main() {
 			EnvVar:      "SERVER_IP",
 		},
 		cli.StringFlag{
+			Name:        "version",
+			Usage:       "Version of kubernetes server",
+			Destination: &cfg.Version,
+			EnvVar:      "VERSION",
+		},
+		cli.StringFlag{
 			Name:        "config",
 			Usage:       "Path to k3k-kubelet config file",
 			Destination: &configFile,
@@ -112,7 +118,7 @@ func run(clx *cli.Context) {
 		logger.Fatalw("failed to create new virtual kubelet instance", zap.Error(err))
 	}
 
-	if err := k.registerNode(ctx, k.agentIP, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, cfg.ServerIP, k.dnsIP); err != nil {
+	if err := k.registerNode(ctx, k.agentIP, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, cfg.ServerIP, k.dnsIP, cfg.Version); err != nil {
 		logger.Fatalw("failed to register new node", zap.Error(err))
 	}
 

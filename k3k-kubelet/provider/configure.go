@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster) {
+func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster, version string) {
 	node.Status.Conditions = nodeConditions()
 	node.Status.DaemonEndpoints.KubeletEndpoint.Port = int32(servicePort)
 	node.Status.Addresses = []v1.NodeAddress{
@@ -31,6 +31,10 @@ func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servic
 
 	node.Labels["node.kubernetes.io/exclude-from-external-load-balancers"] = "true"
 	node.Labels["kubernetes.io/os"] = "linux"
+
+	// configure versions
+	node.Status.NodeInfo.KubeletVersion = version
+	node.Status.NodeInfo.KubeProxyVersion = version
 
 	updateNodeCapacityInterval := 10 * time.Second
 	ticker := time.NewTicker(updateNodeCapacityInterval)

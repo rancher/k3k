@@ -66,6 +66,10 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 				// note that this doesn't do any type safety - fix this
 				// when generics work
 				c.Translater.TranslateTo(s)
+				// Remove service-account-token types when synced to the host
+				if s.Type == v1.SecretTypeServiceAccountToken {
+					s.Type = v1.SecretTypeOpaque
+				}
 				return s, nil
 			},
 			Logger: c.Logger,

@@ -25,7 +25,7 @@ func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) e
 
 	// skip this process if the kube-api-access is already removed from the pod
 	// this is needed in case users already adds their own custom tokens like in rancher imported clusters
-	if isKubeAccessVolumeFound(pod) {
+	if !isKubeAccessVolumeFound(pod) {
 		return nil
 	}
 
@@ -109,7 +109,7 @@ func removeKubeAccessVolume(pod *corev1.Pod) {
 	for i, container := range pod.Spec.InitContainers {
 		for j, mountPath := range container.VolumeMounts {
 			if strings.HasPrefix(mountPath.Name, kubeAPIAccessPrefix) {
-				pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts[:j], pod.Spec.Containers[i].VolumeMounts[j+1:]...)
+				pod.Spec.InitContainers[i].VolumeMounts = append(pod.Spec.InitContainers[i].VolumeMounts[:j], pod.Spec.InitContainers[i].VolumeMounts[j+1:]...)
 			}
 		}
 	}
@@ -135,7 +135,7 @@ func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
 	})
 
 	for i := range pod.Spec.InitContainers {
-		pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, corev1.VolumeMount{
+		pod.Spec.InitContainers[i].VolumeMounts = append(pod.Spec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
 			Name:      tokenVolumeName,
 			MountPath: serviceAccountTokenMountPath,
 		})

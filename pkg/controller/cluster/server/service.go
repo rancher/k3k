@@ -5,6 +5,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (s *Server) Service(cluster *v1alpha1.Cluster) *v1.Service {
@@ -39,6 +40,12 @@ func (s *Server) Service(cluster *v1alpha1.Cluster) *v1.Service {
 					Port:     serverPort,
 				},
 				{
+					Name:       "k3s-service-port",
+					Protocol:   v1.ProtocolTCP,
+					Port:       servicePort,
+					TargetPort: intstr.FromInt(serverPort),
+				},
+				{
 					Name:     "k3s-etcd-port",
 					Protocol: v1.ProtocolTCP,
 					Port:     etcdPort,
@@ -70,6 +77,12 @@ func (s *Server) StatefulServerService() *v1.Service {
 					Name:     "k3s-server-port",
 					Protocol: v1.ProtocolTCP,
 					Port:     serverPort,
+				},
+				{
+					Name:       "k3s-service-port",
+					Protocol:   v1.ProtocolTCP,
+					Port:       servicePort,
+					TargetPort: intstr.FromInt(serverPort),
 				},
 				{
 					Name:     "k3s-etcd-port",

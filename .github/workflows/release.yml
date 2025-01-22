@@ -63,7 +63,7 @@ jobs:
     - name: Check release tag
       id: release-tag
       run: |
-        CURRENT_TAG=$(git describe --tag --always)
+        CURRENT_TAG=$(git describe --tag --always --match="v[0-9]*")
 
         if git show-ref --tags ${CURRENT_TAG} --quiet; then
           echo "tag ${CURRENT_TAG} already exists";

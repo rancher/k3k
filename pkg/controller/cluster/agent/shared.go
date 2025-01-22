@@ -86,12 +86,10 @@ func (s *SharedAgent) Resources() ([]ctrlruntimeclient.Object, error) {
 }
 
 func (s *SharedAgent) deployment() *apps.Deployment {
-	selector := &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"cluster": s.cluster.Name,
-			"type":    "agent",
-			"mode":    "shared",
-		},
+	labels := map[string]string{
+		"cluster": s.cluster.Name,
+		"type":    "agent",
+		"mode":    "shared",
 	}
 
 	return &apps.Deployment{
@@ -102,34 +100,26 @@ func (s *SharedAgent) deployment() *apps.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      s.Name(),
 			Namespace: s.cluster.Namespace,
-			Labels:    selector.MatchLabels,
+			Labels:    labels,
 		},
 		Spec: apps.DeploymentSpec{
-			Selector: selector,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: selector.MatchLabels,
+					Labels: labels,
 				},
-				Spec: s.podSpec(selector),
+				Spec: s.podSpec(),
 			},
 		},
 	}
 }
 
-func (s *SharedAgent) podSpec(affinitySelector *metav1.LabelSelector) v1.PodSpec {
+func (s *SharedAgent) podSpec() v1.PodSpec {
 	var limit v1.ResourceList
 
 	return v1.PodSpec{
-		Affinity: &v1.Affinity{
-			PodAntiAffinity: &v1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-					{
-						LabelSelector: affinitySelector,
-						TopologyKey:   "kubernetes.io/hostname",
-					},
-				},
-			},
-		},
 		ServiceAccountName: s.Name(),
 		Volumes: []v1.Volume{
 			{

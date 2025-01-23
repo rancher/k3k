@@ -21,6 +21,7 @@ import (
 	"k8s.io/apiserver/pkg/authentication/user"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -142,23 +143,24 @@ func generate(clx *cli.Context) error {
 	if orgs == nil {
 		orgs = []string{user.SystemPrivilegedGroup}
 	}
+
 	cfg := kubeconfig.KubeConfig{
 		CN:         cn,
 		ORG:        orgs,
 		ExpiryDate: time.Hour * 24 * time.Duration(expirationDays),
 		AltNames:   certAltNames,
 	}
+
 	logrus.Infof("waiting for cluster to be available..")
-	var kubeconfig []byte
+
+	var kubeconfig *clientcmdapi.Config
 	if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = cfg.Extract(ctx, ctrlClient, &cluster, host[0])
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	}); err != nil {
 		return err
 	}
+
 	pwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -174,5 +176,10 @@ func generate(clx *cli.Context) error {
 	kubectl cluster-info
 	`, filepath.Join(pwd, configName))
 
-	return os.WriteFile(configName, kubeconfig, 0644)
+	kubeconfigData, err := clientcmd.Write(*kubeconfig)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(configName, kubeconfigData, 0644)
 }

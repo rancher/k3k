@@ -11,7 +11,6 @@ import (
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
@@ -22,9 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apiserver/pkg/authentication/user"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -190,11 +189,6 @@ func create(clx *cli.Context) error {
 	}
 
 	logrus.Infof("Extracting Kubeconfig for [%s] cluster", name)
-	cfg := &kubeconfig.KubeConfig{
-		CN:         controller.AdminCommonName,
-		ORG:        []string{user.SystemPrivilegedGroup},
-		ExpiryDate: 0,
-	}
 
 	logrus.Infof("waiting for cluster to be available..")
 
@@ -205,7 +199,9 @@ func create(clx *cli.Context) error {
 		Steps:    25,
 	}
 
-	var kubeconfig []byte
+	cfg := kubeconfig.New()
+
+	var kubeconfig *clientcmdapi.Config
 	if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = cfg.Extract(ctx, ctrlClient, cluster, host[0])
 		return err
@@ -224,7 +220,12 @@ func create(clx *cli.Context) error {
 	kubectl cluster-info
 	`, filepath.Join(pwd, cluster.Name+"-kubeconfig.yaml"))
 
-	return os.WriteFile(cluster.Name+"-kubeconfig.yaml", kubeconfig, 0644)
+	kubeconfigData, err := clientcmd.Write(*kubeconfig)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(cluster.Name+"-kubeconfig.yaml", kubeconfigData, 0644)
 }
 
 func validateCreateFlags() error {

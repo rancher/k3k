@@ -109,8 +109,9 @@ func run(clx *cli.Context) error {
 	}
 
 	ctrlruntimelog.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
+
 	logger.Info("adding cluster controller")
-	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, logger); err != nil {
+	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 

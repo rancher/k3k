@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/go-logr/zapr"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster"
-	"github.com/rancher/k3k/pkg/log"
 
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
@@ -53,11 +53,13 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 
+	ctrl.SetLogger(zapr.NewLogger(zap.NewNop()))
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())
-	err = cluster.Add(ctx, mgr, "", "", &log.Logger{SugaredLogger: zap.NewNop().Sugar()})
+	err = cluster.Add(ctx, mgr, "", "")
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

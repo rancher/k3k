@@ -28,4 +28,3 @@ jobs:
     - name: Index Chart
       run: |
         make index-chart
-        

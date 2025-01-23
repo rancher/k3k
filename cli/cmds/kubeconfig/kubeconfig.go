@@ -130,7 +130,10 @@ func generate(clx *cli.Context) error {
 	host := strings.Split(url.Host, ":")
 	if kubeconfigServerHost != "" {
 		host = []string{kubeconfigServerHost}
-		altNames.Set(kubeconfigServerHost)
+		err := altNames.Set(kubeconfigServerHost)
+		if err != nil {
+			return err
+		}
 	}
 
 	certAltNames := certs.AddSANs(altNames.Value())

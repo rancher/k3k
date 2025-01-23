@@ -4,7 +4,7 @@ on:
     - "chart-*"
 
 env:
-    GH_TOKEN: ${{ github.token }}
+    GITHUB_TOKEN: ${{ github.token }}
 
 name: Chart
 permissions:
@@ -28,4 +28,3 @@ jobs:
     - name: Index Chart
       run: |
         make index-chart
-        

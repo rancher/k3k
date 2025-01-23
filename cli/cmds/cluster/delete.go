@@ -6,7 +6,7 @@ import (
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -14,7 +14,7 @@ import (
 
 var (
 	clusterDeleteFlags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "name",
 			Usage:       "name of the cluster",
 			Destination: &name,

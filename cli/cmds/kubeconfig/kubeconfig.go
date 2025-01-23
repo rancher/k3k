@@ -14,7 +14,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,33 +39,33 @@ var (
 	expirationDays          int64
 	configName              string
 	generateKubeconfigFlags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "name",
 			Usage:       "cluster name",
 			Destination: &name,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "config-name",
 			Usage:       "the name of the generated kubeconfig file",
 			Destination: &configName,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "cn",
 			Usage:       "Common name (CN) of the generated certificates for the kubeconfig",
 			Destination: &cn,
 			Value:       controller.AdminCommonName,
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "org",
 			Usage: "Organization name (ORG) of the generated certificates for the kubeconfig",
 			Value: &org,
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "altNames",
 			Usage: "altNames of the generated certificates for the kubeconfig",
 			Value: &altNames,
 		},
-		cli.Int64Flag{
+		&cli.Int64Flag{
 			Name:        "expiration-days",
 			Usage:       "Expiration date of the certificates used for the kubeconfig",
 			Destination: &expirationDays,
@@ -74,19 +74,18 @@ var (
 	}
 )
 
-var subcommands = []cli.Command{
+var subcommands = []*cli.Command{
 	{
 		Name:            "generate",
 		Usage:           "Generate kubeconfig for clusters",
 		SkipFlagParsing: false,
-		SkipArgReorder:  true,
 		Action:          generate,
 		Flags:           append(cmds.CommonFlags, generateKubeconfigFlags...),
 	},
 }
 
-func NewCommand() cli.Command {
-	return cli.Command{
+func NewCommand() *cli.Command {
+	return &cli.Command{
 		Name:        "kubeconfig",
 		Usage:       "Manage kubeconfig for clusters",
 		Subcommands: subcommands,
@@ -123,13 +122,15 @@ func generate(clx *cli.Context) error {
 	}
 	host := strings.Split(url.Host, ":")
 
-	certAltNames := certs.AddSANs(altNames)
-	if org == nil {
-		org = cli.StringSlice{user.SystemPrivilegedGroup}
+	certAltNames := certs.AddSANs(altNames.Value())
+
+	orgs := org.Value()
+	if orgs == nil {
+		orgs = []string{user.SystemPrivilegedGroup}
 	}
 	cfg := kubeconfig.KubeConfig{
 		CN:         cn,
-		ORG:        org,
+		ORG:        orgs,
 		ExpiryDate: time.Hour * 24 * time.Duration(expirationDays),
 		AltNames:   certAltNames,
 	}

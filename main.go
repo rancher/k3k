@@ -14,7 +14,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/clusterset"
 	"github.com/rancher/k3k/pkg/log"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,34 +34,34 @@ var (
 	debug                      bool
 	logger                     *log.Logger
 	flags                      = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "kubeconfig",
-			EnvVar:      "KUBECONFIG",
+			EnvVars:     []string{"KUBECONFIG"},
 			Usage:       "Kubeconfig path",
 			Destination: &kubeconfig,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "cluster-cidr",
-			EnvVar:      "CLUSTER_CIDR",
+			EnvVars:     []string{"CLUSTER_CIDR"},
 			Usage:       "Cluster CIDR to be added to the networkpolicy of the clustersets",
 			Destination: &clusterCIDR,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "shared-agent-image",
-			EnvVar:      "SHARED_AGENT_IMAGE",
+			EnvVars:     []string{"SHARED_AGENT_IMAGE"},
 			Usage:       "K3K Virtual Kubelet image",
 			Value:       "rancher/k3k:k3k-kubelet-dev",
 			Destination: &sharedAgentImage,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "shared-agent-pull-policy",
-			EnvVar:      "SHARED_AGENT_PULL_POLICY",
+			EnvVars:     []string{"SHARED_AGENT_PULL_POLICY"},
 			Usage:       "K3K Virtual Kubelet image pull policy must be one of Always, IfNotPresent or Never",
 			Destination: &sharedAgentImagePullPolicy,
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:        "debug",
-			EnvVar:      "DEBUG",
+			EnvVars:     []string{"DEBUG"},
 			Usage:       "Debug level logging",
 			Destination: &debug,
 		},

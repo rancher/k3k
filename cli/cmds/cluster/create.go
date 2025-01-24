@@ -37,18 +37,19 @@ func init() {
 }
 
 var (
-	name             string
-	token            string
-	clusterCIDR      string
-	serviceCIDR      string
-	servers          int64
-	agents           int64
-	serverArgs       cli.StringSlice
-	agentArgs        cli.StringSlice
-	persistenceType  string
-	storageClassName string
-	version          string
-	mode             string
+	name                 string
+	token                string
+	clusterCIDR          string
+	serviceCIDR          string
+	servers              int64
+	agents               int64
+	serverArgs           cli.StringSlice
+	agentArgs            cli.StringSlice
+	persistenceType      string
+	storageClassName     string
+	version              string
+	mode                 string
+	kubeconfigServerHost string
 
 	clusterCreateFlags = []cli.Flag{
 		&cli.StringFlag{
@@ -115,6 +116,12 @@ var (
 			Destination: &mode,
 			Value:       "shared",
 		},
+		&cli.StringFlag{
+			Name:        "kubeconfig-server",
+			Usage:       "override the kubeconfig server host",
+			Destination: &kubeconfigServerHost,
+			Value:       "",
+		},
 	}
 )
 
@@ -169,6 +176,9 @@ func create(clx *cli.Context) error {
 		return err
 	}
 	host := strings.Split(url.Host, ":")
+	if kubeconfigServerHost != "" {
+		host = []string{kubeconfigServerHost}
+	}
 	cluster.Spec.TLSSANs = []string{host[0]}
 
 	if err := ctrlClient.Create(ctx, cluster); err != nil {

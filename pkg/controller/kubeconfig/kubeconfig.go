@@ -15,6 +15,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -62,7 +63,6 @@ func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster 
 		Name:      server.ServiceName(cluster.Name),
 		Namespace: cluster.Namespace,
 	}
-
 	var k3kService v1.Service
 	if err := client.Get(ctx, nn, &k3kService); err != nil {
 		return nil, err
@@ -72,6 +72,18 @@ func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster 
 	if k3kService.Spec.Type == v1.ServiceTypeNodePort {
 		nodePort := k3kService.Spec.Ports[0].NodePort
 		url = fmt.Sprintf("https://%s:%d", hostServerIP, nodePort)
+	}
+	if cluster.Spec.Expose.Ingress.Enabled {
+		var k3kIngress networkingv1.Ingress
+		nn = types.NamespacedName{
+			Name:      server.IngressName(cluster.Name),
+			Namespace: cluster.Namespace,
+		}
+
+		if err := client.Get(ctx, nn, &k3kIngress); err != nil {
+			return nil, err
+		}
+		url = fmt.Sprintf("https://%s", k3kIngress.Spec.Rules[0].Host)
 	}
 	kubeconfigData, err := kubeconfig(url, []byte(bootstrap.ServerCA.Content), adminCert, adminKey)
 	if err != nil {

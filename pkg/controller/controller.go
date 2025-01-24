@@ -68,12 +68,10 @@ func Addresses(ctx context.Context, client ctrlruntimeclient.Client) ([]string, 
 	if err := client.List(ctx, &nodeList); err != nil {
 		return nil, err
 	}
-
-	addresses := make([]string, len(nodeList.Items))
+	addresses := []string{}
 	for _, node := range nodeList.Items {
 		addresses = append(addresses, nodeAddress(&node))
 	}
-
 	return addresses, nil
 }
 

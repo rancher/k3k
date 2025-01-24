@@ -91,3 +91,6 @@ func configureIngressOptions(ingress *networkingv1.Ingress, ingressClassName str
 		ingress.Annotations[nginxBackendProtocolAnnotation] = "HTTPS"
 	}
 }
+func IngressName(clusterName string) string {
+	return controller.SafeConcatNameWithPrefix(clusterName, "ingress")
+}

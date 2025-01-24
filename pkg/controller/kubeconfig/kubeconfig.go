@@ -3,8 +3,6 @@ package kubeconfig
 import (
 	"context"
 	"crypto/x509"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -16,7 +14,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/apiserver/pkg/authentication/user"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -28,60 +26,45 @@ type KubeConfig struct {
 	ExpiryDate time.Duration
 }
 
-func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string) ([]byte, error) {
-	nn := types.NamespacedName{
-		Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
-		Namespace: cluster.Namespace,
+func New() *KubeConfig {
+	return &KubeConfig{
+		CN:         controller.AdminCommonName,
+		ORG:        []string{user.SystemPrivilegedGroup},
+		ExpiryDate: 0,
 	}
-
-	var bootstrapSecret v1.Secret
-	if err := client.Get(ctx, nn, &bootstrapSecret); err != nil {
-		return nil, err
-	}
-
-	bootstrapData := bootstrapSecret.Data["bootstrap"]
-	if bootstrapData == nil {
-		return nil, errors.New("empty bootstrap")
-	}
-
-	var bootstrap bootstrap.ControlRuntimeBootstrap
-	if err := json.Unmarshal(bootstrapData, &bootstrap); err != nil {
-		return nil, err
-	}
-
-	adminCert, adminKey, err := certs.CreateClientCertKey(
-		k.CN, k.ORG,
-		&k.AltNames, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, k.ExpiryDate,
-		bootstrap.ClientCA.Content,
-		bootstrap.ClientCAKey.Content)
-	if err != nil {
-		return nil, err
-	}
-	// get the server service to extract the right IP
-	nn = types.NamespacedName{
-		Name:      server.ServiceName(cluster.Name),
-		Namespace: cluster.Namespace,
-	}
-
-	var k3kService v1.Service
-	if err := client.Get(ctx, nn, &k3kService); err != nil {
-		return nil, err
-	}
-
-	url := fmt.Sprintf("https://%s:%d", k3kService.Spec.ClusterIP, server.ServerPort)
-	if k3kService.Spec.Type == v1.ServiceTypeNodePort {
-		nodePort := k3kService.Spec.Ports[0].NodePort
-		url = fmt.Sprintf("https://%s:%d", hostServerIP, nodePort)
-	}
-	kubeconfigData, err := kubeconfig(url, []byte(bootstrap.ServerCA.Content), adminCert, adminKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return kubeconfigData, nil
 }
 
-func kubeconfig(url string, serverCA, clientCert, clientKey []byte) ([]byte, error) {
+func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string) (*clientcmdapi.Config, error) {
+	bootstrapData, err := bootstrap.GetFromSecret(ctx, client, cluster)
+	if err != nil {
+		return nil, err
+	}
+	serverCACert := []byte(bootstrapData.ServerCA.Content)
+
+	adminCert, adminKey, err := certs.CreateClientCertKey(
+		k.CN,
+		k.ORG,
+		&k.AltNames,
+		[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		k.ExpiryDate,
+		bootstrapData.ClientCA.Content,
+		bootstrapData.ClientCAKey.Content,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	url, err := getURLFromService(ctx, client, cluster, hostServerIP)
+	if err != nil {
+		return nil, err
+	}
+
+	config := NewConfig(url, serverCACert, adminCert, adminKey)
+
+	return config, nil
+}
+
+func NewConfig(url string, serverCA, clientCert, clientKey []byte) *clientcmdapi.Config {
 	config := clientcmdapi.NewConfig()
 
 	cluster := clientcmdapi.NewCluster()
@@ -101,10 +84,27 @@ func kubeconfig(url string, serverCA, clientCert, clientKey []byte) ([]byte, err
 	config.Contexts["default"] = context
 	config.CurrentContext = "default"
 
-	kubeconfig, err := clientcmd.Write(*config)
-	if err != nil {
-		return nil, err
+	return config
+}
+
+func getURLFromService(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string) (string, error) {
+	// get the server service to extract the right IP
+	key := types.NamespacedName{
+		Name:      server.ServiceName(cluster.Name),
+		Namespace: cluster.Namespace,
 	}
 
-	return kubeconfig, nil
+	var k3kService v1.Service
+	if err := client.Get(ctx, key, &k3kService); err != nil {
+		return "", err
+	}
+
+	url := fmt.Sprintf("https://%s:%d", k3kService.Spec.ClusterIP, server.ServerPort)
+
+	if k3kService.Spec.Type == v1.ServiceTypeNodePort {
+		nodePort := k3kService.Spec.Ports[0].NodePort
+		url = fmt.Sprintf("https://%s:%d", hostServerIP, nodePort)
+	}
+
+	return url, nil
 }

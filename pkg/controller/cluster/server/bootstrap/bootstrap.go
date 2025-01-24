@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,7 +13,9 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type ControlRuntimeBootstrap struct {
@@ -170,4 +173,25 @@ func DecodedBootstrap(token, ip string) (*ControlRuntimeBootstrap, error) {
 	}
 
 	return bootstrap, nil
+}
+
+func GetFromSecret(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster) (*ControlRuntimeBootstrap, error) {
+	key := types.NamespacedName{
+		Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
+		Namespace: cluster.Namespace,
+	}
+
+	var bootstrapSecret v1.Secret
+	if err := client.Get(ctx, key, &bootstrapSecret); err != nil {
+		return nil, err
+	}
+
+	bootstrapData := bootstrapSecret.Data["bootstrap"]
+	if bootstrapData == nil {
+		return nil, errors.New("empty bootstrap")
+	}
+
+	var bootstrap ControlRuntimeBootstrap
+	err := json.Unmarshal(bootstrapData, &bootstrap)
+	return &bootstrap, err
 }

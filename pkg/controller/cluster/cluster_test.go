@@ -51,7 +51,7 @@ var _ = Describe("Cluster Controller", func() {
 
 				serverVersion, err := k8s.DiscoveryClient.ServerVersion()
 				Expect(err).To(Not(HaveOccurred()))
-				expectedHostVersion := fmt.Sprintf("v%s.%s.0-k3s1", serverVersion.Major, serverVersion.Minor)
+				expectedHostVersion := fmt.Sprintf("%s-k3s1", serverVersion.GitVersion)
 
 				Eventually(func() string {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)

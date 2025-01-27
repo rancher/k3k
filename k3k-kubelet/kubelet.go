@@ -25,7 +25,6 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/authentication/user"
@@ -129,9 +128,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	}
 	logger.Info("adding pod mutator webhook")
 	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.NodeName, logger); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return nil, errors.New("unable to add pod mutator webhook for virtual cluster: " + err.Error())
-		}
+		return nil, errors.New("unable to add pod mutator webhook for virtual cluster: " + err.Error())
 	}
 
 	logger.Info("adding service syncer controller")

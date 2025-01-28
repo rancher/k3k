@@ -26,9 +26,9 @@ type ControllerHandler struct {
 	HostClient client.Client
 	// VirtualClient is the client used to communicate with the virtual cluster
 	VirtualClient client.Client
-	// Translater is the translater that will be used to adjust objects before they
+	// Translator is the translator that will be used to adjust objects before they
 	// are made on the host cluster
-	Translater translate.ToHostTranslater
+	Translator translate.ToHostTranslator
 	// Logger is the logger that the controller will use to log errors
 	Logger *k3klog.Logger
 	// controllers are the controllers which are currently running
@@ -65,7 +65,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 			TranslateFunc: func(s *v1.Secret) (*v1.Secret, error) {
 				// note that this doesn't do any type safety - fix this
 				// when generics work
-				c.Translater.TranslateTo(s)
+				c.Translator.TranslateTo(s)
 				// Remove service-account-token types when synced to the host
 				if s.Type == v1.SecretTypeServiceAccountToken {
 					s.Type = v1.SecretTypeOpaque
@@ -80,7 +80,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 			VirtualClient: c.VirtualClient,
 			// TODO: Need actual function
 			TranslateFunc: func(s *v1.ConfigMap) (*v1.ConfigMap, error) {
-				c.Translater.TranslateTo(s)
+				c.Translator.TranslateTo(s)
 				return s, nil
 			},
 			Logger: c.Logger,

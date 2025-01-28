@@ -188,7 +188,7 @@ func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1
 		return err
 	}
 
-	// creating statefulsets in case the user chose a persistence type other than ephermal
+	// creating statefulsets in case the user chose a persistence type other than ephemeral
 	if err := c.server(ctx, cluster, s); err != nil {
 		return err
 	}

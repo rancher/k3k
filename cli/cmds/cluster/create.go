@@ -84,8 +84,8 @@ var (
 		},
 		&cli.StringFlag{
 			Name:        "persistence-type",
-			Usage:       "Persistence mode for the nodes (ephermal, static, dynamic)",
-			Value:       server.EphermalNodesType,
+			Usage:       "Persistence mode for the nodes (ephemeral, static, dynamic)",
+			Value:       server.EphemeralNodesType,
 			Destination: &persistenceType,
 		},
 		&cli.StringFlag{
@@ -229,7 +229,7 @@ func create(clx *cli.Context) error {
 }
 
 func validateCreateFlags() error {
-	if persistenceType != server.EphermalNodesType &&
+	if persistenceType != server.EphemeralNodesType &&
 		persistenceType != server.DynamicNodesType {
 		return errors.New("invalid persistence type")
 	}

@@ -239,7 +239,7 @@ var _ = Describe("ClusterSet Controller", func() {
 
 		})
 
-		When("created specifing the mode", func() {
+		When("created specifying the mode", func() {
 			It("should have the 'virtual' mode if specified", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: v1.ObjectMeta{
@@ -306,7 +306,7 @@ var _ = Describe("ClusterSet Controller", func() {
 			})
 		})
 
-		When("created specifing the podSecurityAdmissionLevel", func() {
+		When("created specifying the podSecurityAdmissionLevel", func() {
 			It("should add and update the proper pod-security labels to the namespace", func() {
 				var (
 					privileged = v1alpha1.PrivilegedPodSecurityAdmissionLevel

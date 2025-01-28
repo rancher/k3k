@@ -31,12 +31,12 @@ type PVCReconciler struct {
 	Scheme           *runtime.Scheme
 	HostScheme       *runtime.Scheme
 	logger           *log.Logger
-	Translater       translate.ToHostTranslater
+	Translator       translate.ToHostTranslator
 }
 
 // AddPVCSyncer adds persistentvolumeclaims syncer controller to k3k-kubelet
 func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, logger *log.Logger) error {
-	translater := translate.ToHostTranslater{
+	translator := translate.ToHostTranslator{
 		ClusterName:      clusterName,
 		ClusterNamespace: clusterNamespace,
 	}
@@ -47,7 +47,7 @@ func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, cluster
 		Scheme:           virtMgr.GetScheme(),
 		HostScheme:       hostMgr.GetScheme(),
 		logger:           logger.Named(pvcController),
-		Translater:       translater,
+		Translator:       translator,
 		clusterName:      clusterName,
 		clusterNamespace: clusterNamespace,
 	}
@@ -116,6 +116,6 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 
 func (r *PVCReconciler) pvc(obj *v1.PersistentVolumeClaim) *v1.PersistentVolumeClaim {
 	hostPVC := obj.DeepCopy()
-	r.Translater.TranslateTo(hostPVC)
+	r.Translator.TranslateTo(hostPVC)
 	return hostPVC
 }

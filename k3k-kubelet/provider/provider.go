@@ -50,7 +50,7 @@ var _ nodeutil.Provider = (*Provider)(nil)
 // TODO: Implement NotifyPods and the required usage so that this can be an async provider
 type Provider struct {
 	Handler          controller.ControllerHandler
-	Translater       translate.ToHostTranslater
+	Translator       translate.ToHostTranslator
 	HostClient       client.Client
 	VirtualClient    client.Client
 	ClientConfig     rest.Config
@@ -72,7 +72,7 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 		return nil, err
 	}
 
-	translater := translate.ToHostTranslater{
+	translator := translate.ToHostTranslator{
 		ClusterName:      name,
 		ClusterNamespace: namespace,
 	}
@@ -83,12 +83,12 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 			Scheme:        *virtualMgr.GetScheme(),
 			HostClient:    hostMgr.GetClient(),
 			VirtualClient: virtualMgr.GetClient(),
-			Translater:    translater,
+			Translator:    translator,
 			Logger:        logger,
 		},
 		HostClient:       hostMgr.GetClient(),
 		VirtualClient:    virtualMgr.GetClient(),
-		Translater:       translater,
+		Translator:       translator,
 		ClientConfig:     hostConfig,
 		CoreClient:       coreClient,
 		ClusterNamespace: namespace,
@@ -103,7 +103,7 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
 func (p *Provider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	hostPodName := p.Translater.TranslateName(namespace, podName)
+	hostPodName := p.Translator.TranslateName(namespace, podName)
 	options := corev1.PodLogOptions{
 		Container:  containerName,
 		Timestamps: opts.Timestamps,
@@ -134,7 +134,7 @@ func (p *Provider) GetContainerLogs(ctx context.Context, namespace, podName, con
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *Provider) RunInContainer(ctx context.Context, namespace, podName, containerName string, cmd []string, attach api.AttachIO) error {
-	hostPodName := p.Translater.TranslateName(namespace, podName)
+	hostPodName := p.Translator.TranslateName(namespace, podName)
 	req := p.CoreClient.RESTClient().Post().
 		Resource("pods").
 		Name(hostPodName).
@@ -166,7 +166,7 @@ func (p *Provider) RunInContainer(ctx context.Context, namespace, podName, conta
 // AttachToContainer attaches to the executing process of a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *Provider) AttachToContainer(ctx context.Context, namespace, podName, containerName string, attach api.AttachIO) error {
-	hostPodName := p.Translater.TranslateName(namespace, podName)
+	hostPodName := p.Translator.TranslateName(namespace, podName)
 	req := p.CoreClient.RESTClient().Post().
 		Resource("pods").
 		Name(hostPodName).
@@ -241,7 +241,7 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary,
 
 	podsNameMap := make(map[string]*v1.Pod)
 	for _, pod := range pods {
-		hostPodName := p.Translater.TranslateName(pod.Namespace, pod.Name)
+		hostPodName := p.Translator.TranslateName(pod.Namespace, pod.Name)
 		podsNameMap[hostPodName] = pod
 	}
 
@@ -289,7 +289,7 @@ func (p *Provider) GetMetricsResource(ctx context.Context) ([]*dto.MetricFamily,
 
 // PortForward forwards a local port to a port on the pod
 func (p *Provider) PortForward(ctx context.Context, namespace, pod string, port int32, stream io.ReadWriteCloser) error {
-	hostPodName := p.Translater.TranslateName(namespace, pod)
+	hostPodName := p.Translator.TranslateName(namespace, pod)
 	req := p.CoreClient.RESTClient().Post().
 		Resource("pods").
 		Name(hostPodName).
@@ -326,7 +326,7 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 // createPod takes a Kubernetes Pod and deploys it within the provider.
 func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	tPod := pod.DeepCopy()
-	p.Translater.TranslateTo(tPod)
+	p.Translator.TranslateTo(tPod)
 
 	// get Cluster definition
 	clusterKey := types.NamespacedName{
@@ -414,7 +414,7 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 			if err := p.syncConfigmap(ctx, podNamespace, volume.ConfigMap.Name, optional); err != nil {
 				return fmt.Errorf("unable to sync configmap volume %s: %w", volume.Name, err)
 			}
-			volume.ConfigMap.Name = p.Translater.TranslateName(podNamespace, volume.ConfigMap.Name)
+			volume.ConfigMap.Name = p.Translator.TranslateName(podNamespace, volume.ConfigMap.Name)
 		} else if volume.Secret != nil {
 			if volume.Secret.Optional != nil {
 				optional = *volume.Secret.Optional
@@ -422,7 +422,7 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 			if err := p.syncSecret(ctx, podNamespace, volume.Secret.SecretName, optional); err != nil {
 				return fmt.Errorf("unable to sync secret volume %s: %w", volume.Name, err)
 			}
-			volume.Secret.SecretName = p.Translater.TranslateName(podNamespace, volume.Secret.SecretName)
+			volume.Secret.SecretName = p.Translator.TranslateName(podNamespace, volume.Secret.SecretName)
 		} else if volume.Projected != nil {
 			for _, source := range volume.Projected.Sources {
 				if source.ConfigMap != nil {
@@ -433,7 +433,7 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 					if err := p.syncConfigmap(ctx, podNamespace, configMapName, optional); err != nil {
 						return fmt.Errorf("unable to sync projected configmap %s: %w", configMapName, err)
 					}
-					source.ConfigMap.Name = p.Translater.TranslateName(podNamespace, configMapName)
+					source.ConfigMap.Name = p.Translator.TranslateName(podNamespace, configMapName)
 				} else if source.Secret != nil {
 					if source.Secret.Optional != nil {
 						optional = *source.Secret.Optional
@@ -445,7 +445,7 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 				}
 			}
 		} else if volume.PersistentVolumeClaim != nil {
-			volume.PersistentVolumeClaim.ClaimName = p.Translater.TranslateName(podNamespace, volume.PersistentVolumeClaim.ClaimName)
+			volume.PersistentVolumeClaim.ClaimName = p.Translator.TranslateName(podNamespace, volume.PersistentVolumeClaim.ClaimName)
 		}
 	}
 	return nil
@@ -531,7 +531,7 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 
 	hostNamespaceName := types.NamespacedName{
 		Namespace: p.ClusterNamespace,
-		Name:      p.Translater.TranslateName(pod.Namespace, pod.Name),
+		Name:      p.Translator.TranslateName(pod.Namespace, pod.Name),
 	}
 
 	var currentHostPod corev1.Pod
@@ -580,13 +580,13 @@ func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 // state, as well as the pod. DeletePod may be called multiple times for the same pod.
 func (p *Provider) deletePod(ctx context.Context, pod *corev1.Pod) error {
 	p.logger.Infof("Got request to delete pod %s", pod.Name)
-	hostName := p.Translater.TranslateName(pod.Namespace, pod.Name)
+	hostName := p.Translator.TranslateName(pod.Namespace, pod.Name)
 	err := p.CoreClient.Pods(p.ClusterNamespace).Delete(ctx, hostName, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to delete pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 	if err = p.pruneUnusedVolumes(ctx, pod); err != nil {
-		// note that we don't return an error here. The pod was sucessfully deleted, another process
+		// note that we don't return an error here. The pod was successfully deleted, another process
 		// should clean this without affecting the user
 		p.logger.Errorf("failed to prune leftover volumes for %s/%s: %w, resources may be left", pod.Namespace, pod.Name, err)
 	}
@@ -656,14 +656,14 @@ func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.
 	p.logger.Debugw("got a request for get pod", "Namespace", namespace, "Name", name)
 	hostNamespaceName := types.NamespacedName{
 		Namespace: p.ClusterNamespace,
-		Name:      p.Translater.TranslateName(namespace, name),
+		Name:      p.Translator.TranslateName(namespace, name),
 	}
 	var pod corev1.Pod
 	err := p.HostClient.Get(ctx, hostNamespaceName, &pod)
 	if err != nil {
 		return nil, fmt.Errorf("error when retrieving pod: %w", err)
 	}
-	p.Translater.TranslateFrom(&pod)
+	p.Translator.TranslateFrom(&pod)
 	return &pod, nil
 }
 
@@ -699,7 +699,7 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	}
 	retPods := []*corev1.Pod{}
 	for _, pod := range podList.DeepCopy().Items {
-		p.Translater.TranslateFrom(&pod)
+		p.Translator.TranslateFrom(&pod)
 		retPods = append(retPods, &pod)
 	}
 	return retPods, nil
@@ -740,7 +740,7 @@ func (p *Provider) configureNetworking(podName, podNamespace string, pod *corev1
 			},
 		)
 	}
-	// handle init contianers as well
+	// handle init containers as well
 	for i := range pod.Spec.InitContainers {
 		pod.Spec.InitContainers[i].Env = append(pod.Spec.InitContainers[i].Env,
 			corev1.EnvVar{

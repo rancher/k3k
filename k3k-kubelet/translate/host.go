@@ -20,12 +20,12 @@ const (
 	ResourceNamespaceAnnotation = "k3k.io/namespace"
 )
 
-type ToHostTranslater struct {
+type ToHostTranslator struct {
 	// ClusterName is the name of the virtual cluster whose resources we are
 	// translating to a host cluster
 	ClusterName string
 	// ClusterNamespace is the namespace of the virtual cluster whose resources
-	// we are tranlsating to a host cluster
+	// we are translating to a host cluster
 	ClusterNamespace string
 }
 
@@ -33,7 +33,7 @@ type ToHostTranslater struct {
 // static resources such as configmaps/secrets, and not for things like pods (which can reference other
 // objects). Note that this won't set host-cluster values (like resource version) so when updating you
 // may need to fetch the existing value and do some combination before using this.
-func (t *ToHostTranslater) TranslateTo(obj client.Object) {
+func (t *ToHostTranslator) TranslateTo(obj client.Object) {
 	// owning objects may be in the virtual cluster, but may not be in the host cluster
 	obj.SetOwnerReferences(nil)
 	// add some annotations to make it easier to track source object
@@ -63,7 +63,7 @@ func (t *ToHostTranslater) TranslateTo(obj client.Object) {
 	obj.SetFinalizers(nil)
 }
 
-func (t *ToHostTranslater) TranslateFrom(obj client.Object) {
+func (t *ToHostTranslator) TranslateFrom(obj client.Object) {
 	// owning objects may be in the virtual cluster, but may not be in the host cluster
 	obj.SetOwnerReferences(nil)
 
@@ -91,7 +91,7 @@ func (t *ToHostTranslater) TranslateFrom(obj client.Object) {
 }
 
 // TranslateName returns the name of the resource in the host cluster. Will not update the object with this name.
-func (t *ToHostTranslater) TranslateName(namespace string, name string) string {
+func (t *ToHostTranslator) TranslateName(namespace string, name string) string {
 	// we need to come up with a name which is:
 	// - somewhat connectable to the original resource
 	// - a valid k8s name

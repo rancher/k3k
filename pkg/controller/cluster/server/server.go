@@ -23,9 +23,9 @@ const (
 	configName         = "server-config"
 	initConfigName     = "init-server-config"
 
-	ServerPort        = 6443
-	EphermalNodesType = "ephermal"
-	DynamicNodesType  = "dynamic"
+	ServerPort         = 6443
+	EphemeralNodesType = "ephemeral"
+	DynamicNodesType   = "dynamic"
 )
 
 // Server
@@ -229,7 +229,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 	replicas = *s.cluster.Spec.Servers
 
-	if s.cluster.Spec.Persistence != nil && s.cluster.Spec.Persistence.Type != EphermalNodesType {
+	if s.cluster.Spec.Persistence != nil && s.cluster.Spec.Persistence.Type != EphemeralNodesType {
 		persistent = true
 		pvClaims = []v1.PersistentVolumeClaim{
 			{

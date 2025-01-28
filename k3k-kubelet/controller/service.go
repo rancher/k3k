@@ -33,12 +33,12 @@ type ServiceReconciler struct {
 	Scheme           *runtime.Scheme
 	HostScheme       *runtime.Scheme
 	logger           *log.Logger
-	Translater       translate.ToHostTranslater
+	Translator       translate.ToHostTranslator
 }
 
 // AddServiceSyncer adds service syncer controller to the manager of the virtual cluster
 func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, logger *log.Logger) error {
-	translater := translate.ToHostTranslater{
+	translator := translate.ToHostTranslator{
 		ClusterName:      clusterName,
 		ClusterNamespace: clusterNamespace,
 	}
@@ -49,7 +49,7 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 		Scheme:           virtMgr.GetScheme(),
 		HostScheme:       hostMgr.GetScheme(),
 		logger:           logger.Named(serviceSyncerController),
-		Translater:       translater,
+		Translator:       translator,
 		clusterName:      clusterName,
 		clusterNamespace: clusterNamespace,
 	}
@@ -120,7 +120,7 @@ func (s *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 func (s *ServiceReconciler) service(obj *v1.Service) *v1.Service {
 	hostService := obj.DeepCopy()
-	s.Translater.TranslateTo(hostService)
+	s.Translator.TranslateTo(hostService)
 	// don't sync finalizers to the host
 	return hostService
 }

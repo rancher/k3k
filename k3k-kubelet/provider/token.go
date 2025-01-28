@@ -52,7 +52,7 @@ func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) e
 	hostSecret := virtualSecret.DeepCopy()
 	hostSecret.Type = ""
 	hostSecret.Annotations = make(map[string]string)
-	p.Translater.TranslateTo(hostSecret)
+	p.Translator.TranslateTo(hostSecret)
 
 	if err := p.HostClient.Create(ctx, hostSecret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {

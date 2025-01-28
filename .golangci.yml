@@ -7,3 +7,6 @@ linters:
   - ineffassign
   - staticcheck
   - unused
+
+  # extra
+  - misspell

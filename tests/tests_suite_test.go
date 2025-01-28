@@ -173,7 +173,11 @@ var _ = When("k3k is installed", func() {
 
 func buildScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
+
+	err := corev1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
+	err = v1alpha1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
 	return scheme
 }

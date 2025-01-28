@@ -11,6 +11,7 @@ import (
 	"github.com/rancher/k3k/pkg/log"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -56,7 +57,9 @@ func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient c
 		return err
 	}
 	if err := handler.client.Create(ctx, config); err != nil {
-		return err
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
 	}
 	// register webhook with the manager
 	return ctrl.NewWebhookManagedBy(mgr).For(&v1.Pod{}).WithDefaulter(&handler).Complete()

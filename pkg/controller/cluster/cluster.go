@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -98,7 +99,8 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 
 		// update Status HostVersion
-		cluster.Status.HostVersion = fmt.Sprintf("v%s.%s.0-k3s1", hostVersion.Major, hostVersion.Minor)
+		k8sVersion := strings.Split(hostVersion.GitVersion, "+")[0]
+		cluster.Status.HostVersion = k8sVersion + "-k3s1"
 		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}

@@ -19,7 +19,7 @@ import (
 
 func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster v1alpha1.Cluster) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("finalizeCluster")
+	log.Info("finalizing Cluster")
 
 	// remove finalizer from the server pods and update them.
 	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})

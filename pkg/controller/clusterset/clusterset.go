@@ -7,8 +7,6 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/log"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,17 +35,15 @@ type ClusterSetReconciler struct {
 	Client      ctrlruntimeclient.Client
 	Scheme      *runtime.Scheme
 	ClusterCIDR string
-	logger      *log.Logger
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string, logger *log.Logger) error {
+func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string) error {
 	// initialize a new Reconciler
 	reconciler := ClusterSetReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
 		ClusterCIDR: clusterCIDR,
-		logger:      logger.Named(clusterSetController),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -121,22 +117,23 @@ func namespaceLabelsPredicate() predicate.Predicate {
 }
 
 func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := c.logger.With("ClusterSet", req.NamespacedName)
+	log := ctrl.LoggerFrom(ctx).WithValues("clusterset", req.NamespacedName)
+	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
 
 	var clusterSet v1alpha1.ClusterSet
 	if err := c.Client.Get(ctx, req.NamespacedName, &clusterSet); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if err := c.reconcileNetworkPolicy(ctx, log, &clusterSet); err != nil {
+	if err := c.reconcileNetworkPolicy(ctx, &clusterSet); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := c.reconcileNamespacePodSecurityLabels(ctx, log, &clusterSet); err != nil {
+	if err := c.reconcileNamespacePodSecurityLabels(ctx, &clusterSet); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := c.reconcileClusters(ctx, log, &clusterSet); err != nil {
+	if err := c.reconcileClusters(ctx, &clusterSet); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -164,7 +161,8 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 	return reconcile.Result{}, nil
 }
 
-func (c *ClusterSetReconciler) reconcileNetworkPolicy(ctx context.Context, log *zap.SugaredLogger, clusterSet *v1alpha1.ClusterSet) error {
+func (c *ClusterSetReconciler) reconcileNetworkPolicy(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling NetworkPolicy")
 
 	networkPolicy, err := netpol(ctx, c.ClusterCIDR, clusterSet, c.Client)
@@ -258,7 +256,8 @@ func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.Cluste
 	}, nil
 }
 
-func (c *ClusterSetReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, log *zap.SugaredLogger, clusterSet *v1alpha1.ClusterSet) error {
+func (c *ClusterSetReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling Namespace")
 
 	var ns v1.Namespace
@@ -293,7 +292,7 @@ func (c *ClusterSetReconciler) reconcileNamespacePodSecurityLabels(ctx context.C
 	}
 
 	if !reflect.DeepEqual(ns.Labels, newLabels) {
-		log.Debug("labels changed, updating namespace")
+		log.V(1).Info("labels changed, updating namespace")
 
 		ns.Labels = newLabels
 		return c.Client.Update(ctx, &ns)
@@ -301,7 +300,8 @@ func (c *ClusterSetReconciler) reconcileNamespacePodSecurityLabels(ctx context.C
 	return nil
 }
 
-func (c *ClusterSetReconciler) reconcileClusters(ctx context.Context, log *zap.SugaredLogger, clusterSet *v1alpha1.ClusterSet) error {
+func (c *ClusterSetReconciler) reconcileClusters(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling Clusters")
 
 	var clusters v1alpha1.ClusterList

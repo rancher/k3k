@@ -76,8 +76,10 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 }
 
 func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling")
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", req.NamespacedName)
+	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
+
+	log.Info("reconciling cluster")
 
 	var cluster v1alpha1.Cluster
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
@@ -112,11 +114,12 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconcileCluster")
 
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
 	// This version is stored in the Status object, and it will not be updated if already set.
 	if cluster.Spec.Version == "" && cluster.Status.HostVersion == "" {
+		log.V(1).Info("cluster version not set")
+
 		hostVersion, err := c.DiscoveryClient.ServerVersion()
 		if err != nil {
 			return err

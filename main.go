@@ -116,18 +116,18 @@ func run(clx *cli.Context) error {
 	}
 
 	logger.Info("adding etcd pod controller")
-	if err := cluster.AddPodController(ctx, mgr, logger); err != nil {
+	if err := cluster.AddPodController(ctx, mgr); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 
 	logger.Info("adding clusterset controller")
-	if err := clusterset.Add(ctx, mgr, clusterCIDR, logger); err != nil {
+	if err := clusterset.Add(ctx, mgr, clusterCIDR); err != nil {
 		return fmt.Errorf("failed to add the clusterset controller: %v", err)
 	}
 
 	if clusterCIDR == "" {
 		logger.Info("adding networkpolicy node controller")
-		if err := clusterset.AddNodeController(ctx, mgr, logger); err != nil {
+		if err := clusterset.AddNodeController(ctx, mgr); err != nil {
 			return fmt.Errorf("failed to add the clusterset node controller: %v", err)
 		}
 	}

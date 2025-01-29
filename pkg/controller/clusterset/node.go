@@ -73,8 +73,8 @@ func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterSetLi
 			continue
 		}
 
-		clusterSetLog := log.WithValues("clusterset", cs.Namespace+"/"+cs.Name)
-		clusterSetLog.Info("updating NetworkPolicy for ClusterSet")
+		log = log.WithValues("clusterset", cs.Namespace+"/"+cs.Name)
+		log.Info("updating NetworkPolicy for ClusterSet")
 
 		var err error
 		setNetworkPolicy, err = netpol(ctx, "", &cs, n.Client)
@@ -82,7 +82,7 @@ func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterSetLi
 			return err
 		}
 
-		clusterSetLog.Info("new NetworkPolicy for clusterset")
+		log.Info("new NetworkPolicy for clusterset")
 		if err := n.Client.Update(ctx, setNetworkPolicy); err != nil {
 			return err
 		}

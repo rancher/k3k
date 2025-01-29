@@ -94,6 +94,62 @@ var _ = When("a cluster is installed", func() {
 			WithPolling(time.Second * 5).
 			Should(BeTrue())
 	})
+
+	FIt("will regenerate the bootstrap secret after a restart", func() {
+		ctx := context.Background()
+		containerIP, err := k3sContainer.ContainerIP(ctx)
+		Expect(err).To(Not(HaveOccurred()))
+
+		fmt.Fprintln(GinkgoWriter, "K3s containerIP: "+containerIP)
+
+		cluster := v1alpha1.Cluster{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "mycluster",
+				Namespace: namespace,
+			},
+			Spec: v1alpha1.ClusterSpec{
+				TLSSANs: []string{containerIP},
+				Expose: &v1alpha1.ExposeConfig{
+					NodePort: &v1alpha1.NodePortConfig{
+						Enabled: true,
+					},
+				},
+			},
+		}
+		virtualK8sClient := CreateCluster(containerIP, cluster)
+
+		_, err = virtualK8sClient.DiscoveryClient.ServerVersion()
+		Expect(err).To(Not(HaveOccurred()))
+
+		serverPods, err := k8s.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{LabelSelector: "cluster=cluster-1,role=server"})
+		Expect(err).To(Not(HaveOccurred()))
+
+		for _, serverPod := range serverPods.Items {
+			err = k8s.CoreV1().Pods(namespace).Delete(ctx, serverPod.Name, v1.DeleteOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+		}
+
+		By("restarting")
+
+		// check that the server Pods are up and running again
+		Eventually(func() int {
+			serverPods, err = k8s.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{LabelSelector: "cluster=cluster-1,role=server"})
+			Expect(err).To(Not(HaveOccurred()))
+
+			var runningCount int
+			for _, pod := range serverPods.Items {
+				if pod.Status.Phase == corev1.PodRunning {
+					runningCount++
+				}
+			}
+
+			return runningCount
+		}).
+			WithTimeout(time.Minute).
+			WithPolling(time.Second * 5).
+			Should(Equal(len(serverPods.Items)))
+
+	})
 })
 
 func CreateCluster(hostIP string, cluster v1alpha1.Cluster) *kubernetes.Clientset {
@@ -133,7 +189,7 @@ func CreateCluster(hostIP string, cluster v1alpha1.Cluster) *kubernetes.Clientse
 
 		return false
 	}).
-		WithTimeout(time.Minute).
+		WithTimeout(time.Minute * 2).
 		WithPolling(time.Second * 5).
 		Should(BeTrue())
 

@@ -13,8 +13,6 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
-	"github.com/rancher/k3k/pkg/log"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -51,12 +49,10 @@ type ClusterReconciler struct {
 	Scheme                     *runtime.Scheme
 	SharedAgentImage           string
 	SharedAgentImagePullPolicy string
-	logger                     *log.Logger
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy string, logger *log.Logger) error {
-
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy string) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
@@ -69,7 +65,6 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		Scheme:                     mgr.GetScheme(),
 		SharedAgentImage:           sharedAgentImage,
 		SharedAgentImagePullPolicy: sharedAgentImagePullPolicy,
-		logger:                     logger.Named(clusterController),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -81,78 +76,65 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 }
 
 func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	var (
-		cluster v1alpha1.Cluster
-		podList v1.PodList
-	)
-	log := c.logger.With("Cluster", req.NamespacedName)
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", req.NamespacedName)
+	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
+
+	log.Info("reconciling cluster")
+
+	var cluster v1alpha1.Cluster
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
-		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+		return reconcile.Result{}, err
 	}
 
-	// if the Version is not specified we will try to use the same Kubernetes version of the host.
-	// This version is stored in the Status object, and it will not be updated if already set.
-	if cluster.Spec.Version == "" && cluster.Status.HostVersion == "" {
-		hostVersion, err := c.DiscoveryClient.ServerVersion()
-		if err != nil {
+	// if DeletionTimestamp is not Zero -> finalize the object
+	if !cluster.DeletionTimestamp.IsZero() {
+		return c.finalizeCluster(ctx, cluster)
+	}
+
+	// add finalizers
+	if !controllerutil.AddFinalizer(&cluster, clusterFinalizerName) {
+		if err := c.Client.Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
+	}
 
-		// update Status HostVersion
-		k8sVersion := strings.Split(hostVersion.GitVersion, "+")[0]
-		cluster.Status.HostVersion = k8sVersion + "-k3s1"
+	orig := cluster.DeepCopy()
+
+	reconcilerErr := c.reconcileCluster(ctx, &cluster)
+
+	// update Status if needed
+	if !reflect.DeepEqual(orig.Status, cluster.Status) {
 		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
-	if cluster.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
-			controllerutil.AddFinalizer(&cluster, clusterFinalizerName)
-			if err := c.Client.Update(ctx, &cluster); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-		log.Info("enqueue cluster")
-		return reconcile.Result{}, c.createCluster(ctx, &cluster, log)
-	}
-
-	// remove finalizer from the server pods and update them.
-	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
-	listOpts := &ctrlruntimeclient.ListOptions{Namespace: cluster.Namespace}
-	matchingLabels.ApplyToList(listOpts)
-	if err := c.Client.List(ctx, &podList, listOpts); err != nil {
-		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
-	}
-	for _, pod := range podList.Items {
-		if controllerutil.ContainsFinalizer(&pod, etcdPodFinalizerName) {
-			controllerutil.RemoveFinalizer(&pod, etcdPodFinalizerName)
-			if err := c.Client.Update(ctx, &pod); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-	}
-
-	if err := c.unbindNodeProxyClusterRole(ctx, &cluster); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
-		// remove finalizer from the cluster and update it.
-		controllerutil.RemoveFinalizer(&cluster, clusterFinalizerName)
-		if err := c.Client.Update(ctx, &cluster); err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-	log.Info("deleting cluster")
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, reconcilerErr
 }
 
-func (c *ClusterReconciler) createCluster(ctx context.Context, cluster *v1alpha1.Cluster, log *zap.SugaredLogger) error {
+func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	// if the Version is not specified we will try to use the same Kubernetes version of the host.
+	// This version is stored in the Status object, and it will not be updated if already set.
+	if cluster.Spec.Version == "" && cluster.Status.HostVersion == "" {
+		log.V(1).Info("cluster version not set")
+
+		hostVersion, err := c.DiscoveryClient.ServerVersion()
+		if err != nil {
+			return err
+		}
+
+		// update Status HostVersion
+		k8sVersion := strings.Split(hostVersion.GitVersion, "+")[0]
+		cluster.Status.HostVersion = k8sVersion + "-k3s1"
+	}
+
 	if err := c.validate(cluster); err != nil {
-		log.Errorw("invalid change", zap.Error(err))
+		log.Error(err, "invalid change")
 		return nil
 	}
+
 	token, err := c.token(ctx, cluster)
 	if err != nil {
 		return err
@@ -340,30 +322,6 @@ func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluste
 		})
 	}
 
-	return c.Client.Update(ctx, clusterRoleBinding)
-}
-
-func (c *ClusterReconciler) unbindNodeProxyClusterRole(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	if err := c.Client.Get(ctx, types.NamespacedName{Name: "k3k-node-proxy"}, clusterRoleBinding); err != nil {
-		return fmt.Errorf("failed to get or find k3k-node-proxy ClusterRoleBinding: %w", err)
-	}
-
-	subjectName := controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName)
-
-	var cleanedSubjects []rbacv1.Subject
-	for _, subject := range clusterRoleBinding.Subjects {
-		if subject.Name != subjectName || subject.Namespace != cluster.Namespace {
-			cleanedSubjects = append(cleanedSubjects, subject)
-		}
-	}
-
-	// if no subject was removed, all good
-	if reflect.DeepEqual(clusterRoleBinding.Subjects, cleanedSubjects) {
-		return nil
-	}
-
-	clusterRoleBinding.Subjects = cleanedSubjects
 	return c.Client.Update(ctx, clusterRoleBinding)
 }
 

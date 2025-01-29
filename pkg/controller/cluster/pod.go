@@ -15,10 +15,8 @@ import (
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
-	"github.com/rancher/k3k/pkg/log"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.uber.org/zap"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,16 +39,14 @@ const (
 type PodReconciler struct {
 	Client ctrlruntimeclient.Client
 	Scheme *runtime.Scheme
-	logger *log.Logger
 }
 
 // Add adds a new controller to the manager
-func AddPodController(ctx context.Context, mgr manager.Manager, logger *log.Logger) error {
+func AddPodController(ctx context.Context, mgr manager.Manager) error {
 	// initialize a new Reconciler
 	reconciler := PodReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		logger: logger.Named(podController),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -63,7 +59,8 @@ func AddPodController(ctx context.Context, mgr manager.Manager, logger *log.Logg
 }
 
 func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := p.logger.With("Pod", req.NamespacedName)
+	log := ctrl.LoggerFrom(ctx).WithValues("pod", req.NamespacedName)
+	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
 
 	s := strings.Split(req.Name, "-")
 	if len(s) < 1 {
@@ -88,22 +85,28 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 	for _, pod := range podList.Items {
-		log.Info("Handle etcd server pod")
-		if err := p.handleServerPod(ctx, cluster, &pod, log); err != nil {
+
+		if err := p.handleServerPod(ctx, cluster, &pod); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 	return reconcile.Result{}, nil
 }
 
-func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod, log *zap.SugaredLogger) error {
-	if _, ok := pod.Labels["role"]; ok {
-		if pod.Labels["role"] != "server" {
-			return nil
-		}
-	} else {
+func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("handling server pod")
+
+	role, found := pod.Labels["role"]
+	if !found {
 		return fmt.Errorf("server pod has no role label")
 	}
+
+	if role != "server" {
+		log.V(1).Info("pod has a different role: " + role)
+		return nil
+	}
+
 	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
 	if !pod.DeletionTimestamp.IsZero() {
 		// check if cluster is deleted then remove the finalizer from the pod
@@ -116,7 +119,7 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 			}
 			return nil
 		}
-		tlsConfig, err := p.getETCDTLS(ctx, &cluster, log)
+		tlsConfig, err := p.getETCDTLS(ctx, &cluster)
 		if err != nil {
 			return err
 		}
@@ -131,9 +134,10 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 			return err
 		}
 
-		if err := removePeer(ctx, client, pod.Name, pod.Status.PodIP, log); err != nil {
+		if err := removePeer(ctx, client, pod.Name, pod.Status.PodIP); err != nil {
 			return err
 		}
+
 		// remove our finalizer from the list and update it.
 		if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
 			controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
@@ -150,13 +154,16 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 	return nil
 }
 
-func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluster, log *zap.SugaredLogger) (*tls.Config, error) {
-	log.Infow("generating etcd TLS client certificate", "Cluster", cluster.Name, "Namespace", cluster.Namespace)
+func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluster) (*tls.Config, error) {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("generating etcd TLS client certificate", "cluster", cluster)
+
 	token, err := p.clusterToken(ctx, cluster)
 	if err != nil {
 		return nil, err
 	}
 	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
+
 	var b *bootstrap.ControlRuntimeBootstrap
 	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
 		return true
@@ -191,7 +198,10 @@ func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluste
 }
 
 // removePeer removes a peer from the cluster. The peer name and IP address must both match.
-func removePeer(ctx context.Context, client *clientv3.Client, name, address string, log *zap.SugaredLogger) error {
+func removePeer(ctx context.Context, client *clientv3.Client, name, address string) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("removing peer from cluster", "name", name, "address", address)
+
 	ctx, cancel := context.WithTimeout(ctx, memberRemovalTimeout)
 	defer cancel()
 	members, err := client.MemberList(ctx)
@@ -208,8 +218,9 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 			if err != nil {
 				return err
 			}
+
 			if u.Hostname() == address {
-				log.Infow("Removing member from etcd", "name", member.Name, "id", member.ID, "address", address)
+				log.Info("removing member from etcd", "name", member.Name, "id", member.ID, "address", address)
 				_, err := client.MemberRemove(ctx, member.ID)
 				if errors.Is(err, rpctypes.ErrGRPCMemberNotFound) {
 					return nil

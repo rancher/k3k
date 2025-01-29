@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/log"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,16 +22,14 @@ type NodeReconciler struct {
 	Client      ctrlruntimeclient.Client
 	Scheme      *runtime.Scheme
 	ClusterCIDR string
-	logger      *log.Logger
 }
 
 // AddNodeController adds a new controller to the manager
-func AddNodeController(ctx context.Context, mgr manager.Manager, logger *log.Logger) error {
+func AddNodeController(ctx context.Context, mgr manager.Manager) error {
 	// initialize a new Reconciler
 	reconciler := NodeReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		logger: logger.Named(nodeController),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -46,7 +42,11 @@ func AddNodeController(ctx context.Context, mgr manager.Manager, logger *log.Log
 }
 
 func (n *NodeReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := n.logger.With("Node", req.NamespacedName)
+	log := ctrl.LoggerFrom(ctx).WithValues("node", req.NamespacedName)
+	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
+
+	log.Info("reconciling node")
+
 	var clusterSetList v1alpha1.ClusterSetList
 	if err := n.Client.List(ctx, &clusterSetList); err != nil {
 		return reconcile.Result{}, err
@@ -56,26 +56,33 @@ func (n *NodeReconciler) Reconcile(ctx context.Context, req reconcile.Request) (
 		return reconcile.Result{}, nil
 	}
 
-	if err := n.ensureNetworkPolicies(ctx, clusterSetList, log); err != nil {
+	if err := n.ensureNetworkPolicies(ctx, clusterSetList); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterSetList v1alpha1.ClusterSetList, log *zap.SugaredLogger) error {
+func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterSetList v1alpha1.ClusterSetList) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("ensuring network policies")
+
 	var setNetworkPolicy *networkingv1.NetworkPolicy
 	for _, cs := range clusterSetList.Items {
 		if cs.Spec.DisableNetworkPolicy {
 			continue
 		}
+
+		log = log.WithValues("clusterset", cs.Namespace+"/"+cs.Name)
+		log.Info("updating NetworkPolicy for ClusterSet")
+
 		var err error
-		log.Infow("Updating NetworkPolicy for ClusterSet", "name", cs.Name, "namespace", cs.Namespace)
 		setNetworkPolicy, err = netpol(ctx, "", &cs, n.Client)
 		if err != nil {
 			return err
 		}
-		log.Debugw("New NetworkPolicy for clusterset", "name", cs.Name, "namespace", cs.Namespace)
+
+		log.Info("new NetworkPolicy for clusterset")
 		if err := n.Client.Update(ctx, setNetworkPolicy); err != nil {
 			return err
 		}

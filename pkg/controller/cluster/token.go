@@ -12,6 +12,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -35,15 +36,16 @@ func (c *ClusterReconciler) token(ctx context.Context, cluster *v1alpha1.Cluster
 }
 
 func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
+	log := ctrl.LoggerFrom(ctx)
+
 	// check if the secret is already created
-	var (
-		tokenSecret v1.Secret
-		nn          = types.NamespacedName{
-			Name:      TokenSecretName(cluster.Name),
-			Namespace: cluster.Namespace,
-		}
-	)
-	if err := c.Client.Get(ctx, nn, &tokenSecret); err != nil {
+	key := types.NamespacedName{
+		Name:      TokenSecretName(cluster.Name),
+		Namespace: cluster.Namespace,
+	}
+
+	var tokenSecret v1.Secret
+	if err := c.Client.Get(ctx, key, &tokenSecret); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return "", err
 		}
@@ -52,15 +54,19 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1al
 	if tokenSecret.Data != nil {
 		return string(tokenSecret.Data["token"]), nil
 	}
-	c.logger.Info("Token secret is not specified, creating a random token")
+
+	log.Info("Token secret is not specified, creating a random token")
+
 	token, err := random(16)
 	if err != nil {
 		return "", err
 	}
+
 	tokenSecret = TokenSecretObj(token, cluster.Name, cluster.Namespace)
 	if err := controllerutil.SetControllerReference(cluster, &tokenSecret, c.Scheme); err != nil {
 		return "", err
 	}
+
 	if err := c.ensure(ctx, &tokenSecret, false); err != nil {
 		return "", err
 	}

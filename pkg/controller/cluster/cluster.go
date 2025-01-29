@@ -100,16 +100,27 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	orig := cluster.DeepCopy()
 
-	reconcilerErr := c.reconcileCluster(ctx, &cluster)
+	if err := c.reconcileCluster(ctx, &cluster); err != nil {
+		return reconcile.Result{}, err
+	}
+	updatedStatus := cluster.Status
+
+	// update Cluster if needed
+	if !reflect.DeepEqual(orig.Spec, cluster.Spec) {
+		if err := c.Client.Update(ctx, &cluster); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
 
 	// update Status if needed
-	if !reflect.DeepEqual(orig.Status, cluster.Status) {
+	if !reflect.DeepEqual(orig.Status, updatedStatus) {
+		cluster.Status = updatedStatus
 		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
-	return reconcile.Result{}, reconcilerErr
+	return reconcile.Result{}, nil
 }
 
 func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
@@ -118,7 +129,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
 	// This version is stored in the Status object, and it will not be updated if already set.
 	if cluster.Spec.Version == "" && cluster.Status.HostVersion == "" {
-		log.V(1).Info("cluster version not set")
+		log.Info("cluster version not set")
 
 		hostVersion, err := c.DiscoveryClient.ServerVersion()
 		if err != nil {
@@ -209,7 +220,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	return c.Client.Update(ctx, cluster)
+	return nil
 }
 
 func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server, serviceIP string) error {

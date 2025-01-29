@@ -164,7 +164,7 @@ spec:
                     type: string
                   type:
                     default: ephemeral
-                    description: Type can be ephermal, static, dynamic
+                    description: Type can be ephemeral, static, dynamic
                     type: string
                 required:
                 - type
@@ -238,7 +238,7 @@ spec:
                     type: string
                   type:
                     default: ephemeral
-                    description: Type can be ephermal, static, dynamic
+                    description: Type can be ephemeral, static, dynamic
                     type: string
                 required:
                 - type

@@ -2,6 +2,8 @@ package k3k_test
 
 import (
 	"context"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -95,7 +97,7 @@ var _ = When("a cluster is installed", func() {
 			Should(BeTrue())
 	})
 
-	FIt("will regenerate the bootstrap secret after a restart", func() {
+	It("will regenerate the bootstrap secret after a restart", func() {
 		ctx := context.Background()
 		containerIP, err := k3sContainer.ContainerIP(ctx)
 		Expect(err).To(Not(HaveOccurred()))
@@ -121,34 +123,54 @@ var _ = When("a cluster is installed", func() {
 		_, err = virtualK8sClient.DiscoveryClient.ServerVersion()
 		Expect(err).To(Not(HaveOccurred()))
 
-		serverPods, err := k8s.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{LabelSelector: "cluster=cluster-1,role=server"})
+		labelSelector := "cluster=" + cluster.Name + ",role=server"
+		serverPods, err := k8s.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
 		Expect(err).To(Not(HaveOccurred()))
 
-		for _, serverPod := range serverPods.Items {
-			err = k8s.CoreV1().Pods(namespace).Delete(ctx, serverPod.Name, v1.DeleteOptions{})
+		Expect(len(serverPods.Items)).To(Equal(1))
+		serverPod := serverPods.Items[0]
+
+		fmt.Fprintf(GinkgoWriter, "deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
+		// GracePeriodSeconds: ptr.To[int64](0)
+		err = k8s.CoreV1().Pods(namespace).Delete(ctx, serverPod.Name, v1.DeleteOptions{})
+		Expect(err).To(Not(HaveOccurred()))
+
+		By("Deleting server pod")
+
+		// check that the server pods restarted
+		Eventually(func() any {
+			serverPods, err = k8s.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
 			Expect(err).To(Not(HaveOccurred()))
-		}
-
-		By("restarting")
-
-		// check that the server Pods are up and running again
-		Eventually(func() int {
-			serverPods, err = k8s.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{LabelSelector: "cluster=cluster-1,role=server"})
-			Expect(err).To(Not(HaveOccurred()))
-
-			var runningCount int
-			for _, pod := range serverPods.Items {
-				if pod.Status.Phase == corev1.PodRunning {
-					runningCount++
-				}
-			}
-
-			return runningCount
+			Expect(len(serverPods.Items)).To(Equal(1))
+			return serverPods.Items[0].DeletionTimestamp
 		}).
 			WithTimeout(time.Minute).
 			WithPolling(time.Second * 5).
-			Should(Equal(len(serverPods.Items)))
+			Should(BeNil())
 
+		By("Server pod up and running again")
+
+		By("Using old k8s client configuration should fail")
+
+		Eventually(func() bool {
+			_, err = virtualK8sClient.DiscoveryClient.ServerVersion()
+			var unknownAuthorityErr x509.UnknownAuthorityError
+			return errors.As(err, &unknownAuthorityErr)
+		}).
+			WithTimeout(time.Minute * 2).
+			WithPolling(time.Second * 5).
+			Should(BeTrue())
+
+		By("Recover new config should succeed")
+
+		Eventually(func() error {
+			virtualK8sClient = CreateK8sClient(containerIP, cluster)
+			_, err = virtualK8sClient.DiscoveryClient.ServerVersion()
+			return err
+		}).
+			WithTimeout(time.Minute * 2).
+			WithPolling(time.Second * 5).
+			Should(BeNil())
 	})
 })
 
@@ -193,6 +215,15 @@ func CreateCluster(hostIP string, cluster v1alpha1.Cluster) *kubernetes.Clientse
 		WithPolling(time.Second * 5).
 		Should(BeTrue())
 
+	return CreateK8sClient(hostIP, cluster)
+}
+
+func CreateK8sClient(hostIP string, cluster v1alpha1.Cluster) *kubernetes.Clientset {
+	GinkgoHelper()
+
+	var err error
+	ctx := context.Background()
+
 	By("Waiting for server to be up and running")
 
 	var config *clientcmdapi.Config
@@ -214,9 +245,9 @@ func CreateCluster(hostIP string, cluster v1alpha1.Cluster) *kubernetes.Clientse
 	virtualK8sClient, err := kubernetes.NewForConfig(restcfg)
 	Expect(err).To(Not(HaveOccurred()))
 
-	serverVersion, err := virtualK8sClient.DiscoveryClient.ServerVersion()
-	Expect(err).To(Not(HaveOccurred()))
-	fmt.Fprintf(GinkgoWriter, "serverVersion: %+v\n", serverVersion)
+	// serverVersion, err := virtualK8sClient.DiscoveryClient.ServerVersion()
+	// Expect(err).To(Not(HaveOccurred()))
+	// fmt.Fprintf(GinkgoWriter, "serverVersion: %+v\n", serverVersion)
 
 	return virtualK8sClient
 }

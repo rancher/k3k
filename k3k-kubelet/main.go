@@ -62,6 +62,12 @@ func main() {
 			Value:       "10250",
 		},
 		&cli.StringFlag{
+			Name:        "service-name",
+			Usage:       "The service name deployed by the k3k controller",
+			Destination: &cfg.ServiceName,
+			EnvVars:     []string{"SERVICE_NAME"},
+		},
+		&cli.StringFlag{
 			Name:        "agent-hostname",
 			Usage:       "Agent Hostname used for TLS SAN for the kubelet server",
 			Destination: &cfg.AgentHostname,

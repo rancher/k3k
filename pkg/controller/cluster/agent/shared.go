@@ -44,7 +44,7 @@ func NewSharedAgent(cluster *v1alpha1.Cluster, serviceIP, image, imagePullPolicy
 }
 
 func (s *SharedAgent) Config() ctrlruntimeclient.Object {
-	config := sharedAgentData(s.cluster, s.token, s.Name(), s.serviceIP)
+	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP)
 
 	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -61,19 +61,18 @@ func (s *SharedAgent) Config() ctrlruntimeclient.Object {
 	}
 }
 
-func sharedAgentData(cluster *v1alpha1.Cluster, token, nodeName, ip string) string {
+func sharedAgentData(cluster *v1alpha1.Cluster, serviceName, token, ip string) string {
 	version := cluster.Spec.Version
 	if cluster.Spec.Version == "" {
 		version = cluster.Status.HostVersion
 	}
 	return fmt.Sprintf(`clusterName: %s
 clusterNamespace: %s
-nodeName: %s
-agentHostname: %s
 serverIP: %s
+serviceName: %s
 token: %s
 version: %s`,
-		cluster.Name, cluster.Namespace, nodeName, nodeName, ip, token, version)
+		cluster.Name, cluster.Namespace, ip, serviceName, token, version)
 }
 
 func (s *SharedAgent) Resources() ([]ctrlruntimeclient.Object, error) {
@@ -177,6 +176,17 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 				Args: []string{
 					"--config",
 					sharedKubeletConfigPath,
+				},
+				Env: []v1.EnvVar{
+					{
+						Name: "AGENT_HOSTNAME",
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "spec.nodeName",
+							},
+						},
+					},
 				},
 				VolumeMounts: []v1.VolumeMount{
 					{

@@ -11,7 +11,7 @@ import (
 type config struct {
 	ClusterName       string `yaml:"clusterName,omitempty"`
 	ClusterNamespace  string `yaml:"clusterNamespace,omitempty"`
-	NodeName          string `yaml:"nodeName,omitempty"`
+	ServiceName       string `yaml:"serviceName,omitempty"`
 	Token             string `yaml:"token,omitempty"`
 	AgentHostname     string `yaml:"agentHostname,omitempty"`
 	HostConfigPath    string `yaml:"hostConfigPath,omitempty"`
@@ -46,8 +46,8 @@ func (c *config) unmarshalYAML(data []byte) error {
 	if c.AgentHostname == "" {
 		c.AgentHostname = conf.AgentHostname
 	}
-	if c.NodeName == "" {
-		c.NodeName = conf.NodeName
+	if c.ServiceName == "" {
+		c.ServiceName = conf.ServiceName
 	}
 	if c.Token == "" {
 		c.Token = conf.Token

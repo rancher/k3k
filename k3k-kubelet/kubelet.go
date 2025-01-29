@@ -127,7 +127,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
 	}
 	logger.Info("adding pod mutator webhook")
-	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.NodeName, logger); err != nil {
+	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.AgentHostname, c.ServiceName, logger); err != nil {
 		return nil, errors.New("unable to add pod mutator webhook for virtual cluster: " + err.Error())
 	}
 
@@ -141,7 +141,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, errors.New("failed to add pvc syncer controller: " + err.Error())
 	}
 
-	clusterIP, err := clusterIP(ctx, c.AgentHostname, c.ClusterNamespace, hostClient)
+	clusterIP, err := clusterIP(ctx, c.ServiceName, c.ClusterNamespace, hostClient)
 	if err != nil {
 		return nil, errors.New("failed to extract the clusterIP for the server service: " + err.Error())
 	}
@@ -161,7 +161,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	return &kubelet{
 		virtualCluster: virtualCluster,
 
-		name:       c.NodeName,
+		name:       c.AgentHostname,
 		hostConfig: hostConfig,
 		hostClient: hostClient,
 		virtConfig: virtConfig,

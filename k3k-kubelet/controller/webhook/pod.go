@@ -33,6 +33,7 @@ type webhookHandler struct {
 	client           ctrlruntimeclient.Client
 	scheme           *runtime.Scheme
 	nodeName         string
+	serviceName      string
 	clusterName      string
 	clusterNamespace string
 	logger           *log.Logger
@@ -41,11 +42,12 @@ type webhookHandler struct {
 // AddPodMutatorWebhook will add a mutator webhook to the virtual cluster to
 // modify the nodeName of the created pods with the name of the virtual kubelet node name
 // as well as remove any status fields of the downward apis env fields
-func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName string, logger *log.Logger) error {
+func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, serviceName string, logger *log.Logger) error {
 	handler := webhookHandler{
 		client:           mgr.GetClient(),
 		scheme:           mgr.GetScheme(),
 		logger:           logger,
+		serviceName:      serviceName,
 		clusterName:      clusterName,
 		clusterNamespace: clusterNamespace,
 		nodeName:         nodeName,
@@ -107,7 +109,7 @@ func (w *webhookHandler) configuration(ctx context.Context, hostClient ctrlrunti
 	if !ok {
 		return nil, errors.New("webhook CABundle does not exist in secret")
 	}
-	webhookURL := "https://" + w.nodeName + ":" + webhookPort + webhookPath
+	webhookURL := "https://" + w.serviceName + ":" + webhookPort + webhookPath
 	return &admissionregistrationv1.MutatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "admissionregistration.k8s.io/v1",

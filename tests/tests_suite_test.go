@@ -34,6 +34,7 @@ func TestTests(t *testing.T) {
 
 var (
 	k3sContainer *k3s.K3sContainer
+	hostIP       string
 	k8s          *kubernetes.Clientset
 	k8sClient    client.Client
 )
@@ -44,6 +45,10 @@ var _ = BeforeSuite(func() {
 
 	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:v1.32.1-k3s1")
 	Expect(err).To(Not(HaveOccurred()))
+
+	hostIP, err = k3sContainer.ContainerIP(ctx)
+	Expect(err).To(Not(HaveOccurred()))
+	fmt.Fprintln(GinkgoWriter, "K3s containerIP: "+hostIP)
 
 	kubeconfig, err := k3sContainer.GetKubeConfig(context.Background())
 	Expect(err).To(Not(HaveOccurred()))

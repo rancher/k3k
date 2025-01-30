@@ -16,9 +16,9 @@ import (
 )
 
 var _ = When("k3k is installed", func() {
-	It("has to be in a Ready state", func() {
+	It("is in Running status", func() {
 
-		// check that at least a Pod is in Ready state
+		// check that the controller is running
 		Eventually(func() bool {
 			opts := v1.ListOptions{LabelSelector: "app.kubernetes.io/name=k3k"}
 			podList, err := k8s.CoreV1().Pods("k3k-system").List(context.Background(), opts)
@@ -26,23 +26,15 @@ var _ = When("k3k is installed", func() {
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(podList.Items).To(Not(BeEmpty()))
 
-			isReady := false
-
-		outer:
+			var isRunning bool
 			for _, pod := range podList.Items {
-				for _, condition := range pod.Status.Conditions {
-					if condition.Status != corev1.ConditionTrue {
-						continue
-					}
-
-					if condition.Type == corev1.PodReady {
-						isReady = true
-						break outer
-					}
+				if pod.Status.Phase == corev1.PodRunning {
+					isRunning = true
+					break
 				}
 			}
 
-			return isReady
+			return isRunning
 		}).
 			WithTimeout(time.Second * 10).
 			WithPolling(time.Second).
@@ -61,12 +53,8 @@ var _ = When("a cluster is installed", func() {
 		namespace = createdNS.Name
 	})
 
-	It("can create a Nginx pod", func() {
+	It("can create a nginx pod", func() {
 		ctx := context.Background()
-		containerIP, err := k3sContainer.ContainerIP(ctx)
-		Expect(err).To(Not(HaveOccurred()))
-
-		fmt.Fprintln(GinkgoWriter, "K3s containerIP: "+containerIP)
 
 		cluster := v1alpha1.Cluster{
 			ObjectMeta: v1.ObjectMeta{
@@ -74,7 +62,7 @@ var _ = When("a cluster is installed", func() {
 				Namespace: namespace,
 			},
 			Spec: v1alpha1.ClusterSpec{
-				TLSSANs: []string{containerIP},
+				TLSSANs: []string{hostIP},
 				Expose: &v1alpha1.ExposeConfig{
 					NodePort: &v1alpha1.NodePortConfig{
 						Enabled: true,
@@ -83,8 +71,11 @@ var _ = When("a cluster is installed", func() {
 			},
 		}
 
-		NewVirtualCluster(containerIP, cluster)
-		virtualK8sClient := NewVirtualK8sClient(containerIP, cluster)
+		By(fmt.Sprintf("Creating virtual cluster %s/%s", cluster.Namespace, cluster.Name))
+		NewVirtualCluster(cluster)
+
+		By("Waiting to get a kubernetes client for the virtual cluster")
+		virtualK8sClient := NewVirtualK8sClient(cluster)
 
 		nginxPod := &corev1.Pod{
 			ObjectMeta: v1.ObjectMeta{
@@ -98,7 +89,7 @@ var _ = When("a cluster is installed", func() {
 				}},
 			},
 		}
-		nginxPod, err = virtualK8sClient.CoreV1().Pods(nginxPod.Namespace).Create(ctx, nginxPod, v1.CreateOptions{})
+		nginxPod, err := virtualK8sClient.CoreV1().Pods(nginxPod.Namespace).Create(ctx, nginxPod, v1.CreateOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 
 		// check that the nginx Pod is up and running in the host cluster
@@ -111,12 +102,12 @@ var _ = When("a cluster is installed", func() {
 				resourceName := pod.Annotations[translate.ResourceNameAnnotation]
 				resourceNamespace := pod.Annotations[translate.ResourceNamespaceAnnotation]
 
-				fmt.Fprintf(GinkgoWriter,
-					"pod=%s resource=%s/%s status=%s\n",
-					pod.Name, resourceNamespace, resourceName, pod.Status.Phase,
-				)
-
 				if resourceName == nginxPod.Name && resourceNamespace == nginxPod.Namespace {
+					fmt.Fprintf(GinkgoWriter,
+						"pod=%s resource=%s/%s status=%s\n",
+						pod.Name, resourceNamespace, resourceName, pod.Status.Phase,
+					)
+
 					return pod.Status.Phase == corev1.PodRunning
 				}
 			}
@@ -130,10 +121,6 @@ var _ = When("a cluster is installed", func() {
 
 	It("regenerates the bootstrap secret after a restart", func() {
 		ctx := context.Background()
-		containerIP, err := k3sContainer.ContainerIP(ctx)
-		Expect(err).To(Not(HaveOccurred()))
-
-		fmt.Fprintln(GinkgoWriter, "K3s containerIP: "+containerIP)
 
 		cluster := v1alpha1.Cluster{
 			ObjectMeta: v1.ObjectMeta{
@@ -141,7 +128,7 @@ var _ = When("a cluster is installed", func() {
 				Namespace: namespace,
 			},
 			Spec: v1alpha1.ClusterSpec{
-				TLSSANs: []string{containerIP},
+				TLSSANs: []string{hostIP},
 				Expose: &v1alpha1.ExposeConfig{
 					NodePort: &v1alpha1.NodePortConfig{
 						Enabled: true,
@@ -150,10 +137,13 @@ var _ = When("a cluster is installed", func() {
 			},
 		}
 
-		NewVirtualCluster(containerIP, cluster)
-		virtualK8sClient := NewVirtualK8sClient(containerIP, cluster)
+		By(fmt.Sprintf("Creating virtual cluster %s/%s", cluster.Namespace, cluster.Name))
+		NewVirtualCluster(cluster)
 
-		_, err = virtualK8sClient.DiscoveryClient.ServerVersion()
+		By("Waiting to get a kubernetes client for the virtual cluster")
+		virtualK8sClient := NewVirtualK8sClient(cluster)
+
+		_, err := virtualK8sClient.DiscoveryClient.ServerVersion()
 		Expect(err).To(Not(HaveOccurred()))
 
 		labelSelector := "cluster=" + cluster.Name + ",role=server"
@@ -197,7 +187,7 @@ var _ = When("a cluster is installed", func() {
 		By("Recover new config should succeed")
 
 		Eventually(func() error {
-			virtualK8sClient = NewVirtualK8sClient(containerIP, cluster)
+			virtualK8sClient = NewVirtualK8sClient(cluster)
 			_, err = virtualK8sClient.DiscoveryClient.ServerVersion()
 			return err
 		}).

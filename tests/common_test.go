@@ -19,16 +19,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func NewVirtualCluster(hostIP string, cluster v1alpha1.Cluster) {
+func NewVirtualCluster(cluster v1alpha1.Cluster) {
 	GinkgoHelper()
-
-	By(fmt.Sprintf("Creating virtual cluster %s/%s", cluster.Namespace, cluster.Name))
 
 	ctx := context.Background()
 	err := k8sClient.Create(ctx, &cluster)
 	Expect(err).To(Not(HaveOccurred()))
-
-	By("Waiting for server and kubelet to be ready")
 
 	// check that the server Pod and the Kubelet are in Ready state
 	Eventually(func() bool {
@@ -63,13 +59,11 @@ func NewVirtualCluster(hostIP string, cluster v1alpha1.Cluster) {
 }
 
 // NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
-func NewVirtualK8sClient(hostIP string, cluster v1alpha1.Cluster) *kubernetes.Clientset {
+func NewVirtualK8sClient(cluster v1alpha1.Cluster) *kubernetes.Clientset {
 	GinkgoHelper()
 
 	var err error
 	ctx := context.Background()
-
-	By("Waiting for server to be up and running")
 
 	var config *clientcmdapi.Config
 	Eventually(func() error {

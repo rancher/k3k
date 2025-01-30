@@ -3,6 +3,9 @@ package k3k_test
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path"
 	"strings"
 	"time"
 
@@ -93,6 +96,50 @@ var _ = When("a cluster is installed", func() {
 			WithTimeout(time.Minute).
 			WithPolling(time.Second * 5).
 			Should(BeTrue())
+	})
+
+	It("can create a cluster with k3kcli", func() {
+		ctx := context.Background()
+		containerIP, err := k3sContainer.ContainerIP(ctx)
+		Expect(err).To(Not(HaveOccurred()))
+
+		kubeconfigFile := path.Join(os.TempDir(), "host-kubeconfig.log")
+		err = os.WriteFile(kubeconfigFile, hostKubeconfig, 0644)
+		Expect(err).To(Not(HaveOccurred()))
+
+		output, err := exec.Command("k3kcli", "-v").Output()
+		fmt.Fprintln(GinkgoWriter, string(output))
+		Expect(err).To(Not(HaveOccurred()))
+
+		By("creating cluster with cli")
+
+		args := []string{"cluster", "create",
+			"--name", "mycluster",
+			"--kubeconfig-server", containerIP,
+			"--kubeconfig", kubeconfigFile,
+		}
+		output, err = exec.Command("k3kcli", args...).CombinedOutput()
+		Expect(err).To(Not(HaveOccurred()))
+
+		fmt.Fprintln(GinkgoWriter, "output:", string(output))
+
+		pwd, err := os.Getwd()
+		Expect(err).To(Not(HaveOccurred()))
+		kubeconfigPath := path.Join(pwd, "mycluster-kubeconfig.yaml")
+
+		By("loading virtual cluster kubeconfig: " + kubeconfigPath)
+
+		vkubeconfig, err := os.ReadFile(kubeconfigPath)
+		Expect(err).To(Not(HaveOccurred()))
+
+		restcfg, err := clientcmd.RESTConfigFromKubeConfig(vkubeconfig)
+		Expect(err).To(Not(HaveOccurred()))
+		vk8s, err := kubernetes.NewForConfig(restcfg)
+		Expect(err).To(Not(HaveOccurred()))
+
+		serverVersion, err := vk8s.DiscoveryClient.ServerVersion()
+		Expect(err).NotTo(HaveOccurred())
+		fmt.Fprintf(GinkgoWriter, "serverVersion: %+v\n", serverVersion)
 	})
 })
 

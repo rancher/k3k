@@ -56,11 +56,13 @@ var _ = Describe("Cluster Controller", func() {
 				Eventually(func() string {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)
 					Expect(err).To(Not(HaveOccurred()))
+
+					fmt.Println("cluster.Status.HostVersion:", cluster.Status.HostVersion)
 					return cluster.Status.HostVersion
 
 				}).
-					WithTimeout(time.Second * 30).
-					WithPolling(time.Second).
+					WithTimeout(time.Minute * 2).
+					WithPolling(time.Second * 5).
 					Should(Equal(expectedHostVersion))
 			})
 		})

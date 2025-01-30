@@ -50,7 +50,7 @@ var (
 			Name:        "shared-agent-image",
 			EnvVars:     []string{"SHARED_AGENT_IMAGE"},
 			Usage:       "K3K Virtual Kubelet image",
-			Value:       "rancher/k3k:k3k-kubelet-dev",
+			Value:       "rancher/k3k:latest",
 			Destination: &sharedAgentImage,
 		},
 		&cli.StringFlag{

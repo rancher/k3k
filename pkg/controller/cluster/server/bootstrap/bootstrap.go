@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -42,6 +43,7 @@ func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip, token string) 
 	}, func() error {
 		var err error
 		bootstrap, err = requestBootstrap(token, ip)
+		fmt.Println("err bootstrap", err)
 		return err
 	}); err != nil {
 		return nil, err

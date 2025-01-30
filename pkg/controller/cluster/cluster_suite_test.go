@@ -13,6 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -59,7 +60,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())
-	err = cluster.Add(ctx, mgr, "", "")
+	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "")
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {
@@ -81,6 +82,8 @@ func buildScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 
 	err := corev1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = rbacv1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = appsv1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())

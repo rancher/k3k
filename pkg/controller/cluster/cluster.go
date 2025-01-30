@@ -84,7 +84,6 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
 
 	log.Info("reconciling cluster")
-	fmt.Println("reconciling")
 
 	var cluster v1alpha1.Cluster
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
@@ -105,32 +104,23 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	orig := cluster.DeepCopy()
 
-	fmt.Println("reconciling2")
-
-	if err := c.reconcileCluster(ctx, &cluster); err != nil {
-		fmt.Println("erroring", err)
-		return reconcile.Result{}, err
-	}
+	reconcileErr := c.reconcileCluster(ctx, &cluster)
 
 	// update Status if needed
 	if !reflect.DeepEqual(orig.Status, cluster.Status) {
-		fmt.Println("equal status false update")
-
 		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
-			fmt.Println("update status err", err)
-
 			return reconcile.Result{}, err
 		}
 	}
 
+	// if there was an error during the reconciliation, return
+	if reconcileErr != nil {
+		return reconcile.Result{}, reconcileErr
+	}
+
 	// update Cluster if needed
-	fmt.Println("check equal")
-
 	if !reflect.DeepEqual(orig.Spec, cluster.Spec) {
-		fmt.Println("equal false update")
-
 		if err := c.Client.Update(ctx, &cluster); err != nil {
-			fmt.Println("update err", err)
 			return reconcile.Result{}, err
 		}
 	}
@@ -140,17 +130,13 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
-	fmt.Println("reconcile cluster", cluster.Spec.Version, cluster.Status.HostVersion)
 
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
 	// This version is stored in the Status object, and it will not be updated if already set.
 	if cluster.Spec.Version == "" && cluster.Status.HostVersion == "" {
 		log.Info("cluster version not set")
-		fmt.Println("cluster version not set")
 
 		hostVersion, err := c.DiscoveryClient.ServerVersion()
-		fmt.Println("hostVersion", hostVersion, err)
-
 		if err != nil {
 			return err
 		}
@@ -160,21 +146,16 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		cluster.Status.HostVersion = k8sVersion + "-k3s1"
 	}
 
+	// TODO: update status?
 	if err := c.validate(cluster); err != nil {
 		log.Error(err, "invalid change")
-		fmt.Println("invalid change", err)
-
 		return nil
 	}
-
-	fmt.Println("token")
 
 	token, err := c.token(ctx, cluster)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("server")
 
 	s := server.New(cluster, c.Client, token, string(cluster.Spec.Mode))
 
@@ -197,26 +178,21 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 	}
 
 	log.Info("creating cluster service")
-	fmt.Println("createClusterService")
 
 	serviceIP, err := c.createClusterService(ctx, cluster, s)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("createClusterConfigs")
-
 	if err := c.createClusterConfigs(ctx, cluster, s, serviceIP); err != nil {
 		return err
 	}
 
-	fmt.Println("server")
 	// creating statefulsets in case the user chose a persistence type other than ephemeral
 	if err := c.server(ctx, cluster, s); err != nil {
 		return err
 	}
 
-	fmt.Println("agent")
 	if err := c.agent(ctx, cluster, serviceIP, token); err != nil {
 		return err
 	}
@@ -236,25 +212,20 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		}
 	}
 
-	fmt.Println("bootstrapSecret")
 	bootstrapSecret, err := bootstrap.Generate(ctx, cluster, serviceIP, token)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Create bootstrapSecret")
 	if err := c.Client.Create(ctx, bootstrapSecret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 
-	fmt.Println("bindNodeProxyClusterRole")
 	if err := c.bindNodeProxyClusterRole(ctx, cluster); err != nil {
 		return err
 	}
-
-	fmt.Println("reconciled")
 
 	return nil
 }

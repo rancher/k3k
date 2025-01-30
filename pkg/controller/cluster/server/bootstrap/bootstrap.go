@@ -15,7 +15,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -37,20 +36,13 @@ type content struct {
 // 1- use the server token to get the bootstrap data from k3s
 // 2- save the bootstrap data as a secret
 func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip, token string) (*v1.Secret, error) {
-	var bootstrap *ControlRuntimeBootstrap
-	if err := retry.OnError(controller.Backoff, func(err error) bool {
-		return true
-	}, func() error {
-		var err error
-		bootstrap, err = requestBootstrap(token, ip)
-		fmt.Println("err bootstrap", err)
-		return err
-	}); err != nil {
-		return nil, err
+	bootstrap, err := requestBootstrap(token, ip)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request bootstrap secret: %w", err)
 	}
 
 	if err := decodeBootstrap(bootstrap); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode bootstrap secret: %w", err)
 	}
 
 	bootstrapData, err := json.Marshal(bootstrap)

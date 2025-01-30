@@ -58,6 +58,10 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		return err
 	}
 
+	if sharedAgentImage == "" {
+		return errors.New("missing shared agent image")
+	}
+
 	// initialize a new Reconciler
 	reconciler := ClusterReconciler{
 		DiscoveryClient:            discoveryClient,
@@ -109,7 +113,19 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 	}
 
-	return reconcile.Result{}, reconcilerErr
+	// if there was an error during the reconciliation, return
+	if reconcilerErr != nil {
+		return reconcile.Result{}, reconcilerErr
+	}
+
+	// update Cluster if needed
+	if !reflect.DeepEqual(orig.Spec, cluster.Spec) {
+		if err := c.Client.Update(ctx, &cluster); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	return reconcile.Result{}, nil
 }
 
 func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
@@ -118,7 +134,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
 	// This version is stored in the Status object, and it will not be updated if already set.
 	if cluster.Spec.Version == "" && cluster.Status.HostVersion == "" {
-		log.V(1).Info("cluster version not set")
+		log.Info("cluster version not set")
 
 		hostVersion, err := c.DiscoveryClient.ServerVersion()
 		if err != nil {
@@ -130,6 +146,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		cluster.Status.HostVersion = k8sVersion + "-k3s1"
 	}
 
+	// TODO: update status?
 	if err := c.validate(cluster); err != nil {
 		log.Error(err, "invalid change")
 		return nil
@@ -161,6 +178,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 	}
 
 	log.Info("creating cluster service")
+
 	serviceIP, err := c.createClusterService(ctx, cluster, s)
 	if err != nil {
 		return err
@@ -209,7 +227,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	return c.Client.Update(ctx, cluster)
+	return nil
 }
 
 func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server, serviceIP string) error {

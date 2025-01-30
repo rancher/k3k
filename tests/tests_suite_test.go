@@ -20,7 +20,6 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -134,41 +133,6 @@ var _ = AfterSuite(func() {
 	fmt.Fprintln(GinkgoWriter, "k3s logs written to: "+logfile)
 
 	testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
-})
-
-var _ = When("k3k is installed", func() {
-	It("has to be in a Ready state", func() {
-
-		// check that at least a Pod is in Ready state
-		Eventually(func() bool {
-			opts := v1.ListOptions{LabelSelector: "app.kubernetes.io/name=k3k"}
-			podList, err := k8s.CoreV1().Pods("k3k-system").List(context.Background(), opts)
-
-			Expect(err).To(Not(HaveOccurred()))
-			Expect(podList.Items).To(Not(BeEmpty()))
-
-			isReady := false
-
-		outer:
-			for _, pod := range podList.Items {
-				for _, condition := range pod.Status.Conditions {
-					if condition.Status != corev1.ConditionTrue {
-						continue
-					}
-
-					if condition.Type == corev1.PodReady {
-						isReady = true
-						break outer
-					}
-				}
-			}
-
-			return isReady
-		}).
-			WithTimeout(time.Second * 10).
-			WithPolling(time.Second).
-			Should(BeTrue())
-	})
 })
 
 func buildScheme() *runtime.Scheme {

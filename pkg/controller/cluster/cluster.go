@@ -225,6 +225,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 	return nil
 }
 
+// ensureBootstrapSecret will create or update the Secret containing the bootstrap data from the k3s server
 func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring bootstrap secret")
@@ -242,7 +243,6 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, c.Client, bootstrapSecret, func() error {
-
 		if err := controllerutil.SetControllerReference(cluster, bootstrapSecret, c.Scheme); err != nil {
 			return err
 		}
@@ -250,7 +250,6 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 		bootstrapSecret.Data = map[string][]byte{
 			"bootstrap": bootstrapData,
 		}
-
 		return nil
 	})
 	return err

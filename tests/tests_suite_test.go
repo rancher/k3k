@@ -34,9 +34,10 @@ func TestTests(t *testing.T) {
 }
 
 var (
-	k3sContainer *k3s.K3sContainer
-	k8s          *kubernetes.Clientset
-	k8sClient    client.Client
+	k3sContainer   *k3s.K3sContainer
+	hostKubeconfig []byte
+	k8s            *kubernetes.Clientset
+	k8sClient      client.Client
 )
 
 var _ = BeforeSuite(func() {
@@ -46,11 +47,11 @@ var _ = BeforeSuite(func() {
 	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:v1.32.1-k3s1")
 	Expect(err).To(Not(HaveOccurred()))
 
-	kubeconfig, err := k3sContainer.GetKubeConfig(context.Background())
+	hostKubeconfig, err = k3sContainer.GetKubeConfig(ctx)
 	Expect(err).To(Not(HaveOccurred()))
 
-	initKubernetesClient(kubeconfig)
-	installK3kChart(kubeconfig)
+	initKubernetesClient(hostKubeconfig)
+	installK3kChart(hostKubeconfig)
 })
 
 func initKubernetesClient(kubeconfig []byte) {

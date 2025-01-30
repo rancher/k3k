@@ -104,7 +104,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	orig := cluster.DeepCopy()
 
-	reconcileErr := c.reconcileCluster(ctx, &cluster)
+	reconcilerErr := c.reconcileCluster(ctx, &cluster)
 
 	// update Status if needed
 	if !reflect.DeepEqual(orig.Status, cluster.Status) {
@@ -114,8 +114,8 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// if there was an error during the reconciliation, return
-	if reconcileErr != nil {
-		return reconcile.Result{}, reconcileErr
+	if reconcilerErr != nil {
+		return reconcile.Result{}, reconcilerErr
 	}
 
 	// update Cluster if needed

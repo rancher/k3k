@@ -1,30 +1,45 @@
+name: Chart
+
 on:
+  workflow_dispatch:
   push:
     tags:
     - "chart-*"
 
-env:
-    GITHUB_TOKEN: ${{ github.token }}
-
-name: Chart
 permissions:
     contents: write
-    id-token: write
+
 jobs:
   chart-release:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+          fetch-depth: 0
 
-    - name: Package Chart
+    - name: Check tag
+      if: github.event_name == 'push'
       run: |
-        make package-chart;
+        pushed_tag=$(echo ${{ github.ref_name }} | sed "s/chart-//")
+        chart_tag=$(yq .version charts/k3k/Chart.yaml)
+        
+        echo pushed_tag=${pushed_tag} chart_tag=${chart_tag}
+        [ "${pushed_tag}" == "${chart_tag}" ]
 
-    - name: Release Chart
+    - name: Configure Git
       run: |
-        gh release upload ${{ github.ref_name }} deploy/*
-      
-    - name: Index Chart
-      run: |
-        make index-chart
+        git config user.name "$GITHUB_ACTOR"
+        git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+    
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+    - name: Run chart-releaser
+      uses: helm/chart-releaser-action@v1.6.0
+      with:
+        config: .cr.yaml
+      env:
+        CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

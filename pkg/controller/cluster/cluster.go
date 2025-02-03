@@ -369,15 +369,14 @@ func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluste
 }
 
 func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
-	agent := agent.New(cluster, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token)
-	agentsConfig := agent.Config()
-	agentResources, err := agent.Resources()
-	if err != nil {
-		return err
-	}
-	agentResources = append(agentResources, agentsConfig)
 
-	return c.ensureAll(ctx, cluster, agentResources)
+	if cluster.Spec.Mode == agent.VirtualNodeMode {
+		virtualAgent := agent.NewVirtualAgent(cluster, c.Client, c.Scheme, serviceIP, token)
+		return virtualAgent.EnsureResources()
+	}
+
+	sharedAgent := agent.NewSharedAgent(cluster, c.Client, c.Scheme, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token)
+	return sharedAgent.EnsureResources()
 }
 
 func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
@@ -416,8 +415,23 @@ func (c *ClusterReconciler) ensure(ctx context.Context, obj ctrlruntimeclient.Ob
 		}
 		return nil
 	}
+
 	// if exists then apply udpate or recreate if necessary
 	if reflect.DeepEqual(obj.(metav1.Object), existingObject.(metav1.Object)) {
+		return nil
+	}
+
+	// 	"k8s.io/apimachinery/pkg/api/equality"
+	// equality.Semantic.DeepEqual()
+
+	existingObjName := existingObject.(metav1.Object).GetName()
+	existingObjKind := existingObject.GetObjectKind().GroupVersionKind().Kind
+
+	fmt.Printf("Exists and not equal! UPDATE %s - %s\n", existingObjName, existingObjKind)
+
+	// do not update webhook
+	if existingObjKind == "Secret" && strings.Contains(existingObjName, "webhook") {
+		fmt.Println("Skip webhook secret update")
 		return nil
 	}
 

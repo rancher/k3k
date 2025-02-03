@@ -1,8 +1,10 @@
 package agent
 
 import (
+	"context"
 	"crypto"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,8 +16,11 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -27,15 +32,19 @@ const (
 
 type SharedAgent struct {
 	cluster         *v1alpha1.Cluster
+	client          ctrlruntimeclient.Client
+	scheme          *runtime.Scheme
 	serviceIP       string
 	image           string
 	imagePullPolicy string
 	token           string
 }
 
-func NewSharedAgent(cluster *v1alpha1.Cluster, serviceIP, image, imagePullPolicy, token string) Agent {
+func NewSharedAgent(cluster *v1alpha1.Cluster, client ctrlruntimeclient.Client, scheme *runtime.Scheme, serviceIP, image, imagePullPolicy, token string) *SharedAgent {
 	return &SharedAgent{
 		cluster:         cluster,
+		client:          client,
+		scheme:          scheme,
 		serviceIP:       serviceIP,
 		image:           image,
 		imagePullPolicy: imagePullPolicy,
@@ -43,10 +52,27 @@ func NewSharedAgent(cluster *v1alpha1.Cluster, serviceIP, image, imagePullPolicy
 	}
 }
 
-func (s *SharedAgent) Config() ctrlruntimeclient.Object {
+func (s *SharedAgent) EnsureResources() error {
+	if err := errors.Join(
+		s.config(),
+		s.serviceAccount(),
+		s.role(),
+		s.roleBinding(),
+		s.service(),
+		s.deployment(),
+		s.dnsService(),
+		s.webhookTLS(),
+	); err != nil {
+		return fmt.Errorf("failed to ensure some kubelet resources: %w\n", err)
+	}
+
+	return nil
+}
+
+func (s *SharedAgent) config() error {
 	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP)
 
-	return &v1.Secret{
+	configSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -59,6 +85,8 @@ func (s *SharedAgent) Config() ctrlruntimeclient.Object {
 			"config.yaml": []byte(config),
 		},
 	}
+
+	return s.ensureObject(context.Background(), configSecret)
 }
 
 func sharedAgentData(cluster *v1alpha1.Cluster, serviceName, token, ip string) string {
@@ -75,30 +103,14 @@ version: %s`,
 		cluster.Name, cluster.Namespace, ip, serviceName, token, version)
 }
 
-func (s *SharedAgent) Resources() ([]ctrlruntimeclient.Object, error) {
-	// generate certs for webhook
-	certSecret, err := s.webhookTLS()
-	if err != nil {
-		return nil, err
-	}
-	return []ctrlruntimeclient.Object{
-		s.serviceAccount(),
-		s.role(),
-		s.roleBinding(),
-		s.service(),
-		s.deployment(),
-		s.dnsService(),
-		certSecret}, nil
-}
-
-func (s *SharedAgent) deployment() *apps.Deployment {
+func (s *SharedAgent) deployment() error {
 	labels := map[string]string{
 		"cluster": s.cluster.Name,
 		"type":    "agent",
 		"mode":    "shared",
 	}
 
-	return &apps.Deployment{
+	deploy := &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
@@ -120,6 +132,8 @@ func (s *SharedAgent) deployment() *apps.Deployment {
 			},
 		},
 	}
+
+	return s.ensureObject(context.Background(), deploy)
 }
 
 func (s *SharedAgent) podSpec() v1.PodSpec {
@@ -208,11 +222,12 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 					},
 				},
 			},
-		}}
+		},
+	}
 }
 
-func (s *SharedAgent) service() *v1.Service {
-	return &v1.Service{
+func (s *SharedAgent) service() error {
+	svc := &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
@@ -243,16 +258,20 @@ func (s *SharedAgent) service() *v1.Service {
 			},
 		},
 	}
+
+	return s.ensureObject(context.Background(), svc)
 }
 
-func (s *SharedAgent) dnsService() *v1.Service {
-	return &v1.Service{
+func (s *SharedAgent) dnsService() error {
+	dnsServiceName := controller.SafeConcatNameWithPrefix(s.cluster.Name, "kube-dns")
+
+	svc := &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.DNSName(),
+			Name:      dnsServiceName,
 			Namespace: s.cluster.Namespace,
 		},
 		Spec: v1.ServiceSpec{
@@ -283,10 +302,12 @@ func (s *SharedAgent) dnsService() *v1.Service {
 			},
 		},
 	}
+
+	return s.ensureObject(context.Background(), svc)
 }
 
-func (s *SharedAgent) serviceAccount() *v1.ServiceAccount {
-	return &v1.ServiceAccount{
+func (s *SharedAgent) serviceAccount() error {
+	svcAccount := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
 			APIVersion: "v1",
@@ -296,10 +317,12 @@ func (s *SharedAgent) serviceAccount() *v1.ServiceAccount {
 			Namespace: s.cluster.Namespace,
 		},
 	}
+
+	return s.ensureObject(context.Background(), svcAccount)
 }
 
-func (s *SharedAgent) role() *rbacv1.Role {
-	return &rbacv1.Role{
+func (s *SharedAgent) role() error {
+	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Role",
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -321,10 +344,12 @@ func (s *SharedAgent) role() *rbacv1.Role {
 			},
 		},
 	}
+
+	return s.ensureObject(context.Background(), role)
 }
 
-func (s *SharedAgent) roleBinding() *rbacv1.RoleBinding {
-	return &rbacv1.RoleBinding{
+func (s *SharedAgent) roleBinding() error {
+	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "RoleBinding",
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -346,49 +371,18 @@ func (s *SharedAgent) roleBinding() *rbacv1.RoleBinding {
 			},
 		},
 	}
+
+	return s.ensureObject(context.Background(), roleBinding)
 }
 
 func (s *SharedAgent) Name() string {
 	return controller.SafeConcatNameWithPrefix(s.cluster.Name, SharedNodeAgentName)
 }
 
-func (s *SharedAgent) DNSName() string {
-	return controller.SafeConcatNameWithPrefix(s.cluster.Name, "kube-dns")
-}
+func (s *SharedAgent) webhookTLS() error {
+	ctx := context.Background()
 
-func (s *SharedAgent) webhookTLS() (*v1.Secret, error) {
-	// generate CA CERT/KEY
-	caKeyBytes, err := certutil.MakeEllipticPrivateKeyPEM()
-	if err != nil {
-		return nil, err
-	}
-
-	caKey, err := certutil.ParsePrivateKeyPEM(caKeyBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg := certutil.Config{
-		CommonName: fmt.Sprintf("k3k-webhook-ca@%d", time.Now().Unix()),
-	}
-
-	caCert, err := certutil.NewSelfSignedCACert(cfg, caKey.(crypto.Signer))
-	if err != nil {
-		return nil, err
-	}
-
-	caCertBytes := certutil.EncodeCertPEM(caCert)
-	// generate webhook cert bundle
-	altNames := certs.AddSANs([]string{s.Name(), s.cluster.Name})
-	webhookCert, webhookKey, err := certs.CreateClientCertKey(
-		s.Name(), nil,
-		&altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, time.Hour*24*time.Duration(356),
-		string(caCertBytes),
-		string(caKeyBytes))
-	if err != nil {
-		return nil, err
-	}
-	return &v1.Secret{
+	webhookSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -397,13 +391,80 @@ func (s *SharedAgent) webhookTLS() (*v1.Secret, error) {
 			Name:      WebhookSecretName(s.cluster.Name),
 			Namespace: s.cluster.Namespace,
 		},
-		Data: map[string][]byte{
+	}
+
+	key := client.ObjectKeyFromObject(webhookSecret)
+	if err := s.client.Get(ctx, key, webhookSecret); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		caPrivateKeyPEM, caCertPEM, err := newWebhookSelfSignedCACerts()
+		if err != nil {
+			return err
+		}
+
+		altNames := []string{s.Name(), s.cluster.Name}
+		webhookCert, webhookKey, err := newWebhookCerts(s.Name(), altNames, caPrivateKeyPEM, caCertPEM)
+		if err != nil {
+			return err
+		}
+
+		webhookSecret.Data = map[string][]byte{
 			"tls.crt": webhookCert,
 			"tls.key": webhookKey,
-			"ca.crt":  caCertBytes,
-			"ca.key":  caKeyBytes,
-		},
-	}, nil
+			"ca.crt":  caCertPEM,
+			"ca.key":  caPrivateKeyPEM,
+		}
+
+		return s.ensureObject(ctx, webhookSecret)
+	}
+
+	// if the webhook secret is found we can skip
+	// we should check for their validity
+	return nil
+}
+
+func newWebhookSelfSignedCACerts() ([]byte, []byte, error) {
+	// generate CA CERT/KEY
+	caPrivateKeyPEM, err := certutil.MakeEllipticPrivateKeyPEM()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	caPrivateKey, err := certutil.ParsePrivateKeyPEM(caPrivateKeyPEM)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cfg := certutil.Config{
+		CommonName: fmt.Sprintf("k3k-webhook-ca@%d", time.Now().Unix()),
+	}
+
+	caCert, err := certutil.NewSelfSignedCACert(cfg, caPrivateKey.(crypto.Signer))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	caCertPEM := certutil.EncodeCertPEM(caCert)
+
+	return caPrivateKeyPEM, caCertPEM, nil
+}
+
+func newWebhookCerts(commonName string, subAltNames []string, caPrivateKey, caCert []byte) ([]byte, []byte, error) {
+	// generate webhook cert bundle
+	altNames := certs.AddSANs(subAltNames)
+	oneYearExpiration := time.Until(time.Now().AddDate(1, 0, 0))
+
+	return certs.CreateClientCertKey(
+		commonName,
+		nil,
+		&altNames,
+		[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		oneYearExpiration,
+		string(caCert),
+		string(caPrivateKey),
+	)
 }
 
 func WebhookSecretName(clusterName string) string {

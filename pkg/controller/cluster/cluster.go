@@ -330,14 +330,14 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 		}
 	}
 
-	ServerStatefulSet, err := server.StatefulServer(ctx)
+	serverStatefulSet, err := server.StatefulServer(ctx)
 	if err != nil {
 		return err
 	}
 
-	key := client.ObjectKeyFromObject(ServerStatefulSet)
-	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, ServerStatefulSet, func() error {
-		if err := controllerutil.SetControllerReference(cluster, ServerStatefulSet, c.Scheme); err != nil {
+	key := client.ObjectKeyFromObject(serverStatefulSet)
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, serverStatefulSet, func() error {
+		if err := controllerutil.SetControllerReference(cluster, serverStatefulSet, c.Scheme); err != nil {
 			return err
 		}
 		return nil

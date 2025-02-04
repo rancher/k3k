@@ -196,7 +196,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	if err := c.agent(ctx, cluster, serviceIP, token); err != nil {
+	if err := c.ensureAgent(ctx, cluster, serviceIP, token); err != nil {
 		return err
 	}
 
@@ -373,15 +373,21 @@ func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluste
 	return c.Client.Update(ctx, clusterRoleBinding)
 }
 
-func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
+type ResourceEnsurer interface {
+	EnsureResources(context.Context) error
+}
 
+func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
+	config := agent.NewConfig(cluster, c.Client, c.Scheme)
+
+	var agentEnsurer ResourceEnsurer
 	if cluster.Spec.Mode == agent.VirtualNodeMode {
-		virtualAgent := agent.NewVirtualAgent(cluster, c.Client, c.Scheme, serviceIP, token)
-		return virtualAgent.EnsureResources()
+		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token)
+	} else {
+		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token)
 	}
 
-	sharedAgent := agent.NewSharedAgent(cluster, c.Client, c.Scheme, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token)
-	return sharedAgent.EnsureResources()
+	return agentEnsurer.EnsureResources(ctx)
 }
 
 func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {

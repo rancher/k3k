@@ -18,7 +18,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,20 +30,16 @@ const (
 )
 
 type SharedAgent struct {
-	cluster         *v1alpha1.Cluster
-	client          ctrlruntimeclient.Client
-	scheme          *runtime.Scheme
+	*Config
 	serviceIP       string
 	image           string
 	imagePullPolicy string
 	token           string
 }
 
-func NewSharedAgent(cluster *v1alpha1.Cluster, client ctrlruntimeclient.Client, scheme *runtime.Scheme, serviceIP, image, imagePullPolicy, token string) *SharedAgent {
+func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string) *SharedAgent {
 	return &SharedAgent{
-		cluster:         cluster,
-		client:          client,
-		scheme:          scheme,
+		Config:          config,
 		serviceIP:       serviceIP,
 		image:           image,
 		imagePullPolicy: imagePullPolicy,
@@ -52,16 +47,20 @@ func NewSharedAgent(cluster *v1alpha1.Cluster, client ctrlruntimeclient.Client, 
 	}
 }
 
-func (s *SharedAgent) EnsureResources() error {
+func (s *SharedAgent) Name() string {
+	return controller.SafeConcatNameWithPrefix(s.cluster.Name, SharedNodeAgentName)
+}
+
+func (s *SharedAgent) EnsureResources(ctx context.Context) error {
 	if err := errors.Join(
-		s.config(),
-		s.serviceAccount(),
-		s.role(),
-		s.roleBinding(),
-		s.service(),
-		s.deployment(),
-		s.dnsService(),
-		s.webhookTLS(),
+		s.config(ctx),
+		s.serviceAccount(ctx),
+		s.role(ctx),
+		s.roleBinding(ctx),
+		s.service(ctx),
+		s.deployment(ctx),
+		s.dnsService(ctx),
+		s.webhookTLS(ctx),
 	); err != nil {
 		return fmt.Errorf("failed to ensure some kubelet resources: %w\n", err)
 	}
@@ -69,7 +68,11 @@ func (s *SharedAgent) EnsureResources() error {
 	return nil
 }
 
-func (s *SharedAgent) config() error {
+func (s *SharedAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Object) error {
+	return ensureObject(ctx, s.Config, obj)
+}
+
+func (s *SharedAgent) config(ctx context.Context) error {
 	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP)
 
 	configSecret := &v1.Secret{
@@ -86,7 +89,7 @@ func (s *SharedAgent) config() error {
 		},
 	}
 
-	return s.ensureObject(context.Background(), configSecret)
+	return s.ensureObject(ctx, configSecret)
 }
 
 func sharedAgentData(cluster *v1alpha1.Cluster, serviceName, token, ip string) string {
@@ -103,7 +106,7 @@ version: %s`,
 		cluster.Name, cluster.Namespace, ip, serviceName, token, version)
 }
 
-func (s *SharedAgent) deployment() error {
+func (s *SharedAgent) deployment(ctx context.Context) error {
 	labels := map[string]string{
 		"cluster": s.cluster.Name,
 		"type":    "agent",
@@ -133,7 +136,7 @@ func (s *SharedAgent) deployment() error {
 		},
 	}
 
-	return s.ensureObject(context.Background(), deploy)
+	return s.ensureObject(ctx, deploy)
 }
 
 func (s *SharedAgent) podSpec() v1.PodSpec {
@@ -226,7 +229,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 	}
 }
 
-func (s *SharedAgent) service() error {
+func (s *SharedAgent) service(ctx context.Context) error {
 	svc := &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
@@ -259,10 +262,10 @@ func (s *SharedAgent) service() error {
 		},
 	}
 
-	return s.ensureObject(context.Background(), svc)
+	return s.ensureObject(ctx, svc)
 }
 
-func (s *SharedAgent) dnsService() error {
+func (s *SharedAgent) dnsService(ctx context.Context) error {
 	dnsServiceName := controller.SafeConcatNameWithPrefix(s.cluster.Name, "kube-dns")
 
 	svc := &v1.Service{
@@ -303,10 +306,10 @@ func (s *SharedAgent) dnsService() error {
 		},
 	}
 
-	return s.ensureObject(context.Background(), svc)
+	return s.ensureObject(ctx, svc)
 }
 
-func (s *SharedAgent) serviceAccount() error {
+func (s *SharedAgent) serviceAccount(ctx context.Context) error {
 	svcAccount := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
@@ -318,10 +321,10 @@ func (s *SharedAgent) serviceAccount() error {
 		},
 	}
 
-	return s.ensureObject(context.Background(), svcAccount)
+	return s.ensureObject(ctx, svcAccount)
 }
 
-func (s *SharedAgent) role() error {
+func (s *SharedAgent) role(ctx context.Context) error {
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Role",
@@ -345,10 +348,10 @@ func (s *SharedAgent) role() error {
 		},
 	}
 
-	return s.ensureObject(context.Background(), role)
+	return s.ensureObject(ctx, role)
 }
 
-func (s *SharedAgent) roleBinding() error {
+func (s *SharedAgent) roleBinding(ctx context.Context) error {
 	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "RoleBinding",
@@ -372,16 +375,10 @@ func (s *SharedAgent) roleBinding() error {
 		},
 	}
 
-	return s.ensureObject(context.Background(), roleBinding)
+	return s.ensureObject(ctx, roleBinding)
 }
 
-func (s *SharedAgent) Name() string {
-	return controller.SafeConcatNameWithPrefix(s.cluster.Name, SharedNodeAgentName)
-}
-
-func (s *SharedAgent) webhookTLS() error {
-	ctx := context.Background()
-
+func (s *SharedAgent) webhookTLS(ctx context.Context) error {
 	webhookSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",

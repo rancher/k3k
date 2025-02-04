@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,16 +13,21 @@ func Test_virtualAgentData(t *testing.T) {
 		token     string
 	}
 	tests := []struct {
-		name string
-		args args
-		want string
+		name         string
+		args         args
+		expectedData map[string]string
 	}{
 		{
-			name: "test",
+			name: "simple config",
 			args: args{
 				serviceIP: "10.0.0.21",
+				token:     "dnjklsdjnksd892389238",
 			},
-			want: "server: https://%s:6443",
+			expectedData: map[string]string{
+				"server":       "https://10.0.0.21:6443",
+				"token":        "dnjklsdjnksd892389238",
+				"with-node-id": "true",
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -32,8 +36,9 @@ func Test_virtualAgentData(t *testing.T) {
 
 			data := make(map[string]string)
 			err := yaml.Unmarshal([]byte(config), data)
+
 			assert.NoError(t, err)
-			fmt.Println(data)
+			assert.Equal(t, tt.expectedData, data)
 		})
 	}
 }

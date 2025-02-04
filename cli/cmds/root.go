@@ -1,6 +1,8 @@
 package cmds
 
 import (
+	"os"
+
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -17,12 +19,13 @@ var (
 		&cli.StringFlag{
 			Name:        "kubeconfig",
 			EnvVars:     []string{"KUBECONFIG"},
-			Usage:       "Kubeconfig path",
+			Usage:       "kubeconfig path",
 			Destination: &Kubeconfig,
+			Value:       os.Getenv("HOME") + "/.kube/config",
 		},
 		&cli.StringFlag{
 			Name:        "namespace",
-			Usage:       "Namespace to create the k3k cluster in",
+			Usage:       "namespace to create the k3k cluster in",
 			Destination: &namespace,
 		},
 	}

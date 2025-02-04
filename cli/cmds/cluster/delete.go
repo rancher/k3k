@@ -2,9 +2,11 @@ package cluster
 
 import (
 	"context"
+	"errors"
 
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,18 +14,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	clusterDeleteFlags = []cli.Flag{
-		&cli.StringFlag{
-			Name:        "name",
-			Usage:       "name of the cluster",
-			Destination: &name,
-		},
+func NewDeleteCmd() *cli.Command {
+	return &cli.Command{
+		Name:   "delete",
+		Usage:  "Delete an existing cluster",
+		Action: delete,
+		Flags:  cmds.CommonFlags,
 	}
-)
+}
 
 func delete(clx *cli.Context) error {
 	ctx := context.Background()
+
+	name := clx.Args().First()
+	if name == "" {
+		return errors.New("empty cluster name")
+	} else if name == k3kcluster.ClusterInvalidName {
+		return errors.New("invalid cluster name")
+	}
 
 	restConfig, err := clientcmd.BuildConfigFromFlags("", cmds.Kubeconfig)
 	if err != nil {
@@ -38,6 +46,7 @@ func delete(clx *cli.Context) error {
 	}
 
 	logrus.Infof("deleting [%s] cluster", name)
+
 	cluster := v1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,

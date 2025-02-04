@@ -18,6 +18,10 @@ const (
 	// ResourceNamespaceAnnotation is the key for the annotation that contains the original namespace of this
 	// resource in the virtual cluster
 	ResourceNamespaceAnnotation = "k3k.io/namespace"
+	// MetadataNameField is the downwardapi field for object's name
+	MetadataNameField = "metadata.name"
+	// MetadatNamespaceField is the downward field for the object's namespace
+	MetadatNamespaceField = "metadata.namespace"
 )
 
 type ToHostTranslator struct {

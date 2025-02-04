@@ -67,10 +67,7 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1al
 	key = client.ObjectKeyFromObject(&tokenSecret)
 
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, &tokenSecret, func() error {
-		if err := controllerutil.SetControllerReference(cluster, &tokenSecret, c.Scheme); err != nil {
-			return err
-		}
-		return nil
+		return controllerutil.SetControllerReference(cluster, &tokenSecret, c.Scheme)
 	})
 
 	if result != controllerutil.OperationResultNone {

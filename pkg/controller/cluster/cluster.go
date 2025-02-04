@@ -335,15 +335,12 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 		return err
 	}
 
-	key := client.ObjectKeyFromObject(serverStatefulSet)
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, serverStatefulSet, func() error {
-		if err := controllerutil.SetControllerReference(cluster, serverStatefulSet, c.Scheme); err != nil {
-			return err
-		}
-		return nil
+		return controllerutil.SetControllerReference(cluster, serverStatefulSet, c.Scheme)
 	})
 
 	if result != controllerutil.OperationResultNone {
+		key := client.ObjectKeyFromObject(serverStatefulSet)
 		log.Info(fmt.Sprintf("ensureObject: object %s was %s", key, result))
 	}
 

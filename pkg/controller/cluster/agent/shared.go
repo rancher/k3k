@@ -62,7 +62,7 @@ func (s *SharedAgent) EnsureResources(ctx context.Context) error {
 		s.dnsService(ctx),
 		s.webhookTLS(ctx),
 	); err != nil {
-		return fmt.Errorf("failed to ensure some kubelet resources: %w\n", err)
+		return fmt.Errorf("failed to ensure some resources: %w\n", err)
 	}
 
 	return nil

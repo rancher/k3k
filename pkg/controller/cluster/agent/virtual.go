@@ -41,7 +41,7 @@ func (v *VirtualAgent) EnsureResources(ctx context.Context) error {
 		v.config(ctx),
 		v.deployment(ctx),
 	); err != nil {
-		return fmt.Errorf("failed to ensure some kubelet resources: %w\n", err)
+		return fmt.Errorf("failed to ensure some resources: %w\n", err)
 	}
 
 	return nil

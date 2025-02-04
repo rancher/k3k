@@ -38,15 +38,12 @@ func configSecretName(clusterName string) string {
 func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	key := client.ObjectKeyFromObject(obj)
 	result, err := controllerutil.CreateOrUpdate(ctx, cfg.client, obj, func() error {
-		if err := controllerutil.SetControllerReference(cfg.cluster, obj, cfg.scheme); err != nil {
-			return err
-		}
-		return nil
+		return controllerutil.SetControllerReference(cfg.cluster, obj, cfg.scheme)
 	})
 
 	if result != controllerutil.OperationResultNone {
+		key := client.ObjectKeyFromObject(obj)
 		log.Info(fmt.Sprintf("ensureObject: object %s was %s", key, result))
 	}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -76,6 +77,7 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		WithOptions(ctrlruntimecontroller.Options{
 			MaxConcurrentReconciles: maxConcurrentReconciles,
 		}).
+		Owns(&apps.StatefulSet{}).
 		Complete(&reconciler)
 }
 
@@ -212,15 +214,8 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		}
 	}
 
-	bootstrapSecret, err := bootstrap.Generate(ctx, cluster, serviceIP, token)
-	if err != nil {
+	if err := c.ensureBootstrapSecret(ctx, cluster, serviceIP, token); err != nil {
 		return err
-	}
-
-	if err := c.Client.Create(ctx, bootstrapSecret); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
 	}
 
 	if err := c.bindNodeProxyClusterRole(ctx, cluster); err != nil {
@@ -228,6 +223,36 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 	}
 
 	return nil
+}
+
+// ensureBootstrapSecret will create or update the Secret containing the bootstrap data from the k3s server
+func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("ensuring bootstrap secret")
+
+	bootstrapData, err := bootstrap.GenerateBootstrapData(ctx, cluster, serviceIP, token)
+	if err != nil {
+		return err
+	}
+
+	bootstrapSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
+			Namespace: cluster.Namespace,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, c.Client, bootstrapSecret, func() error {
+		if err := controllerutil.SetControllerReference(cluster, bootstrapSecret, c.Scheme); err != nil {
+			return err
+		}
+
+		bootstrapSecret.Data = map[string][]byte{
+			"bootstrap": bootstrapData,
+		}
+		return nil
+	})
+	return err
 }
 
 func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server, serviceIP string) error {

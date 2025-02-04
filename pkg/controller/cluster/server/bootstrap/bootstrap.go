@@ -13,7 +13,6 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -35,7 +34,7 @@ type content struct {
 // Generate generates the bootstrap for the cluster:
 // 1- use the server token to get the bootstrap data from k3s
 // 2- save the bootstrap data as a secret
-func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip, token string) (*v1.Secret, error) {
+func GenerateBootstrapData(ctx context.Context, cluster *v1alpha1.Cluster, ip, token string) ([]byte, error) {
 	bootstrap, err := requestBootstrap(token, ip)
 	if err != nil {
 		return nil, fmt.Errorf("failed to request bootstrap secret: %w", err)
@@ -45,31 +44,7 @@ func Generate(ctx context.Context, cluster *v1alpha1.Cluster, ip, token string) 
 		return nil, fmt.Errorf("failed to decode bootstrap secret: %w", err)
 	}
 
-	bootstrapData, err := json.Marshal(bootstrap)
-	if err != nil {
-		return nil, err
-	}
-	return &v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
-			Namespace: cluster.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: cluster.APIVersion,
-					Kind:       cluster.Kind,
-					Name:       cluster.Name,
-					UID:        cluster.UID,
-				},
-			},
-		},
-		Data: map[string][]byte{
-			"bootstrap": bootstrapData,
-		},
-	}, nil
+	return json.Marshal(bootstrap)
 
 }
 

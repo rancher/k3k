@@ -20,7 +20,7 @@ const (
 	ResourceNamespaceAnnotation = "k3k.io/namespace"
 	// MetadataNameField is the downwardapi field for object's name
 	MetadataNameField = "metadata.name"
-	// MetadatNamespaceField is the downward field for the object's namespace
+	// MetadataNamespaceField is the downward field for the object's namespace
 	MetadataNamespaceField = "metadata.namespace"
 )
 

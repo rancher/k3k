@@ -13,6 +13,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/authentication/user"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -104,6 +105,18 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1alp
 	if k3kService.Spec.Type == v1.ServiceTypeNodePort {
 		nodePort := k3kService.Spec.Ports[0].NodePort
 		url = fmt.Sprintf("https://%s:%d", hostServerIP, nodePort)
+	}
+	if cluster.Spec.Expose.Ingress != nil && cluster.Spec.Expose.Ingress.Enabled {
+		var k3kIngress networkingv1.Ingress
+		ingressKey := types.NamespacedName{
+			Name:      server.IngressName(cluster.Name),
+			Namespace: cluster.Namespace,
+		}
+
+		if err := client.Get(ctx, ingressKey, &k3kIngress); err != nil {
+			return "", err
+		}
+		url = fmt.Sprintf("https://%s", k3kIngress.Spec.Rules[0].Host)
 	}
 
 	return url, nil

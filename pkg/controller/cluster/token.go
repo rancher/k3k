@@ -64,17 +64,18 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1al
 	}
 
 	tokenSecret = TokenSecretObj(token, cluster.Name, cluster.Namespace)
+	key = client.ObjectKeyFromObject(&tokenSecret)
 
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, &tokenSecret, func() error {
-		fmt.Printf("call FN mut %v - %s\n", cluster, client.ObjectKeyFromObject(&tokenSecret))
-
 		if err := controllerutil.SetControllerReference(cluster, &tokenSecret, c.Scheme); err != nil {
 			return err
 		}
 		return nil
 	})
 
-	fmt.Printf("ensureObject %s - %s\n", result, client.ObjectKeyFromObject(&tokenSecret))
+	if result != controllerutil.OperationResultNone {
+		log.Info(fmt.Sprintf("ensureObject: object %s was %s", key, result))
+	}
 
 	return token, err
 

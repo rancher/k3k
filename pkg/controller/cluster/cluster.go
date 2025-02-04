@@ -317,6 +317,8 @@ func (c *ClusterReconciler) createClusterService(ctx context.Context, cluster *v
 }
 
 func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server) error {
+	log := ctrl.LoggerFrom(ctx)
+
 	// create headless service for the statefulset
 	serverStatefulService := server.StatefulServerService()
 	if err := controllerutil.SetControllerReference(cluster, serverStatefulService, c.Scheme); err != nil {
@@ -333,16 +335,17 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 		return err
 	}
 
+	key := client.ObjectKeyFromObject(ServerStatefulSet)
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, ServerStatefulSet, func() error {
-		fmt.Printf("call FN mut %v - %s\n", cluster, client.ObjectKeyFromObject(ServerStatefulSet))
-
 		if err := controllerutil.SetControllerReference(cluster, ServerStatefulSet, c.Scheme); err != nil {
 			return err
 		}
 		return nil
 	})
 
-	fmt.Printf("ensureObject %s - %s\n", result, client.ObjectKeyFromObject(ServerStatefulSet))
+	if result != controllerutil.OperationResultNone {
+		log.Info(fmt.Sprintf("ensureObject: object %s was %s", key, result))
+	}
 
 	return err
 }

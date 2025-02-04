@@ -44,7 +44,8 @@ func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object
 
 	if result != controllerutil.OperationResultNone {
 		key := client.ObjectKeyFromObject(obj)
-		log.Info(fmt.Sprintf("ensureObject: object %s was %s", key, result))
+		objectKind := obj.GetObjectKind().GroupVersionKind().Kind
+		log.Info(fmt.Sprintf("ensureObject: %s object %s was %s", objectKind, key, result))
 	}
 
 	return err

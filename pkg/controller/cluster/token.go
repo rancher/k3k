@@ -71,7 +71,7 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1al
 	})
 
 	if result != controllerutil.OperationResultNone {
-		log.Info(fmt.Sprintf("ensureObject: object %s was %s", key, result))
+		log.Info(fmt.Sprintf("ensureObject: tokenSecret %s was %s", key, result))
 	}
 
 	return token, err

@@ -341,7 +341,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 
 	if result != controllerutil.OperationResultNone {
 		key := client.ObjectKeyFromObject(serverStatefulSet)
-		log.Info(fmt.Sprintf("ensureObject: serverStatefulSet %s was %s", key, result))
+		log.Info("ensuring serverStatefulSet", "key", key, "result", result)
 	}
 
 	return err

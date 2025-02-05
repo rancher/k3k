@@ -17,6 +17,10 @@ const (
 	configName = "agent-config"
 )
 
+type ResourceEnsurer interface {
+	EnsureResources(context.Context) error
+}
+
 type Config struct {
 	cluster *v1alpha1.Cluster
 	client  ctrlruntimeclient.Client

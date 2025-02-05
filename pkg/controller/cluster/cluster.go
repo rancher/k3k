@@ -373,14 +373,10 @@ func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluste
 	return c.Client.Update(ctx, clusterRoleBinding)
 }
 
-type ResourceEnsurer interface {
-	EnsureResources(context.Context) error
-}
-
 func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
 	config := agent.NewConfig(cluster, c.Client, c.Scheme)
 
-	var agentEnsurer ResourceEnsurer
+	var agentEnsurer agent.ResourceEnsurer
 	if cluster.Spec.Mode == agent.VirtualNodeMode {
 		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token)
 	} else {

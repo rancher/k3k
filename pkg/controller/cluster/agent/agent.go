@@ -1,28 +1,55 @@
 package agent
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
 	configName = "agent-config"
 )
 
-type Agent interface {
-	Name() string
-	Config() ctrlruntimeclient.Object
-	Resources() ([]ctrlruntimeclient.Object, error)
+type ResourceEnsurer interface {
+	EnsureResources(context.Context) error
 }
 
-func New(cluster *v1alpha1.Cluster, serviceIP, sharedAgentImage, sharedAgentImagePullPolicy, token string) Agent {
-	if cluster.Spec.Mode == VirtualNodeMode {
-		return NewVirtualAgent(cluster, serviceIP, token)
+type Config struct {
+	cluster *v1alpha1.Cluster
+	client  ctrlruntimeclient.Client
+	scheme  *runtime.Scheme
+}
+
+func NewConfig(cluster *v1alpha1.Cluster, client ctrlruntimeclient.Client, scheme *runtime.Scheme) *Config {
+	return &Config{
+		cluster: cluster,
+		client:  client,
+		scheme:  scheme,
 	}
-	return NewSharedAgent(cluster, serviceIP, sharedAgentImage, sharedAgentImagePullPolicy, token)
 }
 
 func configSecretName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, configName)
+}
+
+func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	result, err := controllerutil.CreateOrUpdate(ctx, cfg.client, obj, func() error {
+		return controllerutil.SetControllerReference(cfg.cluster, obj, cfg.scheme)
+	})
+
+	if result != controllerutil.OperationResultNone {
+		key := client.ObjectKeyFromObject(obj)
+		log.Info(fmt.Sprintf("ensuring %T", obj), "key", key, "result, result")
+	}
+
+	return err
 }

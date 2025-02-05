@@ -1,9 +1,10 @@
 package agent
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -18,23 +19,42 @@ const (
 )
 
 type VirtualAgent struct {
-	cluster   *v1alpha1.Cluster
+	*Config
 	serviceIP string
 	token     string
 }
 
-func NewVirtualAgent(cluster *v1alpha1.Cluster, serviceIP, token string) Agent {
+func NewVirtualAgent(config *Config, serviceIP, token string) *VirtualAgent {
 	return &VirtualAgent{
-		cluster:   cluster,
+		Config:    config,
 		serviceIP: serviceIP,
 		token:     token,
 	}
 }
 
-func (v *VirtualAgent) Config() ctrlruntimeclient.Object {
+func (v *VirtualAgent) Name() string {
+	return controller.SafeConcatNameWithPrefix(v.cluster.Name, virtualNodeAgentName)
+}
+
+func (v *VirtualAgent) EnsureResources(ctx context.Context) error {
+	if err := errors.Join(
+		v.config(ctx),
+		v.deployment(ctx),
+	); err != nil {
+		return fmt.Errorf("failed to ensure some resources: %w\n", err)
+	}
+
+	return nil
+}
+
+func (v *VirtualAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Object) error {
+	return ensureObject(ctx, v.Config, obj)
+}
+
+func (v *VirtualAgent) config(ctx context.Context) error {
 	config := virtualAgentData(v.serviceIP, v.token)
 
-	return &v1.Secret{
+	configSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -47,10 +67,8 @@ func (v *VirtualAgent) Config() ctrlruntimeclient.Object {
 			"config.yaml": []byte(config),
 		},
 	}
-}
 
-func (v *VirtualAgent) Resources() ([]ctrlruntimeclient.Object, error) {
-	return []ctrlruntimeclient.Object{v.deployment()}, nil
+	return v.ensureObject(ctx, configSecret)
 }
 
 func virtualAgentData(serviceIP, token string) string {
@@ -59,7 +77,7 @@ token: %s
 with-node-id: true`, serviceIP, token)
 }
 
-func (v *VirtualAgent) deployment() *apps.Deployment {
+func (v *VirtualAgent) deployment(ctx context.Context) error {
 	image := controller.K3SImage(v.cluster)
 
 	const name = "k3k-agent"
@@ -70,7 +88,8 @@ func (v *VirtualAgent) deployment() *apps.Deployment {
 			"mode":    "virtual",
 		},
 	}
-	return &apps.Deployment{
+
+	deployment := &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
@@ -91,6 +110,8 @@ func (v *VirtualAgent) deployment() *apps.Deployment {
 			},
 		},
 	}
+
+	return v.ensureObject(ctx, deployment)
 }
 
 func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelector *metav1.LabelSelector) v1.PodSpec {
@@ -205,8 +226,4 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 	}
 
 	return podSpec
-}
-
-func (v *VirtualAgent) Name() string {
-	return controller.SafeConcatNameWithPrefix(v.cluster.Name, virtualNodeAgentName)
 }

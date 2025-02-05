@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -63,14 +64,17 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1al
 	}
 
 	tokenSecret = TokenSecretObj(token, cluster.Name, cluster.Namespace)
-	if err := controllerutil.SetControllerReference(cluster, &tokenSecret, c.Scheme); err != nil {
-		return "", err
+	key = client.ObjectKeyFromObject(&tokenSecret)
+
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, &tokenSecret, func() error {
+		return controllerutil.SetControllerReference(cluster, &tokenSecret, c.Scheme)
+	})
+
+	if result != controllerutil.OperationResultNone {
+		log.Info("ensuring tokenSecret", "key", key, "result", result)
 	}
 
-	if err := c.ensure(ctx, &tokenSecret, false); err != nil {
-		return "", err
-	}
-	return token, nil
+	return token, err
 
 }
 

@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimecontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -195,7 +196,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	if err := c.agent(ctx, cluster, serviceIP, token); err != nil {
+	if err := c.ensureAgent(ctx, cluster, serviceIP, token); err != nil {
 		return err
 	}
 
@@ -316,6 +317,8 @@ func (c *ClusterReconciler) createClusterService(ctx context.Context, cluster *v
 }
 
 func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server) error {
+	log := ctrl.LoggerFrom(ctx)
+
 	// create headless service for the statefulset
 	serverStatefulService := server.StatefulServerService()
 	if err := controllerutil.SetControllerReference(cluster, serverStatefulService, c.Scheme); err != nil {
@@ -326,20 +329,22 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 			return err
 		}
 	}
-	ServerStatefulSet, err := server.StatefulServer(ctx)
+
+	serverStatefulSet, err := server.StatefulServer(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(cluster, ServerStatefulSet, c.Scheme); err != nil {
-		return err
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, serverStatefulSet, func() error {
+		return controllerutil.SetControllerReference(cluster, serverStatefulSet, c.Scheme)
+	})
+
+	if result != controllerutil.OperationResultNone {
+		key := client.ObjectKeyFromObject(serverStatefulSet)
+		log.Info("ensuring serverStatefulSet", "key", key, "result", result)
 	}
 
-	if err := c.ensure(ctx, ServerStatefulSet, false); err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluster *v1alpha1.Cluster) error {
@@ -368,71 +373,22 @@ func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluste
 	return c.Client.Update(ctx, clusterRoleBinding)
 }
 
-func (c *ClusterReconciler) agent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
-	agent := agent.New(cluster, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token)
-	agentsConfig := agent.Config()
-	agentResources, err := agent.Resources()
-	if err != nil {
-		return err
-	}
-	agentResources = append(agentResources, agentsConfig)
+func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
+	config := agent.NewConfig(cluster, c.Client, c.Scheme)
 
-	return c.ensureAll(ctx, cluster, agentResources)
+	var agentEnsurer agent.ResourceEnsurer
+	if cluster.Spec.Mode == agent.VirtualNodeMode {
+		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token)
+	} else {
+		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token)
+	}
+
+	return agentEnsurer.EnsureResources(ctx)
 }
 
 func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
 	if cluster.Name == ClusterInvalidName {
 		return errors.New("invalid cluster name " + cluster.Name + " no action will be taken")
-	}
-	return nil
-}
-
-func (c *ClusterReconciler) ensureAll(ctx context.Context, cluster *v1alpha1.Cluster, objs []ctrlruntimeclient.Object) error {
-	for _, obj := range objs {
-		if err := controllerutil.SetControllerReference(cluster, obj, c.Scheme); err != nil {
-			return err
-		}
-		if err := c.ensure(ctx, obj, false); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *ClusterReconciler) ensure(ctx context.Context, obj ctrlruntimeclient.Object, requiresRecreate bool) error {
-	exists := true
-	existingObject := obj.DeepCopyObject().(ctrlruntimeclient.Object)
-	if err := c.Client.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, existingObject); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return fmt.Errorf("failed to get Object(%T): %w", existingObject, err)
-		}
-		exists = false
-	}
-
-	if !exists {
-		// if not exists create object
-		if err := c.Client.Create(ctx, obj); err != nil {
-			return err
-		}
-		return nil
-	}
-	// if exists then apply udpate or recreate if necessary
-	if reflect.DeepEqual(obj.(metav1.Object), existingObject.(metav1.Object)) {
-		return nil
-	}
-
-	if !requiresRecreate {
-		if err := c.Client.Update(ctx, obj); err != nil {
-			return err
-		}
-	} else {
-		// this handles object that needs recreation including configmaps and secrets
-		if err := c.Client.Delete(ctx, obj); err != nil {
-			return err
-		}
-		if err := c.Client.Create(ctx, obj); err != nil {
-			return err
-		}
 	}
 	return nil
 }

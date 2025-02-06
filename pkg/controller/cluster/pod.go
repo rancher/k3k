@@ -84,6 +84,9 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	if err := p.Client.List(ctx, &podList, listOpts); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
+	if len(podList.Items) == 1 {
+		return reconcile.Result{}, nil
+	}
 	for _, pod := range podList.Items {
 		if err := p.handleServerPod(ctx, cluster, &pod); err != nil {
 			return reconcile.Result{}, err

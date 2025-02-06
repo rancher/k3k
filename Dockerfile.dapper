@@ -23,7 +23,7 @@ RUN go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest && \
     cp $ENVTEST_BIN/* /usr/local/kubebuilder/bin
 
 ENV GO111MODULE on
-ENV DAPPER_ENV REPO TAG DRONE_TAG CROSS GITHUB_TOKEN SKIP_TESTS
+ENV DAPPER_ENV REPO TAG DRONE_TAG CROSS GITHUB_TOKEN SKIP_TESTS GIT_TAG
 ENV DAPPER_SOURCE /go/src/github.com/rancher/k3k/
 ENV DAPPER_OUTPUT ./bin ./dist ./deploy ./charts
 ENV DAPPER_DOCKER_SOCKET true

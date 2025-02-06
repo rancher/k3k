@@ -59,7 +59,7 @@ func AddPodController(ctx context.Context, mgr manager.Manager) error {
 }
 
 func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("pod", req.NamespacedName)
+	log := ctrl.LoggerFrom(ctx).WithValues("statefulset", req.NamespacedName)
 	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
 
 	s := strings.Split(req.Name, "-")
@@ -71,7 +71,7 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	}
 	clusterName := s[1]
 	var cluster v1alpha1.Cluster
-	if err := p.Client.Get(ctx, types.NamespacedName{Name: clusterName}, &cluster); err != nil {
+	if err := p.Client.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: req.Namespace}, &cluster); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
@@ -84,8 +84,10 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	if err := p.Client.List(ctx, &podList, listOpts); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
+	if len(podList.Items) == 1 {
+		return reconcile.Result{}, nil
+	}
 	for _, pod := range podList.Items {
-
 		if err := p.handleServerPod(ctx, cluster, &pod); err != nil {
 			return reconcile.Result{}, err
 		}

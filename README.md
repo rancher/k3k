@@ -28,7 +28,7 @@ This project is still under development and is considered experimental. It may h
 
 - **Complete Isolation (Virtual Mode):** For enhanced security and isolation, K3k's virtual mode provides dedicated K3s server pods for each embedded cluster. This ensures complete separation of workloads and eliminates any potential resource contention or security risks.
 
-- **Rancher Integration:** "Simplify the management of your K3k clusters with Rancher. Leverage Rancher's intuitive UI and powerful features to monitor, manage, and scale your embedded clusters with ease.
+- **Rancher Integration:** Simplify the management of your K3k clusters with Rancher. Leverage Rancher's intuitive UI and powerful features to monitor, manage, and scale your embedded clusters with ease.
 
 
 ## Installation

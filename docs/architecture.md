@@ -9,6 +9,8 @@ K3k provides two modes of deploying virtual clusters: the "shared" mode (default
 
 The default `shared` mode uses a K3s server as control plane with an [agentless servers configuration](https://docs.k3s.io/advanced#running-agentless-servers-experimental). With this option enabled, the servers do not run the kubelet, container runtime, or CNI. The server uses a [Virtual Kubelet](https://virtual-kubelet.io/) provider implementation specific to K3k, which schedules the workloads and other eventually needed resources on the host cluster. This K3k Virtual Kubelet provider handles the reflection of resources and workload execution within the shared host cluster environment.
 
+![Shared Mode](./images/architecture/shared-mode.png)
+
 
 ### Networking and Storage
 
@@ -53,6 +55,8 @@ The shared mode architecture is designed with security in mind.  K3k employs mul
 ## Virtual Mode
 
 The `virtual` mode in K3k deploys fully functional K3s clusters (including both server and agent components) as virtual clusters.  These K3s clusters run as pods within the host cluster.  Each virtual cluster has its own dedicated K3s server and one or more K3s agents acting as worker nodes. This approach provides strong isolation, as each virtual cluster operates independently with its own control plane and worker nodes.  While these virtual clusters run as pods on the host cluster, they function as complete and separate Kubernetes environments.
+
+![Virtual Mode](./images/architecture/virtual-mode.png)
 
 
 ### Networking and Storage

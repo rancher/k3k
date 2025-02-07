@@ -122,7 +122,7 @@ K3k offers two distinct modes for deploying virtual clusters: `shared` and `virt
     * You need a simple setup and don't require strong isolation between virtual clusters.
     * Your workloads don't have strict performance requirements.
 * **Choose `virtual` mode if:**
-    * You prioritize strong isolation and security.
+    * You prioritize strong isolation.
     * You need dedicated resources and predictable performance for your virtual clusters.
 
 Ultimately, the best choice depends on your specific requirements and priorities. Consider the trade-offs carefully and choose the mode that best aligns with your needs.

@@ -1,1 +1,203 @@
 # Advanced Usage
+
+This document provides advanced usage information for k3k, including detailed use cases and explanations of the `Cluster` resource fields for customization.
+
+## Customizing the Cluster Resource
+
+The `Cluster` resource provides a variety of fields for customizing the behavior of your virtual clusters. Here are some of the most important fields:
+
+**Note:** Most of these customization options can also be configured using the `k3kcli` tool. Refer to the `k3kcli` documentation for more details.
+
+
+### `mode`
+
+The `mode` field specifies the cluster provisioning mode, which can be either `shared` or `virtual`. The default mode is `shared`.
+
+* **`shared` mode:** In this mode, the virtual cluster shares the host cluster's resources and networking. This mode is suitable for lightweight workloads and development environments where isolation is not a primary concern.
+* **`virtual` mode:** In this mode, the virtual cluster runs as a separate K3s cluster within the host cluster. This mode provides stronger isolation and is suitable for production workloads or when dedicated resources are required.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  mode: virtual
+```
+
+
+### `version`
+
+The `version` field specifies the Kubernetes version to be used by the virtual nodes. If not specified, K3k will use the same K3s version as the host cluster. For example, if the host cluster is running Kubernetes v1.31.3, K3k will use the corresponding K3s version (e.g., `v1.31.3-k3s1`).
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  version: v1.31.3-k3s1
+```
+
+
+### `servers`
+
+The `servers` field specifies the number of K3s server nodes to deploy for the virtual cluster. The default value is 1.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  servers: 3
+```
+
+### `agents`
+
+The `agents` field specifies the number of K3s agent nodes to deploy for the virtual cluster. The default value is 0.
+
+**Note:** In `shared` mode, this field is ignored, as the Virtual Kubelet acts as the agent, and there are no K3s worker nodes.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  agents: 2
+```
+
+### `nodeSelector`
+
+The `nodeSelector` field allows you to specify a node selector that will be applied to all server/agent pods. In `shared` mode, the node selector will also be applied to the workloads.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  nodeSelector:
+    disktype: ssd
+```
+
+### `expose`
+
+The `expose` field contains options for exposing the API server of the virtual cluster. By default, the API server is only exposed as a `ClusterIP`, which is relatively secure but difficult to access from outside the cluster.
+
+You can use the `expose` field to enable exposure via `NodePort`, `LoadBalancer`, or `Ingress`.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  expose:
+    nodePort:
+      enabled: true
+```
+
+### `clusterCIDR`
+
+The `clusterCIDR` field specifies the CIDR range for the pods of the cluster. The default value is `10.42.0.0/16`.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  clusterCIDR: 10.42.0.0/16
+```
+
+### `serviceCIDR`
+
+The `serviceCIDR` field specifies the CIDR range for the services in the cluster. The default value is `10.43.0.0/16`.
+
+**Note:** In `shared` mode, the `serviceCIDR` should match the host cluster's `serviceCIDR` to prevent conflicts.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  serviceCIDR: 10.43.0.0/16
+```
+
+### `clusterDNS`
+
+The `clusterDNS` field specifies the IP address for the CoreDNS service. It needs to be in the range provided by `serviceCIDR`. The default value is `10.43.0.10`.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  clusterDNS: 10.43.0.10
+```
+
+
+### `serverArgs`
+
+The `serverArgs` field allows you to specify additional arguments to be passed to the K3s server pods.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  serverArgs:
+  - --tls-san=my-cluster.example.com
+```
+
+### `agentArgs`
+
+The `agentArgs` field allows you to specify additional arguments to be passed to the K3s agent pods.
+
+**Example:**
+
+```yaml
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  agentArgs:
+  - --node-label=mylabel=myvalue
+```

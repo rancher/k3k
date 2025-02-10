@@ -11,7 +11,7 @@ import (
 )
 
 func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
-	name := configSecretName(s.cluster.Name, init)
+	name := ConfigSecretName(s.cluster.Name, init)
 	s.cluster.Status.TLSSANs = append(s.cluster.Spec.TLSSANs,
 		serviceIP,
 		ServiceName(s.cluster.Name),
@@ -32,7 +32,8 @@ func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
 			Namespace: s.cluster.Namespace,
 		},
 		Data: map[string][]byte{
-			"config.yaml": []byte(config),
+			"config.yaml":     []byte(config),
+			"cluster_started": []byte("false"),
 		},
 	}, nil
 }
@@ -75,7 +76,7 @@ func serverOptions(cluster *v1alpha1.Cluster, token string) string {
 	return opts
 }
 
-func configSecretName(clusterName string, init bool) string {
+func ConfigSecretName(clusterName string, init bool) string {
 	if !init {
 		return controller.SafeConcatNameWithPrefix(clusterName, configName)
 	}

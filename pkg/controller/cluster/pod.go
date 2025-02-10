@@ -87,6 +87,19 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	if len(podList.Items) == 1 {
 		return reconcile.Result{}, nil
 	}
+
+	// update config secret if more than one server has started correctly
+	if podList.Items[1].Status.ContainerStatuses[0].Ready {
+		var readyConfig v1.Secret
+		if err := p.Client.Get(ctx, types.NamespacedName{Name: server.ConfigSecretName(clusterName, false), Namespace: cluster.Namespace}, &readyConfig); err != nil {
+			return reconcile.Result{}, err
+		}
+		readyConfig.Data["cluster_started"] = []byte("true")
+		if err := p.Client.Update(ctx, &readyConfig); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	for _, pod := range podList.Items {
 		if err := p.handleServerPod(ctx, cluster, &pod); err != nil {
 			return reconcile.Result{}, err

@@ -58,7 +58,7 @@ func (s *Server) podSpec(image, name string, persistent bool) v1.PodSpec {
 				Name: "initconfig",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: configSecretName(s.cluster.Name, true),
+						SecretName: ConfigSecretName(s.cluster.Name, true),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",
@@ -72,7 +72,7 @@ func (s *Server) podSpec(image, name string, persistent bool) v1.PodSpec {
 				Name: "config",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: configSecretName(s.cluster.Name, false),
+						SecretName: ConfigSecretName(s.cluster.Name, false),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",
@@ -123,12 +123,23 @@ func (s *Server) podSpec(image, name string, persistent bool) v1.PodSpec {
 							},
 						},
 					},
+					{
+						Name: "CLUSTER_STARTED",
+						ValueFrom: &v1.EnvVarSource{
+							SecretKeyRef: &v1.SecretKeySelector{
+								Key: "cluster_started",
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: ConfigSecretName(s.cluster.Name, false),
+								},
+							},
+						},
+					},
 				},
 				Command: []string{
 					"/bin/sh",
 					"-c",
 					`
-					if [ ${POD_NAME: -1} == 0 ]; then 
+					if [ ${POD_NAME: -1} == 0 ] && [ ${CLUSTER_STARTED} == "false" ]; then 
 						/bin/k3s server --config /opt/rancher/k3s/init/config.yaml ` + strings.Join(s.cluster.Spec.ServerArgs, " ") + `
 					else 
 						/bin/k3s server --config /opt/rancher/k3s/server/config.yaml ` + strings.Join(s.cluster.Spec.ServerArgs, " ") + `

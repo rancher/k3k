@@ -77,15 +77,7 @@ The `virtual` mode offers strong isolation due to the dedicated K3s clusters dep
 
 Security in `virtual` mode benefits from the inherent isolation provided by the separate K3s clusters.  However, standard Kubernetes security best practices still apply, and K3k emphasizes a layered security approach.  While the K3s server pods often run with elevated privileges (due to the nature of their function, requiring access to system resources), K3k recommends minimizing these privileges whenever possible and adhering to the principle of least privilege.  This can be achieved by carefully configuring the necessary capabilities instead of relying on full `privileged` mode.  Further information on K3s security best practices can be found in the official K3s documentation: [https://docs.k3s.io/security](https://docs.k3s.io/security) (This link provides general security guidance, including discussions of capabilities and other relevant topics).
 
-K3k employs several strategies to mitigate the risks associated with elevated privileges:
-
-* **Principle of Least Privilege:** K3k encourages and supports configurations that grant only the minimal necessary capabilities to the K3s server pods, avoiding full `privileged` mode whenever feasible.
-* **Pod Security Policies/Admission Controllers:** Using Pod Security Admission to enforce Pod Security Standards (PSS) *within* the virtual clusters to restrict privileged operations and ensure secure workload configurations. This adds an extra layer of protection even if the K3s server pod has elevated privileges on the host.
-* **Network Policies:** Applying Network Policies *within* the virtual clusters to further refine network traffic rules and enhance security.  This limits the potential impact of a compromised K3s server within the virtual cluster.
-* **Regular Security Updates:** Keeping the K3s images used for virtual clusters and the host cluster components up-to-date with the latest security patches is crucial.  This minimizes the window of vulnerability to known exploits.
-* **Secure Host Configuration:** Securing the underlying host operating system and Kubernetes environment is essential. This includes regular patching, access control, and monitoring.
-
-Both the individual K3s server and agent pods, *and* the underlying host environment on which they run, must be secured following Kubernetes best practices to prevent unauthorized access or compromise. K3k's layered security approach combines the inherent isolation of the `virtual` mode with proactive security measures to protect virtual clusters and the host environment.
+Currently security in virtual  mode has a risk of privilege escalation as the server pods run with elevated privileges (due to the nature of their function, requiring access to system resources).
 
 
 ## K3k Components

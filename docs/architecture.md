@@ -100,7 +100,7 @@ K3k offers two distinct modes for deploying virtual clusters: `shared` and `virt
 | **Networking** | Host cluster's CNI | Virtual cluster's own CNI |
 | **Storage** | Host cluster's storage | *Under development* |
 | **Security** | Pod Security Admission (PSA), Network Policies | Inherent isolation, PSA, Network Policies, secure host configuration |
-| **Performance** | Smaller footprint, potentially more efficient due to running directly on the host | Potentially better performance for demanding workloads due to dedicated resources and isolation |
+| **Performance** | Smaller footprint, more efficient due to running directly on the host | Higher overhead due to running full K3s clusters |
 
 **Trade-offs:**
 
@@ -113,6 +113,7 @@ K3k offers two distinct modes for deploying virtual clusters: `shared` and `virt
     * You prioritize low overhead and resource efficiency.
     * You need a simple setup and don't require strong isolation between virtual clusters.
     * Your workloads don't have strict performance requirements.
+    * Your workloads needs host capacities (GPU)
 * **Choose `virtual` mode if:**
     * You prioritize strong isolation.
     * You need dedicated resources and predictable performance for your virtual clusters.

@@ -1,143 +1,170 @@
-# K3K
+# K3k: Kubernetes in Kubernetes
 
 [![Experimental](https://img.shields.io/badge/status-experimental-orange.svg)](https://shields.io/)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rancher/k3k)](https://goreportcard.com/report/github.com/rancher/k3k)
+![Tests](https://github.com/rancher/k3k/actions/workflows/test.yaml/badge.svg)
+![Build](https://github.com/rancher/k3k/actions/workflows/build.yml/badge.svg)
 
-A Kubernetes in Kubernetes tool, k3k provides a way to run multiple embedded isolated k3s clusters on your kubernetes cluster.
+
+K3k, Kubernetes in Kubernetes, is a tool that empowers you to create and manage isolated K3s clusters within your existing Kubernetes environment.  It enables efficient multi-tenancy, streamlined experimentation, and robust resource isolation, minimizing infrastructure costs by allowing you to run multiple lightweight Kubernetes clusters on the same physical host. K3k offers both "shared" mode, optimizing resource utilization, and "virtual" mode, providing complete isolation with dedicated K3s server pods. This allows you to access a full Kubernetes experience without the overhead of managing separate physical resources. 
+
+K3k integrates seamlessly with Rancher for simplified management of your embedded clusters.
+
 
 **Experimental Tool**
 
 This project is still under development and is considered experimental. It may have limitations, bugs, or changes. Please use with caution and report any issues you encounter. We appreciate your feedback as we continue to refine and improve this tool.
 
-## Example
 
-An example on creating a k3k cluster on an RKE2 host using k3kcli
+## Features and Benefits
 
-[![asciicast](https://asciinema.org/a/eYlc3dsL2pfP2B50i3Ea8MJJp.svg)](https://asciinema.org/a/eYlc3dsL2pfP2B50i3Ea8MJJp)
+- **Resource Isolation:** Ensure workload isolation and prevent resource contention between teams or applications. K3k allows you to define resource limits and quotas for each embedded cluster, guaranteeing that one team's workloads won't impact another's performance.
 
-## Architecture
+- **Simplified Multi-Tenancy:** Easily create dedicated Kubernetes environments for different users or projects, simplifying access control and management. Provide each team with their own isolated cluster, complete with its own namespaces, RBAC, and resource quotas, without the complexity of managing multiple physical clusters.
 
-K3K consists of a controller and a cli tool, the controller can be deployed via a helm chart and the cli can be downloaded from the releases page.
+- **Lightweight and Fast:** Leverage the lightweight nature of K3s to spin up and tear down clusters quickly, accelerating development and testing cycles. Spin up a new K3k cluster in seconds, test your application in a clean environment, and tear it down just as quickly, streamlining your CI/CD pipeline.
 
-### Controller
+- **Optimized Resource Utilization (Shared Mode):** Maximize your infrastructure investment by running multiple K3s clusters on the same physical host. K3k's shared mode allows you to efficiently share underlying resources, reducing overhead and minimizing costs.
 
-The K3K controller will watch a CRD called `clusters.k3k.io`. Once found, the controller will create a separate namespace and it will create a K3S cluster as specified in the spec of the object.
+- **Complete Isolation (Virtual Mode):** For enhanced security and isolation, K3k's virtual mode provides dedicated K3s server pods for each embedded cluster. This ensures complete separation of workloads and eliminates any potential resource contention or security risks.
 
-Each server and agent is created as a separate pod that runs in the new namespace.
-
-### CLI
-
-The CLI provides a quick and easy way to create K3K clusters using simple flags, and automatically exposes the K3K clusters so it's accessible via a kubeconfig.
-
-## Features
-
-### Isolation
-
-Each cluster runs in a sperate namespace that can be isolated via netowrk policies and RBAC rules, clusters also run in a sperate network namespace with flannel as the backend CNI. Finally, each cluster has a separate datastore which can be persisted.
-
-In addition, k3k offers a persistence feature that can help users to persist their datatstore, using dynamic storage class volumes.
-
-### Portability and Customization
-
-The "Cluster" object is considered the template of the cluster that you can re-use to spin up multiple clusters in a matter of seconds.
-
-K3K clusters use K3S internally and leverage all options that can be passed to K3S. Each cluster is exposed to the host cluster via NodePort, LoadBalancers, and Ingresses.
+- **Rancher Integration:** Simplify the management of your K3k clusters with Rancher. Leverage Rancher's intuitive UI and powerful features to monitor, manage, and scale your embedded clusters with ease.
 
 
-|                       | Separate Namespace  (for each tenant) | K3K                          | vcluster        | Separate Cluster (for each tenant) |
-|-----------------------|---------------------------------------|------------------------------|-----------------|------------------------------------|
-| Isolation             | Very weak                             | Very strong                  | strong          | Very strong                        |
-| Access for tenants    | Very restricted                       | Built-in k8s RBAC / Rancher  | Vclustser admin | Cluster admin                      |
-| Cost                  | Very cheap                            | Very cheap                   | cheap           | expensive                          |
-| Overhead              | Very low                              | Very low                     | Very low        | Very high                          |
-| Networking            | Shared                                | Separate                     | shared          | separate                           |
-| Cluster Configuration |                                       | Very easy                    | Very hard       |                                    |
+## Installation
+
+This section provides instructions on how to install K3k and the `k3kcli`.
+
+
+### Prerequisites
+
+* [Helm](https://helm.sh) must be installed to use the charts. Please refer to Helm's [documentation](https://helm.sh/docs) to get started.
+
+
+### Install the K3k controller
+
+1. Add the K3k Helm repository:
+
+   ```bash
+   helm repo add k3k https://rancher.github.io/k3k
+   helm repo update
+   ```
+
+2. Install the K3k controller:
+
+   ```bash
+   helm install --namespace k3k-system --create-namespace k3k k3k/k3k --devel
+   ```
+
+**NOTE:** K3k is currently under development, so the chart is marked as a development chart. This means you need to add the `--devel` flag to install it.  For production use, keep an eye on releases for stable versions. We recommend using the latest released version when possible.
+
+
+### Install the `k3kcli`
+
+The `k3kcli` provides a quick and easy way to create K3k clusters and automatically exposes them via a kubeconfig.
+
+To install it, simply download the latest available version for your architecture from the GitHub Releases page.
+
+For example, you can download the Linux amd64 version with:
+
+```
+wget -qO k3kcli https://github.com/rancher/k3k/releases/download/v0.2.2-rc4/k3kcli-linux-amd64 && \
+  chmod +x k3kcli && \
+  sudo mv k3kcli /usr/local/bin
+```
+
+You should now be able to run:
+```bash
+-> % k3kcli --version
+k3kcli Version: v0.2.2-rc4
+```
+
 
 ## Usage
 
-### Deploy K3K Controller
+This section provides examples of how to use the `k3kcli` to manage your K3k clusters.
 
-[Helm](https://helm.sh) must be installed to use the charts.  Please refer to
-Helm's [documentation](https://helm.sh/docs) to get started.
+**K3k operates within the context of your currently configured `kubectl` context.** This means that K3k respects the standard Kubernetes mechanisms for context configuration, including the `--kubeconfig` flag, the `$KUBECONFIG` environment variable, and the default `$HOME/.kube/config` file. Any K3k clusters you create will reside within the Kubernetes cluster that your `kubectl` is currently pointing to.
 
-Once Helm has been set up correctly, add the repo as follows:
 
-```sh
-  helm repo add k3k https://rancher.github.io/k3k
+### Creating a K3k Cluster
+
+To create a new K3k cluster, use the following command:
+
+```bash
+k3kcli cluster create mycluster
 ```
 
-If you had already added this repo earlier, run `helm repo update` to retrieve
-the latest versions of the packages.  You can then run `helm search repo
-k3k --devel` to see the charts.
+When the K3s server is ready, `k3kcli` will generate the necessary kubeconfig file and print instructions on how to use it.  
 
-To install the k3k chart:
+Here's an example of the output:
 
-```sh
-helm install my-k3k k3k/k3k --devel
+```bash
+INFO[0000] Creating a new cluster [mycluster]          
+INFO[0000] Extracting Kubeconfig for [mycluster] cluster 
+INFO[0000] waiting for cluster to be available..        
+INFO[0073] certificate CN=system:admin,O=system:masters signed by CN=k3s-client-ca@1738746570: notBefore=2025-02-05 09:09:30 +0000 UTC notAfter=2026-02-05 09:10:42 +0000 UTC 
+INFO[0073] You can start using the cluster with: 
+
+        export KUBECONFIG=/my/current/directory/mycluster-kubeconfig.yaml
+        kubectl cluster-info  
 ```
 
-To uninstall the chart:
+After exporting the generated kubeconfig, you should be able to reach your Kubernetes cluster:
 
-```sh
-helm delete my-k3k
-```
-
-**NOTE: Since k3k is still under development, the chart is marked as a development chart, this means that you need to add the `--devel` flag to install it.**
-
-### Create a new cluster
-
-To create a new cluster you need to install and run the cli or create a cluster object, to install the cli:
-
-#### For linux and macOS
-
-1 - Donwload the binary, linux dowload url:
-```
-wget https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli
-```
-macOS dowload url:
-```
-wget https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli
-```
-Then copy to local bin
-```
-chmod +x k3kcli
-sudo cp k3kcli /usr/local/bin
+```bash
+export KUBECONFIG=/my/current/directory/mycluster-kubeconfig.yaml
+kubectl get nodes
+kubectl get pods -A
 ```
 
-#### For Windows 
+You can also directly create a Cluster resource in some namespace, to create a K3k cluster:
 
-1 - Download the Binary:
-Use PowerShell's Invoke-WebRequest cmdlet to download the binary:
-```powershel
-Invoke-WebRequest -Uri "https://github.com/rancher/k3k/releases/download/v0.0.0-alpha2/k3kcli-windows" -OutFile "k3kcli.exe"
-```
-2 - Copy the Binary to a Directory in PATH:
-To allow running the binary from any command prompt, you can copy it to a directory in your system's PATH. For example, copying it to C:\Users\<YourUsername>\bin (create this directory if it doesn't exist):
-```
-Copy-Item "k3kcli.exe" "C:\bin"
-```
-3 - Update Environment Variable (PATH):
-If you haven't already added `C:\bin` (or your chosen directory) to your PATH, you can do it through PowerShell:
-```
-setx PATH "C:\bin;%PATH%"
+```bash
+kubectl apply -f - <<EOF
+apiVersion: k3k.io/v1alpha1
+kind: Cluster
+metadata:
+  name: mycluster
+  namespace: k3k-mycluster
+EOF
 ```
 
-To create a new cluster you can use:
+and use the `k3kcli` to retrieve the kubeconfig:
 
-```sh
-k3k cluster create --name example-cluster --token test
+```bash
+k3kcli kubeconfig generate --namespace k3k-mycluster --name mycluster 
 ```
 
 
-## Tests
+### Deleting a K3k Cluster
 
-To run the tests we use [Ginkgo](https://onsi.github.io/ginkgo/), and [`envtest`](https://book.kubebuilder.io/reference/envtest) for testing the controllers.
+To delete a K3k cluster, use the following command:
 
-Install the required binaries from `envtest` with [`setup-envtest`](https://pkg.go.dev/sigs.k8s.io/controller-runtime/tools/setup-envtest), and then put them in the default path `/usr/local/kubebuilder/bin`:
-
-```
-ENVTEST_BIN=$(setup-envtest use -p path)
-sudo mkdir -p /usr/local/kubebuilder/bin
-sudo cp $ENVTEST_BIN/* /usr/local/kubebuilder/bin
+```bash
+k3kcli cluster delete mycluster
 ```
 
-then run `ginkgo run ./...`.
+
+## Architecture
+
+For a detailed explanation of the K3k architecture, please refer to the [Architecture documentation](./docs/architecture.md).
+
+
+## Advanced Usage
+
+For more in-depth examples and information on advanced K3k usage, including details on shared vs. virtual modes, resource management, and other configuration options, please see the [Advanced Usage documentation](./docs/advanced-usage.md).
+
+
+## Development
+
+If you're interested in building K3k from source or contributing to the project, please refer to the [Development documentation](./docs/development.md).
+
+
+## License
+
+Copyright (c) 2014-2025 [SUSE](http://rancher.com/)
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.

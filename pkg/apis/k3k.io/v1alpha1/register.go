@@ -7,11 +7,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-var SchemeGroupVersion = schema.GroupVersion{Group: k3k.GroupName, Version: "v1alpha1"}
-
 var (
-	SchemBuilder = runtime.NewSchemeBuilder(addKnownTypes)
-	AddToScheme  = SchemBuilder.AddToScheme
+	SchemeGroupVersion = schema.GroupVersion{Group: k3k.GroupName, Version: "v1alpha1"}
+	SchemBuilder       = runtime.NewSchemeBuilder(addKnownTypes)
+	AddToScheme        = SchemBuilder.AddToScheme
 )
 
 func Resource(resource string) schema.GroupResource {

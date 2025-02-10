@@ -9,7 +9,7 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
-
+// +kubebuilder:object:root=true
 type ClusterSet struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta   `json:",inline"`
@@ -77,7 +77,7 @@ type ClusterSetStatus struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
+// +kubebuilder:object:root=true
 type ClusterSetList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta `json:",inline"`

@@ -446,6 +446,15 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 			}
 		} else if volume.PersistentVolumeClaim != nil {
 			volume.PersistentVolumeClaim.ClaimName = p.Translator.TranslateName(podNamespace, volume.PersistentVolumeClaim.ClaimName)
+		} else if volume.DownwardAPI != nil {
+			for _, downwardAPI := range volume.DownwardAPI.Items {
+				if downwardAPI.FieldRef.FieldPath == translate.MetadataNameField {
+					downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
+				}
+				if downwardAPI.FieldRef.FieldPath == translate.MetadataNamespaceField {
+					downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNamespaceAnnotation)
+				}
+			}
 		}
 	}
 	return nil
@@ -802,9 +811,45 @@ func getSecretsAndConfigmaps(pod *corev1.Pod) ([]string, []string) {
 	return secrets, configMaps
 }
 
-// fetchFieldPathAnnotations will retrieve all annotations created by the pod mutator webhook
-// to assign env fieldpaths to pods
+// configureFieldPathEnv will retrieve all annotations created by the pod mutator webhook
+// to assign env fieldpaths to pods, it will also make sure to change the metadata.name and metadata.namespace to the
+// assigned annotations
 func (p *Provider) configureFieldPathEnv(pod, tPod *v1.Pod) error {
+	// override metadata.name and metadata.namespace with pod annotations
+	for i, container := range pod.Spec.InitContainers {
+		for j, envVar := range container.Env {
+			if envVar.ValueFrom == nil || envVar.ValueFrom.FieldRef == nil {
+				continue
+			}
+
+			fieldPath := envVar.ValueFrom.FieldRef.FieldPath
+
+			if fieldPath == translate.MetadataNameField {
+				envVar.ValueFrom.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
+				pod.Spec.InitContainers[i].Env[j] = envVar
+			}
+			if fieldPath == translate.MetadataNamespaceField {
+				envVar.ValueFrom.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.MetadataNamespaceField)
+				pod.Spec.InitContainers[i].Env[j] = envVar
+			}
+		}
+	}
+	for i, container := range pod.Spec.Containers {
+		for j, envVar := range container.Env {
+			if envVar.ValueFrom == nil || envVar.ValueFrom.FieldRef == nil {
+				continue
+			}
+			fieldPath := envVar.ValueFrom.FieldRef.FieldPath
+			if fieldPath == translate.MetadataNameField {
+				envVar.ValueFrom.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
+				pod.Spec.Containers[i].Env[j] = envVar
+			}
+			if fieldPath == translate.MetadataNamespaceField {
+				envVar.ValueFrom.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
+				pod.Spec.Containers[i].Env[j] = envVar
+			}
+		}
+	}
 	for name, value := range pod.Annotations {
 		if strings.Contains(name, webhook.FieldpathField) {
 			containerIndex, envName, err := webhook.ParseFieldPathAnnotationKey(name)

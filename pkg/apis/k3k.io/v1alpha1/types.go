@@ -151,7 +151,11 @@ type ExposeConfig struct {
 }
 
 type IngressConfig struct {
-	IngressClassName string `json:"ingressClassName,omitempty"`
+	// Annotations is a key value map that will enrich the Ingress annotations
+	// +optional
+	Annotations      map[string]string `json:"annotations,omitempty"`
+	IngressClassName string            `json:"ingressClassName,omitempty"`
+	Hosts            []string          `json:"hosts,omitempty"`
 }
 
 type LoadBalancerConfig struct {

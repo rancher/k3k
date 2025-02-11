@@ -315,12 +315,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring cluster ingress")
 
-	addresses, err := controller.Addresses(ctx, c.Client)
-	if err != nil {
-		return err
-	}
-
-	expectedServerIngress := server.Ingress(ctx, addresses, cluster)
+	expectedServerIngress := server.Ingress(ctx, cluster)
 
 	// delete existing Ingress if Expose or IngressConfig are nil
 	if cluster.Spec.Expose == nil || cluster.Spec.Expose.Ingress == nil {
@@ -336,7 +331,10 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1
 
 		currentServerIngress.Spec = expectedServerIngress.Spec
 
-		// restore the current annotations, eventually keeping the custom one
+		// copy will keep the annotations manually set by the user
+		if currentServerIngress.Annotations == nil {
+			currentServerIngress.Annotations = make(map[string]string)
+		}
 		maps.Copy(currentServerIngress.Annotations, expectedServerIngress.Annotations)
 
 		return nil

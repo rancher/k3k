@@ -196,7 +196,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ |  |  |  |
+| `serverPort` _integer_ | ServerPort is the port on each node on which the K3s server service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767) |  |  |
+| `servicePort` _integer_ | ServicePort is the port on each node on which the K3s service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767) |  |  |
+| `etcdPort` _integer_ | ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767) |  |  |
 
 
 #### PersistenceConfig

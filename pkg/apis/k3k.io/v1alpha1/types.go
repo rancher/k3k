@@ -151,7 +151,6 @@ type ExposeConfig struct {
 }
 
 type IngressConfig struct {
-	Enabled          bool   `json:"enabled,omitempty"`
 	IngressClassName string `json:"ingressClassName,omitempty"`
 }
 

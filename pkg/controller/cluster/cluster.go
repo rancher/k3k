@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"time"
@@ -199,19 +200,8 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	if cluster.Spec.Expose != nil {
-		if cluster.Spec.Expose.Ingress != nil {
-			serverIngress, err := s.Ingress(ctx, c.Client)
-			if err != nil {
-				return err
-			}
-
-			if err := c.Client.Create(ctx, serverIngress); err != nil {
-				if !apierrors.IsAlreadyExists(err) {
-					return err
-				}
-			}
-		}
+	if err := c.ensureIngress(ctx, cluster); err != nil {
+		return err
 	}
 
 	if err := c.ensureBootstrapSecret(ctx, cluster, serviceIP, token); err != nil {
@@ -319,6 +309,48 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 	}
 
 	return createdClusterService, nil
+}
+
+func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("ensuring cluster ingress")
+
+	addresses, err := controller.Addresses(ctx, c.Client)
+	if err != nil {
+		return err
+	}
+
+	expectedServerIngress := server.Ingress(ctx, addresses, cluster)
+
+	// delete existing Ingress if Expose or IngressConfig are nil
+	if cluster.Spec.Expose == nil || cluster.Spec.Expose.Ingress == nil {
+		err := c.Client.Delete(ctx, &expectedServerIngress)
+		return client.IgnoreNotFound(err)
+	}
+
+	currentServerIngress := expectedServerIngress.DeepCopy()
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerIngress, func() error {
+		if err := controllerutil.SetControllerReference(cluster, currentServerIngress, c.Scheme); err != nil {
+			return err
+		}
+
+		currentServerIngress.Spec = expectedServerIngress.Spec
+
+		// restore the current annotations, eventually keeping the custom one
+		maps.Copy(currentServerIngress.Annotations, expectedServerIngress.Annotations)
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	key := client.ObjectKeyFromObject(currentServerIngress)
+	if result != controllerutil.OperationResultNone {
+		log.Info("ensuring cluster service", "key", key, "result", result)
+	}
+
+	return nil
 }
 
 func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server) error {

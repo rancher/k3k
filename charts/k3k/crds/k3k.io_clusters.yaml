@@ -111,8 +111,6 @@ spec:
                 properties:
                   ingress:
                     properties:
-                      enabled:
-                        type: boolean
                       ingressClassName:
                         type: string
                     type: object

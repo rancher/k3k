@@ -180,12 +180,11 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		cluster.Status.ServiceCIDR = defaultClusterServiceCIDR
 	}
 
-	log.Info("creating cluster service")
-
-	serviceIP, err := c.createClusterService(ctx, cluster, s)
+	service, err := c.ensureClusterService(ctx, cluster)
 	if err != nil {
 		return err
 	}
+	serviceIP := service.Spec.ClusterIP
 
 	if err := c.createClusterConfigs(ctx, cluster, s, serviceIP); err != nil {
 		return err
@@ -290,30 +289,36 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	return nil
 }
 
-func (c *ClusterReconciler) createClusterService(ctx context.Context, cluster *v1alpha1.Cluster, s *server.Server) (string, error) {
-	// create cluster service
-	clusterService := s.Service(cluster)
+func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v1alpha1.Cluster) (*v1.Service, error) {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("ensuring cluster service")
 
-	if err := controllerutil.SetControllerReference(cluster, clusterService, c.Scheme); err != nil {
-		return "", err
+	service := server.Service(cluster)
+
+	createdClusterService := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      service.Name,
+			Namespace: service.Namespace,
+		},
 	}
-	if err := c.Client.Create(ctx, clusterService); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return "", err
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, createdClusterService, func() error {
+		if err := controllerutil.SetControllerReference(cluster, createdClusterService, c.Scheme); err != nil {
+			return err
 		}
+
+		createdClusterService.Spec = service.Spec
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	var service v1.Service
-
-	objKey := ctrlruntimeclient.ObjectKey{
-		Namespace: cluster.Namespace,
-		Name:      server.ServiceName(cluster.Name),
-	}
-	if err := c.Client.Get(ctx, objKey, &service); err != nil {
-		return "", err
+	key := client.ObjectKeyFromObject(createdClusterService)
+	if result != controllerutil.OperationResultNone {
+		log.Info("ensuring cluster service", "key", key, "result", result)
 	}
 
-	return service.Spec.ClusterIP, nil
+	return createdClusterService, nil
 }
 
 func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server) error {

@@ -125,10 +125,24 @@ spec:
                     type: object
                   nodePort:
                     properties:
-                      enabled:
-                        type: boolean
-                    required:
-                    - enabled
+                      etcdPort:
+                        description: |-
+                          ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
+                          If not specified, a port will be allocated (default: 30000-32767)
+                        format: int32
+                        type: integer
+                      serverPort:
+                        description: |-
+                          ServerPort is the port on each node on which the K3s server service is exposed when type is NodePort.
+                          If not specified, a port will be allocated (default: 30000-32767)
+                        format: int32
+                        type: integer
+                      servicePort:
+                        description: |-
+                          ServicePort is the port on each node on which the K3s service is exposed when type is NodePort.
+                          If not specified, a port will be allocated (default: 30000-32767)
+                        format: int32
+                        type: integer
                     type: object
                 type: object
               mode:

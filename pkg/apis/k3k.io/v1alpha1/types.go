@@ -160,7 +160,18 @@ type LoadBalancerConfig struct {
 }
 
 type NodePortConfig struct {
-	Enabled bool `json:"enabled"`
+	// ServerPort is the port on each node on which the K3s server service is exposed when type is NodePort.
+	// If not specified, a port will be allocated (default: 30000-32767)
+	// +optional
+	ServerPort *int32 `json:"serverPort,omitempty"`
+	// ServicePort is the port on each node on which the K3s service is exposed when type is NodePort.
+	// If not specified, a port will be allocated (default: 30000-32767)
+	// +optional
+	ServicePort *int32 `json:"servicePort,omitempty"`
+	// ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
+	// If not specified, a port will be allocated (default: 30000-32767)
+	// +optional
+	ETCDPort *int32 `json:"etcdPort,omitempty"`
 }
 
 type ClusterStatus struct {

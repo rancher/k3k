@@ -64,9 +64,7 @@ var _ = When("a cluster is installed", func() {
 			Spec: v1alpha1.ClusterSpec{
 				TLSSANs: []string{hostIP},
 				Expose: &v1alpha1.ExposeConfig{
-					NodePort: &v1alpha1.NodePortConfig{
-						Enabled: true,
-					},
+					NodePort: &v1alpha1.NodePortConfig{},
 				},
 			},
 		}
@@ -130,9 +128,7 @@ var _ = When("a cluster is installed", func() {
 			Spec: v1alpha1.ClusterSpec{
 				TLSSANs: []string{hostIP},
 				Expose: &v1alpha1.ExposeConfig{
-					NodePort: &v1alpha1.NodePortConfig{
-						Enabled: true,
-					},
+					NodePort: &v1alpha1.NodePortConfig{},
 				},
 			},
 		}
@@ -154,7 +150,6 @@ var _ = When("a cluster is installed", func() {
 		serverPod := serverPods.Items[0]
 
 		fmt.Fprintf(GinkgoWriter, "deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
-		// GracePeriodSeconds: ptr.To[int64](0)
 		err = k8s.CoreV1().Pods(namespace).Delete(ctx, serverPod.Name, v1.DeleteOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 

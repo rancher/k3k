@@ -100,9 +100,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 		cluster := newCluster(name, cmds.Namespace(), config)
 
 		cluster.Spec.Expose = &v1alpha1.ExposeConfig{
-			NodePort: &v1alpha1.NodePortConfig{
-				Enabled: true,
-			},
+			NodePort: &v1alpha1.NodePortConfig{},
 		}
 
 		// add Host IP address as an extra TLS-SAN to expose the k3k cluster

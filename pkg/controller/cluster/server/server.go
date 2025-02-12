@@ -396,5 +396,5 @@ func (s *Server) setupStartCommand() (string, error) {
 		"SERVER_CONFIG": "/opt/rancher/k3s/server/config.yaml",
 		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
 	})
-	return output.String(), nil
+	return output.String(), err
 }

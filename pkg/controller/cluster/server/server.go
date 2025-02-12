@@ -228,7 +228,7 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) {
 	var (
 		replicas   int32
-		pvClaim    *v1.PersistentVolumeClaim
+		pvClaim    v1.PersistentVolumeClaim
 		err        error
 		persistent bool
 	)
@@ -331,7 +331,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 			Replicas:             &replicas,
 			ServiceName:          headlessServiceName(s.cluster.Name),
 			Selector:             &selector,
-			VolumeClaimTemplates: []v1.PersistentVolumeClaim{*pvClaim},
+			VolumeClaimTemplates: []v1.PersistentVolumeClaim{pvClaim},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector.MatchLabels,
@@ -342,14 +342,14 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	}, nil
 }
 
-func (s *Server) setupDynamicPersistence(ctx context.Context) (*v1.PersistentVolumeClaim, error) {
+func (s *Server) setupDynamicPersistence(ctx context.Context) (v1.PersistentVolumeClaim, error) {
 	// detect the default storageclass if not specefied
 	var storageClassList storage.StorageClassList
 
 	storageClassName := s.cluster.Spec.Persistence.StorageClassName
 	if storageClassName == "" {
 		if err := s.client.List(ctx, &storageClassList); err != nil {
-			return nil, err
+			return v1.PersistentVolumeClaim{}, err
 		}
 		for _, sc := range storageClassList.Items {
 			if util.IsDefaultAnnotation(sc.ObjectMeta) {
@@ -357,7 +357,7 @@ func (s *Server) setupDynamicPersistence(ctx context.Context) (*v1.PersistentVol
 			}
 		}
 	}
-	return &v1.PersistentVolumeClaim{
+	return v1.PersistentVolumeClaim{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PersistentVolumeClaim",
 			APIVersion: "v1",

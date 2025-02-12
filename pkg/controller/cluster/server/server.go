@@ -1,18 +1,22 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"strings"
+	"text/template"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	storage "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/kubernetes/pkg/volume/util"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -45,7 +49,7 @@ func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string) *S
 	}
 }
 
-func (s *Server) podSpec(image, name string, persistent bool) v1.PodSpec {
+func (s *Server) podSpec(image, name string, persistent bool, startupCmd string) v1.PodSpec {
 	var limit v1.ResourceList
 	if s.cluster.Spec.Limit != nil && s.cluster.Spec.Limit.ServerLimit != nil {
 		limit = s.cluster.Spec.Limit.ServerLimit
@@ -106,6 +110,12 @@ func (s *Server) podSpec(image, name string, persistent bool) v1.PodSpec {
 					EmptyDir: &v1.EmptyDirVolumeSource{},
 				},
 			},
+			{
+				Name: "varlibkubelet",
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			},
 		},
 		Containers: []v1.Container{
 			{
@@ -123,17 +133,14 @@ func (s *Server) podSpec(image, name string, persistent bool) v1.PodSpec {
 							},
 						},
 					},
-				},
-				Command: []string{
-					"/bin/sh",
-					"-c",
-					`
-					if [ ${POD_NAME: -1} == 0 ]; then 
-						/bin/k3s server --config /opt/rancher/k3s/init/config.yaml ` + strings.Join(s.cluster.Spec.ServerArgs, " ") + `
-					else 
-						/bin/k3s server --config /opt/rancher/k3s/server/config.yaml ` + strings.Join(s.cluster.Spec.ServerArgs, " ") + `
-					fi   
-					`,
+					{
+						Name: "POD_IP",
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
+								FieldPath: "status.podIP",
+							},
+						},
+					},
 				},
 				VolumeMounts: []v1.VolumeMount{
 					{
@@ -181,15 +188,15 @@ func (s *Server) podSpec(image, name string, persistent bool) v1.PodSpec {
 		},
 	}
 
+	cmd := []string{
+		"/bin/sh",
+		"-c",
+		startupCmd,
+	}
+
+	podSpec.Containers[0].Command = cmd
 	if !persistent {
 		podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
-
-			Name: "varlibkubelet",
-			VolumeSource: v1.VolumeSource{
-				EmptyDir: &v1.EmptyDirVolumeSource{},
-			},
-		}, v1.Volume{
-
 			Name: "varlibrancherk3s",
 			VolumeSource: v1.VolumeSource{
 				EmptyDir: &v1.EmptyDirVolumeSource{},
@@ -221,7 +228,8 @@ func (s *Server) podSpec(image, name string, persistent bool) v1.PodSpec {
 func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) {
 	var (
 		replicas   int32
-		pvClaims   []v1.PersistentVolumeClaim
+		pvClaim    *v1.PersistentVolumeClaim
+		err        error
 		persistent bool
 	)
 	image := controller.K3SImage(s.cluster)
@@ -231,45 +239,9 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 	if s.cluster.Spec.Persistence != nil && s.cluster.Spec.Persistence.Type != EphemeralNodesType {
 		persistent = true
-		pvClaims = []v1.PersistentVolumeClaim{
-			{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "PersistentVolumeClaim",
-					APIVersion: "v1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "varlibrancherk3s",
-					Namespace: s.cluster.Namespace,
-				},
-				Spec: v1.PersistentVolumeClaimSpec{
-					AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-					StorageClassName: &s.cluster.Spec.Persistence.StorageClassName,
-					Resources: v1.VolumeResourceRequirements{
-						Requests: v1.ResourceList{
-							"storage": resource.MustParse(s.cluster.Spec.Persistence.StorageRequestSize),
-						},
-					},
-				},
-			},
-			{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "PersistentVolumeClaim",
-					APIVersion: "v1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "varlibkubelet",
-					Namespace: s.cluster.Namespace,
-				},
-				Spec: v1.PersistentVolumeClaimSpec{
-					Resources: v1.VolumeResourceRequirements{
-						Requests: v1.ResourceList{
-							"storage": resource.MustParse(s.cluster.Spec.Persistence.StorageRequestSize),
-						},
-					},
-					AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-					StorageClassName: &s.cluster.Spec.Persistence.StorageClassName,
-				},
-			},
+		pvClaim, err = s.setupDynamicPersistence(ctx)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -337,7 +309,11 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		},
 	}
 
-	podSpec := s.podSpec(image, name, persistent)
+	startupCommand, err := s.setupStartCommand()
+	if err != nil {
+		return nil, err
+	}
+	podSpec := s.podSpec(image, name, persistent, startupCommand)
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
 
@@ -355,7 +331,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 			Replicas:             &replicas,
 			ServiceName:          headlessServiceName(s.cluster.Name),
 			Selector:             &selector,
-			VolumeClaimTemplates: pvClaims,
+			VolumeClaimTemplates: []v1.PersistentVolumeClaim{*pvClaim},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector.MatchLabels,
@@ -364,4 +340,61 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 			},
 		},
 	}, nil
+}
+
+func (s *Server) setupDynamicPersistence(ctx context.Context) (*v1.PersistentVolumeClaim, error) {
+	// detect the default storageclass if not specefied
+	var storageClassList storage.StorageClassList
+
+	storageClassName := s.cluster.Spec.Persistence.StorageClassName
+	if storageClassName == "" {
+		if err := s.client.List(ctx, &storageClassList); err != nil {
+			return nil, err
+		}
+		for _, sc := range storageClassList.Items {
+			if util.IsDefaultAnnotation(sc.ObjectMeta) {
+				storageClassName = sc.Name
+			}
+		}
+	}
+	return &v1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "PersistentVolumeClaim",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "varlibrancherk3s",
+			Namespace: s.cluster.Namespace,
+		},
+		Spec: v1.PersistentVolumeClaimSpec{
+			AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+			StorageClassName: ptr.To(storageClassName),
+			Resources: v1.VolumeResourceRequirements{
+				Requests: v1.ResourceList{
+					"storage": resource.MustParse(s.cluster.Spec.Persistence.StorageRequestSize),
+				},
+			},
+		},
+	}, nil
+
+}
+
+func (s *Server) setupStartCommand() (string, error) {
+	var output bytes.Buffer
+
+	tmpl := singleServerTemplate
+	if *s.cluster.Spec.Servers > 1 {
+		tmpl = HAServerTemplate
+	}
+	tmplCmd, err := template.New("").Parse(tmpl)
+	if err != nil {
+		return "", err
+	}
+	tmplCmd.Execute(&output, map[string]string{
+		"ETCD_DIR":      "/var/lib/rancher/k3s/server/db/etcd",
+		"INIT_CONFIG":   "/opt/rancher/k3s/init/config.yaml",
+		"SERVER_CONFIG": "/opt/rancher/k3s/server/config.yaml",
+		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
+	})
+	return output.String(), nil
 }

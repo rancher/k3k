@@ -22,9 +22,9 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/k3s v0.35.0
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/virtual-kubelet/virtual-kubelet v1.11.0
-	go.etcd.io/etcd/api/v3 v3.5.14
-	go.etcd.io/etcd/client/v3 v3.5.14
-	go.uber.org/zap v1.26.0
+	go.etcd.io/etcd/api/v3 v3.5.16
+	go.etcd.io/etcd/client/v3 v3.5.16
+	go.uber.org/zap v1.27.0
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.14.4
 	k8s.io/api v0.29.11
@@ -32,9 +32,12 @@ require (
 	k8s.io/apiserver v0.29.11
 	k8s.io/client-go v0.29.11
 	k8s.io/component-base v0.29.11
-	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
+	k8s.io/kubernetes v1.29.11
+	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/controller-runtime v0.17.5
 )
+
+require github.com/opencontainers/selinux v1.11.1 // indirect
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
@@ -93,7 +96,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/btree v1.0.1 // indirect
+	github.com/google/btree v1.1.3 // indirect
 	github.com/google/cel-go v0.22.0 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
@@ -110,7 +113,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
-	github.com/imdario/mergo v0.3.16 // indirect
+	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -203,13 +206,18 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.29.11 // indirect
 	k8s.io/cli-runtime v0.29.11 // indirect
+	k8s.io/cloud-provider v0.29.11 // indirect
+	k8s.io/component-helpers v0.29.11 // indirect
+	k8s.io/csi-translation-lib v0.29.11 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/kms v0.30.3 // indirect
+	k8s.io/kms v0.29.11 // indirect
 	k8s.io/kube-openapi v0.0.0-20241105132330-32ad38e42d3f // indirect
 	k8s.io/kubectl v0.29.11 // indirect
+	k8s.io/kubelet v0.29.11 // indirect
+	k8s.io/mount-utils v0.29.11 // indirect
 	oras.land/oras-go v1.2.5 // indirect
-	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.29.4 // indirect
-	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
+	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0 // indirect
+	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
 	sigs.k8s.io/kustomize/api v0.18.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.18.1 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.3 // indirect

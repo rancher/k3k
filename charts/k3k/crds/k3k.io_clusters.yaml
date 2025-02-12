@@ -181,7 +181,7 @@ spec:
                   storageRequestSize:
                     type: string
                   type:
-                    default: ephemeral
+                    default: dynamic
                     description: Type can be ephemeral, static, dynamic
                     type: string
                 required:
@@ -255,7 +255,7 @@ spec:
                   storageRequestSize:
                     type: string
                   type:
-                    default: ephemeral
+                    default: dynamic
                     description: Type can be ephemeral, static, dynamic
                     type: string
                 required:

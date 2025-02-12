@@ -135,7 +135,7 @@ type ClusterList struct {
 
 type PersistenceConfig struct {
 	// Type can be ephemeral, static, dynamic
-	// +kubebuilder:default="ephemeral"
+	// +kubebuilder:default="dynamic"
 	Type               string `json:"type"`
 	StorageClassName   string `json:"storageClassName,omitempty"`
 	StorageRequestSize string `json:"storageRequestSize,omitempty"`

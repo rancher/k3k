@@ -45,7 +45,7 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 		&cli.StringFlag{
 			Name:        "persistence-type",
 			Usage:       "persistence mode for the nodes (ephemeral, static, dynamic)",
-			Value:       server.EphemeralNodesType,
+			Value:       server.DynamicNodesType,
 			Destination: &config.persistenceType,
 			Action: func(ctx *cli.Context, value string) error {
 				switch value {

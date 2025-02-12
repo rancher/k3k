@@ -390,11 +390,13 @@ func (s *Server) setupStartCommand() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	tmplCmd.Execute(&output, map[string]string{
+	if err := tmplCmd.Execute(&output, map[string]string{
 		"ETCD_DIR":      "/var/lib/rancher/k3s/server/db/etcd",
 		"INIT_CONFIG":   "/opt/rancher/k3s/init/config.yaml",
 		"SERVER_CONFIG": "/opt/rancher/k3s/server/config.yaml",
 		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
-	})
-	return output.String(), err
+	}); err != nil {
+		return "", err
+	}
+	return output.String(), nil
 }

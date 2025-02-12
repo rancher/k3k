@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"reflect"
 	"strings"
 	"time"
@@ -283,32 +282,27 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring cluster service")
 
-	service := server.Service(cluster)
+	expectedService := server.Service(cluster)
 
-	createdClusterService := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      service.Name,
-			Namespace: service.Namespace,
-		},
-	}
-	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, createdClusterService, func() error {
-		if err := controllerutil.SetControllerReference(cluster, createdClusterService, c.Scheme); err != nil {
+	currentService := expectedService.DeepCopy()
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentService, func() error {
+		if err := controllerutil.SetControllerReference(cluster, currentService, c.Scheme); err != nil {
 			return err
 		}
 
-		createdClusterService.Spec = service.Spec
+		currentService.Spec = expectedService.Spec
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	key := client.ObjectKeyFromObject(createdClusterService)
+	key := client.ObjectKeyFromObject(currentService)
 	if result != controllerutil.OperationResultNone {
-		log.Info("ensuring cluster service", "key", key, "result", result)
+		log.Info("cluster service updated", "key", key, "result", result)
 	}
 
-	return createdClusterService, nil
+	return currentService, nil
 }
 
 func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1.Cluster) error {
@@ -330,12 +324,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1
 		}
 
 		currentServerIngress.Spec = expectedServerIngress.Spec
-
-		// copy will keep the annotations manually set by the user
-		if currentServerIngress.Annotations == nil {
-			currentServerIngress.Annotations = make(map[string]string)
-		}
-		maps.Copy(currentServerIngress.Annotations, expectedServerIngress.Annotations)
+		currentServerIngress.Annotations = expectedServerIngress.Annotations
 
 		return nil
 	})
@@ -345,7 +334,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1
 
 	key := client.ObjectKeyFromObject(currentServerIngress)
 	if result != controllerutil.OperationResultNone {
-		log.Info("ensuring cluster service", "key", key, "result", result)
+		log.Info("cluster ingress updated", "key", key, "result", result)
 	}
 
 	return nil

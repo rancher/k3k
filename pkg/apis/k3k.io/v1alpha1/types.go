@@ -91,6 +91,7 @@ type ClusterSpec struct {
 	// +optional
 	Mode ClusterMode `json:"mode,omitempty"`
 
+	// +kubebuilder:default={}
 	// Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
 	// persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.
 	Persistence *PersistenceConfig `json:"persistence,omitempty"`

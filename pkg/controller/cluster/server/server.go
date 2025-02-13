@@ -237,7 +237,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 	replicas = *s.cluster.Spec.Servers
 
-	if s.cluster.Spec.Persistence != nil && s.cluster.Spec.Persistence.Type != EphemeralNodesType {
+	if s.cluster.Spec.Persistence != nil && s.cluster.Spec.Persistence.Type == DynamicNodesType {
 		persistent = true
 		pvClaim, err = s.setupDynamicPersistence(ctx)
 		if err != nil {
@@ -317,7 +317,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
 
-	return &apps.StatefulSet{
+	ss := &apps.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "StatefulSet",
 			APIVersion: "apps/v1",
@@ -328,10 +328,9 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 			Labels:    selector.MatchLabels,
 		},
 		Spec: apps.StatefulSetSpec{
-			Replicas:             &replicas,
-			ServiceName:          headlessServiceName(s.cluster.Name),
-			Selector:             &selector,
-			VolumeClaimTemplates: []v1.PersistentVolumeClaim{pvClaim},
+			Replicas:    &replicas,
+			ServiceName: headlessServiceName(s.cluster.Name),
+			Selector:    &selector,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector.MatchLabels,
@@ -339,7 +338,12 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 				Spec: podSpec,
 			},
 		},
-	}, nil
+	}
+	if s.cluster.Spec.Persistence != nil && s.cluster.Spec.Persistence.Type == DynamicNodesType {
+		ss.Spec.VolumeClaimTemplates = []v1.PersistentVolumeClaim{pvClaim}
+	}
+
+	return ss, nil
 }
 
 func (s *Server) setupDynamicPersistence(ctx context.Context) (v1.PersistentVolumeClaim, error) {

@@ -91,10 +91,9 @@ type ClusterSpec struct {
 	// +optional
 	Mode ClusterMode `json:"mode,omitempty"`
 
-	// +kubebuilder:default={}
 	// Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
 	// persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.
-	Persistence *PersistenceConfig `json:"persistence,omitempty"`
+	Persistence PersistenceConfig `json:"persistence,omitempty"`
 
 	// Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a
 	// clusterIP which is relatively secure, but difficult to access outside of the cluster.
@@ -178,10 +177,10 @@ type NodePortConfig struct {
 }
 
 type ClusterStatus struct {
-	HostVersion string             `json:"hostVersion,omitempty"`
-	ClusterCIDR string             `json:"clusterCIDR,omitempty"`
-	ServiceCIDR string             `json:"serviceCIDR,omitempty"`
-	ClusterDNS  string             `json:"clusterDNS,omitempty"`
-	TLSSANs     []string           `json:"tlsSANs,omitempty"`
-	Persistence *PersistenceConfig `json:"persistence,omitempty"`
+	HostVersion string            `json:"hostVersion,omitempty"`
+	ClusterCIDR string            `json:"clusterCIDR,omitempty"`
+	ServiceCIDR string            `json:"serviceCIDR,omitempty"`
+	ClusterDNS  string            `json:"clusterDNS,omitempty"`
+	TLSSANs     []string          `json:"tlsSANs,omitempty"`
+	Persistence PersistenceConfig `json:"persistence,omitempty"`
 }

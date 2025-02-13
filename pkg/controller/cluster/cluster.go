@@ -162,12 +162,10 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 
 	s := server.New(cluster, c.Client, token, string(cluster.Spec.Mode))
 
-	if cluster.Spec.Persistence != nil {
-		cluster.Status.Persistence = cluster.Spec.Persistence
-		if cluster.Spec.Persistence.StorageRequestSize == "" {
-			// default to 1G of request size
-			cluster.Status.Persistence.StorageRequestSize = defaultStoragePersistentSize
-		}
+	cluster.Status.Persistence = cluster.Spec.Persistence
+	if cluster.Spec.Persistence.StorageRequestSize == "" {
+		// default to 1G of request size
+		cluster.Status.Persistence.StorageRequestSize = defaultStoragePersistentSize
 	}
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR

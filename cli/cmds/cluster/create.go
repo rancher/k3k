@@ -182,7 +182,7 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 			AgentArgs:   config.agentArgs.Value(),
 			Version:     config.version,
 			Mode:        v1alpha1.ClusterMode(config.mode),
-			Persistence: &v1alpha1.PersistenceConfig{
+			Persistence: v1alpha1.PersistenceConfig{
 				Type:             config.persistenceType,
 				StorageClassName: config.storageClassName,
 			},

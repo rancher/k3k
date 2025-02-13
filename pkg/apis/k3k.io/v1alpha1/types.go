@@ -93,6 +93,7 @@ type ClusterSpec struct {
 
 	// Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
 	// persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.
+	// +kubebuilder:default={type: "dynamic"}
 	Persistence PersistenceConfig `json:"persistence,omitempty"`
 
 	// Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a
@@ -107,9 +108,17 @@ type ClusterSpec struct {
 // ClusterMode is the possible provisioning mode of a Cluster.
 type ClusterMode string
 
+// +kubebuilder:validation:Enum=ephemeral;dynamic
+// +kubebuilder:default="dynamic"
+//
+// PersistenceMode is the storage mode of a Cluster.
+type PersistenceMode string
+
 const (
 	SharedClusterMode  = ClusterMode("shared")
 	VirtualClusterMode = ClusterMode("virtual")
+	EphemeralNodeType  = PersistenceMode("ephemeral")
+	DynamicNodesType   = PersistenceMode("dynamic")
 )
 
 type ClusterLimit struct {
@@ -134,11 +143,11 @@ type ClusterList struct {
 }
 
 type PersistenceConfig struct {
-	// Type can be ephemeral, static, dynamic
+	// +kubebuilder:validation:Enum=ephemeral;dynamic
 	// +kubebuilder:default="dynamic"
-	Type               string `json:"type"`
-	StorageClassName   string `json:"storageClassName,omitempty"`
-	StorageRequestSize string `json:"storageRequestSize,omitempty"`
+	Type               PersistenceMode `json:"type"`
+	StorageClassName   string          `json:"storageClassName,omitempty"`
+	StorageRequestSize string          `json:"storageRequestSize,omitempty"`
 }
 
 type ExposeConfig struct {

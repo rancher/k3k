@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/urfave/cli/v2"
 )
 
@@ -45,11 +44,11 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 		&cli.StringFlag{
 			Name:        "persistence-type",
 			Usage:       "persistence mode for the nodes (ephemeral, static, dynamic)",
-			Value:       server.DynamicNodesType,
+			Value:       string(v1alpha1.DynamicNodesType),
 			Destination: &config.persistenceType,
 			Action: func(ctx *cli.Context, value string) error {
-				switch value {
-				case server.EphemeralNodesType, server.DynamicNodesType:
+				switch v1alpha1.PersistenceMode(value) {
+				case v1alpha1.EphemeralNodeType, v1alpha1.DynamicNodesType:
 					return nil
 				default:
 					return errors.New(`persistence-type should be one of "ephemeral", "static" or "dynamic"`)

@@ -373,7 +373,7 @@ func (s *Server) setupDynamicPersistence(ctx context.Context) (v1.PersistentVolu
 			StorageClassName: ptr.To(storageClassName),
 			Resources: v1.VolumeResourceRequirements{
 				Requests: v1.ResourceList{
-					"storage": resource.MustParse(s.cluster.Spec.Persistence.StorageRequestSize),
+					"storage": resource.MustParse(s.cluster.Status.Persistence.StorageRequestSize),
 				},
 			},
 		},

@@ -70,7 +70,7 @@ func ingressRules(cluster *v1alpha1.Cluster) []networkingv1.IngressRule {
 		},
 	}
 
-	hosts := cluster.Spec.Expose.Ingress.Hosts
+	hosts := cluster.Spec.TLSSANs
 	for _, host := range hosts {
 		ingressRules = append(ingressRules, networkingv1.IngressRule{
 			Host: host,

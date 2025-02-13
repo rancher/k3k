@@ -155,7 +155,6 @@ type IngressConfig struct {
 	// +optional
 	Annotations      map[string]string `json:"annotations,omitempty"`
 	IngressClassName string            `json:"ingressClassName,omitempty"`
-	Hosts            []string          `json:"hosts,omitempty"`
 }
 
 type LoadBalancerConfig struct {

@@ -117,10 +117,6 @@ spec:
                         description: Annotations is a key value map that will enrich
                           the Ingress annotations
                         type: object
-                      hosts:
-                        items:
-                          type: string
-                        type: array
                       ingressClassName:
                         type: string
                     type: object

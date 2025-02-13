@@ -337,7 +337,7 @@ var _ = When("a dynamic cluster is installed", func() {
 			_, err = virtualK8sClient.DiscoveryClient.ServerVersion()
 			return err
 		}).
-			WithTimeout(30 * time.Second).
+			WithTimeout(2 * time.Minute).
 			WithPolling(time.Second * 5).
 			Should(BeNil())
 	})

@@ -1,6 +1,7 @@
 package k3k_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -20,8 +21,10 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -137,6 +140,18 @@ var _ = AfterSuite(func() {
 
 	fmt.Fprintln(GinkgoWriter, "k3s logs written to: "+logfile)
 
+	// dump k3k controller logs
+	var podList v1.PodList
+	listOpts := &client.ListOptions{Namespace: "k3k-system"}
+	err = k8sClient.List(context.Background(), &podList, listOpts)
+	Expect(err).To(Not(HaveOccurred()))
+	k3kLogFile := path.Join(os.TempDir(), "k3k.log")
+	k3kLogs := getPodLogs(podList.Items[0])
+	err = os.WriteFile(k3kLogFile, []byte(k3kLogs), 0644)
+	Expect(err).To(Not(HaveOccurred()))
+
+	fmt.Fprintln(GinkgoWriter, "k3k logs written to: "+k3kLogFile)
+
 	testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
 })
 
@@ -149,4 +164,32 @@ func buildScheme() *runtime.Scheme {
 	Expect(err).NotTo(HaveOccurred())
 
 	return scheme
+}
+
+func getPodLogs(pod corev1.Pod) string {
+	podLogOpts := corev1.PodLogOptions{}
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return "error in getting config"
+	}
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return "error in getting access to K8S"
+	}
+	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
+	podLogs, err := req.Stream(context.Background())
+	if err != nil {
+		return "error in opening stream"
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "error in copy information from podLogs to buf"
+	}
+	str := buf.String()
+
+	return str
 }

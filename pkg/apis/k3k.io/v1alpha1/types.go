@@ -108,7 +108,6 @@ type ClusterSpec struct {
 // ClusterMode is the possible provisioning mode of a Cluster.
 type ClusterMode string
 
-// +kubebuilder:validation:Enum=ephemeral;dynamic
 // +kubebuilder:default="dynamic"
 //
 // PersistenceMode is the storage mode of a Cluster.
@@ -143,7 +142,6 @@ type ClusterList struct {
 }
 
 type PersistenceConfig struct {
-	// +kubebuilder:validation:Enum=ephemeral;dynamic
 	// +kubebuilder:default="dynamic"
 	Type               PersistenceMode `json:"type"`
 	StorageClassName   string          `json:"storageClassName,omitempty"`

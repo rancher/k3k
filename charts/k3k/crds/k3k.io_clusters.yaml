@@ -183,13 +183,6 @@ spec:
                   storageRequestSize:
                     type: string
                   type:
-                    allOf:
-                    - enum:
-                      - ephemeral
-                      - dynamic
-                    - enum:
-                      - ephemeral
-                      - dynamic
                     default: dynamic
                     description: PersistenceMode is the storage mode of a Cluster.
                     type: string
@@ -264,13 +257,6 @@ spec:
                   storageRequestSize:
                     type: string
                   type:
-                    allOf:
-                    - enum:
-                      - ephemeral
-                      - dynamic
-                    - enum:
-                      - ephemeral
-                      - dynamic
                     default: dynamic
                     description: PersistenceMode is the storage mode of a Cluster.
                     type: string

@@ -40,7 +40,7 @@ var _ = Describe("Cluster Controller", func() {
 			BeforeEach(func() {
 				cluster = &v1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
+						GenerateName: "cluster-",
 						Namespace:    namespace,
 					},
 				}

@@ -215,7 +215,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _[PersistenceMode](#persistencemode)_ |  | dynamic | Enum: [ephemeral dynamic] <br /> |
+| `type` _[PersistenceMode](#persistencemode)_ |  | dynamic |  |
 | `storageClassName` _string_ |  |  |  |
 | `storageRequestSize` _string_ |  |  |  |
 
@@ -226,8 +226,7 @@ _Underlying type:_ _string_
 
 PersistenceMode is the storage mode of a Cluster.
 
-_Validation:_
-- Enum: [ephemeral dynamic]
+
 
 _Appears in:_
 - [PersistenceConfig](#persistenceconfig)

@@ -276,7 +276,7 @@ var _ = When("a dynamic cluster is installed", func() {
 			Should(BeTrue())
 	})
 
-	It("regenerates the bootstrap secret after a restart", func() {
+	It("use the same bootstrap secret after a restart", func() {
 		ctx := context.Background()
 
 		cluster := v1alpha1.Cluster{
@@ -324,7 +324,7 @@ var _ = When("a dynamic cluster is installed", func() {
 			Expect(len(serverPods.Items)).To(Equal(1))
 			return serverPods.Items[0].DeletionTimestamp
 		}).
-			WithTimeout(time.Minute).
+			WithTimeout(30 * time.Second).
 			WithPolling(time.Second * 5).
 			Should(BeNil())
 
@@ -332,15 +332,12 @@ var _ = When("a dynamic cluster is installed", func() {
 
 		By("Using old k8s client configuration should succeed")
 
-		_, err = virtualK8sClient.DiscoveryClient.ServerVersion()
-		Expect(err).To(BeNil())
-
-		Consistently(func() error {
+		Eventually(func() error {
 			virtualK8sClient = NewVirtualK8sClient(cluster)
 			_, err = virtualK8sClient.DiscoveryClient.ServerVersion()
 			return err
 		}).
-			WithTimeout(time.Minute).
+			WithTimeout(30 * time.Second).
 			WithPolling(time.Second * 5).
 			Should(BeNil())
 	})

@@ -24,7 +24,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,6 +39,7 @@ var (
 	hostIP       string
 	k8s          *kubernetes.Clientset
 	k8sClient    client.Client
+	kubecfg      []byte
 )
 
 var _ = BeforeSuite(func() {
@@ -53,15 +53,15 @@ var _ = BeforeSuite(func() {
 	Expect(err).To(Not(HaveOccurred()))
 	fmt.Fprintln(GinkgoWriter, "K3s containerIP: "+hostIP)
 
-	kubeconfig, err := k3sContainer.GetKubeConfig(context.Background())
+	kubecfg, err = k3sContainer.GetKubeConfig(context.Background())
 	Expect(err).To(Not(HaveOccurred()))
 
-	initKubernetesClient(kubeconfig)
-	installK3kChart(kubeconfig)
+	initKubernetesClient()
+	installK3kChart()
 })
 
-func initKubernetesClient(kubeconfig []byte) {
-	restcfg, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
+func initKubernetesClient() {
+	restcfg, err := clientcmd.RESTConfigFromKubeConfig(kubecfg)
 	Expect(err).To(Not(HaveOccurred()))
 
 	k8s, err = kubernetes.NewForConfig(restcfg)
@@ -76,7 +76,7 @@ func initKubernetesClient(kubeconfig []byte) {
 	log.SetLogger(zapr.NewLogger(logger))
 }
 
-func installK3kChart(kubeconfig []byte) {
+func installK3kChart() {
 	pwd, err := os.Getwd()
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -85,7 +85,7 @@ func installK3kChart(kubeconfig []byte) {
 
 	actionConfig := new(action.Configuration)
 
-	restClientGetter, err := NewRESTClientGetter(kubeconfig)
+	restClientGetter, err := NewRESTClientGetter(kubecfg)
 	Expect(err).To(Not(HaveOccurred()))
 
 	releaseName := "k3k"
@@ -146,7 +146,8 @@ var _ = AfterSuite(func() {
 	err = k8sClient.List(context.Background(), &podList, listOpts)
 	Expect(err).To(Not(HaveOccurred()))
 	k3kLogFile := path.Join(os.TempDir(), "k3k.log")
-	k3kLogs := getPodLogs(podList.Items[0])
+	k3kLogs, err := getPodLogs(podList.Items[0])
+	Expect(err).To(Not(HaveOccurred()))
 	err = os.WriteFile(k3kLogFile, []byte(k3kLogs), 0644)
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -166,30 +167,30 @@ func buildScheme() *runtime.Scheme {
 	return scheme
 }
 
-func getPodLogs(pod corev1.Pod) string {
+func getPodLogs(pod corev1.Pod) (string, error) {
 	podLogOpts := corev1.PodLogOptions{}
-	config, err := rest.InClusterConfig()
+	restcfg, err := clientcmd.RESTConfigFromKubeConfig(kubecfg)
 	if err != nil {
-		return "error in getting config"
+		return "", err
 	}
 	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(restcfg)
 	if err != nil {
-		return "error in getting access to K8S"
+		return "", err
 	}
 	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
-		return "error in opening stream"
+		return "", err
 	}
 	defer podLogs.Close()
 
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, podLogs)
 	if err != nil {
-		return "error in copy information from podLogs to buf"
+		return "", err
 	}
 	str := buf.String()
 
-	return str
+	return str, nil
 }

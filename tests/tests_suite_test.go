@@ -1,7 +1,6 @@
 package k3k_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -39,7 +38,6 @@ var (
 	hostIP       string
 	k8s          *kubernetes.Clientset
 	k8sClient    client.Client
-	kubecfg      []byte
 )
 
 var _ = BeforeSuite(func() {
@@ -53,15 +51,15 @@ var _ = BeforeSuite(func() {
 	Expect(err).To(Not(HaveOccurred()))
 	fmt.Fprintln(GinkgoWriter, "K3s containerIP: "+hostIP)
 
-	kubecfg, err = k3sContainer.GetKubeConfig(context.Background())
+	kubeconfig, err := k3sContainer.GetKubeConfig(context.Background())
 	Expect(err).To(Not(HaveOccurred()))
 
-	initKubernetesClient()
-	installK3kChart()
+	initKubernetesClient(kubeconfig)
+	installK3kChart(kubeconfig)
 })
 
-func initKubernetesClient() {
-	restcfg, err := clientcmd.RESTConfigFromKubeConfig(kubecfg)
+func initKubernetesClient(kubeconfig []byte) {
+	restcfg, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	Expect(err).To(Not(HaveOccurred()))
 
 	k8s, err = kubernetes.NewForConfig(restcfg)
@@ -76,7 +74,7 @@ func initKubernetesClient() {
 	log.SetLogger(zapr.NewLogger(logger))
 }
 
-func installK3kChart() {
+func installK3kChart(kubeconfig []byte) {
 	pwd, err := os.Getwd()
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -85,7 +83,7 @@ func installK3kChart() {
 
 	actionConfig := new(action.Configuration)
 
-	restClientGetter, err := NewRESTClientGetter(kubecfg)
+	restClientGetter, err := NewRESTClientGetter(kubeconfig)
 	Expect(err).To(Not(HaveOccurred()))
 
 	releaseName := "k3k"
@@ -141,17 +139,12 @@ var _ = AfterSuite(func() {
 	fmt.Fprintln(GinkgoWriter, "k3s logs written to: "+logfile)
 
 	// dump k3k controller logs
-	var podList v1.PodList
-	listOpts := &client.ListOptions{Namespace: "k3k-system"}
-	err = k8sClient.List(context.Background(), &podList, listOpts)
+	readCloser, err = k3sContainer.Logs(context.Background())
 	Expect(err).To(Not(HaveOccurred()))
-	k3kLogFile := path.Join(os.TempDir(), "k3k.log")
-	k3kLogs, err := getPodLogs(podList.Items[0])
-	Expect(err).To(Not(HaveOccurred()))
-	err = os.WriteFile(k3kLogFile, []byte(k3kLogs), 0644)
-	Expect(err).To(Not(HaveOccurred()))
+	writeLogs("k3s.log", readCloser)
 
-	fmt.Fprintln(GinkgoWriter, "k3k logs written to: "+k3kLogFile)
+	// dump k3k logs
+	writeK3kLogs()
 
 	testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
 })
@@ -167,30 +160,27 @@ func buildScheme() *runtime.Scheme {
 	return scheme
 }
 
-func getPodLogs(pod corev1.Pod) (string, error) {
-	podLogOpts := corev1.PodLogOptions{}
-	restcfg, err := clientcmd.RESTConfigFromKubeConfig(kubecfg)
-	if err != nil {
-		return "", err
-	}
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(restcfg)
-	if err != nil {
-		return "", err
-	}
-	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
-	podLogs, err := req.Stream(context.Background())
-	if err != nil {
-		return "", err
-	}
-	defer podLogs.Close()
+func writeK3kLogs() {
+	var err error
+	var podList v1.PodList
 
-	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, podLogs)
-	if err != nil {
-		return "", err
-	}
-	str := buf.String()
+	ctx := context.Background()
+	err = k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: "k3k-system"})
+	Expect(err).To(Not(HaveOccurred()))
 
-	return str, nil
+	k3kPod := podList.Items[0]
+	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &corev1.PodLogOptions{})
+	podLogs, err := req.Stream(ctx)
+	Expect(err).To(Not(HaveOccurred()))
+	writeLogs("k3k.log", podLogs)
+}
+
+func writeLogs(filename string, logs io.ReadCloser) {
+	logsStr, err := io.ReadAll(logs)
+	Expect(err).To(Not(HaveOccurred()))
+	defer logs.Close()
+	tempfile := path.Join(os.TempDir(), filename)
+	err = os.WriteFile(tempfile, []byte(logsStr), 0644)
+	Expect(err).To(Not(HaveOccurred()))
+	fmt.Fprintln(GinkgoWriter, "logs written to: "+filename)
 }

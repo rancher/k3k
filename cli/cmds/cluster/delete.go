@@ -16,20 +16,24 @@ import (
 
 func NewDeleteCmd() *cli.Command {
 	return &cli.Command{
-		Name:   "delete",
-		Usage:  "Delete an existing cluster",
-		Action: delete,
-		Flags:  cmds.CommonFlags,
+		Name:            "delete",
+		Usage:           "Delete an existing cluster",
+		UsageText:       "k3kcli cluster delete [command options] NAME",
+		Action:          delete,
+		Flags:           cmds.CommonFlags,
+		HideHelpCommand: true,
 	}
 }
 
 func delete(clx *cli.Context) error {
 	ctx := context.Background()
 
+	if clx.NArg() != 1 {
+		return cli.ShowSubcommandHelp(clx)
+	}
+
 	name := clx.Args().First()
-	if name == "" {
-		return errors.New("empty cluster name")
-	} else if name == k3kcluster.ClusterInvalidName {
+	if name == k3kcluster.ClusterInvalidName {
 		return errors.New("invalid cluster name")
 	}
 

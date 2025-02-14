@@ -162,12 +162,10 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 
 	s := server.New(cluster, c.Client, token, string(cluster.Spec.Mode))
 
-	if cluster.Spec.Persistence != nil {
-		cluster.Status.Persistence = cluster.Spec.Persistence
-		if cluster.Spec.Persistence.StorageRequestSize == "" {
-			// default to 1G of request size
-			cluster.Status.Persistence.StorageRequestSize = defaultStoragePersistentSize
-		}
+	cluster.Status.Persistence = cluster.Spec.Persistence
+	if cluster.Spec.Persistence.StorageRequestSize == "" {
+		// default to 1G of request size
+		cluster.Status.Persistence.StorageRequestSize = defaultStoragePersistentSize
 	}
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
@@ -190,7 +188,6 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	// creating statefulsets in case the user chose a persistence type other than ephemeral
 	if err := c.server(ctx, cluster, s); err != nil {
 		return err
 	}
@@ -207,11 +204,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	if err := c.bindNodeProxyClusterRole(ctx, cluster); err != nil {
-		return err
-	}
-
-	return nil
+	return c.bindNodeProxyClusterRole(ctx, cluster)
 }
 
 // ensureBootstrapSecret will create or update the Secret containing the bootstrap data from the k3s server

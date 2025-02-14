@@ -126,7 +126,7 @@ _Appears in:_
 | `tlsSANs` _string array_ | TLSSANs are the subjectAlternativeNames for the certificate the K3s server will use. |  |  |
 | `addons` _[Addon](#addon) array_ | Addons is a list of secrets containing raw YAML which will be deployed in the virtual K3k cluster on startup. |  |  |
 | `mode` _[ClusterMode](#clustermode)_ | Mode is the cluster provisioning mode which can be either "shared" or "virtual". Defaults to "shared" | shared | Enum: [shared virtual] <br /> |
-| `persistence` _[PersistenceConfig](#persistenceconfig)_ | Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data<br />persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field. |  |  |
+| `persistence` _[PersistenceConfig](#persistenceconfig)_ | Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data<br />persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field. | \{ type:dynamic \} |  |
 | `expose` _[ExposeConfig](#exposeconfig)_ | Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a<br />clusterIP which is relatively secure, but difficult to access outside of the cluster. |  |  |
 
 
@@ -215,9 +215,22 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _string_ | Type can be ephemeral, static, dynamic | ephemeral |  |
+| `type` _[PersistenceMode](#persistencemode)_ |  | dynamic |  |
 | `storageClassName` _string_ |  |  |  |
 | `storageRequestSize` _string_ |  |  |  |
+
+
+#### PersistenceMode
+
+_Underlying type:_ _string_
+
+PersistenceMode is the storage mode of a Cluster.
+
+
+
+_Appears in:_
+- [PersistenceConfig](#persistenceconfig)
+
 
 
 

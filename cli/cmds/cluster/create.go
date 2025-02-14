@@ -182,13 +182,15 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 			AgentArgs:   config.agentArgs.Value(),
 			Version:     config.version,
 			Mode:        v1alpha1.ClusterMode(config.mode),
-			Persistence: &v1alpha1.PersistenceConfig{
-				Type:             config.persistenceType,
-				StorageClassName: config.storageClassName,
+			Persistence: v1alpha1.PersistenceConfig{
+				Type:             v1alpha1.PersistenceMode(config.persistenceType),
+				StorageClassName: ptr.To(config.storageClassName),
 			},
 		},
 	}
-
+	if config.storageClassName == "" {
+		cluster.Spec.Persistence.StorageClassName = nil
+	}
 	if config.token != "" {
 		cluster.Spec.TokenSecretRef = &v1.SecretReference{
 			Name:      k3kcluster.TokenSecretName(name),

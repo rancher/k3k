@@ -99,3 +99,10 @@ jobs:
       with:
         name: k3s-logs
         path: /tmp/k3s.log
+    
+    - name: Archive k3k logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: k3k-logs
+        path: /tmp/k3k.log

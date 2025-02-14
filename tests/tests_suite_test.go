@@ -20,6 +20,7 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -137,6 +138,14 @@ var _ = AfterSuite(func() {
 
 	fmt.Fprintln(GinkgoWriter, "k3s logs written to: "+logfile)
 
+	// dump k3k controller logs
+	readCloser, err = k3sContainer.Logs(context.Background())
+	Expect(err).To(Not(HaveOccurred()))
+	writeLogs("k3s.log", readCloser)
+
+	// dump k3k logs
+	writeK3kLogs()
+
 	testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
 })
 
@@ -149,4 +158,29 @@ func buildScheme() *runtime.Scheme {
 	Expect(err).NotTo(HaveOccurred())
 
 	return scheme
+}
+
+func writeK3kLogs() {
+	var err error
+	var podList v1.PodList
+
+	ctx := context.Background()
+	err = k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: "k3k-system"})
+	Expect(err).To(Not(HaveOccurred()))
+
+	k3kPod := podList.Items[0]
+	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &corev1.PodLogOptions{})
+	podLogs, err := req.Stream(ctx)
+	Expect(err).To(Not(HaveOccurred()))
+	writeLogs("k3k.log", podLogs)
+}
+
+func writeLogs(filename string, logs io.ReadCloser) {
+	logsStr, err := io.ReadAll(logs)
+	Expect(err).To(Not(HaveOccurred()))
+	defer logs.Close()
+	tempfile := path.Join(os.TempDir(), filename)
+	err = os.WriteFile(tempfile, []byte(logsStr), 0644)
+	Expect(err).To(Not(HaveOccurred()))
+	fmt.Fprintln(GinkgoWriter, "logs written to: "+filename)
 }

@@ -93,7 +93,8 @@ type ClusterSpec struct {
 
 	// Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
 	// persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.
-	Persistence *PersistenceConfig `json:"persistence,omitempty"`
+	// +kubebuilder:default={type: "dynamic"}
+	Persistence PersistenceConfig `json:"persistence,omitempty"`
 
 	// Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a
 	// clusterIP which is relatively secure, but difficult to access outside of the cluster.
@@ -107,9 +108,16 @@ type ClusterSpec struct {
 // ClusterMode is the possible provisioning mode of a Cluster.
 type ClusterMode string
 
+// +kubebuilder:default="dynamic"
+//
+// PersistenceMode is the storage mode of a Cluster.
+type PersistenceMode string
+
 const (
 	SharedClusterMode  = ClusterMode("shared")
 	VirtualClusterMode = ClusterMode("virtual")
+	EphemeralNodeType  = PersistenceMode("ephemeral")
+	DynamicNodesType   = PersistenceMode("dynamic")
 )
 
 type ClusterLimit struct {
@@ -134,11 +142,10 @@ type ClusterList struct {
 }
 
 type PersistenceConfig struct {
-	// Type can be ephemeral, static, dynamic
-	// +kubebuilder:default="ephemeral"
-	Type               string `json:"type"`
-	StorageClassName   string `json:"storageClassName,omitempty"`
-	StorageRequestSize string `json:"storageRequestSize,omitempty"`
+	// +kubebuilder:default="dynamic"
+	Type               PersistenceMode `json:"type"`
+	StorageClassName   *string         `json:"storageClassName,omitempty"`
+	StorageRequestSize string          `json:"storageRequestSize,omitempty"`
 }
 
 type ExposeConfig struct {
@@ -177,10 +184,10 @@ type NodePortConfig struct {
 }
 
 type ClusterStatus struct {
-	HostVersion string             `json:"hostVersion,omitempty"`
-	ClusterCIDR string             `json:"clusterCIDR,omitempty"`
-	ServiceCIDR string             `json:"serviceCIDR,omitempty"`
-	ClusterDNS  string             `json:"clusterDNS,omitempty"`
-	TLSSANs     []string           `json:"tlsSANs,omitempty"`
-	Persistence *PersistenceConfig `json:"persistence,omitempty"`
+	HostVersion string            `json:"hostVersion,omitempty"`
+	ClusterCIDR string            `json:"clusterCIDR,omitempty"`
+	ServiceCIDR string            `json:"serviceCIDR,omitempty"`
+	ClusterDNS  string            `json:"clusterDNS,omitempty"`
+	TLSSANs     []string          `json:"tlsSANs,omitempty"`
+	Persistence PersistenceConfig `json:"persistence,omitempty"`
 }

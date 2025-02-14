@@ -40,7 +40,7 @@ var _ = Describe("Cluster Controller", func() {
 			BeforeEach(func() {
 				cluster = &v1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
+						GenerateName: "cluster-",
 						Namespace:    namespace,
 					},
 				}
@@ -54,6 +54,8 @@ var _ = Describe("Cluster Controller", func() {
 				Expect(cluster.Spec.Agents).To(Equal(ptr.To[int32](0)))
 				Expect(cluster.Spec.Servers).To(Equal(ptr.To[int32](1)))
 				Expect(cluster.Spec.Version).To(BeEmpty())
+				// TOFIX
+				//Expect(cluster.Spec.Persistence.Type).To(Equal(v1alpha1.DynamicNodesType))
 
 				serverVersion, err := k8s.DiscoveryClient.ServerVersion()
 				Expect(err).To(Not(HaveOccurred()))

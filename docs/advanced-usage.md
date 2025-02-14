@@ -31,12 +31,17 @@ spec:
   mode: shared
   version: v1.31.3-k3s1
   servers: 3
+  tlsSANs:
+    - my-cluster.example.com
   nodeSelector:
     disktype: ssd
   expose:
     ingress:
-      enabled: true
       ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+        nginx.ingress.kubernetes.io/backend-protocol: "true"
+        nginx.ingress.kubernetes.io/ssl-redirect: "HTTPS"
   clusterCIDR: 10.42.0.0/16
   serviceCIDR: 10.43.0.0/16
   clusterDNS: 10.43.0.10
@@ -83,6 +88,8 @@ The `nodeSelector` field allows you to specify a node selector that will be appl
 The `expose` field contains options for exposing the API server of the virtual cluster. By default, the API server is only exposed as a `ClusterIP`, which is relatively secure but difficult to access from outside the cluster.
 
 You can use the `expose` field to enable exposure via `NodePort`, `LoadBalancer`, or `Ingress`.
+
+In this example we are exposing the Cluster with a Nginx ingress-controller, that has to be configured with the `--enable-ssl-passthrough` flag.
 
 
 ### `clusterCIDR`

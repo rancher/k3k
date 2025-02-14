@@ -163,7 +163,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ |  |  |  |
+| `annotations` _object (keys:string, values:string)_ | Annotations is a key value map that will enrich the Ingress annotations |  |  |
 | `ingressClassName` _string_ |  |  |  |
 
 

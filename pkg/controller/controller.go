@@ -1,16 +1,13 @@
 package controller
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -40,41 +37,6 @@ func K3SImage(cluster *v1alpha1.Cluster) string {
 	}
 
 	return k3SImageName
-}
-
-func nodeAddress(node *v1.Node) string {
-	var externalIP string
-	var internalIP string
-
-	for _, ip := range node.Status.Addresses {
-		if ip.Type == "ExternalIP" && ip.Address != "" {
-			externalIP = ip.Address
-			break
-		}
-		if ip.Type == "InternalIP" && ip.Address != "" {
-			internalIP = ip.Address
-		}
-	}
-	if externalIP != "" {
-		return externalIP
-	}
-
-	return internalIP
-}
-
-// return all the nodes external addresses, if not found then return internal addresses
-func Addresses(ctx context.Context, client ctrlruntimeclient.Client) ([]string, error) {
-	var nodeList v1.NodeList
-	if err := client.List(ctx, &nodeList); err != nil {
-		return nil, err
-	}
-
-	addresses := make([]string, len(nodeList.Items))
-	for i, node := range nodeList.Items {
-		addresses[i] = nodeAddress(&node)
-	}
-
-	return addresses, nil
 }
 
 // SafeConcatNameWithPrefix runs the SafeConcatName with extra prefix.

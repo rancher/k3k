@@ -111,8 +111,12 @@ spec:
                 properties:
                   ingress:
                     properties:
-                      enabled:
-                        type: boolean
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations is a key value map that will enrich
+                          the Ingress annotations
+                        type: object
                       ingressClassName:
                         type: string
                     type: object

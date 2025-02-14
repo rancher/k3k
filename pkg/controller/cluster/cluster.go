@@ -199,19 +199,8 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	if cluster.Spec.Expose != nil {
-		if cluster.Spec.Expose.Ingress != nil {
-			serverIngress, err := s.Ingress(ctx, c.Client)
-			if err != nil {
-				return err
-			}
-
-			if err := c.Client.Create(ctx, serverIngress); err != nil {
-				if !apierrors.IsAlreadyExists(err) {
-					return err
-				}
-			}
-		}
+	if err := c.ensureIngress(ctx, cluster); err != nil {
+		return err
 	}
 
 	if err := c.ensureBootstrapSecret(ctx, cluster, serviceIP, token); err != nil {
@@ -293,32 +282,62 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring cluster service")
 
-	service := server.Service(cluster)
+	expectedService := server.Service(cluster)
 
-	createdClusterService := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      service.Name,
-			Namespace: service.Namespace,
-		},
-	}
-	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, createdClusterService, func() error {
-		if err := controllerutil.SetControllerReference(cluster, createdClusterService, c.Scheme); err != nil {
+	currentService := expectedService.DeepCopy()
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentService, func() error {
+		if err := controllerutil.SetControllerReference(cluster, currentService, c.Scheme); err != nil {
 			return err
 		}
 
-		createdClusterService.Spec = service.Spec
+		currentService.Spec = expectedService.Spec
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	key := client.ObjectKeyFromObject(createdClusterService)
+	key := client.ObjectKeyFromObject(currentService)
 	if result != controllerutil.OperationResultNone {
-		log.Info("ensuring cluster service", "key", key, "result", result)
+		log.Info("cluster service updated", "key", key, "result", result)
 	}
 
-	return createdClusterService, nil
+	return currentService, nil
+}
+
+func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("ensuring cluster ingress")
+
+	expectedServerIngress := server.Ingress(ctx, cluster)
+
+	// delete existing Ingress if Expose or IngressConfig are nil
+	if cluster.Spec.Expose == nil || cluster.Spec.Expose.Ingress == nil {
+		err := c.Client.Delete(ctx, &expectedServerIngress)
+		return client.IgnoreNotFound(err)
+	}
+
+	currentServerIngress := expectedServerIngress.DeepCopy()
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerIngress, func() error {
+		if err := controllerutil.SetControllerReference(cluster, currentServerIngress, c.Scheme); err != nil {
+			return err
+		}
+
+		currentServerIngress.Spec = expectedServerIngress.Spec
+		currentServerIngress.Annotations = expectedServerIngress.Annotations
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	key := client.ObjectKeyFromObject(currentServerIngress)
+	if result != controllerutil.OperationResultNone {
+		log.Info("cluster ingress updated", "key", key, "result", result)
+	}
+
+	return nil
 }
 
 func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server) error {

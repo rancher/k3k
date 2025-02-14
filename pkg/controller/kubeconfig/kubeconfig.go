@@ -108,7 +108,7 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1alp
 	}
 
 	expose := cluster.Spec.Expose
-	if expose != nil && expose.Ingress != nil && expose.Ingress.Enabled {
+	if expose != nil && expose.Ingress != nil {
 		var k3kIngress networkingv1.Ingress
 		ingressKey := types.NamespacedName{
 			Name:      server.IngressName(cluster.Name),

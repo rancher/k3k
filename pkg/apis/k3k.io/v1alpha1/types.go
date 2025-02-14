@@ -144,7 +144,7 @@ type ClusterList struct {
 type PersistenceConfig struct {
 	// +kubebuilder:default="dynamic"
 	Type               PersistenceMode `json:"type"`
-	StorageClassName   string          `json:"storageClassName,omitempty"`
+	StorageClassName   *string         `json:"storageClassName,omitempty"`
 	StorageRequestSize string          `json:"storageRequestSize,omitempty"`
 }
 

@@ -11,12 +11,10 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	storage "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/kubernetes/pkg/volume/util"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -237,10 +235,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 	if s.cluster.Spec.Persistence.Type == v1alpha1.DynamicNodesType {
 		persistent = true
-		pvClaim, err = s.setupDynamicPersistence(ctx)
-		if err != nil {
-			return nil, err
-		}
+		pvClaim = s.setupDynamicPersistence()
 	}
 
 	var volumes []v1.Volume
@@ -344,21 +339,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	return ss, nil
 }
 
-func (s *Server) setupDynamicPersistence(ctx context.Context) (v1.PersistentVolumeClaim, error) {
-	// detect the default storageclass if not specefied
-	var storageClassList storage.StorageClassList
-
-	storageClassName := s.cluster.Spec.Persistence.StorageClassName
-	if storageClassName == "" {
-		if err := s.client.List(ctx, &storageClassList); err != nil {
-			return v1.PersistentVolumeClaim{}, err
-		}
-		for _, sc := range storageClassList.Items {
-			if util.IsDefaultAnnotation(sc.ObjectMeta) {
-				storageClassName = sc.Name
-			}
-		}
-	}
+func (s *Server) setupDynamicPersistence() v1.PersistentVolumeClaim {
 	return v1.PersistentVolumeClaim{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PersistentVolumeClaim",
@@ -370,14 +351,14 @@ func (s *Server) setupDynamicPersistence(ctx context.Context) (v1.PersistentVolu
 		},
 		Spec: v1.PersistentVolumeClaimSpec{
 			AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-			StorageClassName: ptr.To(storageClassName),
+			StorageClassName: s.cluster.Spec.Persistence.StorageClassName,
 			Resources: v1.VolumeResourceRequirements{
 				Requests: v1.ResourceList{
 					"storage": resource.MustParse(s.cluster.Status.Persistence.StorageRequestSize),
 				},
 			},
 		},
-	}, nil
+	}
 
 }
 

@@ -55,12 +55,12 @@ func NewCreateCmd() *cli.Command {
 	createFlags := NewCreateFlags(createConfig)
 
 	return &cli.Command{
-		Name:      "create",
-		Usage:     "Create new cluster",
-		Action:    createAction(createConfig),
-		Flags:     append(cmds.CommonFlags, createFlags...),
-		Args:      false,
-		ArgsUsage: "NAME",
+		Name:            "create",
+		Usage:           "Create new cluster",
+		UsageText:       "k3kcli cluster create [command options] NAME",
+		Action:          createAction(createConfig),
+		Flags:           append(cmds.CommonFlags, createFlags...),
+		HideHelpCommand: true,
 	}
 }
 
@@ -68,10 +68,12 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 	return func(clx *cli.Context) error {
 		ctx := context.Background()
 
+		if clx.NArg() != 1 {
+			return cli.ShowSubcommandHelp(clx)
+		}
+
 		name := clx.Args().First()
-		if name == "" {
-			return errors.New("empty cluster name")
-		} else if name == k3kcluster.ClusterInvalidName {
+		if name == k3kcluster.ClusterInvalidName {
 			return errors.New("invalid cluster name")
 		}
 

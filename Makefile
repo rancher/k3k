@@ -16,7 +16,7 @@ GINKGO ?= go run github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
 
 ENVTEST ?= go run sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
 ENVTEST_DIR ?= $(shell pwd)/.envtest
-KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_DIR) -p path)"
+KUBEBUILDER_ASSETS ?= $(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_DIR) -p path)
 
 ## targets
 
@@ -64,14 +64,14 @@ test:
 test-unit:
 	$(GINKGO) -v -r --skip-file=tests/*
 
+.PHONY: test-controller
+test-controller:
+	echo $(KUBEBUILDER_ASSETS)
+	$(GINKGO) -v -r pkg/controller
+
 .PHONY: test-e2e
 test-e2e:
 	$(GINKGO) -v -r tests
-
-.PHONY: test-controller
-test-controller:
-	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) $(GINKGO) -v -r pkg/controller
-
 
 ## Misc
 
@@ -97,3 +97,13 @@ validate: build-crds docs
 	go mod tidy
 	git --no-pager diff go.mod go.sum
 	test -z "$(shell git status --porcelain)"
+
+
+.PHONY: install
+install:
+	helm upgrade --install --namespace k3k-system --create-namespace \
+		--set image.repository=$(REPO)/k3k \
+		--set image.tag=$(VERSION) \
+		--set sharedAgent.image.repository=$(REPO)/k3k-kubelet \
+		--set sharedAgent.image.tag=$(VERSION) \
+		k3k ./charts/k3k/

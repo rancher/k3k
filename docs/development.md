@@ -62,3 +62,10 @@ To run the tests you can just run `make test`, or one of the other available "su
 We use [Ginkgo](https://onsi.github.io/ginkgo/), and [`envtest`](https://book.kubebuilder.io/reference/envtest) for testing the controllers.
 
 The required binaries for `envtest` are installed with [`setup-envtest`](https://pkg.go.dev/sigs.k8s.io/controller-runtime/tools/setup-envtest), in the `.envtest` folder.
+
+
+## CRDs and Docs
+
+We are unsing Kubebuilde and `controller-gen` to build the needed CRDs. To generate the specs you can run `make build-crds`.
+
+Remember also to update the CRDs documentation running the `make docs` command.

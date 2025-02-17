@@ -62,6 +62,7 @@ test:
 
 .PHONY: test-unit
 test-unit:
+	echo $(KUBEBUILDER_ASSETS)
 	$(GINKGO) -v -r --skip-file=tests/*
 
 .PHONY: test-controller

@@ -58,17 +58,15 @@ push-%:
 
 .PHONY: test
 test:
-	$(GINKGO) -v -r
+	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) $(GINKGO) -v -r
 
 .PHONY: test-unit
 test-unit:
-	echo $(KUBEBUILDER_ASSETS)
-	$(GINKGO) -v -r --skip-file=tests/*
+	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) $(GINKGO) -v -r --skip-file=tests/*
 
 .PHONY: test-controller
 test-controller:
-	echo $(KUBEBUILDER_ASSETS)
-	$(GINKGO) -v -r pkg/controller
+	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) $(GINKGO) -v -r pkg/controller
 
 .PHONY: test-e2e
 test-e2e:

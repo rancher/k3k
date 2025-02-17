@@ -18,23 +18,20 @@ ENVTEST ?= go run sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_V
 ENVTEST_DIR ?= $(shell pwd)/.envtest
 export KUBEBUILDER_ASSETS ?= $(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_DIR) -p path)
 
-## targets
 
 .PHONY: all
-all: version build package
+all: version build package ## Run 'make' or 'make all' to run 'version', 'build' and 'package'
 
-# Output the current version
 .PHONY: version
-version:
+version: ## Print the current version
 	@echo $(VERSION)
 
 .PHONY: build
-build:
+build:	## Build the the K3k binaries (k3k, k3k-kubelet and k3kcli)
 	@VERSION=$(VERSION) ./scripts/build
 
-# Package Docker images
-.PHONY: package
-package: package-k3k package-k3k-kubelet
+.PHONY: package 
+package: package-k3k package-k3k-kubelet	## Package the k3k and k3k-kubelet Docker images
 
 .PHONY: package-%
 package-%:
@@ -43,9 +40,8 @@ package-%:
 		-t $(REPO)/$*:latest  \
 		-t $(REPO)/$*:dev .
 
-# Push images to the registry
 .PHONY: push
-push: push-k3k push-k3k-kubelet
+push: push-k3k push-k3k-kubelet		## Push the K3k images to the registry
 
 .PHONY: push-%
 push-%:
@@ -54,28 +50,24 @@ push-%:
 	docker push $(REPO)/$*:dev
 
 
-## Tests
-
 .PHONY: test
-test:
+test:	## Run all the tests
 	$(GINKGO) -v -r
 
 .PHONY: test-unit
-test-unit:
+test-unit:	## Run the unit tests (skips the e2e)
 	$(GINKGO) -v -r --skip-file=tests/*
 
 .PHONY: test-controller
-test-controller:
+test-controller:	## Run the controller tests (pkg/controller)
 	$(GINKGO) -v -r pkg/controller
 
 .PHONY: test-e2e
-test-e2e:
+test-e2e:	## Run the e2e tests
 	$(GINKGO) -v -r tests
 
-## Misc
-
 .PHONY: build-crds
-build-crds:
+build-crds:	## Build the CRDs specs
 	@# This will return non-zero until all of our objects in ./pkg/apis can generate valid crds.
 	@# allowDangerousTypes is needed for struct that use floats
 	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=false \
@@ -83,26 +75,29 @@ build-crds:
 		output:crd:dir=./charts/k3k/crds
 
 .PHONY: docs
-docs:
+docs:	## Build the CRDs docs
 	$(MAKE) -C docs/crds
 
 .PHONY: lint
-lint:
+lint:	## Find any linting issues in the project
 	$(GOLANGCI_LINT) run --timeout=5m
 
-# Validate code and docs for any misalignment
 .PHONY: validate
-validate: build-crds docs
+validate: build-crds docs ## Validate the project checking for any dependency or doc mismatch
 	go mod tidy
 	git --no-pager diff go.mod go.sum
 	test -z "$(shell git status --porcelain)"
 
 
 .PHONY: install
-install:
+install:	## Install K3k with Helm on the targeted Kubernetes cluster
 	helm upgrade --install --namespace k3k-system --create-namespace \
 		--set image.repository=$(REPO)/k3k \
 		--set image.tag=$(VERSION) \
 		--set sharedAgent.image.repository=$(REPO)/k3k-kubelet \
 		--set sharedAgent.image.tag=$(VERSION) \
 		k3k ./charts/k3k/
+
+.PHONY: help
+help:	## Show this help.
+	@egrep -h '\s##\s' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m  %-30s\033[0m %s\n", $$1, $$2}'

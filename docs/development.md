@@ -27,6 +27,28 @@ make push
 make install
 ```
 
+### Makefile
+
+To see all the available Make commands you can run `make help`, i.e:
+
+```
+-> % make help
+  all                            Run 'make' or 'make all' to run 'version', 'build' and 'package'
+  version                        Print the current version
+  build                          Build the the K3k binaries (k3k, k3k-kubelet and k3kcli)
+  package                        Package the k3k and k3k-kubelet Docker images
+  push                           Push the K3k images to the registry
+  test                           Run all the tests
+  test-unit                      Run the unit tests (skips the e2e)
+  test-controller                Run the controller tests (pkg/controller)
+  test-e2e                       Run the e2e tests
+  build-crds                     Build the CRDs specs
+  docs                           Build the CRDs docs
+  lint                           Find any linting issues in the project
+  validate                       Validate the project checking for any dependency or doc mismatch
+  install                        Install K3k with Helm on the targeted Kubernetes cluster
+  help                           Show this help.
+```
 
 ### Build
 

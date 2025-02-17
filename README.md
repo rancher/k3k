@@ -68,7 +68,7 @@ To install it, simply download the latest available version for your architectur
 For example, you can download the Linux amd64 version with:
 
 ```
-wget -qO k3kcli https://github.com/rancher/k3k/releases/download/v0.2.2-rc4/k3kcli-linux-amd64 && \
+wget -qO k3kcli https://github.com/rancher/k3k/releases/download/v0.3.0/k3kcli-linux-amd64 && \
   chmod +x k3kcli && \
   sudo mv k3kcli /usr/local/bin
 ```
@@ -76,7 +76,7 @@ wget -qO k3kcli https://github.com/rancher/k3k/releases/download/v0.2.2-rc4/k3kc
 You should now be able to run:
 ```bash
 -> % k3kcli --version
-k3kcli Version: v0.2.2-rc4
+k3kcli Version: v0.3.0
 ```
 
 

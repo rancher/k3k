@@ -347,17 +347,21 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 		}
 	}
 
-	serverStatefulSet, err := server.StatefulServer(ctx)
+	expectedServerStatefulSet, err := server.StatefulServer(ctx)
 	if err != nil {
 		return err
 	}
-
-	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, serverStatefulSet, func() error {
-		return controllerutil.SetControllerReference(cluster, serverStatefulSet, c.Scheme)
+	currentServerStatefulSet := expectedServerStatefulSet.DeepCopy()
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerStatefulSet, func() error {
+		if err := controllerutil.SetControllerReference(cluster, currentServerStatefulSet, c.Scheme); err != nil {
+			return err
+		}
+		currentServerStatefulSet.Spec = expectedServerStatefulSet.Spec
+		return nil
 	})
 
 	if result != controllerutil.OperationResultNone {
-		key := client.ObjectKeyFromObject(serverStatefulSet)
+		key := client.ObjectKeyFromObject(currentServerStatefulSet)
 		log.Info("ensuring serverStatefulSet", "key", key, "result", result)
 	}
 

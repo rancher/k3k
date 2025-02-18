@@ -77,7 +77,7 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:        "mode",
-			Usage:       "k3k mode type",
+			Usage:       "k3k mode type (shared, virtual)",
 			Destination: &config.mode,
 			Value:       "shared",
 			Action: func(ctx *cli.Context, value string) error {

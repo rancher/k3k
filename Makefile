@@ -20,7 +20,7 @@ export KUBEBUILDER_ASSETS ?= $(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin
 
 
 .PHONY: all
-all: version build package ## Run 'make' or 'make all' to run 'version', 'build' and 'package'
+all: version build-crds build package ## Run 'make' or 'make all' to run 'version', 'build-crds', 'build' and 'package'
 
 .PHONY: version
 version: ## Print the current version
@@ -30,7 +30,7 @@ version: ## Print the current version
 build:	## Build the the K3k binaries (k3k, k3k-kubelet and k3kcli)
 	@VERSION=$(VERSION) ./scripts/build
 
-.PHONY: package 
+.PHONY: package
 package: package-k3k package-k3k-kubelet	## Package the k3k and k3k-kubelet Docker images
 
 .PHONY: package-%

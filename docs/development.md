@@ -33,7 +33,7 @@ To see all the available Make commands you can run `make help`, i.e:
 
 ```
 -> % make help
-  all                            Run 'make' or 'make all' to run 'version', 'build' and 'package'
+  all                            Run 'make' or 'make all' to run 'version', 'build-crds', 'build' and 'package'
   version                        Print the current version
   build                          Build the the K3k binaries (k3k, k3k-kubelet and k3kcli)
   package                        Package the k3k and k3k-kubelet Docker images
@@ -88,6 +88,6 @@ The required binaries for `envtest` are installed with [`setup-envtest`](https:/
 
 ## CRDs and Docs
 
-We are unsing Kubebuilde and `controller-gen` to build the needed CRDs. To generate the specs you can run `make build-crds`.
+We are using Kubebuilder and `controller-gen` to build the needed CRDs. To generate the specs you can run `make build-crds`.
 
 Remember also to update the CRDs documentation running the `make docs` command.

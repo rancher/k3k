@@ -37,24 +37,11 @@ jobs:
       with:
         go-version-file: go.mod
     
-    - name: Check go modules
-      run: |
-        go mod tidy
+    - name: Validate
+      run: make validate
 
-        git --no-pager diff go.mod go.sum
-        test -z "$(git status --porcelain)"
-
-    - name: Install tools
-      run: |
-        go install github.com/onsi/ginkgo/v2/ginkgo
-        go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-
-        ENVTEST_BIN=$(setup-envtest use -p path)
-        sudo mkdir -p /usr/local/kubebuilder/bin
-        sudo cp $ENVTEST_BIN/* /usr/local/kubebuilder/bin
-
-    - name: Run tests
-      run: ginkgo -v -r --skip-file=tests
+    - name: Run unit tests
+      run: make test-unit
   
   tests-e2e:
     runs-on: ubuntu-latest
@@ -70,19 +57,16 @@ jobs:
       with:
         go-version-file: go.mod
     
-    - name: Check go modules
-      run: |
-        go mod tidy
-
-        git --no-pager diff go.mod go.sum
-        test -z "$(git status --porcelain)"
+    - name: Validate
+      run: make validate
 
     - name: Install Ginkgo
       run: go install github.com/onsi/ginkgo/v2/ginkgo
     
-    - name: Build
+    - name: Build and package
       run: |
-        ./scripts/build
+        make build
+        make package
 
         # add k3kcli to $PATH
         echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
@@ -90,8 +74,8 @@ jobs:
     - name: Check k3kcli
       run: k3kcli -v
 
-    - name: Run tests
-      run: ginkgo -v ./tests
+    - name: Run e2e tests
+      run: make test-e2e
 
     - name: Archive k3s logs
       uses: actions/upload-artifact@v4

@@ -72,7 +72,7 @@ dockers:
     ids:
       - k3k
       - k3kcli
-    dockerfile: "package/Dockerfile"
+    dockerfile: "package/Dockerfile.k3k"
     skip_push: false
     image_templates:
       - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}:{{ .Tag }}"
@@ -84,7 +84,7 @@ dockers:
     use: docker
     ids:
       - k3k-kubelet
-    dockerfile: "package/Dockerfile.kubelet"
+    dockerfile: "package/Dockerfile.k3k-kubelet"
     skip_push: false
     image_templates:
       - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet:{{ .Tag }}"

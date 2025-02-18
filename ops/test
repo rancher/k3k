@@ -1,9 +1,0 @@
-#!/bin/bash
-set -e
-
-cd $(dirname $0)/..
-
-if [ -z ${SKIP_TESTS} ]; then
-  echo Running tests
-  go test -cover -tags=test ./...
-fi

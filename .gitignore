@@ -7,3 +7,4 @@
 .vscode/
 __debug*
 *-kubeconfig.yaml
+.envtest

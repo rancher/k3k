@@ -89,6 +89,12 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 			return err
 		}
 
+		if strings.Contains(config.version, "+") {
+			orig := config.version
+			config.version = strings.Replace(config.version, "+", "-", -1)
+			logrus.Warnf("Invalid K3s docker reference version: '%s'. Using '%s' instead", orig, config.version)
+		}
+
 		if config.token != "" {
 			logrus.Infof("Creating cluster token secret")
 			obj := k3kcluster.TokenSecretObj(config.token, name, cmds.Namespace())

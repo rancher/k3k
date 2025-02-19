@@ -373,11 +373,15 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	if err := p.transformTokens(ctx, pod, tPod); err != nil {
 		return fmt.Errorf("unable to transform tokens for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
-	// inject networking information to the pod including the virtual cluster controlplane endpoint
-	p.configureNetworking(pod.Name, pod.Namespace, tPod, p.serverIP)
 
-	p.logger.Infow("Creating pod", "Host Namespace", tPod.Namespace, "Host Name", tPod.Name,
-		"Virtual Namespace", pod.Namespace, "Virtual Name", "env", pod.Name, pod.Spec.Containers[0].Env)
+	// inject networking information to the pod including the virtual cluster controlplane endpoint
+	configureNetworking(tPod, pod.Name, pod.Namespace, p.serverIP, p.dnsIP)
+
+	p.logger.Infow("creating pod",
+		"host_namespace", tPod.Namespace, "host_name", tPod.Name,
+		"virtual_namespace", pod.Namespace, "virtual_name", pod.Name,
+	)
+
 	return p.HostClient.Create(ctx, tPod)
 }
 
@@ -722,75 +726,75 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 // configureNetworking will inject network information to each pod to connect them to the
 // virtual cluster api server, as well as confiugre DNS information to connect them to the
 // synced coredns on the host cluster.
-func (p *Provider) configureNetworking(podName, podNamespace string, pod *corev1.Pod, serverIP string) {
+func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP string) {
 	// inject serverIP to hostalias for the pod
-	KubernetesHostAlias := corev1.HostAlias{
-		IP:        serverIP,
-		Hostnames: []string{"kubernetes", "kubernetes.default", "kubernetes.default.svc", "kubernetes.default.svc.cluster", "kubernetes.default.svc.cluster.local"},
-	}
-	pod.Spec.HostAliases = append(pod.Spec.HostAliases, KubernetesHostAlias)
-	// inject networking information to the pod's environment variables
-	for i := range pod.Spec.Containers {
-		pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env,
-			corev1.EnvVar{
-				Name:  "KUBERNETES_PORT_443_TCP",
-				Value: "tcp://" + p.serverIP + ":6443",
-			},
-			corev1.EnvVar{
-				Name:  "KUBERNETES_PORT",
-				Value: "tcp://" + p.serverIP + ":6443",
-			},
-			corev1.EnvVar{
-				Name:  "KUBERNETES_PORT_443_TCP_ADDR",
-				Value: p.serverIP,
-			},
-			corev1.EnvVar{
-				Name:  "KUBERNETES_SERVICE_HOST",
-				Value: p.serverIP,
-			},
-			corev1.EnvVar{
-				Name:  "KUBERNETES_SERVICE_PORT",
-				Value: "6443",
-			},
-		)
-	}
-	// handle init containers as well
-	for i := range pod.Spec.InitContainers {
-		pod.Spec.InitContainers[i].Env = append(pod.Spec.InitContainers[i].Env,
-			corev1.EnvVar{
-				Name:  "KUBERNETES_PORT_443_TCP",
-				Value: "tcp://" + p.serverIP + ":6443",
-			},
-			corev1.EnvVar{
-				Name:  "KUBERNETES_PORT",
-				Value: "tcp://" + p.serverIP + ":6443",
-			},
-			corev1.EnvVar{
-				Name:  "KUBERNETES_PORT_443_TCP_ADDR",
-				Value: p.serverIP,
-			},
-			corev1.EnvVar{
-				Name:  "KUBERNETES_SERVICE_HOST",
-				Value: p.serverIP,
-			},
-			corev1.EnvVar{
-				Name:  "KUBERNETES_SERVICE_PORT",
-				Value: "6443",
-			},
-		)
-	}
+	pod.Spec.HostAliases = append(pod.Spec.HostAliases, corev1.HostAlias{
+		IP: serverIP,
+		Hostnames: []string{
+			"kubernetes",
+			"kubernetes.default",
+			"kubernetes.default.svc",
+			"kubernetes.default.svc.cluster",
+			"kubernetes.default.svc.cluster.local",
+		},
+	})
+
 	// injecting cluster DNS IP to the pods except for coredns pod
 	if !strings.HasPrefix(podName, "coredns") {
 		pod.Spec.DNSPolicy = corev1.DNSNone
 		pod.Spec.DNSConfig = &corev1.PodDNSConfig{
 			Nameservers: []string{
-				p.dnsIP,
+				dnsIP,
 			},
 			Searches: []string{
-				podNamespace + ".svc.cluster.local", "svc.cluster.local", "cluster.local",
+				podNamespace + ".svc.cluster.local",
+				"svc.cluster.local",
+				"cluster.local",
 			},
 		}
 	}
+
+	updatedEnvVars := []corev1.EnvVar{
+		{Name: "KUBERNETES_PORT", Value: "tcp://" + serverIP + ":6443"},
+		{Name: "KUBERNETES_SERVICE_HOST", Value: serverIP},
+		{Name: "KUBERNETES_SERVICE_PORT", Value: "6443"},
+		{Name: "KUBERNETES_SERVICE_PORT_HTTPS", Value: "6443"},
+		{Name: "KUBERNETES_PORT_443_TCP", Value: "tcp://" + serverIP + ":6443"},
+		{Name: "KUBERNETES_PORT_443_TCP_ADDR", Value: serverIP},
+		{Name: "KUBERNETES_PORT_443_TCP_PORT", Value: "6443"},
+	}
+
+	// inject networking information to the pod's environment variables
+	for i := range pod.Spec.Containers {
+		pod.Spec.Containers[i].Env = overrideEnvVars(pod.Spec.Containers[i].Env, updatedEnvVars)
+	}
+
+	// handle init containers as well
+	for i := range pod.Spec.InitContainers {
+		pod.Spec.InitContainers[i].Env = overrideEnvVars(pod.Spec.InitContainers[i].Env, updatedEnvVars)
+	}
+
+}
+
+// overrideEnvVars will override the orig environment variables if found in the updated list
+func overrideEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
+	if len(updated) == 0 {
+		return orig
+	}
+
+	// create map for single lookup
+	updatedEnvVarMap := make(map[string]corev1.EnvVar)
+	for _, updatedEnvVar := range updated {
+		updatedEnvVarMap[updatedEnvVar.Name] = updatedEnvVar
+	}
+
+	for i, origEnvVar := range orig {
+		if updatedEnvVar, found := updatedEnvVarMap[origEnvVar.Name]; found {
+			orig[i] = updatedEnvVar
+		}
+	}
+
+	return orig
 }
 
 // getSecretsAndConfigmaps retrieves a list of all secrets/configmaps that are in use by a given pod. Useful

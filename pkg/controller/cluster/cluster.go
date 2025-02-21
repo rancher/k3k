@@ -427,9 +427,10 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
 	return nil
 }
 
-// lookupServiceCIDR will try to lookup the serviceCIDR of the cluster.
-// It will first look for the 'kube-apiserver' pod, looking for the --service-cluster-ip-range flag.
-// Otherwise
+// lookupServiceCIDR attempts to determine the cluster's service CIDR.
+// It first searches the 'kube-apiserver' pod's arguments for the --service-cluster-ip-range flag.
+// If the flag is not found, it attempts to create a failing Service (with an invalid cluster IP)
+// and extracts the expected CIDR from the resulting error.
 func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, error) {
 	log := ctrl.LoggerFrom(ctx)
 

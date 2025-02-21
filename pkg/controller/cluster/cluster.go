@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"time"
@@ -39,8 +40,8 @@ const (
 
 	maxConcurrentReconciles = 1
 
-	defaultClusterCIDR           = "10.44.0.0/16"
-	defaultClusterServiceCIDR    = "10.45.0.0/16"
+	defaultClusterCIDR           = "10.42.0.0/16"
+	defaultClusterServiceCIDR    = "10.43.0.0/16"
 	defaultStoragePersistentSize = "1G"
 	memberRemovalTimeout         = time.Minute * 1
 )
@@ -175,7 +176,19 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 
 	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
 	if cluster.Status.ServiceCIDR == "" {
-		cluster.Status.ServiceCIDR = defaultClusterServiceCIDR
+		log.Info("serviceCIDR not set")
+
+		serviceCIDR, err := c.lookupServiceCIDR(ctx)
+		if err != nil {
+			log.Error(err, "error while looking up Cluster ServiceCIDR")
+		}
+
+		// update Status ServiceCIDR
+		if serviceCIDR == "" {
+			log.Info("setting default ServiceCIDR")
+			serviceCIDR = defaultClusterServiceCIDR
+		}
+		cluster.Status.ServiceCIDR = serviceCIDR
 	}
 
 	service, err := c.ensureClusterService(ctx, cluster)
@@ -412,4 +425,77 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
 		return errors.New("invalid cluster name " + cluster.Name + " no action will be taken")
 	}
 	return nil
+}
+
+// lookupServiceCIDR will try to lookup the serviceCIDR of the cluster.
+// It will first look for the 'kube-apiserver' pod, looking for the --service-cluster-ip-range flag.
+// Otherwise
+func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, error) {
+	log := ctrl.LoggerFrom(ctx)
+
+	// find the kube-apiserver pod, and look for the '--service-cluster-ip-range' flag
+	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{
+		"component": "kube-apiserver",
+		"tier":      "control-plane",
+	})
+	listOpts := &ctrlruntimeclient.ListOptions{Namespace: "kube-system"}
+	matchingLabels.ApplyToList(listOpts)
+
+	log.Info("looking up serviceCIDR from kube-apiserver pod")
+
+	var podList v1.PodList
+	if err := c.Client.List(ctx, &podList, listOpts); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return "", err
+		}
+	}
+
+	if len(podList.Items) > 0 {
+		apiServerPod := podList.Items[0]
+		apiServerArgs := apiServerPod.Spec.Containers[0].Args
+
+		for _, arg := range apiServerArgs {
+			if strings.HasPrefix(arg, "--service-cluster-ip-range=") {
+				serviceCIDR := strings.TrimPrefix(arg, "--service-cluster-ip-range=")
+				log.Info("found serviceCIDR from kube-apiserver pod: " + serviceCIDR)
+
+				// validate serviceCIDR
+				_, serviceCIDRAddr, err := net.ParseCIDR(serviceCIDR)
+				if err != nil {
+					log.Error(err, "serviceCIDR is not valid")
+					break
+				}
+				return serviceCIDRAddr.String(), nil
+			}
+		}
+	}
+
+	// Try to look for the serviceCIDR creating a failing service.
+	// The error should contain the expected serviceCIDR
+
+	log.Info("looking up serviceCIDR from a failing service creation")
+
+	failingSvc := v1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "fail", Namespace: "default"},
+		Spec:       v1.ServiceSpec{ClusterIP: "1.1.1.1"},
+	}
+
+	if err := c.Client.Create(ctx, &failingSvc); err != nil {
+		splittedErrMsg := strings.Split(err.Error(), "The range of valid IPs is ")
+
+		if len(splittedErrMsg) > 1 {
+			serviceCIDR := splittedErrMsg[1]
+			log.Info("found serviceCIDR from failing service creation: " + serviceCIDR)
+
+			// validate serviceCIDR
+			_, serviceCIDRAddr, err := net.ParseCIDR(serviceCIDR)
+			if err != nil {
+				return "", err
+			}
+			return serviceCIDRAddr.String(), nil
+		}
+	}
+
+	log.Info("cannot find serviceCIDR from lookup")
+	return "", nil
 }

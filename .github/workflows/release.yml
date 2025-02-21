@@ -35,6 +35,9 @@ jobs:
       with:
         go-version-file: go.mod
 
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
     - name: "Read secrets"
       uses: rancher-eio/read-vault-secrets@main
       if: github.repository_owner == 'rancher'

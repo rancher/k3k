@@ -428,21 +428,47 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
 }
 
 // lookupServiceCIDR attempts to determine the cluster's service CIDR.
-// It first searches the 'kube-apiserver' pod's arguments for the --service-cluster-ip-range flag.
-// If the flag is not found, it attempts to create a failing Service (with an invalid cluster IP)
-// and extracts the expected CIDR from the resulting error.
+// It first attempts to create a failing Service (with an invalid cluster IP)and extracts the expected CIDR from the resulting error.
+// If that fails, it searches the 'kube-apiserver' Pod's arguments for the --service-cluster-ip-range flag.
 func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, error) {
 	log := ctrl.LoggerFrom(ctx)
 
-	// find the kube-apiserver pod, and look for the '--service-cluster-ip-range' flag
+	// Try to look for the serviceCIDR creating a failing service.
+	// The error should contain the expected serviceCIDR
+
+	log.Info("looking up serviceCIDR from a failing service creation")
+
+	failingSvc := v1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "fail", Namespace: "default"},
+		Spec:       v1.ServiceSpec{ClusterIP: "1.1.1.1"},
+	}
+
+	if err := c.Client.Create(ctx, &failingSvc); err != nil {
+		splittedErrMsg := strings.Split(err.Error(), "The range of valid IPs is ")
+
+		if len(splittedErrMsg) > 1 {
+			serviceCIDR := strings.TrimSpace(splittedErrMsg[1])
+			log.Info("found serviceCIDR from failing service creation: " + serviceCIDR)
+
+			// validate serviceCIDR
+			_, serviceCIDRAddr, err := net.ParseCIDR(serviceCIDR)
+			if err != nil {
+				return "", err
+			}
+			return serviceCIDRAddr.String(), nil
+		}
+	}
+
+	// Try to look for the the kube-apiserver Pod, and look for the '--service-cluster-ip-range' flag.
+
+	log.Info("looking up serviceCIDR from kube-apiserver pod")
+
 	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{
 		"component": "kube-apiserver",
 		"tier":      "control-plane",
 	})
 	listOpts := &ctrlruntimeclient.ListOptions{Namespace: "kube-system"}
 	matchingLabels.ApplyToList(listOpts)
-
-	log.Info("looking up serviceCIDR from kube-apiserver pod")
 
 	var podList v1.PodList
 	if err := c.Client.List(ctx, &podList, listOpts); err != nil {
@@ -468,32 +494,6 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 				}
 				return serviceCIDRAddr.String(), nil
 			}
-		}
-	}
-
-	// Try to look for the serviceCIDR creating a failing service.
-	// The error should contain the expected serviceCIDR
-
-	log.Info("looking up serviceCIDR from a failing service creation")
-
-	failingSvc := v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "fail", Namespace: "default"},
-		Spec:       v1.ServiceSpec{ClusterIP: "1.1.1.1"},
-	}
-
-	if err := c.Client.Create(ctx, &failingSvc); err != nil {
-		splittedErrMsg := strings.Split(err.Error(), "The range of valid IPs is ")
-
-		if len(splittedErrMsg) > 1 {
-			serviceCIDR := splittedErrMsg[1]
-			log.Info("found serviceCIDR from failing service creation: " + serviceCIDR)
-
-			// validate serviceCIDR
-			_, serviceCIDRAddr, err := net.ParseCIDR(serviceCIDR)
-			if err != nil {
-				return "", err
-			}
-			return serviceCIDRAddr.String(), nil
 		}
 	}
 

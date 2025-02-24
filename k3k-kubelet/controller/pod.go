@@ -20,7 +20,7 @@ import (
 
 const (
 	podController = "pod-pvc-controller"
-	psuedoPVLabel = "pod.k3k.io/psuedoPV"
+	pseudoPVLabel = "pod.k3k.io/pseudoPV"
 )
 
 type PodReconciler struct {
@@ -95,8 +95,8 @@ func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pv
 	if err := r.virtualClient.Get(ctx, types.NamespacedName{Name: pvcSource.ClaimName, Namespace: pod.Namespace}, &pvc); err != nil {
 		return ctrlruntimeclient.IgnoreNotFound(err)
 	}
-	log.Info("Creating psuedo Persistent Volume")
-	pv := r.psuedoPV(&pvc)
+	log.Info("Creating pseudo Persistent Volume")
+	pv := r.pseudoPV(&pvc)
 	if err := r.virtualClient.Create(ctx, pv); err != nil {
 		return ctrlruntimeclient.IgnoreAlreadyExists(err)
 	}
@@ -121,7 +121,7 @@ func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pv
 	return r.virtualClient.Status().Update(ctx, pvcPatch)
 }
 
-func (r *PodReconciler) psuedoPV(obj *v1.PersistentVolumeClaim) *v1.PersistentVolume {
+func (r *PodReconciler) pseudoPV(obj *v1.PersistentVolumeClaim) *v1.PersistentVolume {
 	storageClass := ""
 	if obj.Spec.StorageClassName != nil {
 		storageClass = *obj.Spec.StorageClassName
@@ -130,7 +130,7 @@ func (r *PodReconciler) psuedoPV(obj *v1.PersistentVolumeClaim) *v1.PersistentVo
 		ObjectMeta: metav1.ObjectMeta{
 			Name: obj.Name,
 			Labels: map[string]string{
-				psuedoPVLabel: "true",
+				pseudoPVLabel: "true",
 			},
 			Annotations: map[string]string{
 				volume.AnnBoundByController:      "true",
@@ -144,7 +144,7 @@ func (r *PodReconciler) psuedoPV(obj *v1.PersistentVolumeClaim) *v1.PersistentVo
 		Spec: v1.PersistentVolumeSpec{
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				FlexVolume: &v1.FlexPersistentVolumeSource{
-					Driver: "psuedopv",
+					Driver: "pseudopv",
 				},
 			},
 			StorageClassName:              storageClass,

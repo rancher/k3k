@@ -93,7 +93,10 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	}
 
 	hostMgr, err := ctrl.NewManager(hostConfig, manager.Options{
-		Scheme: baseScheme,
+		Scheme:                  baseScheme,
+		LeaderElection:          true,
+		LeaderElectionNamespace: c.ClusterNamespace,
+		LeaderElectionID:        c.ClusterName,
 		Metrics: ctrlserver.Options{
 			BindAddress: ":8083",
 		},
@@ -117,8 +120,11 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		CertDir: "/opt/rancher/k3k-webhook",
 	})
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
-		Scheme:        virtualScheme,
-		WebhookServer: webhookServer,
+		Scheme:                  virtualScheme,
+		WebhookServer:           webhookServer,
+		LeaderElection:          true,
+		LeaderElectionNamespace: "kube-system",
+		LeaderElectionID:        c.ClusterName,
 		Metrics: ctrlserver.Options{
 			BindAddress: ":8084",
 		},
@@ -127,7 +133,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
 	}
 	logger.Info("adding pod mutator webhook")
-	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.AgentHostname, c.ServiceName, logger); err != nil {
+	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.ServiceName, logger); err != nil {
 		return nil, errors.New("unable to add pod mutator webhook for virtual cluster: " + err.Error())
 	}
 
@@ -139,6 +145,11 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	logger.Info("adding pvc syncer controller")
 	if err := k3kkubeletcontroller.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
 		return nil, errors.New("failed to add pvc syncer controller: " + err.Error())
+	}
+
+	logger.Info("adding pod pvc controller")
+	if err := k3kkubeletcontroller.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
+		return nil, errors.New("failed to add pod pvc controller: " + err.Error())
 	}
 
 	clusterIP, err := clusterIP(ctx, c.ServiceName, c.ClusterNamespace, hostClient)

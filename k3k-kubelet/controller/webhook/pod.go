@@ -32,7 +32,6 @@ const (
 type webhookHandler struct {
 	client           ctrlruntimeclient.Client
 	scheme           *runtime.Scheme
-	nodeName         string
 	serviceName      string
 	clusterName      string
 	clusterNamespace string
@@ -42,7 +41,7 @@ type webhookHandler struct {
 // AddPodMutatorWebhook will add a mutator webhook to the virtual cluster to
 // modify the nodeName of the created pods with the name of the virtual kubelet node name
 // as well as remove any status fields of the downward apis env fields
-func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, serviceName string, logger *log.Logger) error {
+func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, serviceName string, logger *log.Logger) error {
 	handler := webhookHandler{
 		client:           mgr.GetClient(),
 		scheme:           mgr.GetScheme(),
@@ -50,7 +49,6 @@ func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient c
 		serviceName:      serviceName,
 		clusterName:      clusterName,
 		clusterNamespace: clusterNamespace,
-		nodeName:         nodeName,
 	}
 
 	// create mutator webhook configuration to the cluster
@@ -73,9 +71,6 @@ func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error 
 		return fmt.Errorf("invalid request: object was type %t not cluster", obj)
 	}
 	w.logger.Infow("mutator webhook request", "Pod", pod.Name, "Namespace", pod.Namespace)
-	if pod.Spec.NodeName == "" {
-		pod.Spec.NodeName = w.nodeName
-	}
 	// look for status.* fields in the env
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)

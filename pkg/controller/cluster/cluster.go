@@ -40,8 +40,10 @@ const (
 
 	maxConcurrentReconciles = 1
 
-	defaultClusterCIDR           = "10.42.0.0/16"
-	defaultClusterServiceCIDR    = "10.43.0.0/16"
+	defaultVirtualClusterCIDR    = "10.52.0.0/16"
+	defaultVirtualServiceCIDR    = "10.53.0.0/16"
+	defaultSharedClusterCIDR     = "10.42.0.0/16"
+	defaultSharedServiceCIDR     = "10.43.0.0/16"
 	defaultStoragePersistentSize = "1G"
 	memberRemovalTimeout         = time.Minute * 1
 )
@@ -171,24 +173,29 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	if cluster.Status.ClusterCIDR == "" {
-		cluster.Status.ClusterCIDR = defaultClusterCIDR
+		cluster.Status.ClusterCIDR = defaultVirtualClusterCIDR
+		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
+			cluster.Status.ClusterCIDR = defaultSharedClusterCIDR
+		}
 	}
 
 	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
-	if cluster.Status.ServiceCIDR == "" {
-		log.Info("serviceCIDR not set")
+	// only lookup service cidr in shared mode
+	if cluster.Status.ServiceCIDR == "" && cluster.Spec.Mode == v1alpha1.SharedClusterMode {
+		log.Info("looking up service cidr for shared mode")
 
-		serviceCIDR, err := c.lookupServiceCIDR(ctx)
+		cluster.Status.ServiceCIDR, err = c.lookupServiceCIDR(ctx)
 		if err != nil {
 			log.Error(err, "error while looking up Cluster ServiceCIDR")
 		}
-
-		// update Status ServiceCIDR
-		if serviceCIDR == "" {
-			log.Info("setting default ServiceCIDR")
-			serviceCIDR = defaultClusterServiceCIDR
+	}
+	// set the default cidrs if not specified
+	if cluster.Status.ServiceCIDR == "" {
+		log.Info("setting default ServiceCIDR")
+		cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
+		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
+			cluster.Status.ServiceCIDR = defaultSharedServiceCIDR
 		}
-		cluster.Status.ServiceCIDR = serviceCIDR
 	}
 
 	service, err := c.ensureClusterService(ctx, cluster)

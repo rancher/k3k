@@ -58,11 +58,11 @@ type ClusterSpec struct {
 	// +optional
 	TokenSecretRef *v1.SecretReference `json:"tokenSecretRef"`
 
-	// ClusterCIDR is the CIDR range for the pods of the cluster. Defaults to 10.42.0.0/16.
+	// ClusterCIDR is the CIDR range for the pods of the cluster. Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.
 	// +kubebuilder:validation:XValidation:message="clusterCIDR is immutable",rule="self == oldSelf"
 	ClusterCIDR string `json:"clusterCIDR,omitempty"`
 
-	// ServiceCIDR is the CIDR range for the services in the cluster. Defaults to 10.43.0.0/16.
+	// ServiceCIDR is the CIDR range for the services in the cluster. Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.
 	// +kubebuilder:validation:XValidation:message="serviceCIDR is immutable",rule="self == oldSelf"
 	ServiceCIDR string `json:"serviceCIDR,omitempty"`
 

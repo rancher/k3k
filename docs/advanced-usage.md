@@ -94,14 +94,14 @@ In this example we are exposing the Cluster with a Nginx ingress-controller, tha
 
 ### `clusterCIDR`
 
-The `clusterCIDR` field specifies the CIDR range for the pods of the cluster. The default value is `10.42.0.0/16`.
+The `clusterCIDR` field specifies the CIDR range for the pods of the cluster. The default value is `10.42.0.0/16` in shared mode, and `10.52.0.0/16` in virtual mode.
 
 
 ### `serviceCIDR`
 
-The `serviceCIDR` field specifies the CIDR range for the services in the cluster. The default value is `10.43.0.0/16`.
+The `serviceCIDR` field specifies the CIDR range for the services in the cluster. The default value is `10.43.0.0/16` in shared mode, and `10.53.0.0/16` in virtual mode.
 
-**Note:** In `shared` mode, the `serviceCIDR` should match the host cluster's `serviceCIDR` to prevent conflicts.
+**Note:** In `shared` mode, the `serviceCIDR` should match the host cluster's `serviceCIDR` to prevent conflicts and in `virtual` mode both `serviceCIDR` and `clusterCIDR` should be different than the host cluster.
 
 
 ### `clusterDNS`

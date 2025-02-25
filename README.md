@@ -94,15 +94,15 @@ To create a new K3k cluster, use the following command:
 ```bash
 k3kcli cluster create mycluster
 ```
-> [!NOTE] 
-> Creating a K3k Cluster from a host cluster accessed through Rancher
+> [!NOTE] Creating a K3k Cluster on a Rancher-Managed Host Cluster
 >
->If your host cluster is accessed throught **Rancher**
->    (e.g the `server` value in the `kubeconfig` looks like `server: "https://<rancher_url>/k8s/clusters/abc"`.).
-> 
->Then use the `--kubeconfig-server` flag while creating the cluster so that the generated kubeconfig use the proper endpoint.
-> 
->`k3kcli cluster create --kubeconfig-server <host_node_ip/host_lb_ip> mycluster`
+> If your *host* Kubernetes cluster is managed by Rancher (e.g., your kubeconfig's `server` address includes a Rancher URL), use the `--kubeconfig-server` flag when creating your K3k cluster:
+>
+>```bash
+>k3kcli cluster create --kubeconfig-server <host_node_IP_or_load_balancer_IP> mycluster
+>```
+>
+> This ensures the generated kubeconfig connects to the correct endpoint.
 
 When the K3s server is ready, `k3kcli` will generate the necessary kubeconfig file and print instructions on how to use it.  
 

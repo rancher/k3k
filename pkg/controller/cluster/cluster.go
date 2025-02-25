@@ -180,21 +180,21 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 	}
 
 	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
-	// only lookup service cidr in shared mode
-	if cluster.Status.ServiceCIDR == "" && cluster.Spec.Mode == v1alpha1.SharedClusterMode {
-		log.Info("looking up service cidr for shared mode")
-
-		cluster.Status.ServiceCIDR, err = c.lookupServiceCIDR(ctx)
-		if err != nil {
-			log.Error(err, "error while looking up Cluster ServiceCIDR")
-		}
-	}
-	// set the default cidrs if not specified
 	if cluster.Status.ServiceCIDR == "" {
-		log.Info("setting default ServiceCIDR")
-		cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
+		// in shared mode try to lookup the serviceCIDR
 		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
-			cluster.Status.ServiceCIDR = defaultSharedServiceCIDR
+			log.Info("looking up Service CIDR for shared mode")
+			cluster.Status.ServiceCIDR, err = c.lookupServiceCIDR(ctx)
+			if err != nil {
+				log.Error(err, "error while looking up Cluster Service CIDR")
+				cluster.Status.ServiceCIDR = defaultSharedServiceCIDR
+			}
+		}
+
+		// in virtual mode assign a default serviceCIDR
+		if cluster.Spec.Mode == v1alpha1.VirtualClusterMode {
+			log.Info("assign default service CIDR for virtual mode")
+			cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
 		}
 	}
 

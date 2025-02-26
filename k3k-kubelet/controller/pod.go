@@ -60,7 +60,7 @@ func AddPodPVCController(ctx context.Context, virtMgr, hostMgr manager.Manager, 
 }
 
 func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("Cluster", r.clusterName, "Pod", req.NamespacedName)
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.clusterName, "clusterNamespace", r.clusterNamespace)
 	var (
 		virtPod v1.Pod
 		cluster v1alpha1.Cluster

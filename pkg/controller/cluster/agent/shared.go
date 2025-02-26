@@ -114,7 +114,7 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 
 	deploy := &apps.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Deployment",
+			Kind:       "DaemonSet",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{

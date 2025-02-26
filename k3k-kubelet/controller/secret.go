@@ -38,6 +38,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 		// return immediately without re-enqueueing. We aren't watching this resource
 		return reconcile.Result{}, nil
 	}
+
 	var virtual corev1.Secret
 
 	if err := s.VirtualClient.Get(ctx, req.NamespacedName, &virtual); err != nil {
@@ -45,16 +46,19 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 			Requeue: true,
 		}, fmt.Errorf("unable to get secret %s/%s from virtual cluster: %w", req.Namespace, req.Name, err)
 	}
+
 	translated, err := s.TranslateFunc(&virtual)
 	if err != nil {
 		return reconcile.Result{
 			Requeue: true,
 		}, fmt.Errorf("unable to translate secret %s/%s from virtual cluster: %w", req.Namespace, req.Name, err)
 	}
+
 	translatedKey := types.NamespacedName{
 		Namespace: translated.Namespace,
 		Name:      translated.Name,
 	}
+
 	var host corev1.Secret
 	if err = s.HostClient.Get(ctx, translatedKey, &host); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -66,6 +70,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 				}, fmt.Errorf("unable to create host secret %s/%s for virtual secret %s/%s: %w",
 					translated.Namespace, translated.Name, req.Namespace, req.Name, err)
 		}
+
 		return reconcile.Result{Requeue: true}, fmt.Errorf("unable to get host secret %s/%s: %w", translated.Namespace, translated.Name, err)
 	}
 	// we are going to use the host in order to avoid conflicts on update
@@ -79,13 +84,14 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 	for key, value := range translated.Labels {
 		host.Labels[key] = value
 	}
+
 	if err = s.HostClient.Update(ctx, &host); err != nil {
 		return reconcile.Result{
 				Requeue: true,
 			}, fmt.Errorf("unable to update host secret %s/%s for virtual secret %s/%s: %w",
 				translated.Namespace, translated.Name, req.Namespace, req.Name, err)
-
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -94,6 +100,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 func (s *SecretSyncer) isWatching(key types.NamespacedName) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
+
 	return s.objs.Has(key)
 }
 
@@ -113,14 +120,18 @@ func (s *SecretSyncer) AddResource(ctx context.Context, namespace, name string) 
 	if s.objs == nil {
 		s.objs = sets.Set[types.NamespacedName]{}
 	}
+
 	s.objs = s.objs.Insert(objKey)
 	s.mutex.Unlock()
+
 	_, err := s.Reconcile(ctx, reconcile.Request{
 		NamespacedName: objKey,
 	})
+
 	if err != nil {
 		return fmt.Errorf("unable to reconcile new object %s/%s: %w", objKey.Namespace, objKey.Name, err)
 	}
+
 	return nil
 }
 
@@ -148,8 +159,10 @@ func (s *SecretSyncer) RemoveResource(ctx context.Context, namespace, name strin
 	if s.objs == nil {
 		s.objs = sets.Set[types.NamespacedName]{}
 	}
+
 	s.objs = s.objs.Delete(objKey)
 	s.mutex.Unlock()
+
 	return nil
 }
 
@@ -159,12 +172,15 @@ func (s *SecretSyncer) removeHostSecret(ctx context.Context, virtualNamespace, v
 		Namespace: virtualNamespace,
 		Name:      virtualName,
 	}, &vSecret)
+
 	if err != nil {
 		return fmt.Errorf("unable to get virtual secret %s/%s: %w", virtualNamespace, virtualName, err)
 	}
+
 	translated, err := s.TranslateFunc(&vSecret)
 	if err != nil {
 		return fmt.Errorf("unable to translate virtual secret: %s/%s: %w", virtualNamespace, virtualName, err)
 	}
+
 	return s.HostClient.Delete(ctx, translated)
 }

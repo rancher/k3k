@@ -107,6 +107,7 @@ func (rc *resourceMetricsCollector) DescribeWithStability(ch chan<- *compbasemet
 // custom collector in a way that only collects metrics for active containers.
 func (rc *resourceMetricsCollector) CollectWithStability(ch chan<- compbasemetrics.Metric) {
 	var errorCount float64
+
 	defer func() {
 		ch <- compbasemetrics.NewLazyConstMetric(resourceScrapeResultDesc, compbasemetrics.GaugeValue, errorCount)
 	}()
@@ -121,6 +122,7 @@ func (rc *resourceMetricsCollector) CollectWithStability(ch chan<- compbasemetri
 			rc.collectContainerCPUMetrics(ch, pod, container)
 			rc.collectContainerMemoryMetrics(ch, pod, container)
 		}
+
 		rc.collectPodCPUMetrics(ch, pod)
 		rc.collectPodMemoryMetrics(ch, pod)
 	}

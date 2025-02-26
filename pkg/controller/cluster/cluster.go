@@ -184,9 +184,12 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		// in shared mode try to lookup the serviceCIDR
 		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
 			log.Info("looking up Service CIDR for shared mode")
+
 			cluster.Status.ServiceCIDR, err = c.lookupServiceCIDR(ctx)
+
 			if err != nil {
 				log.Error(err, "error while looking up Cluster Service CIDR")
+
 				cluster.Status.ServiceCIDR = defaultSharedServiceCIDR
 			}
 		}
@@ -194,6 +197,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		// in virtual mode assign a default serviceCIDR
 		if cluster.Spec.Mode == v1alpha1.VirtualClusterMode {
 			log.Info("assign default service CIDR for virtual mode")
+
 			cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
 		}
 	}
@@ -202,6 +206,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 	if err != nil {
 		return err
 	}
+
 	serviceIP := service.Spec.ClusterIP
 
 	if err := c.createClusterConfigs(ctx, cluster, s, serviceIP); err != nil {
@@ -252,8 +257,10 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 		bootstrapSecret.Data = map[string][]byte{
 			"bootstrap": bootstrapData,
 		}
+
 		return nil
 	})
+
 	return err
 }
 
@@ -279,9 +286,11 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	if err != nil {
 		return err
 	}
+
 	if err := controllerutil.SetControllerReference(cluster, serverConfig, c.Scheme); err != nil {
 		return err
 	}
+
 	if err := c.Client.Create(ctx, serverConfig); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
@@ -304,8 +313,10 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 		}
 
 		currentService.Spec = expectedService.Spec
+
 		return nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -341,6 +352,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1
 
 		return nil
 	})
+
 	if err != nil {
 		return err
 	}
@@ -361,6 +373,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 	if err := controllerutil.SetControllerReference(cluster, serverStatefulService, c.Scheme); err != nil {
 		return err
 	}
+
 	if err := c.Client.Create(ctx, serverStatefulService); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
@@ -371,12 +384,15 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 	if err != nil {
 		return err
 	}
+
 	currentServerStatefulSet := expectedServerStatefulSet.DeepCopy()
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerStatefulSet, func() error {
 		if err := controllerutil.SetControllerReference(cluster, currentServerStatefulSet, c.Scheme); err != nil {
 			return err
 		}
+
 		currentServerStatefulSet.Spec = expectedServerStatefulSet.Spec
+
 		return nil
 	})
 
@@ -397,6 +413,7 @@ func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluste
 	subjectName := controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName)
 
 	found := false
+
 	for _, subject := range clusterRoleBinding.Subjects {
 		if subject.Name == subjectName && subject.Namespace == cluster.Namespace {
 			found = true
@@ -431,6 +448,7 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
 	if cluster.Name == ClusterInvalidName {
 		return errors.New("invalid cluster name " + cluster.Name + " no action will be taken")
 	}
+
 	return nil
 }
 
@@ -462,6 +480,7 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 			if err != nil {
 				return "", err
 			}
+
 			return serviceCIDRAddr.String(), nil
 		}
 	}
@@ -499,11 +518,13 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 					log.Error(err, "serviceCIDR is not valid")
 					break
 				}
+
 				return serviceCIDRAddr.String(), nil
 			}
 		}
 	}
 
 	log.Info("cannot find serviceCIDR from lookup")
+
 	return "", nil
 }

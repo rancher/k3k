@@ -51,7 +51,9 @@ func SafeConcatName(name ...string) string {
 	if len(fullPath) < 64 {
 		return fullPath
 	}
+
 	digest := sha256.Sum256([]byte(fullPath))
+
 	// since we cut the string in the middle, the last char may not be compatible with what is expected in k8s
 	// we are checking and if necessary removing the last char
 	c := fullPath[56]

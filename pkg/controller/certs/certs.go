@@ -40,6 +40,7 @@ func CreateClientCertKey(commonName string, organization []string, altNames *cer
 	if altNames != nil {
 		cfg.AltNames = *altNames
 	}
+
 	cert, err := certutil.NewSignedCert(cfg, key.(crypto.Signer), caCertPEM[0], caKeyPEM.(crypto.Signer))
 	if err != nil {
 		return nil, nil, err
@@ -59,6 +60,7 @@ func generateKey() (data []byte, err error) {
 
 func AddSANs(sans []string) certutil.AltNames {
 	var altNames certutil.AltNames
+
 	for _, san := range sans {
 		ip := net.ParseIP(san)
 		if ip == nil {
@@ -67,5 +69,6 @@ func AddSANs(sans []string) certutil.AltNames {
 			altNames.IPs = append(altNames.IPs, ip)
 		}
 	}
+
 	return altNames
 }

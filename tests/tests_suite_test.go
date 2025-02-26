@@ -161,8 +161,10 @@ func buildScheme() *runtime.Scheme {
 }
 
 func writeK3kLogs() {
-	var err error
-	var podList v1.PodList
+	var (
+		err     error
+		podList v1.PodList
+	)
 
 	ctx := context.Background()
 	err = k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: "k3k-system"})
@@ -176,11 +178,14 @@ func writeK3kLogs() {
 }
 
 func writeLogs(filename string, logs io.ReadCloser) {
+	defer logs.Close()
+
 	logsStr, err := io.ReadAll(logs)
 	Expect(err).To(Not(HaveOccurred()))
-	defer logs.Close()
+
 	tempfile := path.Join(os.TempDir(), filename)
 	err = os.WriteFile(tempfile, []byte(logsStr), 0644)
 	Expect(err).To(Not(HaveOccurred()))
+
 	fmt.Fprintln(GinkgoWriter, "logs written to: "+filename)
 }

@@ -119,6 +119,7 @@ func updateNodeCapacity(coreClient typedv1.CoreV1Interface, virtualClient client
 // If some node labels are specified only the matching nodes will be considered.
 func getResourcesFromNodes(ctx context.Context, coreClient typedv1.CoreV1Interface, nodeLabels map[string]string) (v1.ResourceList, v1.ResourceList, error) {
 	listOpts := metav1.ListOptions{}
+
 	if nodeLabels != nil {
 		labelSelector := metav1.LabelSelector{MatchLabels: nodeLabels}
 		listOpts.LabelSelector = labels.Set(labelSelector.MatchLabels).String()
@@ -134,7 +135,6 @@ func getResourcesFromNodes(ctx context.Context, coreClient typedv1.CoreV1Interfa
 	virtualAvailableResources := corev1.ResourceList{}
 
 	for _, node := range nodeList.Items {
-
 		// check if the node is Ready
 		for _, condition := range node.Status.Conditions {
 			if condition.Type != corev1.NodeReady {

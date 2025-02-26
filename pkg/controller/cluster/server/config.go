@@ -22,6 +22,7 @@ func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
 	if init {
 		config = initConfigData(s.cluster, s.token)
 	}
+
 	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -52,21 +53,26 @@ func serverOptions(cluster *v1alpha1.Cluster, token string) string {
 	if token != "" {
 		opts = "token: " + token + "\n"
 	}
+
 	if cluster.Status.ClusterCIDR != "" {
 		opts = opts + "cluster-cidr: " + cluster.Status.ClusterCIDR + "\n"
 	}
+
 	if cluster.Status.ServiceCIDR != "" {
 		opts = opts + "service-cidr: " + cluster.Status.ServiceCIDR + "\n"
 	}
+
 	if cluster.Spec.ClusterDNS != "" {
 		opts = opts + "cluster-dns: " + cluster.Spec.ClusterDNS + "\n"
 	}
+
 	if len(cluster.Status.TLSSANs) > 0 {
 		opts = opts + "tls-san:\n"
 		for _, addr := range cluster.Status.TLSSANs {
 			opts = opts + "- " + addr + "\n"
 		}
 	}
+
 	if cluster.Spec.Mode != agent.VirtualNodeMode {
 		opts = opts + "disable-agent: true\negress-selector-mode: disabled\ndisable:\n- servicelb\n- traefik\n- metrics-server\n- local-storage"
 	}
@@ -79,5 +85,6 @@ func configSecretName(clusterName string, init bool) string {
 	if !init {
 		return controller.SafeConcatNameWithPrefix(clusterName, configName)
 	}
+
 	return controller.SafeConcatNameWithPrefix(clusterName, initConfigName)
 }

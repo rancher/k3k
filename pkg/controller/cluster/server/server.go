@@ -50,6 +50,7 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 	if s.cluster.Spec.Limit != nil && s.cluster.Spec.Limit.ServerLimit != nil {
 		limit = s.cluster.Spec.Limit.ServerLimit
 	}
+
 	podSpec := v1.PodSpec{
 		NodeSelector:      s.cluster.Spec.NodeSelector,
 		PriorityClassName: s.cluster.Spec.PriorityClass,
@@ -218,6 +219,7 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 			Privileged: ptr.To(true),
 		}
 	}
+
 	return podSpec
 }
 
@@ -228,6 +230,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		err        error
 		persistent bool
 	)
+
 	image := controller.K3SImage(s.cluster)
 	name := controller.SafeConcatNameWithPrefix(s.cluster.Name, serverName)
 
@@ -238,8 +241,11 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		pvClaim = s.setupDynamicPersistence()
 	}
 
-	var volumes []v1.Volume
-	var volumeMounts []v1.VolumeMount
+	var (
+		volumes      []v1.Volume
+		volumeMounts []v1.VolumeMount
+	)
+
 	for _, addon := range s.cluster.Spec.Addons {
 		namespace := k3kSystemNamespace
 		if addon.SecretNamespace != "" {
@@ -306,6 +312,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	podSpec := s.podSpec(image, name, persistent, startupCommand)
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
@@ -359,7 +366,6 @@ func (s *Server) setupDynamicPersistence() v1.PersistentVolumeClaim {
 			},
 		},
 	}
-
 }
 
 func (s *Server) setupStartCommand() (string, error) {
@@ -369,10 +375,12 @@ func (s *Server) setupStartCommand() (string, error) {
 	if *s.cluster.Spec.Servers > 1 {
 		tmpl = HAServerTemplate
 	}
+
 	tmplCmd, err := template.New("").Parse(tmpl)
 	if err != nil {
 		return "", err
 	}
+
 	if err := tmplCmd.Execute(&output, map[string]string{
 		"ETCD_DIR":      "/var/lib/rancher/k3s/server/db/etcd",
 		"INIT_CONFIG":   "/opt/rancher/k3s/init/config.yaml",
@@ -381,5 +389,6 @@ func (s *Server) setupStartCommand() (string, error) {
 	}); err != nil {
 		return "", err
 	}
+
 	return output.String(), nil
 }

@@ -12,6 +12,7 @@ func Test_virtualAgentData(t *testing.T) {
 		serviceIP string
 		token     string
 	}
+
 	tests := []struct {
 		name         string
 		args         args
@@ -30,6 +31,7 @@ func Test_virtualAgentData(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := virtualAgentData(tt.args.serviceIP, tt.args.token)

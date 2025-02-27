@@ -56,6 +56,7 @@ func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient c
 	if err != nil {
 		return err
 	}
+
 	if err := handler.client.Create(ctx, config); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
@@ -70,11 +71,13 @@ func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error 
 	if !ok {
 		return fmt.Errorf("invalid request: object was type %t not cluster", obj)
 	}
+
 	w.logger.Infow("mutator webhook request", "Pod", pod.Name, "Namespace", pod.Namespace)
 	// look for status.* fields in the env
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
+
 	for i, container := range pod.Spec.Containers {
 		for j, env := range container.Env {
 			if env.ValueFrom == nil || env.ValueFrom.FieldRef == nil {
@@ -89,22 +92,28 @@ func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error 
 			}
 		}
 	}
+
 	return nil
 }
 
 func (w *webhookHandler) configuration(ctx context.Context, hostClient ctrlruntimeclient.Client) (*admissionregistrationv1.MutatingWebhookConfiguration, error) {
 	w.logger.Infow("extracting webhook tls from host cluster")
+
 	var (
 		webhookTLSSecret v1.Secret
 	)
+
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: agent.WebhookSecretName(w.clusterName), Namespace: w.clusterNamespace}, &webhookTLSSecret); err != nil {
 		return nil, err
 	}
+
 	caBundle, ok := webhookTLSSecret.Data["ca.crt"]
 	if !ok {
 		return nil, errors.New("webhook CABundle does not exist in secret")
 	}
+
 	webhookURL := "https://" + w.serviceName + ":" + webhookPort + webhookPath
+
 	return &admissionregistrationv1.MutatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "admissionregistration.k8s.io/v1",
@@ -151,10 +160,12 @@ func ParseFieldPathAnnotationKey(annotationKey string) (int, string, error) {
 	if len(s) != 3 {
 		return -1, "", errors.New("fieldpath annotation is not set correctly")
 	}
+
 	containerIndex, err := strconv.Atoi(s[1])
 	if err != nil {
 		return -1, "", err
 	}
+
 	envName := s[2]
 
 	return containerIndex, envName, nil

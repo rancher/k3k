@@ -97,6 +97,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 
 		if config.token != "" {
 			logrus.Infof("Creating cluster token secret")
+
 			obj := k3kcluster.TokenSecretObj(config.token, name, cmds.Namespace())
 			if err := ctrlClient.Create(ctx, &obj); err != nil {
 				return err
@@ -116,10 +117,12 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 		if err != nil {
 			return err
 		}
+
 		host := strings.Split(url.Host, ":")
 		if config.kubeconfigServerHost != "" {
 			host = []string{config.kubeconfigServerHost}
 		}
+
 		cluster.Spec.TLSSANs = []string{host[0]}
 
 		if err := ctrlClient.Create(ctx, cluster); err != nil {
@@ -144,6 +147,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 		cfg := kubeconfig.New()
 
 		var kubeconfig *clientcmdapi.Config
+
 		if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
 			kubeconfig, err = cfg.Extract(ctx, ctrlClient, cluster, host[0])
 			return err
@@ -199,6 +203,7 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 	if config.storageClassName == "" {
 		cluster.Spec.Persistence.StorageClassName = nil
 	}
+
 	if config.token != "" {
 		cluster.Spec.TokenSecretRef = &v1.SecretReference{
 			Name:      k3kcluster.TokenSecretName(name),

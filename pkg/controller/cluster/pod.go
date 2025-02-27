@@ -66,16 +66,20 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	if len(s) < 1 {
 		return reconcile.Result{}, nil
 	}
+
 	if s[0] != "k3k" {
 		return reconcile.Result{}, nil
 	}
+
 	clusterName := s[1]
+
 	var cluster v1alpha1.Cluster
 	if err := p.Client.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: req.Namespace}, &cluster); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 	}
+
 	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
 	listOpts := &ctrlruntimeclient.ListOptions{Namespace: req.Namespace}
 	matchingLabels.ApplyToList(listOpts)
@@ -84,14 +88,17 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	if err := p.Client.List(ctx, &podList, listOpts); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
+
 	if len(podList.Items) == 1 {
 		return reconcile.Result{}, nil
 	}
+
 	for _, pod := range podList.Items {
 		if err := p.handleServerPod(ctx, cluster, &pod); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -115,16 +122,20 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 		if cluster.Name == "" {
 			if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
 				controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
+
 				if err := p.Client.Update(ctx, pod); err != nil {
 					return err
 				}
 			}
+
 			return nil
 		}
+
 		tlsConfig, err := p.getETCDTLS(ctx, &cluster)
 		if err != nil {
 			return err
 		}
+
 		// remove server from etcd
 		client, err := clientv3.New(clientv3.Config{
 			Endpoints: []string{
@@ -143,11 +154,13 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 		// remove our finalizer from the list and update it.
 		if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
 			controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
+
 			if err := p.Client.Update(ctx, pod); err != nil {
 				return err
 			}
 		}
 	}
+
 	if !controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
 		controllerutil.AddFinalizer(pod, etcdPodFinalizerName)
 		return p.Client.Update(ctx, pod)
@@ -164,9 +177,11 @@ func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluste
 	if err != nil {
 		return nil, err
 	}
+
 	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
 
 	var b *bootstrap.ControlRuntimeBootstrap
+
 	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
 		return true
 	}, func() error {
@@ -181,6 +196,7 @@ func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluste
 	if err != nil {
 		return nil, err
 	}
+
 	clientCert, err := tls.X509KeyPair(etcdCert, etcdKey)
 	if err != nil {
 		return nil, err
@@ -190,6 +206,7 @@ func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluste
 	if err != nil {
 		return nil, err
 	}
+
 	pool := x509.NewCertPool()
 	pool.AddCert(cert[0])
 
@@ -206,6 +223,7 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 
 	ctx, cancel := context.WithTimeout(ctx, memberRemovalTimeout)
 	defer cancel()
+
 	members, err := client.MemberList(ctx)
 	if err != nil {
 		return err
@@ -215,6 +233,7 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 		if !strings.Contains(member.Name, name) {
 			continue
 		}
+
 		for _, peerURL := range member.PeerURLs {
 			u, err := url.Parse(peerURL)
 			if err != nil {
@@ -224,9 +243,11 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 			if u.Hostname() == address {
 				log.Info("removing member from etcd", "name", member.Name, "id", member.ID, "address", address)
 				_, err := client.MemberRemove(ctx, member.ID)
+
 				if errors.Is(err, rpctypes.ErrGRPCMemberNotFound) {
 					return nil
 				}
+
 				return err
 			}
 		}
@@ -237,18 +258,23 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 
 func (p *PodReconciler) clusterToken(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
 	var tokenSecret v1.Secret
+
 	nn := types.NamespacedName{
 		Name:      TokenSecretName(cluster.Name),
 		Namespace: cluster.Namespace,
 	}
+
 	if cluster.Spec.TokenSecretRef != nil {
 		nn.Name = TokenSecretName(cluster.Name)
 	}
+
 	if err := p.Client.Get(ctx, nn, &tokenSecret); err != nil {
 		return "", err
 	}
+
 	if _, ok := tokenSecret.Data["token"]; !ok {
 		return "", fmt.Errorf("no token field in secret %s/%s", nn.Namespace, nn.Name)
 	}
+
 	return string(tokenSecret.Data["token"]), nil
 }

@@ -68,6 +68,7 @@ func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterSetLi
 	log.Info("ensuring network policies")
 
 	var setNetworkPolicy *networkingv1.NetworkPolicy
+
 	for _, cs := range clusterSetList.Items {
 		if cs.Spec.DisableNetworkPolicy {
 			continue
@@ -78,14 +79,17 @@ func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterSetLi
 
 		var err error
 		setNetworkPolicy, err = netpol(ctx, "", &cs, n.Client)
+
 		if err != nil {
 			return err
 		}
 
 		log.Info("new NetworkPolicy for clusterset")
+
 		if err := n.Client.Update(ctx, setNetworkPolicy); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }

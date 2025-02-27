@@ -51,6 +51,7 @@ func AddPodPVCController(ctx context.Context, virtMgr, hostMgr manager.Manager, 
 		clusterName:      clusterName,
 		clusterNamespace: clusterNamespace,
 	}
+
 	return ctrl.NewControllerManagedBy(virtMgr).
 		For(&v1.Pod{}).
 		WithOptions(controller.Options{
@@ -61,10 +62,12 @@ func AddPodPVCController(ctx context.Context, virtMgr, hostMgr manager.Manager, 
 
 func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.clusterName, "clusterNamespace", r.clusterNamespace)
+
 	var (
 		virtPod v1.Pod
 		cluster v1alpha1.Cluster
 	)
+
 	if err := r.hostClient.Get(ctx, types.NamespacedName{Name: r.clusterName, Namespace: r.clusterNamespace}, &cluster); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -73,15 +76,18 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	if err := r.virtualClient.Get(ctx, req.NamespacedName, &virtPod); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
+
 	// reconcile pods with pvcs
 	for _, vol := range virtPod.Spec.Volumes {
 		if vol.PersistentVolumeClaim != nil {
 			log.Info("Handling pod with pvc")
+
 			if err := r.reconcilePodWithPVC(ctx, &virtPod, vol.PersistentVolumeClaim); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -89,30 +95,41 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 // and then created on the host, the PV is not synced to the host cluster.
 func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pvcSource *v1.PersistentVolumeClaimVolumeSource) error {
 	log := ctrl.LoggerFrom(ctx).WithValues("PersistentVolumeClaim", pvcSource.ClaimName)
-	var (
-		pvc v1.PersistentVolumeClaim
-	)
-	if err := r.virtualClient.Get(ctx, types.NamespacedName{Name: pvcSource.ClaimName, Namespace: pod.Namespace}, &pvc); err != nil {
+
+	var pvc v1.PersistentVolumeClaim
+
+	key := types.NamespacedName{
+		Name:      pvcSource.ClaimName,
+		Namespace: pod.Namespace,
+	}
+
+	if err := r.virtualClient.Get(ctx, key, &pvc); err != nil {
 		return ctrlruntimeclient.IgnoreNotFound(err)
 	}
+
 	log.Info("Creating pseudo Persistent Volume")
+
 	pv := r.pseudoPV(&pvc)
 	if err := r.virtualClient.Create(ctx, pv); err != nil {
 		return ctrlruntimeclient.IgnoreAlreadyExists(err)
 	}
+
 	orig := pv.DeepCopy()
 	pv.Status = v1.PersistentVolumeStatus{
 		Phase: v1.VolumeBound,
 	}
+
 	if err := r.virtualClient.Status().Patch(ctx, pv, ctrlruntimeclient.MergeFrom(orig)); err != nil {
 		return err
 	}
 
 	log.Info("Patch the status of PersistentVolumeClaim to Bound")
+
 	pvcPatch := pvc.DeepCopy()
 	if pvcPatch.Annotations == nil {
 		pvcPatch.Annotations = make(map[string]string)
 	}
+
 	pvcPatch.Annotations[volume.AnnBoundByController] = "yes"
 	pvcPatch.Annotations[volume.AnnBindCompleted] = "yes"
 	pvcPatch.Status.Phase = v1.ClaimBound
@@ -122,10 +139,12 @@ func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pv
 }
 
 func (r *PodReconciler) pseudoPV(obj *v1.PersistentVolumeClaim) *v1.PersistentVolume {
-	storageClass := ""
+	var storageClass string
+
 	if obj.Spec.StorageClassName != nil {
 		storageClass = *obj.Spec.StorageClassName
 	}
+
 	return &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: obj.Name,

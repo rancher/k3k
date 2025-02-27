@@ -96,6 +96,7 @@ func sharedAgentData(cluster *v1alpha1.Cluster, serviceName, token, ip string) s
 	if cluster.Spec.Version == "" {
 		version = cluster.Status.HostVersion
 	}
+
 	return fmt.Sprintf(`clusterName: %s
 clusterNamespace: %s
 serverIP: %s
@@ -139,7 +140,6 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 }
 
 func (s *SharedAgent) podSpec() v1.PodSpec {
-	var limit v1.ResourceList
 	return v1.PodSpec{
 		ServiceAccountName: s.Name(),
 		NodeSelector:       s.cluster.Spec.NodeSelector,
@@ -187,7 +187,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 				Image:           s.image,
 				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
 				Resources: v1.ResourceRequirements{
-					Limits: limit,
+					Limits: v1.ResourceList{},
 				},
 				Args: []string{
 					"--config",
@@ -406,6 +406,7 @@ func (s *SharedAgent) webhookTLS(ctx context.Context) error {
 		}
 
 		altNames := []string{s.Name(), s.cluster.Name}
+
 		webhookCert, webhookKey, err := newWebhookCerts(s.Name(), altNames, caPrivateKeyPEM, caCertPEM)
 		if err != nil {
 			return err

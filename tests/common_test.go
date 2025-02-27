@@ -55,17 +55,19 @@ func NewVirtualCluster(cluster v1alpha1.Cluster) {
 		WithTimeout(time.Minute * 2).
 		WithPolling(time.Second * 5).
 		Should(BeTrue())
-
 }
 
 // NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
 func NewVirtualK8sClient(cluster v1alpha1.Cluster) *kubernetes.Clientset {
 	GinkgoHelper()
 
-	var err error
+	var (
+		err    error
+		config *clientcmdapi.Config
+	)
+
 	ctx := context.Background()
 
-	var config *clientcmdapi.Config
 	Eventually(func() error {
 		vKubeconfig := kubeconfig.New()
 		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)

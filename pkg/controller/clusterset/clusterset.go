@@ -67,10 +67,13 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string) error {
 // namespaceEventHandler will enqueue reconciling requests for all the ClusterSets in the changed namespace
 func namespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
-		var requests []reconcile.Request
-		var set v1alpha1.ClusterSetList
+		var (
+			requests []reconcile.Request
+			set      v1alpha1.ClusterSetList
+		)
 
 		_ = reconciler.Client.List(ctx, &set, client.InNamespace(obj.GetName()))
+
 		for _, clusterSet := range set.Items {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
@@ -87,10 +90,13 @@ func namespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
 // sameNamespaceEventHandler will enqueue reconciling requests for all the ClusterSets in the changed namespace
 func sameNamespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
-		var requests []reconcile.Request
-		var set v1alpha1.ClusterSetList
+		var (
+			requests []reconcile.Request
+			set      v1alpha1.ClusterSetList
+		)
 
 		_ = reconciler.Client.List(ctx, &set, client.InNamespace(obj.GetNamespace()))
+
 		for _, clusterSet := range set.Items {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
@@ -199,6 +205,7 @@ func netpol(ctx context.Context, clusterCIDR string, clusterSet *v1alpha1.Cluste
 		if err := client.List(ctx, &nodeList); err != nil {
 			return nil, err
 		}
+
 		for _, node := range nodeList.Items {
 			cidrList = append(cidrList, node.Spec.PodCIDRs...)
 		}
@@ -261,6 +268,7 @@ func (c *ClusterSetReconciler) reconcileNamespacePodSecurityLabels(ctx context.C
 	log.Info("reconciling Namespace")
 
 	var ns v1.Namespace
+
 	key := types.NamespacedName{Name: clusterSet.Namespace}
 	if err := c.Client.Get(ctx, key, &ns); err != nil {
 		return err
@@ -295,8 +303,10 @@ func (c *ClusterSetReconciler) reconcileNamespacePodSecurityLabels(ctx context.C
 		log.V(1).Info("labels changed, updating namespace")
 
 		ns.Labels = newLabels
+
 		return c.Client.Update(ctx, &ns)
 	}
+
 	return nil
 }
 

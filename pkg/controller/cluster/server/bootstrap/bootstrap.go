@@ -45,7 +45,6 @@ func GenerateBootstrapData(ctx context.Context, cluster *v1alpha1.Cluster, ip, t
 	}
 
 	return json.Marshal(bootstrap)
-
 }
 
 func requestBootstrap(token, serverIP string) (*ControlRuntimeBootstrap, error) {
@@ -64,6 +63,7 @@ func requestBootstrap(token, serverIP string) (*ControlRuntimeBootstrap, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	req.Header.Add("Authorization", "Basic "+basicAuth("server", token))
 
 	resp, err := client.Do(req)
@@ -91,6 +91,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 	if err != nil {
 		return err
 	}
+
 	bootstrap.ClientCA.Content = string(decoded)
 
 	//client-ca-key
@@ -98,6 +99,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 	if err != nil {
 		return err
 	}
+
 	bootstrap.ClientCAKey.Content = string(decoded)
 
 	//server-ca
@@ -105,6 +107,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 	if err != nil {
 		return err
 	}
+
 	bootstrap.ServerCA.Content = string(decoded)
 
 	//server-ca-key
@@ -112,6 +115,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 	if err != nil {
 		return err
 	}
+
 	bootstrap.ServerCAKey.Content = string(decoded)
 
 	//etcd-ca
@@ -119,6 +123,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 	if err != nil {
 		return err
 	}
+
 	bootstrap.ETCDServerCA.Content = string(decoded)
 
 	//etcd-ca-key
@@ -126,6 +131,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 	if err != nil {
 		return err
 	}
+
 	bootstrap.ETCDServerCAKey.Content = string(decoded)
 
 	return nil
@@ -162,5 +168,6 @@ func GetFromSecret(ctx context.Context, client client.Client, cluster *v1alpha1.
 
 	var bootstrap ControlRuntimeBootstrap
 	err := json.Unmarshal(bootstrapData, &bootstrap)
+
 	return &bootstrap, err
 }

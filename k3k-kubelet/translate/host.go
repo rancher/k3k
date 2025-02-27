@@ -45,14 +45,17 @@ func (t *ToHostTranslator) TranslateTo(obj client.Object) {
 	if annotations == nil {
 		annotations = map[string]string{}
 	}
+
 	annotations[ResourceNameAnnotation] = obj.GetName()
 	annotations[ResourceNamespaceAnnotation] = obj.GetNamespace()
 	obj.SetAnnotations(annotations)
+
 	// add a label to quickly identify objects owned by a given virtual cluster
 	labels := obj.GetLabels()
 	if labels == nil {
 		labels = map[string]string{}
 	}
+
 	labels[ClusterNameLabel] = t.ClusterName
 	obj.SetLabels(labels)
 
@@ -77,6 +80,7 @@ func (t *ToHostTranslator) TranslateFrom(obj client.Object) {
 	// In this case, we need to have some sort of fallback or error return
 	name := annotations[ResourceNameAnnotation]
 	namespace := annotations[ResourceNamespaceAnnotation]
+
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
 	delete(annotations, ResourceNameAnnotation)
@@ -91,7 +95,6 @@ func (t *ToHostTranslator) TranslateFrom(obj client.Object) {
 	// resource version/UID won't match what's in the virtual cluster.
 	obj.SetResourceVersion("")
 	obj.SetUID("")
-
 }
 
 // TranslateName returns the name of the resource in the host cluster. Will not update the object with this name.
@@ -106,5 +109,6 @@ func (t *ToHostTranslator) TranslateName(namespace string, name string) string {
 	nameKey := fmt.Sprintf("%s+%s+%s", name, namespace, t.ClusterName)
 	// it's possible that the suffix will be in the name, so we use hex to make it valid for k8s
 	nameSuffix := hex.EncodeToString([]byte(nameKey))
+
 	return controller.SafeConcatName(namePrefix, nameSuffix)
 }

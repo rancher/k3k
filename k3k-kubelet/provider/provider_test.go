@@ -13,6 +13,7 @@ func Test_overrideEnvVars(t *testing.T) {
 		orig []corev1.EnvVar
 		new  []corev1.EnvVar
 	}
+
 	tests := []struct {
 		name string
 		args args

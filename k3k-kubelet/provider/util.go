@@ -17,9 +17,9 @@ func (t *translatorSizeQueue) Next() *remotecommand.TerminalSize {
 	if !ok {
 		return nil
 	}
-	newSize := remotecommand.TerminalSize{
+
+	return &remotecommand.TerminalSize{
 		Width:  size.Width,
 		Height: size.Height,
 	}
-	return &newSize
 }

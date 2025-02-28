@@ -31,7 +31,7 @@ func main() {
 	// Check if the file exists and if the content is different
 	existingContent, err := os.ReadFile(outputFile)
 	if err == nil && bytes.Equal(existingContent, []byte(md)) {
-		fmt.Println("Documentation is up to date, no changes made.")
+		fmt.Println("Cli Documentation is up to date, no changes made.")
 		return
 	}
 

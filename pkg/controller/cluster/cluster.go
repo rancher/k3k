@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"time"
@@ -39,8 +40,10 @@ const (
 
 	maxConcurrentReconciles = 1
 
-	defaultClusterCIDR           = "10.44.0.0/16"
-	defaultClusterServiceCIDR    = "10.45.0.0/16"
+	defaultVirtualClusterCIDR    = "10.52.0.0/16"
+	defaultVirtualServiceCIDR    = "10.53.0.0/16"
+	defaultSharedClusterCIDR     = "10.42.0.0/16"
+	defaultSharedServiceCIDR     = "10.43.0.0/16"
 	defaultStoragePersistentSize = "1G"
 	memberRemovalTimeout         = time.Minute * 1
 )
@@ -170,18 +173,40 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	if cluster.Status.ClusterCIDR == "" {
-		cluster.Status.ClusterCIDR = defaultClusterCIDR
+		cluster.Status.ClusterCIDR = defaultVirtualClusterCIDR
+		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
+			cluster.Status.ClusterCIDR = defaultSharedClusterCIDR
+		}
 	}
 
 	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
 	if cluster.Status.ServiceCIDR == "" {
-		cluster.Status.ServiceCIDR = defaultClusterServiceCIDR
+		// in shared mode try to lookup the serviceCIDR
+		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
+			log.Info("looking up Service CIDR for shared mode")
+
+			cluster.Status.ServiceCIDR, err = c.lookupServiceCIDR(ctx)
+
+			if err != nil {
+				log.Error(err, "error while looking up Cluster Service CIDR")
+
+				cluster.Status.ServiceCIDR = defaultSharedServiceCIDR
+			}
+		}
+
+		// in virtual mode assign a default serviceCIDR
+		if cluster.Spec.Mode == v1alpha1.VirtualClusterMode {
+			log.Info("assign default service CIDR for virtual mode")
+
+			cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
+		}
 	}
 
 	service, err := c.ensureClusterService(ctx, cluster)
 	if err != nil {
 		return err
 	}
+
 	serviceIP := service.Spec.ClusterIP
 
 	if err := c.createClusterConfigs(ctx, cluster, s, serviceIP); err != nil {
@@ -232,8 +257,10 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 		bootstrapSecret.Data = map[string][]byte{
 			"bootstrap": bootstrapData,
 		}
+
 		return nil
 	})
+
 	return err
 }
 
@@ -259,9 +286,11 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	if err != nil {
 		return err
 	}
+
 	if err := controllerutil.SetControllerReference(cluster, serverConfig, c.Scheme); err != nil {
 		return err
 	}
+
 	if err := c.Client.Create(ctx, serverConfig); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
@@ -284,8 +313,10 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 		}
 
 		currentService.Spec = expectedService.Spec
+
 		return nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -321,6 +352,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1
 
 		return nil
 	})
+
 	if err != nil {
 		return err
 	}
@@ -341,6 +373,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 	if err := controllerutil.SetControllerReference(cluster, serverStatefulService, c.Scheme); err != nil {
 		return err
 	}
+
 	if err := c.Client.Create(ctx, serverStatefulService); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
@@ -351,12 +384,15 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 	if err != nil {
 		return err
 	}
+
 	currentServerStatefulSet := expectedServerStatefulSet.DeepCopy()
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerStatefulSet, func() error {
 		if err := controllerutil.SetControllerReference(cluster, currentServerStatefulSet, c.Scheme); err != nil {
 			return err
 		}
+
 		currentServerStatefulSet.Spec = expectedServerStatefulSet.Spec
+
 		return nil
 	})
 
@@ -377,6 +413,7 @@ func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluste
 	subjectName := controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName)
 
 	found := false
+
 	for _, subject := range clusterRoleBinding.Subjects {
 		if subject.Name == subjectName && subject.Namespace == cluster.Namespace {
 			found = true
@@ -411,5 +448,83 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
 	if cluster.Name == ClusterInvalidName {
 		return errors.New("invalid cluster name " + cluster.Name + " no action will be taken")
 	}
+
 	return nil
+}
+
+// lookupServiceCIDR attempts to determine the cluster's service CIDR.
+// It first attempts to create a failing Service (with an invalid cluster IP)and extracts the expected CIDR from the resulting error.
+// If that fails, it searches the 'kube-apiserver' Pod's arguments for the --service-cluster-ip-range flag.
+func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, error) {
+	log := ctrl.LoggerFrom(ctx)
+
+	// Try to look for the serviceCIDR creating a failing service.
+	// The error should contain the expected serviceCIDR
+
+	log.Info("looking up serviceCIDR from a failing service creation")
+
+	failingSvc := v1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "fail", Namespace: "default"},
+		Spec:       v1.ServiceSpec{ClusterIP: "1.1.1.1"},
+	}
+
+	if err := c.Client.Create(ctx, &failingSvc); err != nil {
+		splittedErrMsg := strings.Split(err.Error(), "The range of valid IPs is ")
+
+		if len(splittedErrMsg) > 1 {
+			serviceCIDR := strings.TrimSpace(splittedErrMsg[1])
+			log.Info("found serviceCIDR from failing service creation: " + serviceCIDR)
+
+			// validate serviceCIDR
+			_, serviceCIDRAddr, err := net.ParseCIDR(serviceCIDR)
+			if err != nil {
+				return "", err
+			}
+
+			return serviceCIDRAddr.String(), nil
+		}
+	}
+
+	// Try to look for the the kube-apiserver Pod, and look for the '--service-cluster-ip-range' flag.
+
+	log.Info("looking up serviceCIDR from kube-apiserver pod")
+
+	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{
+		"component": "kube-apiserver",
+		"tier":      "control-plane",
+	})
+	listOpts := &ctrlruntimeclient.ListOptions{Namespace: "kube-system"}
+	matchingLabels.ApplyToList(listOpts)
+
+	var podList v1.PodList
+	if err := c.Client.List(ctx, &podList, listOpts); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return "", err
+		}
+	}
+
+	if len(podList.Items) > 0 {
+		apiServerPod := podList.Items[0]
+		apiServerArgs := apiServerPod.Spec.Containers[0].Args
+
+		for _, arg := range apiServerArgs {
+			if strings.HasPrefix(arg, "--service-cluster-ip-range=") {
+				serviceCIDR := strings.TrimPrefix(arg, "--service-cluster-ip-range=")
+				log.Info("found serviceCIDR from kube-apiserver pod: " + serviceCIDR)
+
+				// validate serviceCIDR
+				_, serviceCIDRAddr, err := net.ParseCIDR(serviceCIDR)
+				if err != nil {
+					log.Error(err, "serviceCIDR is not valid")
+					break
+				}
+
+				return serviceCIDRAddr.String(), nil
+			}
+		}
+	}
+
+	log.Info("cannot find serviceCIDR from lookup")
+
+	return "", nil
 }

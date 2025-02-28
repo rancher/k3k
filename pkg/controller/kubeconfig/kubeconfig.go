@@ -40,6 +40,7 @@ func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster 
 	if err != nil {
 		return nil, err
 	}
+
 	serverCACert := []byte(bootstrapData.ServerCA.Content)
 
 	adminCert, adminKey, err := certs.CreateClientCertKey(
@@ -110,6 +111,7 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1alp
 	expose := cluster.Spec.Expose
 	if expose != nil && expose.Ingress != nil {
 		var k3kIngress networkingv1.Ingress
+
 		ingressKey := types.NamespacedName{
 			Name:      server.IngressName(cluster.Name),
 			Namespace: cluster.Namespace,
@@ -118,6 +120,7 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1alp
 		if err := client.Get(ctx, ingressKey, &k3kIngress); err != nil {
 			return "", err
 		}
+
 		url = fmt.Sprintf("https://%s", k3kIngress.Spec.Rules[0].Host)
 	}
 

@@ -41,7 +41,7 @@ func (v *VirtualAgent) EnsureResources(ctx context.Context) error {
 		v.config(ctx),
 		v.deployment(ctx),
 	); err != nil {
-		return fmt.Errorf("failed to ensure some resources: %w\n", err)
+		return fmt.Errorf("failed to ensure some resources: %w", err)
 	}
 
 	return nil
@@ -81,6 +81,7 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 	image := controller.K3SImage(v.cluster)
 
 	const name = "k3k-agent"
+
 	selector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			"cluster": v.cluster.Name,
@@ -116,7 +117,9 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 
 func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelector *metav1.LabelSelector) v1.PodSpec {
 	var limit v1.ResourceList
+
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
+
 	podSpec := v1.PodSpec{
 		Volumes: []v1.Volume{
 			{

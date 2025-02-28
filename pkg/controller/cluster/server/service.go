@@ -54,9 +54,11 @@ func Service(cluster *v1alpha1.Cluster) *v1.Service {
 			if nodePortConfig.ServerPort != nil {
 				k3sServerPort.NodePort = *nodePortConfig.ServerPort
 			}
+
 			if nodePortConfig.ServicePort != nil {
 				k3sServicePort.NodePort = *nodePortConfig.ServicePort
 			}
+
 			if nodePortConfig.ETCDPort != nil {
 				etcdPort.NodePort = *nodePortConfig.ETCDPort
 			}

@@ -34,6 +34,7 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster v1alpha
 	for _, pod := range podList.Items {
 		if controllerutil.ContainsFinalizer(&pod, etcdPodFinalizerName) {
 			controllerutil.RemoveFinalizer(&pod, etcdPodFinalizerName)
+
 			if err := c.Client.Update(ctx, &pod); err != nil {
 				return reconcile.Result{}, err
 			}
@@ -47,10 +48,12 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster v1alpha
 	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
 		// remove finalizer from the cluster and update it.
 		controllerutil.RemoveFinalizer(&cluster, clusterFinalizerName)
+
 		if err := c.Client.Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -63,6 +66,7 @@ func (c *ClusterReconciler) unbindNodeProxyClusterRole(ctx context.Context, clus
 	subjectName := controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName)
 
 	var cleanedSubjects []rbacv1.Subject
+
 	for _, subject := range clusterRoleBinding.Subjects {
 		if subject.Name != subjectName || subject.Namespace != cluster.Namespace {
 			cleanedSubjects = append(cleanedSubjects, subject)
@@ -75,5 +79,6 @@ func (c *ClusterReconciler) unbindNodeProxyClusterRole(ctx context.Context, clus
 	}
 
 	clusterRoleBinding.Subjects = cleanedSubjects
+
 	return c.Client.Update(ctx, clusterRoleBinding)
 }

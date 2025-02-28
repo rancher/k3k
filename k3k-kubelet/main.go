@@ -102,9 +102,11 @@ func main() {
 	app.Before = func(clx *cli.Context) error {
 		logger = log.New(debug)
 		ctrlruntimelog.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
+
 		return nil
 	}
 	app.Action = run
+
 	if err := app.Run(os.Args); err != nil {
 		logrus.Fatal(err)
 	}
@@ -112,6 +114,7 @@ func main() {
 
 func run(clx *cli.Context) error {
 	ctx := context.Background()
+
 	if err := cfg.parse(configFile); err != nil {
 		logger.Fatalw("failed to parse config file", "path", configFile, zap.Error(err))
 	}
@@ -119,6 +122,7 @@ func run(clx *cli.Context) error {
 	if err := cfg.validate(); err != nil {
 		logger.Fatalw("failed to validate config", zap.Error(err))
 	}
+
 	k, err := newKubelet(ctx, &cfg, logger)
 	if err != nil {
 		logger.Fatalw("failed to create new virtual kubelet instance", zap.Error(err))

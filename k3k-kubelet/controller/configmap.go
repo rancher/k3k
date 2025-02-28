@@ -38,6 +38,7 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 		// return immediately without re-enqueueing. We aren't watching this resource
 		return reconcile.Result{}, nil
 	}
+
 	var virtual corev1.ConfigMap
 
 	if err := c.VirtualClient.Get(ctx, req.NamespacedName, &virtual); err != nil {
@@ -45,16 +46,19 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 			Requeue: true,
 		}, fmt.Errorf("unable to get configmap %s/%s from virtual cluster: %w", req.Namespace, req.Name, err)
 	}
+
 	translated, err := c.TranslateFunc(&virtual)
 	if err != nil {
 		return reconcile.Result{
 			Requeue: true,
 		}, fmt.Errorf("unable to translate configmap %s/%s from virtual cluster: %w", req.Namespace, req.Name, err)
 	}
+
 	translatedKey := types.NamespacedName{
 		Namespace: translated.Namespace,
 		Name:      translated.Name,
 	}
+
 	var host corev1.ConfigMap
 	if err = c.HostClient.Get(ctx, translatedKey, &host); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -66,6 +70,7 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 				}, fmt.Errorf("unable to create host configmap %s/%s for virtual configmap %s/%s: %w",
 					translated.Namespace, translated.Name, req.Namespace, req.Name, err)
 		}
+
 		return reconcile.Result{Requeue: true}, fmt.Errorf("unable to get host configmap %s/%s: %w", translated.Namespace, translated.Name, err)
 	}
 	// we are going to use the host in order to avoid conflicts on update
@@ -79,13 +84,14 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 	for key, value := range translated.Labels {
 		host.Labels[key] = value
 	}
+
 	if err = c.HostClient.Update(ctx, &host); err != nil {
 		return reconcile.Result{
 				Requeue: true,
 			}, fmt.Errorf("unable to update host configmap %s/%s for virtual configmap %s/%s: %w",
 				translated.Namespace, translated.Name, req.Namespace, req.Name, err)
-
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -94,6 +100,7 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 func (c *ConfigMapSyncer) isWatching(key types.NamespacedName) bool {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
+
 	return c.objs.Has(key)
 }
 
@@ -104,23 +111,29 @@ func (c *ConfigMapSyncer) AddResource(ctx context.Context, namespace, name strin
 		Namespace: namespace,
 		Name:      name,
 	}
+
 	// if we already sync this object, no need to writelock/add it
 	if c.isWatching(objKey) {
 		return nil
 	}
+
 	// lock in write mode since we are now adding the key
 	c.mutex.Lock()
 	if c.objs == nil {
 		c.objs = sets.Set[types.NamespacedName]{}
 	}
+
 	c.objs = c.objs.Insert(objKey)
 	c.mutex.Unlock()
+
 	_, err := c.Reconcile(ctx, reconcile.Request{
 		NamespacedName: objKey,
 	})
+
 	if err != nil {
 		return fmt.Errorf("unable to reconcile new object %s/%s: %w", objKey.Namespace, objKey.Name, err)
 	}
+
 	return nil
 }
 
@@ -143,24 +156,34 @@ func (c *ConfigMapSyncer) RemoveResource(ctx context.Context, namespace, name st
 	}); err != nil {
 		return fmt.Errorf("unable to remove configmap: %w", err)
 	}
+
 	c.mutex.Lock()
 	if c.objs == nil {
 		c.objs = sets.Set[types.NamespacedName]{}
 	}
+
 	c.objs = c.objs.Delete(objKey)
 	c.mutex.Unlock()
+
 	return nil
 }
 
 func (c *ConfigMapSyncer) removeHostConfigMap(ctx context.Context, virtualNamespace, virtualName string) error {
 	var vConfigMap corev1.ConfigMap
-	err := c.VirtualClient.Get(ctx, types.NamespacedName{Namespace: virtualNamespace, Name: virtualName}, &vConfigMap)
-	if err != nil {
+
+	key := types.NamespacedName{
+		Namespace: virtualNamespace,
+		Name:      virtualName,
+	}
+
+	if err := c.VirtualClient.Get(ctx, key, &vConfigMap); err != nil {
 		return fmt.Errorf("unable to get virtual configmap %s/%s: %w", virtualNamespace, virtualName, err)
 	}
+
 	translated, err := c.TranslateFunc(&vConfigMap)
 	if err != nil {
 		return fmt.Errorf("unable to translate virtual secret: %s/%s: %w", virtualNamespace, virtualName, err)
 	}
+
 	return c.HostClient.Delete(ctx, translated)
 }

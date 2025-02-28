@@ -31,33 +31,43 @@ func (c *config) unmarshalYAML(data []byte) error {
 	if c.ClusterName == "" {
 		c.ClusterName = conf.ClusterName
 	}
+
 	if c.ClusterNamespace == "" {
 		c.ClusterNamespace = conf.ClusterNamespace
 	}
+
 	if c.HostConfigPath == "" {
 		c.HostConfigPath = conf.HostConfigPath
 	}
+
 	if c.VirtualConfigPath == "" {
 		c.VirtualConfigPath = conf.VirtualConfigPath
 	}
+
 	if c.KubeletPort == "" {
 		c.KubeletPort = conf.KubeletPort
 	}
+
 	if c.AgentHostname == "" {
 		c.AgentHostname = conf.AgentHostname
 	}
+
 	if c.ServiceName == "" {
 		c.ServiceName = conf.ServiceName
 	}
+
 	if c.Token == "" {
 		c.Token = conf.Token
 	}
+
 	if c.ServerIP == "" {
 		c.ServerIP = conf.ServerIP
 	}
+
 	if c.Version == "" {
 		c.Version = conf.Version
 	}
+
 	return nil
 }
 
@@ -65,12 +75,15 @@ func (c *config) validate() error {
 	if c.ClusterName == "" {
 		return errors.New("cluster name is not provided")
 	}
+
 	if c.ClusterNamespace == "" {
 		return errors.New("cluster namespace is not provided")
 	}
+
 	if c.AgentHostname == "" {
 		return errors.New("agent Hostname is not provided")
 	}
+
 	return nil
 }
 
@@ -83,5 +96,6 @@ func (c *config) parse(path string) error {
 	if err != nil {
 		return err
 	}
+
 	return c.unmarshalYAML(b)
 }

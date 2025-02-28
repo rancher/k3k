@@ -19,7 +19,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -58,11 +57,11 @@ func (s *SharedAgent) EnsureResources(ctx context.Context) error {
 		s.role(ctx),
 		s.roleBinding(ctx),
 		s.service(ctx),
-		s.deployment(ctx),
+		s.daemonset(ctx),
 		s.dnsService(ctx),
 		s.webhookTLS(ctx),
 	); err != nil {
-		return fmt.Errorf("failed to ensure some resources: %w\n", err)
+		return fmt.Errorf("failed to ensure some resources: %w", err)
 	}
 
 	return nil
@@ -97,6 +96,7 @@ func sharedAgentData(cluster *v1alpha1.Cluster, serviceName, token, ip string) s
 	if cluster.Spec.Version == "" {
 		version = cluster.Status.HostVersion
 	}
+
 	return fmt.Sprintf(`clusterName: %s
 clusterNamespace: %s
 serverIP: %s
@@ -106,16 +106,16 @@ version: %s`,
 		cluster.Name, cluster.Namespace, ip, serviceName, token, version)
 }
 
-func (s *SharedAgent) deployment(ctx context.Context) error {
+func (s *SharedAgent) daemonset(ctx context.Context) error {
 	labels := map[string]string{
 		"cluster": s.cluster.Name,
 		"type":    "agent",
 		"mode":    "shared",
 	}
 
-	deploy := &apps.Deployment{
+	deploy := &apps.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Deployment",
+			Kind:       "DaemonSet",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -123,7 +123,7 @@ func (s *SharedAgent) deployment(ctx context.Context) error {
 			Namespace: s.cluster.Namespace,
 			Labels:    labels,
 		},
-		Spec: apps.DeploymentSpec{
+		Spec: apps.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -140,10 +140,9 @@ func (s *SharedAgent) deployment(ctx context.Context) error {
 }
 
 func (s *SharedAgent) podSpec() v1.PodSpec {
-	var limit v1.ResourceList
-
 	return v1.PodSpec{
 		ServiceAccountName: s.Name(),
+		NodeSelector:       s.cluster.Spec.NodeSelector,
 		Volumes: []v1.Volume{
 			{
 				Name: "config",
@@ -188,7 +187,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 				Image:           s.image,
 				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
 				Resources: v1.ResourceRequirements{
-					Limits: limit,
+					Limits: v1.ResourceList{},
 				},
 				Args: []string{
 					"--config",
@@ -345,6 +344,11 @@ func (s *SharedAgent) role(ctx context.Context) error {
 				Resources: []string{"clusters"},
 				Verbs:     []string{"get", "watch", "list"},
 			},
+			{
+				APIGroups: []string{"coordination.k8s.io"},
+				Resources: []string{"leases"},
+				Verbs:     []string{"*"},
+			},
 		},
 	}
 
@@ -390,7 +394,7 @@ func (s *SharedAgent) webhookTLS(ctx context.Context) error {
 		},
 	}
 
-	key := client.ObjectKeyFromObject(webhookSecret)
+	key := ctrlruntimeclient.ObjectKeyFromObject(webhookSecret)
 	if err := s.client.Get(ctx, key, webhookSecret); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
@@ -402,6 +406,7 @@ func (s *SharedAgent) webhookTLS(ctx context.Context) error {
 		}
 
 		altNames := []string{s.Name(), s.cluster.Name}
+
 		webhookCert, webhookKey, err := newWebhookCerts(s.Name(), altNames, caPrivateKeyPEM, caCertPEM)
 		if err != nil {
 			return err

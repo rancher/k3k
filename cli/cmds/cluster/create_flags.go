@@ -61,14 +61,14 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 			Destination: &config.storageClassName,
 		},
 		&cli.StringSliceFlag{
-			Name:  "server-args",
-			Usage: "servers extra arguments",
-			Value: &config.serverArgs,
+			Name:        "server-args",
+			Usage:       "servers extra arguments",
+			Destination: &config.serverArgs,
 		},
 		&cli.StringSliceFlag{
-			Name:  "agent-args",
-			Usage: "agents extra arguments",
-			Value: &config.agentArgs,
+			Name:        "agent-args",
+			Usage:       "agents extra arguments",
+			Destination: &config.agentArgs,
 		},
 		&cli.StringFlag{
 			Name:        "version",

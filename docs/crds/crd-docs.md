@@ -118,8 +118,8 @@ _Appears in:_
 | `priorityClass` _string_ | PriorityClass is the priorityClassName that will be applied to all server/agent pods.<br />In "shared" mode the priorityClassName will be applied also to the workloads. |  |  |
 | `clusterLimit` _[ClusterLimit](#clusterlimit)_ | Limit is the limits that apply for the server/worker nodes. |  |  |
 | `tokenSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | TokenSecretRef is Secret reference used as a token join server and worker nodes to the cluster. The controller<br />assumes that the secret has a field "token" in its data, any other fields in the secret will be ignored. |  |  |
-| `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for the pods of the cluster. Defaults to 10.42.0.0/16. |  |  |
-| `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for the services in the cluster. Defaults to 10.43.0.0/16. |  |  |
+| `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for the pods of the cluster. Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode. |  |  |
+| `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for the services in the cluster. Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode. |  |  |
 | `clusterDNS` _string_ | ClusterDNS is the IP address for the coredns service. Needs to be in the range provided by ServiceCIDR or CoreDNS may not deploy.<br />Defaults to 10.43.0.10. |  |  |
 | `serverArgs` _string array_ | ServerArgs are the ordered key value pairs (e.x. "testArg", "testValue") for the K3s pods running in server mode. |  |  |
 | `agentArgs` _string array_ | AgentArgs are the ordered key value pairs (e.x. "testArg", "testValue") for the K3s pods running in agent mode. |  |  |

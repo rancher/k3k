@@ -102,6 +102,7 @@ func NewCommand() *cli.Command {
 
 func generate(clx *cli.Context) error {
 	var cluster v1alpha1.Cluster
+
 	ctx := context.Background()
 
 	restConfig, err := clientcmd.BuildConfigFromFlags("", cmds.Kubeconfig)
@@ -115,6 +116,7 @@ func generate(clx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	clusterKey := types.NamespacedName{
 		Name:      name,
 		Namespace: cmds.Namespace(),
@@ -128,11 +130,12 @@ func generate(clx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	host := strings.Split(url.Host, ":")
 	if kubeconfigServerHost != "" {
 		host = []string{kubeconfigServerHost}
-		err := altNames.Set(kubeconfigServerHost)
-		if err != nil {
+
+		if err := altNames.Set(kubeconfigServerHost); err != nil {
 			return err
 		}
 	}
@@ -154,6 +157,7 @@ func generate(clx *cli.Context) error {
 	logrus.Infof("waiting for cluster to be available..")
 
 	var kubeconfig *clientcmdapi.Config
+
 	if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
 		kubeconfig, err = cfg.Extract(ctx, ctrlClient, &cluster, host[0])
 		return err

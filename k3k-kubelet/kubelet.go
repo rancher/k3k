@@ -82,6 +82,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	if err != nil {
 		return nil, err
 	}
+
 	virtConfig, err := virtRestConfig(ctx, c.VirtualConfigPath, hostClient, c.ClusterName, c.ClusterNamespace, c.Token, logger)
 	if err != nil {
 		return nil, err
@@ -93,7 +94,10 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 	}
 
 	hostMgr, err := ctrl.NewManager(hostConfig, manager.Options{
-		Scheme: baseScheme,
+		Scheme:                  baseScheme,
+		LeaderElection:          true,
+		LeaderElectionNamespace: c.ClusterNamespace,
+		LeaderElectionID:        c.ClusterName,
 		Metrics: ctrlserver.Options{
 			BindAddress: ":8083",
 		},
@@ -107,38 +111,53 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, errors.New("unable to create controller-runtime mgr for host cluster: " + err.Error())
 	}
 
-	virtualScheme := runtime.NewScheme()
 	// virtual client will only use core types (for now), no need to add anything other than the basics
-	err = clientgoscheme.AddToScheme(virtualScheme)
-	if err != nil {
+	virtualScheme := runtime.NewScheme()
+	if err := clientgoscheme.AddToScheme(virtualScheme); err != nil {
 		return nil, errors.New("unable to add client go types to virtual cluster scheme: " + err.Error())
 	}
+
 	webhookServer := webhook.NewServer(webhook.Options{
 		CertDir: "/opt/rancher/k3k-webhook",
 	})
+
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
-		Scheme:        virtualScheme,
-		WebhookServer: webhookServer,
+		Scheme:                  virtualScheme,
+		WebhookServer:           webhookServer,
+		LeaderElection:          true,
+		LeaderElectionNamespace: "kube-system",
+		LeaderElectionID:        c.ClusterName,
 		Metrics: ctrlserver.Options{
 			BindAddress: ":8084",
 		},
 	})
+
 	if err != nil {
 		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
 	}
+
 	logger.Info("adding pod mutator webhook")
-	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.AgentHostname, c.ServiceName, logger); err != nil {
+
+	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.ServiceName, logger); err != nil {
 		return nil, errors.New("unable to add pod mutator webhook for virtual cluster: " + err.Error())
 	}
 
 	logger.Info("adding service syncer controller")
+
 	if err := k3kkubeletcontroller.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
 		return nil, errors.New("failed to add service syncer controller: " + err.Error())
 	}
 
 	logger.Info("adding pvc syncer controller")
+
 	if err := k3kkubeletcontroller.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
 		return nil, errors.New("failed to add pvc syncer controller: " + err.Error())
+	}
+
+	logger.Info("adding pod pvc controller")
+
+	if err := k3kkubeletcontroller.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
+		return nil, errors.New("failed to add pod pvc controller: " + err.Error())
 	}
 
 	clusterIP, err := clusterIP(ctx, c.ServiceName, c.ClusterNamespace, hostClient)
@@ -148,6 +167,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 
 	// get the cluster's DNS IP to be injected to pods
 	var dnsService v1.Service
+
 	dnsName := controller.SafeConcatNameWithPrefix(c.ClusterName, "kube-dns")
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: dnsName, Namespace: c.ClusterNamespace}, &dnsService); err != nil {
 		return nil, errors.New("failed to get the DNS service for the cluster: " + err.Error())
@@ -177,10 +197,16 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 
 func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostClient ctrlruntimeclient.Client) (string, error) {
 	var service v1.Service
-	serviceKey := types.NamespacedName{Namespace: clusterNamespace, Name: serviceName}
+
+	serviceKey := types.NamespacedName{
+		Namespace: clusterNamespace,
+		Name:      serviceName,
+	}
+
 	if err := hostClient.Get(ctx, serviceKey, &service); err != nil {
 		return "", err
 	}
+
 	return service.Spec.ClusterIP, nil
 }
 
@@ -189,10 +215,12 @@ func (k *kubelet) registerNode(ctx context.Context, agentIP, srvPort, namespace,
 	nodeOpts := k.nodeOpts(ctx, srvPort, namespace, name, hostname, agentIP)
 
 	var err error
+
 	k.node, err = nodeutil.NewNode(k.name, providerFunc, nodeutil.WithClient(k.virtClient), nodeOpts)
 	if err != nil {
 		return errors.New("unable to start kubelet: " + err.Error())
 	}
+
 	return nil
 }
 
@@ -225,10 +253,13 @@ func (k *kubelet) start(ctx context.Context) {
 	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
 		k.logger.Fatalw("node was not ready within timeout of 1 minute", zap.Error(err))
 	}
+
 	<-k.node.Done()
+
 	if err := k.node.Err(); err != nil {
 		k.logger.Fatalw("node stopped with an error", zap.Error(err))
 	}
+
 	k.logger.Info("node exited successfully")
 }
 
@@ -253,13 +284,16 @@ func (k *kubelet) nodeOpts(ctx context.Context, srvPort, namespace, name, hostna
 		if err := nodeutil.AttachProviderRoutes(mux)(c); err != nil {
 			return errors.New("unable to attach routes: " + err.Error())
 		}
+
 		c.Handler = mux
 
 		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, hostname, k.token, agentIP)
 		if err != nil {
 			return errors.New("unable to get tls config: " + err.Error())
 		}
+
 		c.TLSConfig = tlsConfig
+
 		return nil
 	}
 }
@@ -273,8 +307,11 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 	if err := hostClient.Get(ctx, types.NamespacedName{Namespace: clusterNamespace, Name: clusterName}, &cluster); err != nil {
 		return nil, err
 	}
+
 	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
+
 	var b *bootstrap.ControlRuntimeBootstrap
+
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err != nil
 	}, func() error {
@@ -285,20 +322,27 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 	}); err != nil {
 		return nil, errors.New("unable to decode bootstrap: " + err.Error())
 	}
+
 	adminCert, adminKey, err := certs.CreateClientCertKey(
-		controller.AdminCommonName, []string{user.SystemPrivilegedGroup},
-		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, time.Hour*24*time.Duration(356),
+		controller.AdminCommonName,
+		[]string{user.SystemPrivilegedGroup},
+		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		time.Hour*24*time.Duration(356),
 		b.ClientCA.Content,
-		b.ClientCAKey.Content)
+		b.ClientCAKey.Content,
+	)
+
 	if err != nil {
 		return nil, err
 	}
 
 	url := fmt.Sprintf("https://%s:%d", server.ServiceName(cluster.Name), server.ServerPort)
+
 	kubeconfigData, err := kubeconfigBytes(url, []byte(b.ServerCA.Content), adminCert, adminKey)
 	if err != nil {
 		return nil, err
 	}
+
 	return clientcmd.RESTConfigFromKubeConfig(kubeconfigData)
 }
 
@@ -330,10 +374,13 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 		cluster v1alpha1.Cluster
 		b       *bootstrap.ControlRuntimeBootstrap
 	)
+
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster); err != nil {
 		return nil, err
 	}
+
 	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
+
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err != nil
 	}, func() error {
@@ -343,27 +390,34 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 	}); err != nil {
 		return nil, errors.New("unable to decode bootstrap: " + err.Error())
 	}
+
 	ip := net.ParseIP(agentIP)
+
 	altNames := certutil.AltNames{
 		DNSNames: []string{hostname},
 		IPs:      []net.IP{ip},
 	}
+
 	cert, key, err := certs.CreateClientCertKey(nodeName, nil, &altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, 0, b.ServerCA.Content, b.ServerCAKey.Content)
 	if err != nil {
 		return nil, errors.New("unable to get cert and key: " + err.Error())
 	}
+
 	clientCert, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, errors.New("unable to get key pair: " + err.Error())
 	}
+
 	// create rootCA CertPool
 	certs, err := certutil.ParseCertsPEM([]byte(b.ServerCA.Content))
 	if err != nil {
 		return nil, errors.New("unable to create ca certs: " + err.Error())
 	}
+
 	if len(certs) < 1 {
 		return nil, errors.New("ca cert is not parsed correctly")
 	}
+
 	pool := x509.NewCertPool()
 	pool.AddCert(certs[0])
 

@@ -25,5 +25,6 @@ func addKnownTypes(s *runtime.Scheme) error {
 		&ClusterSetList{},
 	)
 	metav1.AddToGroupVersion(s, SchemeGroupVersion)
+
 	return nil
 }

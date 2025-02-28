@@ -30,12 +30,14 @@ func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) e
 	}
 
 	virtualSecretName := k3kcontroller.SafeConcatNameWithPrefix(pod.Spec.ServiceAccountName, "token")
+
 	virtualSecret := virtualSecret(virtualSecretName, pod.Namespace, pod.Spec.ServiceAccountName)
 	if err := p.VirtualClient.Create(ctx, virtualSecret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
+
 	// extracting the tokens data from the secret we just created
 	virtualSecretKey := types.NamespacedName{
 		Name:      virtualSecret.Name,
@@ -49,9 +51,11 @@ func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) e
 	if len(virtualSecret.Data) < 3 {
 		return fmt.Errorf("token secret %s/%s data is empty", virtualSecret.Namespace, virtualSecret.Name)
 	}
+
 	hostSecret := virtualSecret.DeepCopy()
 	hostSecret.Type = ""
 	hostSecret.Annotations = make(map[string]string)
+
 	p.Translator.TranslateTo(hostSecret)
 
 	if err := p.HostClient.Create(ctx, hostSecret); err != nil {
@@ -59,7 +63,9 @@ func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) e
 			return err
 		}
 	}
+
 	p.translateToken(tPod, hostSecret.Name)
+
 	return nil
 }
 
@@ -96,6 +102,7 @@ func isKubeAccessVolumeFound(pod *corev1.Pod) bool {
 			return true
 		}
 	}
+
 	return false
 }
 

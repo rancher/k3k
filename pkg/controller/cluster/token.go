@@ -26,13 +26,17 @@ func (c *ClusterReconciler) token(ctx context.Context, cluster *v1alpha1.Cluster
 		Name:      cluster.Spec.TokenSecretRef.Name,
 		Namespace: cluster.Spec.TokenSecretRef.Namespace,
 	}
+
 	var tokenSecret v1.Secret
+
 	if err := c.Client.Get(ctx, nn, &tokenSecret); err != nil {
 		return "", err
 	}
+
 	if _, ok := tokenSecret.Data["token"]; !ok {
 		return "", fmt.Errorf("no token field in secret %s/%s", nn.Namespace, nn.Name)
 	}
+
 	return string(tokenSecret.Data["token"]), nil
 }
 
@@ -75,15 +79,16 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1al
 	}
 
 	return token, err
-
 }
 
 func random(size int) (string, error) {
 	token := make([]byte, size)
+
 	_, err := rand.Read(token)
 	if err != nil {
 		return "", err
 	}
+
 	return hex.EncodeToString(token), err
 }
 

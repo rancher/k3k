@@ -8,7 +8,6 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -47,8 +46,8 @@ func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object
 	})
 
 	if result != controllerutil.OperationResultNone {
-		key := client.ObjectKeyFromObject(obj)
-		log.Info(fmt.Sprintf("ensuring %T", obj), "key", key, "result, result")
+		key := ctrlruntimeclient.ObjectKeyFromObject(obj)
+		log.Info(fmt.Sprintf("ensuring %T", obj), "key", key, "result", result)
 	}
 
 	return err

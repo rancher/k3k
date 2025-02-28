@@ -17,6 +17,9 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
+        description: |-
+          ClusterSet represents a group of virtual Kubernetes clusters managed by k3k.
+          It allows defining common configurations and constraints for the clusters within the set.
         properties:
           apiVersion:
             description: |-
@@ -37,12 +40,12 @@ spec:
             type: object
           spec:
             default: {}
-            description: Spec is the spec of the ClusterSet
+            description: Spec defines the desired state of the ClusterSet.
             properties:
               allowedNodeTypes:
                 default:
                 - shared
-                description: AllowedNodeTypes are the allowed cluster provisioning
+                description: AllowedNodeTypes specifies the allowed cluster provisioning
                   modes. Defaults to [shared].
                 items:
                   description: ClusterMode is the possible provisioning mode of a
@@ -57,8 +60,8 @@ spec:
                 - message: mode is immutable
                   rule: self == oldSelf
               defaultLimits:
-                description: DefaultLimits are the limits used for servers/agents
-                  when a cluster in the set doesn't provide any
+                description: DefaultLimits specifies the default resource limits for
+                  servers/agents when a cluster in the set doesn't provide any.
                 properties:
                   serverLimit:
                     additionalProperties:
@@ -67,8 +70,8 @@ spec:
                       - type: string
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
-                    description: ServerLimit is the limits (cpu/mem) that apply to
-                      the server nodes
+                    description: ServerLimit specifies resource limits for server
+                      nodes.
                     type: object
                   workerLimit:
                     additionalProperties:
@@ -77,23 +80,22 @@ spec:
                       - type: string
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
-                    description: WorkerLimit is the limits (cpu/mem) that apply to
-                      the agent nodes
+                    description: WorkerLimit specifies resource limits for agent nodes.
                     type: object
                 type: object
               defaultNodeSelector:
                 additionalProperties:
                   type: string
-                description: DefaultNodeSelector is the node selector that applies
-                  to all clusters (server + agent) in the set
+                description: DefaultNodeSelector specifies the node selector that
+                  applies to all clusters (server + agent) in the set.
                 type: object
               defaultPriorityClass:
-                description: DefaultPriorityClass is the priorityClassName applied
-                  to all pods of all clusters in the set
+                description: DefaultPriorityClass specifies the priorityClassName
+                  applied to all pods of all clusters in the set.
                 type: string
               disableNetworkPolicy:
-                description: DisableNetworkPolicy is an option that will disable the
-                  creation of a default networkpolicy for cluster isolation
+                description: DisableNetworkPolicy indicates whether to disable the
+                  creation of a default network policy for cluster isolation.
                 type: boolean
               maxLimits:
                 additionalProperties:
@@ -102,12 +104,12 @@ spec:
                   - type: string
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
-                description: MaxLimits are the limits that apply to all clusters (server
-                  + agent) in the set
+                description: MaxLimits specifies the maximum resource limits that
+                  apply to all clusters (server + agent) in the set.
                 type: object
               podSecurityAdmissionLevel:
-                description: PodSecurityAdmissionLevel is the policy level applied
-                  to the pods in the namespace.
+                description: PodSecurityAdmissionLevel specifies the pod security
+                  admission level applied to the pods in the namespace.
                 enum:
                 - privileged
                 - baseline
@@ -115,11 +117,11 @@ spec:
                 type: string
             type: object
           status:
-            description: Status is the status of the ClusterSet
+            description: Status reflects the observed state of the ClusterSet.
             properties:
               conditions:
-                description: Conditions are the invidual conditions for the cluster
-                  set
+                description: Conditions are the individual conditions for the cluster
+                  set.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource.\n---\nThis struct is intended for
@@ -190,7 +192,7 @@ spec:
                 type: array
               lastUpdateTime:
                 description: LastUpdate is the timestamp when the status was last
-                  updated
+                  updated.
                 type: string
               observedGeneration:
                 description: ObservedGeneration was the generation at the time the
@@ -198,7 +200,7 @@ spec:
                 format: int64
                 type: integer
               summary:
-                description: Summary is a summary of the status
+                description: Summary is a summary of the status.
                 type: string
             type: object
         required:

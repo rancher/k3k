@@ -17,6 +17,10 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
+        description: |-
+          Cluster defines a virtual Kubernetes cluster managed by k3k.
+          It specifies the desired state of a virtual cluster, including version, node configuration, and networking.
+          k3k uses this to provision and manage these virtual clusters.
         properties:
           apiVersion:
             description: |-
@@ -37,52 +41,61 @@ spec:
             type: object
           spec:
             default: {}
+            description: Spec defines the desired state of the Cluster.
             properties:
               addons:
-                description: Addons is a list of secrets containing raw YAML which
-                  will be deployed in the virtual K3k cluster on startup.
+                description: Addons specifies secrets containing raw YAML to deploy
+                  on cluster startup.
                 items:
+                  description: Addon specifies a Secret containing YAML to be deployed
+                    on cluster startup.
                   properties:
                     secretNamespace:
+                      description: SecretNamespace is the namespace of the Secret.
                       type: string
                     secretRef:
+                      description: SecretRef is the name of the Secret.
                       type: string
                   type: object
                 type: array
               agentArgs:
-                description: AgentArgs are the ordered key value pairs (e.x. "testArg",
-                  "testValue") for the K3s pods running in agent mode.
+                description: |-
+                  AgentArgs specifies ordered key-value pairs for K3s agent pods.
+                  Example: ["--node-name=my-agent-node"]
                 items:
                   type: string
                 type: array
               agents:
                 default: 0
-                description: Agents is the number of K3s pods to run in agent (worker)
-                  mode.
+                description: |-
+                  Agents specifies the number of K3s pods to run in agent (worker) mode.
+                  Must be 0 or greater. Defaults to 0.
+                  This field is ignored in "shared" mode.
                 format: int32
                 type: integer
                 x-kubernetes-validations:
                 - message: invalid value for agents
                   rule: self >= 0
               clusterCIDR:
-                description: ClusterCIDR is the CIDR range for the pods of the cluster.
-                  Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual
-                  mode.
+                description: |-
+                  ClusterCIDR is the CIDR range for pod IPs.
+                  Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.
+                  This field is immutable.
                 type: string
                 x-kubernetes-validations:
                 - message: clusterCIDR is immutable
                   rule: self == oldSelf
               clusterDNS:
                 description: |-
-                  ClusterDNS is the IP address for the coredns service. Needs to be in the range provided by ServiceCIDR or CoreDNS may not deploy.
-                  Defaults to 10.43.0.10.
+                  ClusterDNS is the IP address for the CoreDNS service.
+                  Must be within the ServiceCIDR range. Defaults to 10.43.0.10.
+                  This field is immutable.
                 type: string
                 x-kubernetes-validations:
                 - message: clusterDNS is immutable
                   rule: self == oldSelf
               clusterLimit:
-                description: Limit is the limits that apply for the server/worker
-                  nodes.
+                description: Limit defines resource limits for server/agent nodes.
                 properties:
                   serverLimit:
                     additionalProperties:
@@ -91,8 +104,8 @@ spec:
                       - type: string
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
-                    description: ServerLimit is the limits (cpu/mem) that apply to
-                      the server nodes
+                    description: ServerLimit specifies resource limits for server
+                      nodes.
                     type: object
                   workerLimit:
                     additionalProperties:
@@ -101,51 +114,53 @@ spec:
                       - type: string
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
-                    description: WorkerLimit is the limits (cpu/mem) that apply to
-                      the agent nodes
+                    description: WorkerLimit specifies resource limits for agent nodes.
                     type: object
                 type: object
               expose:
                 description: |-
-                  Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a
-                  clusterIP which is relatively secure, but difficult to access outside of the cluster.
+                  Expose specifies options for exposing the API server.
+                  By default, it's only exposed as a ClusterIP.
                 properties:
                   ingress:
+                    description: Ingress specifies options for exposing the API server
+                      through an Ingress.
                     properties:
                       annotations:
                         additionalProperties:
                           type: string
-                        description: Annotations is a key value map that will enrich
-                          the Ingress annotations
+                        description: Annotations specifies annotations to add to the
+                          Ingress.
                         type: object
                       ingressClassName:
+                        description: IngressClassName specifies the IngressClass to
+                          use for the Ingress.
                         type: string
                     type: object
                   loadbalancer:
-                    properties:
-                      enabled:
-                        type: boolean
-                    required:
-                    - enabled
+                    description: LoadBalancer specifies options for exposing the API
+                      server through a LoadBalancer service.
                     type: object
                   nodePort:
+                    description: NodePort specifies options for exposing the API server
+                      through NodePort.
                     properties:
                       etcdPort:
                         description: |-
                           ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
-                          If not specified, a port will be allocated (default: 30000-32767)
+                          If not specified, a port will be allocated (default: 30000-32767).
                         format: int32
                         type: integer
                       serverPort:
                         description: |-
                           ServerPort is the port on each node on which the K3s server service is exposed when type is NodePort.
-                          If not specified, a port will be allocated (default: 30000-32767)
+                          If not specified, a port will be allocated (default: 30000-32767).
                         format: int32
                         type: integer
                       servicePort:
                         description: |-
                           ServicePort is the port on each node on which the K3s service is exposed when type is NodePort.
-                          If not specified, a port will be allocated (default: 30000-32767)
+                          If not specified, a port will be allocated (default: 30000-32767).
                         format: int32
                         type: integer
                     type: object
@@ -159,8 +174,9 @@ spec:
                   - shared
                   - virtual
                 default: shared
-                description: Mode is the cluster provisioning mode which can be either
-                  "shared" or "virtual". Defaults to "shared"
+                description: |-
+                  Mode specifies the cluster provisioning mode: "shared" or "virtual".
+                  Defaults to "shared". This field is immutable.
                 type: string
                 x-kubernetes-validations:
                 - message: mode is immutable
@@ -169,65 +185,75 @@ spec:
                 additionalProperties:
                   type: string
                 description: |-
-                  NodeSelector is the node selector that will be applied to all server/agent pods.
-                  In "shared" mode the node selector will be applied also to the workloads.
+                  NodeSelector specifies node labels to constrain where server/agent pods are scheduled.
+                  In "shared" mode, this also applies to workloads.
                 type: object
               persistence:
                 default:
                   type: dynamic
                 description: |-
-                  Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data
-                  persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field.
+                  Persistence specifies options for persisting etcd data.
+                  Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.
+                  A default StorageClass is required for dynamic persistence.
                 properties:
                   storageClassName:
+                    description: |-
+                      StorageClassName is the name of the StorageClass to use for the PVC.
+                      This field is only relevant in "dynamic" mode.
                     type: string
                   storageRequestSize:
+                    description: |-
+                      StorageRequestSize is the requested size for the PVC.
+                      This field is only relevant in "dynamic" mode.
                     type: string
                   type:
                     default: dynamic
-                    description: PersistenceMode is the storage mode of a Cluster.
+                    description: Type specifies the persistence mode.
                     type: string
                 required:
                 - type
                 type: object
               priorityClass:
                 description: |-
-                  PriorityClass is the priorityClassName that will be applied to all server/agent pods.
-                  In "shared" mode the priorityClassName will be applied also to the workloads.
+                  PriorityClass specifies the priorityClassName for server/agent pods.
+                  In "shared" mode, this also applies to workloads.
                 type: string
               serverArgs:
-                description: ServerArgs are the ordered key value pairs (e.x. "testArg",
-                  "testValue") for the K3s pods running in server mode.
+                description: |-
+                  ServerArgs specifies ordered key-value pairs for K3s server pods.
+                  Example: ["--tls-san=example.com"]
                 items:
                   type: string
                 type: array
               servers:
                 default: 1
-                description: Servers is the number of K3s pods to run in server (controlplane)
-                  mode.
+                description: |-
+                  Servers specifies the number of K3s pods to run in server (control plane) mode.
+                  Must be at least 1. Defaults to 1.
                 format: int32
                 type: integer
                 x-kubernetes-validations:
                 - message: cluster must have at least one server
                   rule: self >= 1
               serviceCIDR:
-                description: ServiceCIDR is the CIDR range for the services in the
-                  cluster. Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16
-                  in virtual mode.
+                description: |-
+                  ServiceCIDR is the CIDR range for service IPs.
+                  Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.
+                  This field is immutable.
                 type: string
                 x-kubernetes-validations:
                 - message: serviceCIDR is immutable
                   rule: self == oldSelf
               tlsSANs:
-                description: TLSSANs are the subjectAlternativeNames for the certificate
-                  the K3s server will use.
+                description: TLSSANs specifies subject alternative names for the K3s
+                  server certificate.
                 items:
                   type: string
                 type: array
               tokenSecretRef:
                 description: |-
-                  TokenSecretRef is Secret reference used as a token join server and worker nodes to the cluster. The controller
-                  assumes that the secret has a field "token" in its data, any other fields in the secret will be ignored.
+                  TokenSecretRef is a Secret reference containing the token used by worker nodes to join the cluster.
+                  The Secret must have a "token" field in its data.
                 properties:
                   name:
                     description: name is unique within a namespace to reference a
@@ -240,34 +266,50 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
               version:
-                description: Version is a string representing the Kubernetes version
-                  to be used by the virtual nodes.
+                description: |-
+                  Version is the K3s version to use for the virtual nodes.
+                  It should follow the K3s versioning convention (e.g., v1.28.2-k3s1).
+                  If not specified, the Kubernetes version of the host node will be used.
                 type: string
             type: object
           status:
+            description: Status reflects the observed state of the Cluster.
             properties:
               clusterCIDR:
+                description: ClusterCIDR is the CIDR range for pod IPs.
                 type: string
               clusterDNS:
+                description: ClusterDNS is the IP address for the CoreDNS service.
                 type: string
               hostVersion:
+                description: HostVersion is the Kubernetes version of the host node.
                 type: string
               persistence:
+                description: Persistence specifies options for persisting etcd data.
                 properties:
                   storageClassName:
+                    description: |-
+                      StorageClassName is the name of the StorageClass to use for the PVC.
+                      This field is only relevant in "dynamic" mode.
                     type: string
                   storageRequestSize:
+                    description: |-
+                      StorageRequestSize is the requested size for the PVC.
+                      This field is only relevant in "dynamic" mode.
                     type: string
                   type:
                     default: dynamic
-                    description: PersistenceMode is the storage mode of a Cluster.
+                    description: Type specifies the persistence mode.
                     type: string
                 required:
                 - type
                 type: object
               serviceCIDR:
+                description: ServiceCIDR is the CIDR range for service IPs.
                 type: string
               tlsSANs:
+                description: TLSSANs specifies subject alternative names for the K3s
+                  server certificate.
                 items:
                   type: string
                 type: array

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path"
@@ -27,13 +26,6 @@ func main() {
 	}
 
 	outputFile := path.Join(wd, "docs/cli/cli-docs.md")
-
-	// Check if the file exists and if the content is different
-	existingContent, err := os.ReadFile(outputFile)
-	if err == nil && bytes.Equal(existingContent, []byte(md)) {
-		fmt.Println("Cli Documentation is up to date, no changes made.")
-		return
-	}
 
 	err = os.WriteFile(outputFile, []byte(md), 0644)
 	if err != nil {

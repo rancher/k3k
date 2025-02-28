@@ -236,7 +236,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 	replicas = *s.cluster.Spec.Servers
 
-	if s.cluster.Spec.Persistence.Type == v1alpha1.DynamicNodesType {
+	if s.cluster.Spec.Persistence.Type == v1alpha1.DynamicPersistenceMode {
 		persistent = true
 		pvClaim = s.setupDynamicPersistence()
 	}
@@ -339,7 +339,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 			},
 		},
 	}
-	if s.cluster.Spec.Persistence.Type == v1alpha1.DynamicNodesType {
+	if s.cluster.Spec.Persistence.Type == v1alpha1.DynamicPersistenceMode {
 		ss.Spec.VolumeClaimTemplates = []v1.PersistentVolumeClaim{pvClaim}
 	}
 

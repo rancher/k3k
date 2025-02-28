@@ -43,15 +43,15 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:        "persistence-type",
-			Usage:       "persistence mode for the nodes (ephemeral, static, dynamic)",
-			Value:       string(v1alpha1.DynamicNodesType),
+			Usage:       "persistence mode for the nodes (dynamic, ephemeral, static)",
+			Value:       string(v1alpha1.DynamicPersistenceMode),
 			Destination: &config.persistenceType,
 			Action: func(ctx *cli.Context, value string) error {
 				switch v1alpha1.PersistenceMode(value) {
-				case v1alpha1.EphemeralNodeType, v1alpha1.DynamicNodesType:
+				case v1alpha1.EphemeralPersistenceMode, v1alpha1.DynamicPersistenceMode:
 					return nil
 				default:
-					return errors.New(`persistence-type should be one of "ephemeral", "static" or "dynamic"`)
+					return errors.New(`persistence-type should be one of "dynamic", "ephemeral" or "static"`)
 				}
 			},
 		},

@@ -36,3 +36,6 @@ K3K Cluster Configuration:
 
 **Additional context / logs:**
 <!-- Add any other context and/or logs about the problem here. -->
+<!-- kubectl logs -n k3k-system -l app.kubernetes.io/instance=k3k -->
+<!-- $ kubectl logs -n <cluster-namespace> k3k-<cluster-name>-server-0 -->
+<!-- $ kubectl logs -n <cluster-namespace> -l cluster=<cluster-name>,mode=shared # in shared mode -->

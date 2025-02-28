@@ -1,10 +1,9 @@
-package cluster
+package cmds
 
 import (
 	"context"
 	"errors"
 
-	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/sirupsen/logrus"
@@ -14,13 +13,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func NewDeleteCmd() *cli.Command {
+func NewClusterDeleteCmd() *cli.Command {
 	return &cli.Command{
 		Name:            "delete",
 		Usage:           "Delete an existing cluster",
 		UsageText:       "k3kcli cluster delete [command options] NAME",
 		Action:          delete,
-		Flags:           cmds.CommonFlags,
+		Flags:           CommonFlags,
 		HideHelpCommand: true,
 	}
 }
@@ -37,7 +36,7 @@ func delete(clx *cli.Context) error {
 		return errors.New("invalid cluster name")
 	}
 
-	restConfig, err := clientcmd.BuildConfigFromFlags("", cmds.Kubeconfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", Kubeconfig)
 	if err != nil {
 		return err
 	}
@@ -54,9 +53,8 @@ func delete(clx *cli.Context) error {
 	cluster := v1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: cmds.Namespace(),
+			Namespace: Namespace(),
 		},
 	}
-
 	return ctrlClient.Delete(ctx, &cluster)
 }

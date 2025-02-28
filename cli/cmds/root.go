@@ -1,10 +1,15 @@
 package cmds
 
 import (
+	"fmt"
 	"os"
 
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/buildinfo"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
 const (
@@ -12,9 +17,12 @@ const (
 )
 
 var (
-	debug       bool
-	Kubeconfig  string
-	namespace   string
+	Scheme = runtime.NewScheme()
+
+	debug      bool
+	Kubeconfig string
+	namespace  string
+
 	CommonFlags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "kubeconfig",
@@ -30,6 +38,11 @@ var (
 		},
 	}
 )
+
+func init() {
+	_ = clientgoscheme.AddToScheme(Scheme)
+	_ = v1alpha1.AddToScheme(Scheme)
+}
 
 func NewApp() *cli.App {
 	app := cli.NewApp()
@@ -48,8 +61,17 @@ func NewApp() *cli.App {
 		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
-
 		return nil
+	}
+
+	app.Version = buildinfo.Version
+	cli.VersionPrinter = func(cCtx *cli.Context) {
+		fmt.Println("k3kcli Version: " + buildinfo.Version)
+	}
+
+	app.Commands = []*cli.Command{
+		NewClusterCommand(),
+		NewKubeconfigCommand(),
 	}
 
 	return app
@@ -59,6 +81,5 @@ func Namespace() string {
 	if namespace == "" {
 		return defaultNamespace
 	}
-
 	return namespace
 }

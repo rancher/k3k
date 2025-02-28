@@ -61,6 +61,7 @@ func NewApp() *cli.App {
 		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
+
 		return nil
 	}
 
@@ -81,5 +82,6 @@ func Namespace() string {
 	if namespace == "" {
 		return defaultNamespace
 	}
+
 	return namespace
 }

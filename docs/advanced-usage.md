@@ -127,19 +127,7 @@ You can check the [k3kcli documentation](./cli/cli-docs.md) for the full specs.
 
     ```
 
-* Static Storage (Requires pre-provisioned PVs):
-
-    ```bash
-
-    k3kcli cluster create my-cluster --persistence-type static
-
-    ```
-
-    (You will need to ensure that persistent volumes that match the requirements of your k3k cluster exist before creation)
-
 *Important Notes:*
-
-* When using `--persistence-type static`, you must manually create PersistentVolumes (PVs) that match the storage requirements of your K3K cluster.
 
 * Using `--persistence-type ephemeral` will result in data loss if the nodes are restarted.
 

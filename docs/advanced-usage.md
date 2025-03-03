@@ -6,7 +6,7 @@ This document provides advanced usage information for k3k, including detailed us
 
 The `Cluster` resource provides a variety of fields for customizing the behavior of your virtual clusters. You can check the [CRD documentation](./crds/crd-docs.md) for the full specs.
 
-**Note:** Most of these customization options can also be configured using the `k3kcli` tool. Refer to the `k3kcli` documentation for more details.
+**Note:** Most of these customization options can also be configured using the `k3kcli` tool. Refer to the [k3kcli](./cli/cli-docs.md) documentation for more details.
 
 
 
@@ -112,3 +112,21 @@ The `clusterDNS` field specifies the IP address for the CoreDNS service. It need
 ### `serverArgs`
 
 The `serverArgs` field allows you to specify additional arguments to be passed to the K3s server pods.
+
+## Using the cli
+
+You can check the [k3kcli documentation](./cli/cli-docs.md) for the full specs.
+
+### No storage provider:
+
+* Ephemeral Storage:
+
+    ```bash
+    k3kcli cluster create my-cluster --persistence-type ephemeral
+    ```
+
+*Important Notes:*
+
+* Using `--persistence-type ephemeral` will result in data loss if the nodes are restarted.
+
+* It is highly recommended to use `--persistence-type dynamic` with a configured storage class.

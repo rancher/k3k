@@ -1,4 +1,4 @@
-package kubeconfig
+package cmds
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/certs"
@@ -16,23 +15,15 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/authentication/user"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func init() {
-	_ = clientgoscheme.AddToScheme(Scheme)
-	_ = v1alpha1.AddToScheme(Scheme)
-}
-
 var (
-	Scheme                  = runtime.NewScheme()
 	name                    string
 	cn                      string
 	org                     cli.StringSlice
@@ -88,11 +79,11 @@ var subcommands = []*cli.Command{
 		Usage:           "Generate kubeconfig for clusters",
 		SkipFlagParsing: false,
 		Action:          generate,
-		Flags:           append(cmds.CommonFlags, generateKubeconfigFlags...),
+		Flags:           append(CommonFlags, generateKubeconfigFlags...),
 	},
 }
 
-func NewCommand() *cli.Command {
+func NewKubeconfigCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "kubeconfig",
 		Usage:       "Manage kubeconfig for clusters",
@@ -105,7 +96,7 @@ func generate(clx *cli.Context) error {
 
 	ctx := context.Background()
 
-	restConfig, err := clientcmd.BuildConfigFromFlags("", cmds.Kubeconfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", Kubeconfig)
 	if err != nil {
 		return err
 	}
@@ -119,7 +110,7 @@ func generate(clx *cli.Context) error {
 
 	clusterKey := types.NamespacedName{
 		Name:      name,
-		Namespace: cmds.Namespace(),
+		Namespace: Namespace(),
 	}
 
 	if err := ctrlClient.Get(ctx, clusterKey, &cluster); err != nil {

@@ -1,4 +1,4 @@
-package cluster
+package cmds
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
@@ -18,22 +17,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-var Scheme = runtime.NewScheme()
-
-func init() {
-	_ = clientgoscheme.AddToScheme(Scheme)
-	_ = v1alpha1.AddToScheme(Scheme)
-}
 
 type CreateConfig struct {
 	token                string
@@ -50,7 +40,7 @@ type CreateConfig struct {
 	kubeconfigServerHost string
 }
 
-func NewCreateCmd() *cli.Command {
+func NewClusterCreateCmd() *cli.Command {
 	createConfig := &CreateConfig{}
 	createFlags := NewCreateFlags(createConfig)
 
@@ -59,7 +49,7 @@ func NewCreateCmd() *cli.Command {
 		Usage:           "Create new cluster",
 		UsageText:       "k3kcli cluster create [command options] NAME",
 		Action:          createAction(createConfig),
-		Flags:           append(cmds.CommonFlags, createFlags...),
+		Flags:           append(CommonFlags, createFlags...),
 		HideHelpCommand: true,
 	}
 }
@@ -77,7 +67,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 			return errors.New("invalid cluster name")
 		}
 
-		restConfig, err := clientcmd.BuildConfigFromFlags("", cmds.Kubeconfig)
+		restConfig, err := clientcmd.BuildConfigFromFlags("", Kubeconfig)
 		if err != nil {
 			return err
 		}
@@ -98,7 +88,8 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 		if config.token != "" {
 			logrus.Infof("Creating cluster token secret")
 
-			obj := k3kcluster.TokenSecretObj(config.token, name, cmds.Namespace())
+			obj := k3kcluster.TokenSecretObj(config.token, name, Namespace())
+
 			if err := ctrlClient.Create(ctx, &obj); err != nil {
 				return err
 			}
@@ -106,7 +97,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 
 		logrus.Infof("Creating a new cluster [%s]", name)
 
-		cluster := newCluster(name, cmds.Namespace(), config)
+		cluster := newCluster(name, Namespace(), config)
 
 		cluster.Spec.Expose = &v1alpha1.ExposeConfig{
 			NodePort: &v1alpha1.NodePortConfig{},

@@ -1,16 +1,16 @@
-package cluster
+package cmds
 
 import (
 	"github.com/urfave/cli/v2"
 )
 
-func NewCommand() *cli.Command {
+func NewClusterCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "cluster",
 		Usage: "cluster command",
 		Subcommands: []*cli.Command{
-			NewCreateCmd(),
-			NewDeleteCmd(),
+			NewClusterCreateCmd(),
+			NewClusterDeleteCmd(),
 		},
 	}
 }

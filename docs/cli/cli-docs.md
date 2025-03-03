@@ -47,7 +47,7 @@ Create new cluster
 
 **--namespace**="": namespace to create the k3k cluster in
 
-**--persistence-type**="": persistence mode for the nodes (ephemeral, static, dynamic) (default: "dynamic")
+**--persistence-type**="": persistence mode for the nodes (dynamic, ephemeral, static) (default: "dynamic")
 
 **--server-args**="": servers extra arguments
 

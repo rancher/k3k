@@ -117,14 +117,12 @@ The `serverArgs` field allows you to specify additional arguments to be passed t
 
 You can check the [k3kcli documentation](./cli/cli-docs.md) for the full specs.
 
-### Examples for no storage provider:
+### No storage provider:
 
 * Ephemeral Storage:
 
     ```bash
-
     k3kcli cluster create my-cluster --persistence-type ephemeral
-
     ```
 
 *Important Notes:*

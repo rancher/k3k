@@ -67,7 +67,7 @@ var _ = When("a ephemeral cluster is installed", func() {
 					NodePort: &v1alpha1.NodePortConfig{},
 				},
 				Persistence: v1alpha1.PersistenceConfig{
-					Type: v1alpha1.EphemeralNodeType,
+					Type: v1alpha1.EphemeralPersistenceMode,
 				},
 			},
 		}
@@ -134,7 +134,7 @@ var _ = When("a ephemeral cluster is installed", func() {
 					NodePort: &v1alpha1.NodePortConfig{},
 				},
 				Persistence: v1alpha1.PersistenceConfig{
-					Type: v1alpha1.EphemeralNodeType,
+					Type: v1alpha1.EphemeralPersistenceMode,
 				},
 			},
 		}
@@ -223,7 +223,7 @@ var _ = When("a dynamic cluster is installed", func() {
 					NodePort: &v1alpha1.NodePortConfig{},
 				},
 				Persistence: v1alpha1.PersistenceConfig{
-					Type: v1alpha1.DynamicNodesType,
+					Type: v1alpha1.DynamicPersistenceMode,
 				},
 			},
 		}
@@ -290,7 +290,7 @@ var _ = When("a dynamic cluster is installed", func() {
 					NodePort: &v1alpha1.NodePortConfig{},
 				},
 				Persistence: v1alpha1.PersistenceConfig{
-					Type: v1alpha1.DynamicNodesType,
+					Type: v1alpha1.DynamicPersistenceMode,
 				},
 			},
 		}

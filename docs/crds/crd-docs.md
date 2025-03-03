@@ -17,7 +17,7 @@
 
 
 
-
+Addon specifies a Secret containing YAML to be deployed on cluster startup.
 
 
 
@@ -26,15 +26,17 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `secretNamespace` _string_ |  |  |  |
-| `secretRef` _string_ |  |  |  |
+| `secretNamespace` _string_ | SecretNamespace is the namespace of the Secret. |  |  |
+| `secretRef` _string_ | SecretRef is the name of the Secret. |  |  |
 
 
 #### Cluster
 
 
 
-
+Cluster defines a virtual Kubernetes cluster managed by k3k.
+It specifies the desired state of a virtual cluster, including version, node configuration, and networking.
+k3k uses this to provision and manage these virtual clusters.
 
 
 
@@ -46,14 +48,14 @@ _Appears in:_
 | `apiVersion` _string_ | `k3k.io/v1alpha1` | | |
 | `kind` _string_ | `Cluster` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[ClusterSpec](#clusterspec)_ |  | \{  \} |  |
+| `spec` _[ClusterSpec](#clusterspec)_ | Spec defines the desired state of the Cluster. | \{  \} |  |
 
 
 #### ClusterLimit
 
 
 
-
+ClusterLimit defines resource limits for server and agent nodes.
 
 
 
@@ -62,15 +64,15 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit is the limits (cpu/mem) that apply to the server nodes |  |  |
-| `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit is the limits (cpu/mem) that apply to the agent nodes |  |  |
+| `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit specifies resource limits for server nodes. |  |  |
+| `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  |  |
 
 
 #### ClusterList
 
 
 
-
+ClusterList is a list of Cluster resources.
 
 
 
@@ -102,7 +104,7 @@ _Appears in:_
 
 
 
-
+ClusterSpec defines the desired state of a virtual Kubernetes cluster.
 
 
 
@@ -111,23 +113,23 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `version` _string_ | Version is a string representing the Kubernetes version to be used by the virtual nodes. |  |  |
-| `servers` _integer_ | Servers is the number of K3s pods to run in server (controlplane) mode. | 1 |  |
-| `agents` _integer_ | Agents is the number of K3s pods to run in agent (worker) mode. | 0 |  |
-| `nodeSelector` _object (keys:string, values:string)_ | NodeSelector is the node selector that will be applied to all server/agent pods.<br />In "shared" mode the node selector will be applied also to the workloads. |  |  |
-| `priorityClass` _string_ | PriorityClass is the priorityClassName that will be applied to all server/agent pods.<br />In "shared" mode the priorityClassName will be applied also to the workloads. |  |  |
-| `clusterLimit` _[ClusterLimit](#clusterlimit)_ | Limit is the limits that apply for the server/worker nodes. |  |  |
-| `tokenSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | TokenSecretRef is Secret reference used as a token join server and worker nodes to the cluster. The controller<br />assumes that the secret has a field "token" in its data, any other fields in the secret will be ignored. |  |  |
-| `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for the pods of the cluster. Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode. |  |  |
-| `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for the services in the cluster. Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode. |  |  |
-| `clusterDNS` _string_ | ClusterDNS is the IP address for the coredns service. Needs to be in the range provided by ServiceCIDR or CoreDNS may not deploy.<br />Defaults to 10.43.0.10. |  |  |
-| `serverArgs` _string array_ | ServerArgs are the ordered key value pairs (e.x. "testArg", "testValue") for the K3s pods running in server mode. |  |  |
-| `agentArgs` _string array_ | AgentArgs are the ordered key value pairs (e.x. "testArg", "testValue") for the K3s pods running in agent mode. |  |  |
-| `tlsSANs` _string array_ | TLSSANs are the subjectAlternativeNames for the certificate the K3s server will use. |  |  |
-| `addons` _[Addon](#addon) array_ | Addons is a list of secrets containing raw YAML which will be deployed in the virtual K3k cluster on startup. |  |  |
-| `mode` _[ClusterMode](#clustermode)_ | Mode is the cluster provisioning mode which can be either "shared" or "virtual". Defaults to "shared" | shared | Enum: [shared virtual] <br /> |
-| `persistence` _[PersistenceConfig](#persistenceconfig)_ | Persistence contains options controlling how the etcd data of the virtual cluster is persisted. By default, no data<br />persistence is guaranteed, so restart of a virtual cluster pod may result in data loss without this field. | \{ type:dynamic \} |  |
-| `expose` _[ExposeConfig](#exposeconfig)_ | Expose contains options for exposing the apiserver inside/outside of the cluster. By default, this is only exposed as a<br />clusterIP which is relatively secure, but difficult to access outside of the cluster. |  |  |
+| `version` _string_ | Version is the K3s version to use for the virtual nodes.<br />It should follow the K3s versioning convention (e.g., v1.28.2-k3s1).<br />If not specified, the Kubernetes version of the host node will be used. |  |  |
+| `mode` _[ClusterMode](#clustermode)_ | Mode specifies the cluster provisioning mode: "shared" or "virtual".<br />Defaults to "shared". This field is immutable. | shared | Enum: [shared virtual] <br /> |
+| `servers` _integer_ | Servers specifies the number of K3s pods to run in server (control plane) mode.<br />Must be at least 1. Defaults to 1. | 1 |  |
+| `agents` _integer_ | Agents specifies the number of K3s pods to run in agent (worker) mode.<br />Must be 0 or greater. Defaults to 0.<br />This field is ignored in "shared" mode. | 0 |  |
+| `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for pod IPs.<br />Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.<br />This field is immutable. |  |  |
+| `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for service IPs.<br />Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.<br />This field is immutable. |  |  |
+| `clusterDNS` _string_ | ClusterDNS is the IP address for the CoreDNS service.<br />Must be within the ServiceCIDR range. Defaults to 10.43.0.10.<br />This field is immutable. |  |  |
+| `persistence` _[PersistenceConfig](#persistenceconfig)_ | Persistence specifies options for persisting etcd data.<br />Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.<br />A default StorageClass is required for dynamic persistence. | \{ type:dynamic \} |  |
+| `expose` _[ExposeConfig](#exposeconfig)_ | Expose specifies options for exposing the API server.<br />By default, it's only exposed as a ClusterIP. |  |  |
+| `nodeSelector` _object (keys:string, values:string)_ | NodeSelector specifies node labels to constrain where server/agent pods are scheduled.<br />In "shared" mode, this also applies to workloads. |  |  |
+| `priorityClass` _string_ | PriorityClass specifies the priorityClassName for server/agent pods.<br />In "shared" mode, this also applies to workloads. |  |  |
+| `clusterLimit` _[ClusterLimit](#clusterlimit)_ | Limit defines resource limits for server/agent nodes. |  |  |
+| `tokenSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | TokenSecretRef is a Secret reference containing the token used by worker nodes to join the cluster.<br />The Secret must have a "token" field in its data. |  |  |
+| `tlsSANs` _string array_ | TLSSANs specifies subject alternative names for the K3s server certificate. |  |  |
+| `serverArgs` _string array_ | ServerArgs specifies ordered key-value pairs for K3s server pods.<br />Example: ["--tls-san=example.com"] |  |  |
+| `agentArgs` _string array_ | AgentArgs specifies ordered key-value pairs for K3s agent pods.<br />Example: ["--node-name=my-agent-node"] |  |  |
+| `addons` _[Addon](#addon) array_ | Addons specifies secrets containing raw YAML to deploy on cluster startup. |  |  |
 
 
 
@@ -136,7 +138,7 @@ _Appears in:_
 
 
 
-
+ExposeConfig specifies options for exposing the API server.
 
 
 
@@ -145,16 +147,16 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `ingress` _[IngressConfig](#ingressconfig)_ |  |  |  |
-| `loadbalancer` _[LoadBalancerConfig](#loadbalancerconfig)_ |  |  |  |
-| `nodePort` _[NodePortConfig](#nodeportconfig)_ |  |  |  |
+| `ingress` _[IngressConfig](#ingressconfig)_ | Ingress specifies options for exposing the API server through an Ingress. |  |  |
+| `loadbalancer` _[LoadBalancerConfig](#loadbalancerconfig)_ | LoadBalancer specifies options for exposing the API server through a LoadBalancer service. |  |  |
+| `nodePort` _[NodePortConfig](#nodeportconfig)_ | NodePort specifies options for exposing the API server through NodePort. |  |  |
 
 
 #### IngressConfig
 
 
 
-
+IngressConfig specifies options for exposing the API server through an Ingress.
 
 
 
@@ -163,31 +165,28 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `annotations` _object (keys:string, values:string)_ | Annotations is a key value map that will enrich the Ingress annotations |  |  |
-| `ingressClassName` _string_ |  |  |  |
+| `annotations` _object (keys:string, values:string)_ | Annotations specifies annotations to add to the Ingress. |  |  |
+| `ingressClassName` _string_ | IngressClassName specifies the IngressClass to use for the Ingress. |  |  |
 
 
 #### LoadBalancerConfig
 
 
 
-
+LoadBalancerConfig specifies options for exposing the API server through a LoadBalancer service.
 
 
 
 _Appears in:_
 - [ExposeConfig](#exposeconfig)
 
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `enabled` _boolean_ |  |  |  |
 
 
 #### NodePortConfig
 
 
 
-
+NodePortConfig specifies options for exposing the API server through NodePort.
 
 
 
@@ -196,16 +195,16 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `serverPort` _integer_ | ServerPort is the port on each node on which the K3s server service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767) |  |  |
-| `servicePort` _integer_ | ServicePort is the port on each node on which the K3s service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767) |  |  |
-| `etcdPort` _integer_ | ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767) |  |  |
+| `serverPort` _integer_ | ServerPort is the port on each node on which the K3s server service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767). |  |  |
+| `servicePort` _integer_ | ServicePort is the port on each node on which the K3s service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767). |  |  |
+| `etcdPort` _integer_ | ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767). |  |  |
 
 
 #### PersistenceConfig
 
 
 
-
+PersistenceConfig specifies options for persisting etcd data.
 
 
 
@@ -215,9 +214,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _[PersistenceMode](#persistencemode)_ |  | dynamic |  |
-| `storageClassName` _string_ |  |  |  |
-| `storageRequestSize` _string_ |  |  |  |
+| `type` _[PersistenceMode](#persistencemode)_ | Type specifies the persistence mode. | dynamic |  |
+| `storageClassName` _string_ | StorageClassName is the name of the StorageClass to use for the PVC.<br />This field is only relevant in "dynamic" mode. |  |  |
+| `storageRequestSize` _string_ | StorageRequestSize is the requested size for the PVC.<br />This field is only relevant in "dynamic" mode. |  |  |
 
 
 #### PersistenceMode

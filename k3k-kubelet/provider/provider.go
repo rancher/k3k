@@ -40,6 +40,7 @@ import (
 	"k8s.io/client-go/transport/spdy"
 	compbasemetrics "k8s.io/component-base/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -397,6 +398,11 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 		"host_namespace", tPod.Namespace, "host_name", tPod.Name,
 		"virtual_namespace", pod.Namespace, "virtual_name", pod.Name,
 	)
+
+	// set ownerReference to the cluster object
+	if err := controllerutil.SetControllerReference(&cluster, tPod, p.HostClient.Scheme()); err != nil {
+		return err
+	}
 
 	return p.HostClient.Create(ctx, tPod)
 }

@@ -39,7 +39,10 @@ This section provides instructions on how to install K3k and the `k3kcli`.
 ### Prerequisites
 
 * [Helm](https://helm.sh) must be installed to use the charts. Please refer to Helm's [documentation](https://helm.sh/docs) to get started.
+* An existing [RKE2](https://docs.rke2.io/install/quickstart) Kubernetes cluster (recommended).
+* A configured storage provider with a default storage class.
 
+**Note:** If you do not have a storage provider, you can configure the cluster to use ephemeral or static storage. Please consult the [k3kcli advance usage](./docs/advanced-usage.md#using-the-cli) for instructions on using these options.
 
 ### Install the K3k controller
 

@@ -11,11 +11,13 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -202,6 +204,10 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		}
 	}
 
+	if err := c.ensureNetworkPolicy(ctx, cluster); err != nil {
+		return err
+	}
+
 	service, err := c.ensureClusterService(ctx, cluster)
 	if err != nil {
 		return err
@@ -295,6 +301,84 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("ensuring network policy")
+
+	expectedNetworkPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k3kcontroller.SafeConcatNameWithPrefix(cluster.Name),
+			Namespace: cluster.Namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "NetworkPolicy",
+			APIVersion: "networking.k8s.io/v1",
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+				networkingv1.PolicyTypeEgress,
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{},
+			},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				{
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							IPBlock: &networkingv1.IPBlock{
+								CIDR:   "0.0.0.0/0",
+								Except: []string{cluster.Status.ClusterCIDR},
+							},
+						},
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": cluster.Namespace,
+								},
+							},
+						},
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": metav1.NamespaceSystem,
+								},
+							},
+							PodSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"k8s-app": "kube-dns",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	currentNetworkPolicy := expectedNetworkPolicy.DeepCopy()
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentNetworkPolicy, func() error {
+		if err := controllerutil.SetControllerReference(cluster, currentNetworkPolicy, c.Scheme); err != nil {
+			return err
+		}
+
+		currentNetworkPolicy.Spec = expectedNetworkPolicy.Spec
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	key := client.ObjectKeyFromObject(currentNetworkPolicy)
+	if result != controllerutil.OperationResultNone {
+		log.Info("cluster network policy updated", "key", key, "result", result)
 	}
 
 	return nil

@@ -77,9 +77,11 @@ func delete(clx *cli.Context) error {
 		if err := ctrlClient.Get(ctx, key, &tokenSecret); err != nil {
 			return err
 		}
+
 		if err := controllerutil.RemoveOwnerReference(&cluster, &tokenSecret, ctrlClient.Scheme()); err != nil {
 			return err
 		}
+
 		if err := ctrlClient.Update(ctx, &tokenSecret); err != nil {
 			return err
 		}
@@ -92,14 +94,16 @@ func delete(clx *cli.Context) error {
 		if err := ctrlClient.Get(ctx, key, &webhookSecret); err != nil {
 			return err
 		}
+
 		if err := controllerutil.RemoveOwnerReference(&cluster, &webhookSecret, ctrlClient.Scheme()); err != nil {
 			return err
 		}
+
 		if err := ctrlClient.Update(ctx, &webhookSecret); err != nil {
 			return err
 		}
-
 	}
+
 	if err := ctrlClient.Delete(ctx, &cluster); err != nil {
 		return err
 	}
@@ -115,5 +119,6 @@ func delete(clx *cli.Context) error {
 			return err
 		}
 	}
+
 	return nil
 }

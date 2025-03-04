@@ -15,7 +15,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = When("k3k is installed", func() {
+var _ = When("k3k is installed", Label("e2e"), func() {
 	It("is in Running status", func() {
 
 		// check that the controller is running
@@ -42,7 +42,7 @@ var _ = When("k3k is installed", func() {
 	})
 })
 
-var _ = When("a ephemeral cluster is installed", func() {
+var _ = FWhen("a ephemeral cluster is installed", Label("e2e"), func() {
 
 	var namespace string
 
@@ -56,7 +56,7 @@ var _ = When("a ephemeral cluster is installed", func() {
 	It("can create a nginx pod", func() {
 		ctx := context.Background()
 
-		cluster := v1alpha1.Cluster{
+		cluster := &v1alpha1.Cluster{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "mycluster",
 				Namespace: namespace,
@@ -123,7 +123,7 @@ var _ = When("a ephemeral cluster is installed", func() {
 	It("regenerates the bootstrap secret after a restart", func() {
 		ctx := context.Background()
 
-		cluster := v1alpha1.Cluster{
+		cluster := &v1alpha1.Cluster{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "mycluster",
 				Namespace: namespace,
@@ -212,7 +212,7 @@ var _ = When("a dynamic cluster is installed", func() {
 	It("can create a nginx pod", func() {
 		ctx := context.Background()
 
-		cluster := v1alpha1.Cluster{
+		cluster := &v1alpha1.Cluster{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "mycluster",
 				Namespace: namespace,
@@ -279,7 +279,7 @@ var _ = When("a dynamic cluster is installed", func() {
 	It("use the same bootstrap secret after a restart", func() {
 		ctx := context.Background()
 
-		cluster := v1alpha1.Cluster{
+		cluster := &v1alpha1.Cluster{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "mycluster",
 				Namespace: namespace,

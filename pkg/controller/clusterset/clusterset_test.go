@@ -20,7 +20,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ClusterSet Controller", func() {
+var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet"), func() {
 
 	Context("creating a ClusterSet", func() {
 

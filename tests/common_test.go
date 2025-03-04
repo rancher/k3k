@@ -19,12 +19,14 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func NewVirtualCluster(cluster v1alpha1.Cluster) {
+func NewVirtualCluster(cluster *v1alpha1.Cluster) {
 	GinkgoHelper()
 
 	ctx := context.Background()
-	err := k8sClient.Create(ctx, &cluster)
+	err := k8sClient.Create(ctx, cluster)
 	Expect(err).To(Not(HaveOccurred()))
+
+	By(fmt.Sprintf("Created virtual cluster %s/%s", cluster.Namespace, cluster.Name))
 
 	// check that the server Pod and the Kubelet are in Ready state
 	Eventually(func() bool {
@@ -58,7 +60,7 @@ func NewVirtualCluster(cluster v1alpha1.Cluster) {
 }
 
 // NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
-func NewVirtualK8sClient(cluster v1alpha1.Cluster) *kubernetes.Clientset {
+func NewVirtualK8sClient(cluster *v1alpha1.Cluster) *kubernetes.Clientset {
 	GinkgoHelper()
 
 	var (
@@ -72,7 +74,7 @@ func NewVirtualK8sClient(cluster v1alpha1.Cluster) *kubernetes.Clientset {
 		vKubeconfig := kubeconfig.New()
 		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
 		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
-		config, err = vKubeconfig.Extract(ctx, k8sClient, &cluster, hostIP)
+		config, err = vKubeconfig.Extract(ctx, k8sClient, cluster, hostIP)
 		return err
 	}).
 		WithTimeout(time.Minute * 2).

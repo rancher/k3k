@@ -42,7 +42,7 @@ var _ = When("k3k is installed", Label("e2e"), func() {
 	})
 })
 
-var _ = FWhen("a ephemeral cluster is installed", Label("e2e"), func() {
+var _ = When("a ephemeral cluster is installed", Label("e2e"), func() {
 
 	var namespace string
 

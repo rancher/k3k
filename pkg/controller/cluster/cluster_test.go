@@ -51,7 +51,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				Expect(err).To(Not(HaveOccurred()))
 			})
 
-			FIt("will be created with some defaults", func() {
+			It("will be created with some defaults", func() {
 				Expect(cluster.Spec.Mode).To(Equal(v1alpha1.SharedClusterMode))
 				Expect(cluster.Spec.Agents).To(Equal(ptr.To[int32](0)))
 				Expect(cluster.Spec.Servers).To(Equal(ptr.To[int32](1)))

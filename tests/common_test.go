@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
@@ -61,6 +62,12 @@ func NewVirtualCluster(cluster *v1alpha1.Cluster) {
 
 // NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
 func NewVirtualK8sClient(cluster *v1alpha1.Cluster) *kubernetes.Clientset {
+	virtualK8sClient, _ := NewVirtualK8sClientAndConfig(cluster)
+	return virtualK8sClient
+}
+
+// NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
+func NewVirtualK8sClientAndConfig(cluster *v1alpha1.Cluster) (*kubernetes.Clientset, *rest.Config) {
 	GinkgoHelper()
 
 	var (
@@ -89,5 +96,5 @@ func NewVirtualK8sClient(cluster *v1alpha1.Cluster) *kubernetes.Clientset {
 	virtualK8sClient, err := kubernetes.NewForConfig(restcfg)
 	Expect(err).To(Not(HaveOccurred()))
 
-	return virtualK8sClient
+	return virtualK8sClient, restcfg
 }

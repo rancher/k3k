@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -40,15 +41,38 @@ func NewVirtualCluster() *VirtualCluster {
 	cluster := NewCluster(namespace.Name)
 	CreateCluster(cluster)
 
-	By(fmt.Sprintf("Created virtual cluster %s/%s", cluster.Namespace, cluster.Name))
-
 	client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+	By(fmt.Sprintf("Created virtual cluster %s/%s", cluster.Namespace, cluster.Name))
 
 	return &VirtualCluster{
 		Cluster:    cluster,
 		RestConfig: restConfig,
 		Client:     client,
 	}
+}
+
+// NewVirtualClusters will create multiple Virtual Clusters asynchronously
+func NewVirtualClusters(n int) []*VirtualCluster {
+	GinkgoHelper()
+
+	var clusters []*VirtualCluster
+
+	wg := sync.WaitGroup{}
+	wg.Add(n)
+
+	for range n {
+		go func() {
+			defer wg.Done()
+			defer GinkgoRecover()
+
+			clusters = append(clusters, NewVirtualCluster())
+		}()
+	}
+
+	wg.Wait()
+
+	return clusters
 }
 
 func NewNamespace() *corev1.Namespace {
@@ -61,7 +85,25 @@ func NewNamespace() *corev1.Namespace {
 	return namespace
 }
 
-func DeleteNamespace(name string) {
+func DeleteNamespaces(names ...string) {
+	GinkgoHelper()
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(names))
+
+	for _, name := range names {
+		go func() {
+			defer wg.Done()
+			defer GinkgoRecover()
+
+			deleteNamespace(name)
+		}()
+	}
+
+	wg.Wait()
+}
+
+func deleteNamespace(name string) {
 	GinkgoHelper()
 
 	By(fmt.Sprintf("Deleting namespace %s", name))

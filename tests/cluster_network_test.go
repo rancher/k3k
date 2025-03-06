@@ -13,13 +13,13 @@ var _ = When("two virtual clusters are installed", Label("e2e"), func() {
 	)
 
 	BeforeEach(func() {
-		cluster1 = NewVirtualCluster()
-		cluster2 = NewVirtualCluster()
+		clusters := NewVirtualClusters(2)
+		cluster1 = clusters[0]
+		cluster2 = clusters[1]
 	})
 
 	AfterEach(func() {
-		DeleteNamespace(cluster1.Cluster.Namespace)
-		DeleteNamespace(cluster2.Cluster.Namespace)
+		DeleteNamespaces(cluster1.Cluster.Namespace, cluster2.Cluster.Namespace)
 	})
 
 	It("can create pods in each of them that are isolated", func() {

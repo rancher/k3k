@@ -50,7 +50,7 @@ var _ = When("a ephemeral cluster is installed", Label("e2e"), func() {
 	})
 
 	AfterEach(func() {
-		DeleteNamespace(virtualCluster.Cluster.Namespace)
+		DeleteNamespaces(virtualCluster.Cluster.Namespace)
 	})
 
 	It("can create a nginx pod", func() {
@@ -132,7 +132,7 @@ var _ = When("a dynamic cluster is installed", func() {
 	})
 
 	AfterEach(func() {
-		DeleteNamespace(virtualCluster.Cluster.Namespace)
+		DeleteNamespaces(virtualCluster.Cluster.Namespace)
 	})
 
 	It("can create a nginx pod", func() {

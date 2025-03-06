@@ -22,7 +22,7 @@ var _ = When("two virtual clusters are installed", Label("e2e"), func() {
 		DeleteNamespace(cluster2.Cluster.Namespace)
 	})
 
-	FIt("can create pods in each of them that are isolated", func() {
+	It("can create pods in each of them that are isolated", func() {
 
 		pod1Cluster1, pod1Cluster1IP := cluster1.NewNginxPod("")
 		pod2Cluster1, pod2Cluster1IP := cluster1.NewNginxPod("")

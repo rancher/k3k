@@ -58,15 +58,15 @@ test:	## Run all the tests
 
 .PHONY: test-unit
 test-unit:	## Run the unit tests (skips the e2e)
-	$(GINKGO) -v -r --label-filter=unit
+	$(GINKGO) -v -r --skip-file=tests/*
 
 .PHONY: test-controller
 test-controller:	## Run the controller tests (pkg/controller)
-	$(GINKGO) -v -r --label-filter=controller
+	$(GINKGO) -v -r pkg/controller
 
 .PHONY: test-e2e
 test-e2e:	## Run the e2e tests
-	$(GINKGO) -v -r --label-filter=e2e
+	$(GINKGO) -v -r tests
 
 .PHONY: build-crds
 build-crds:	## Build the CRDs specs

@@ -2,7 +2,6 @@ package cmds
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/buildinfo"
@@ -10,6 +9,8 @@ import (
 	"github.com/urfave/cli/v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -26,11 +27,9 @@ var (
 	CommonFlags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "kubeconfig",
-			EnvVars:     []string{"KUBECONFIG"},
 			Usage:       "kubeconfig path",
 			Destination: &Kubeconfig,
-			Value:       os.Getenv("HOME") + "/.kube/config",
-			DefaultText: "$HOME/.kube/config",
+			DefaultText: "$HOME/.kube/config or $KUBECONFIG if set",
 		},
 		&cli.StringFlag{
 			Name:        "namespace",
@@ -85,4 +84,17 @@ func Namespace() string {
 	}
 
 	return namespace
+}
+
+func loadRESTConfig() (*rest.Config, error) {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	configOverrides := &clientcmd.ConfigOverrides{}
+
+	if Kubeconfig != "" {
+		loadingRules.ExplicitPath = Kubeconfig
+	}
+
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+
+	return kubeConfig.ClientConfig()
 }

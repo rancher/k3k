@@ -67,7 +67,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 			return errors.New("invalid cluster name")
 		}
 
-		restConfig, err := clientcmd.BuildConfigFromFlags("", Kubeconfig)
+		restConfig, err := loadRESTConfig()
 		if err != nil {
 			return err
 		}

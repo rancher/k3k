@@ -92,11 +92,7 @@ func NewKubeconfigCommand() *cli.Command {
 }
 
 func generate(clx *cli.Context) error {
-	var cluster v1alpha1.Cluster
-
-	ctx := context.Background()
-
-	restConfig, err := clientcmd.BuildConfigFromFlags("", Kubeconfig)
+	restConfig, err := loadRESTConfig()
 	if err != nil {
 		return err
 	}
@@ -113,6 +109,9 @@ func generate(clx *cli.Context) error {
 		Namespace: Namespace(),
 	}
 
+	var cluster v1alpha1.Cluster
+
+	ctx := context.Background()
 	if err := ctrlClient.Get(ctx, clusterKey, &cluster); err != nil {
 		return err
 	}

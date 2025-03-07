@@ -39,7 +39,7 @@ Create new cluster
 
 **--cluster-cidr**="": cluster CIDR
 
-**--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config)
+**--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
 **--kubeconfig-server**="": override the kubeconfig server host
 
@@ -67,7 +67,7 @@ Delete an existing cluster
 
 >k3kcli cluster delete [command options] NAME
 
-**--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config)
+**--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
 **--namespace**="": namespace to create the k3k cluster in
 
@@ -87,7 +87,7 @@ Generate kubeconfig for clusters
 
 **--expiration-days**="": Expiration date of the certificates used for the kubeconfig (default: 356)
 
-**--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config)
+**--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
 **--kubeconfig-server**="": override the kubeconfig server host
 

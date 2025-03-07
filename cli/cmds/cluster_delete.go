@@ -9,7 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -36,7 +35,7 @@ func delete(clx *cli.Context) error {
 		return errors.New("invalid cluster name")
 	}
 
-	restConfig, err := clientcmd.BuildConfigFromFlags("", Kubeconfig)
+	restConfig, err := loadRESTConfig()
 	if err != nil {
 		return err
 	}

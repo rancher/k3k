@@ -54,7 +54,7 @@ push-%:
 
 .PHONY: test
 test:	## Run all the tests
-	$(GINKGO) -v -r
+	$(GINKGO) -v -r --label-filter=$(label-filter)
 
 .PHONY: test-unit
 test-unit:	## Run the unit tests (skips the e2e)
@@ -87,6 +87,7 @@ lint:	## Find any linting issues in the project
 
 .PHONY: validate
 validate: build-crds docs ## Validate the project checking for any dependency or doc mismatch
+	$(GINKGO) unfocus
 	go mod tidy
 	git --no-pager diff go.mod go.sum
 	test -z "$(shell git status --porcelain)"

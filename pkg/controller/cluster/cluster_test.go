@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
@@ -18,7 +20,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Cluster Controller", func() {
+var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), func() {
 
 	Context("creating a Cluster", func() {
 
@@ -55,7 +57,7 @@ var _ = Describe("Cluster Controller", func() {
 				Expect(cluster.Spec.Servers).To(Equal(ptr.To[int32](1)))
 				Expect(cluster.Spec.Version).To(BeEmpty())
 				// TOFIX
-				//Expect(cluster.Spec.Persistence.Type).To(Equal(v1alpha1.DynamicNodesType))
+				// Expect(cluster.Spec.Persistence.Type).To(Equal(v1alpha1.DynamicPersistenceMode))
 
 				serverVersion, err := k8s.DiscoveryClient.ServerVersion()
 				Expect(err).To(Not(HaveOccurred()))
@@ -70,9 +72,27 @@ var _ = Describe("Cluster Controller", func() {
 					WithTimeout(time.Second * 30).
 					WithPolling(time.Second).
 					Should(Equal(expectedHostVersion))
+
+				// check NetworkPolicy
+				expectedNetworkPolicy := &networkingv1.NetworkPolicy{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(cluster.Name),
+						Namespace: cluster.Namespace,
+					},
+				}
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(expectedNetworkPolicy), expectedNetworkPolicy)
+				Expect(err).To(Not(HaveOccurred()))
+
+				spec := expectedNetworkPolicy.Spec
+				Expect(spec.PolicyTypes).To(HaveLen(2))
+				Expect(spec.PolicyTypes).To(ContainElement(networkingv1.PolicyTypeEgress))
+				Expect(spec.PolicyTypes).To(ContainElement(networkingv1.PolicyTypeIngress))
+
+				Expect(spec.Ingress).To(Equal([]networkingv1.NetworkPolicyIngressRule{{}}))
 			})
 
-			When("exposing the cluster with nodePort and custom posrts", func() {
+			When("exposing the cluster with nodePort and custom ports", func() {
 				It("will have a NodePort service with the specified port exposed", func() {
 					cluster.Spec.Expose = &v1alpha1.ExposeConfig{
 						NodePort: &v1alpha1.NodePortConfig{

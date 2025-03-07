@@ -16,6 +16,9 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -33,33 +36,26 @@ var (
 	testEnv   *envtest.Environment
 	k8s       *kubernetes.Clientset
 	k8sClient client.Client
-	ctx       context.Context
-	cancel    context.CancelFunc
 )
 
-var _ = BeforeSuite(func() {
-
+var _ = SynchronizedBeforeSuite(func() []byte {
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "charts", "k3k", "crds")},
 		ErrorIfCRDPathMissing: true,
 	}
+
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 
-	k8s, err = kubernetes.NewForConfig(cfg)
-	Expect(err).NotTo(HaveOccurred())
-
 	scheme := buildScheme()
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
-	Expect(err).NotTo(HaveOccurred())
 
 	ctrl.SetLogger(zapr.NewLogger(zap.NewNop()))
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 
-	ctx, cancel = context.WithCancel(context.Background())
+	ctx := context.Background()
 	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "")
 	Expect(err).NotTo(HaveOccurred())
 
@@ -68,15 +64,25 @@ var _ = BeforeSuite(func() {
 		err = mgr.Start(ctx)
 		Expect(err).NotTo(HaveOccurred(), "failed to run manager")
 	}()
-})
 
-var _ = AfterSuite(func() {
-	cancel()
+	return toKubeconfig(*cfg)
+}, func(kubeconfig []byte) {
+	cfg, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
+	Expect(err).To(Not(HaveOccurred()))
 
-	By("tearing down the test environment")
-	err := testEnv.Stop()
+	k8s, err = kubernetes.NewForConfig(cfg)
+	Expect(err).NotTo(HaveOccurred())
+
+	scheme := buildScheme()
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 })
+
+// var _ = SynchronizedAfterSuite(func() {}, func() {
+// 	By("tearing down the test environment")
+// 	err := testEnv.Stop()
+// 	Expect(err).NotTo(HaveOccurred())
+// })
 
 func buildScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
@@ -93,4 +99,38 @@ func buildScheme() *runtime.Scheme {
 	Expect(err).NotTo(HaveOccurred())
 
 	return scheme
+}
+
+func toKubeconfig(restConfig rest.Config) []byte {
+	clusters := make(map[string]*clientcmdapi.Cluster)
+	clusters["default-cluster"] = &clientcmdapi.Cluster{
+		Server:                   restConfig.Host,
+		CertificateAuthorityData: restConfig.CAData,
+	}
+
+	contexts := make(map[string]*clientcmdapi.Context)
+	contexts["default-context"] = &clientcmdapi.Context{
+		Cluster:  "default-cluster",
+		AuthInfo: "default-user",
+	}
+
+	authinfos := make(map[string]*clientcmdapi.AuthInfo)
+	authinfos["default-user"] = &clientcmdapi.AuthInfo{
+		ClientCertificateData: restConfig.CertData,
+		ClientKeyData:         restConfig.KeyData,
+	}
+
+	clientConfig := clientcmdapi.Config{
+		Kind:           "Config",
+		APIVersion:     "v1",
+		Clusters:       clusters,
+		Contexts:       contexts,
+		CurrentContext: "default-context",
+		AuthInfos:      authinfos,
+	}
+
+	kubeconfig, err := clientcmd.Write(clientConfig)
+	Expect(err).NotTo(HaveOccurred())
+
+	return kubeconfig
 }

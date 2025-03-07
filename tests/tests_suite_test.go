@@ -2,6 +2,7 @@ package k3k_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"maps"
@@ -40,7 +41,12 @@ var (
 	k8sClient    client.Client
 )
 
-var _ = BeforeSuite(func() {
+type TestEnv struct {
+	HostIP     string
+	Kubeconfig []byte
+}
+
+var _ = SynchronizedBeforeSuite(func() []byte {
 	var err error
 	ctx := context.Background()
 
@@ -54,8 +60,22 @@ var _ = BeforeSuite(func() {
 	kubeconfig, err := k3sContainer.GetKubeConfig(context.Background())
 	Expect(err).To(Not(HaveOccurred()))
 
-	initKubernetesClient(kubeconfig)
 	installK3kChart(kubeconfig)
+
+	bb, err := json.Marshal(TestEnv{
+		HostIP:     hostIP,
+		Kubeconfig: kubeconfig,
+	})
+	Expect(err).To(Not(HaveOccurred()))
+
+	return bb
+}, func(data []byte) {
+	var env TestEnv
+	err := json.Unmarshal(data, &env)
+	Expect(err).To(Not(HaveOccurred()))
+
+	hostIP = env.HostIP
+	initKubernetesClient(env.Kubeconfig)
 })
 
 func initKubernetesClient(kubeconfig []byte) {
@@ -65,13 +85,13 @@ func initKubernetesClient(kubeconfig []byte) {
 	k8s, err = kubernetes.NewForConfig(restcfg)
 	Expect(err).To(Not(HaveOccurred()))
 
-	scheme := buildScheme()
-	k8sClient, err = client.New(restcfg, client.Options{Scheme: scheme})
-	Expect(err).NotTo(HaveOccurred())
-
 	logger, err := zap.NewDevelopment()
 	Expect(err).NotTo(HaveOccurred())
 	log.SetLogger(zapr.NewLogger(logger))
+
+	scheme := buildScheme()
+	k8sClient, err = client.New(restcfg, client.Options{Scheme: scheme})
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func installK3kChart(kubeconfig []byte) {
@@ -124,7 +144,7 @@ func installK3kChart(kubeconfig []byte) {
 	fmt.Fprintf(GinkgoWriter, "Release %s installed in %s namespace\n", release.Name, release.Namespace)
 }
 
-var _ = AfterSuite(func() {
+var _ = SynchronizedAfterSuite(func() {}, func() {
 	// dump k3s logs
 	readCloser, err := k3sContainer.Logs(context.Background())
 	Expect(err).To(Not(HaveOccurred()))

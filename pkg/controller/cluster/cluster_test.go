@@ -47,11 +47,13 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					},
 				}
 
-				err := k8sClient.Create(ctx, cluster)
+				err := k8sClient.Create(context.Background(), cluster)
 				Expect(err).To(Not(HaveOccurred()))
 			})
 
 			It("will be created with some defaults", func() {
+				ctx := context.Background()
+
 				Expect(cluster.Spec.Mode).To(Equal(v1alpha1.SharedClusterMode))
 				Expect(cluster.Spec.Agents).To(Equal(ptr.To[int32](0)))
 				Expect(cluster.Spec.Servers).To(Equal(ptr.To[int32](1)))
@@ -102,6 +104,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 						},
 					}
 
+					ctx := context.Background()
 					err := k8sClient.Update(ctx, cluster)
 					Expect(err).To(Not(HaveOccurred()))
 

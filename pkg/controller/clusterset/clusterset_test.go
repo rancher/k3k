@@ -36,7 +36,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 		})
 
 		When("created with a default spec", func() {
-			It("should have only the 'shared' allowedNodeTypes", func() {
+			It("should have only the 'shared' allowedModeTypes", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: v1.ObjectMeta{
 						GenerateName: "clusterset-",
@@ -47,7 +47,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
 
-				allowedModeTypes := clusterSet.Spec.AllowedNodeTypes
+				allowedModeTypes := clusterSet.Spec.AllowedModeTypes
 				Expect(allowedModeTypes).To(HaveLen(1))
 				Expect(allowedModeTypes).To(ContainElement(v1alpha1.SharedClusterMode))
 			})
@@ -247,7 +247,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 						Namespace:    namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
-						AllowedNodeTypes: []v1alpha1.ClusterMode{
+						AllowedModeTypes: []v1alpha1.ClusterMode{
 							v1alpha1.VirtualClusterMode,
 						},
 					},
@@ -256,7 +256,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
 
-				allowedModeTypes := clusterSet.Spec.AllowedNodeTypes
+				allowedModeTypes := clusterSet.Spec.AllowedModeTypes
 				Expect(allowedModeTypes).To(HaveLen(1))
 				Expect(allowedModeTypes).To(ContainElement(v1alpha1.VirtualClusterMode))
 			})
@@ -268,7 +268,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 						Namespace:    namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
-						AllowedNodeTypes: []v1alpha1.ClusterMode{
+						AllowedModeTypes: []v1alpha1.ClusterMode{
 							v1alpha1.SharedClusterMode,
 							v1alpha1.VirtualClusterMode,
 						},
@@ -278,7 +278,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
 
-				allowedModeTypes := clusterSet.Spec.AllowedNodeTypes
+				allowedModeTypes := clusterSet.Spec.AllowedModeTypes
 				Expect(allowedModeTypes).To(HaveLen(2))
 				Expect(allowedModeTypes).To(ContainElements(
 					v1alpha1.SharedClusterMode,
@@ -293,7 +293,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 						Namespace:    namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
-						AllowedNodeTypes: []v1alpha1.ClusterMode{
+						AllowedModeTypes: []v1alpha1.ClusterMode{
 							v1alpha1.SharedClusterMode,
 							v1alpha1.VirtualClusterMode,
 							v1alpha1.ClusterMode("non-existing"),

@@ -51,23 +51,6 @@ _Appears in:_
 | `spec` _[ClusterSpec](#clusterspec)_ | Spec defines the desired state of the Cluster. | \{  \} |  |
 
 
-#### ClusterLimit
-
-
-
-ClusterLimit defines resource limits for server and agent nodes.
-
-
-
-_Appears in:_
-- [ClusterSpec](#clusterspec)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit specifies resource limits for server nodes. |  |  |
-| `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  |  |
-
-
 #### ClusterList
 
 
@@ -124,7 +107,6 @@ _Appears in:_
 | `expose` _[ExposeConfig](#exposeconfig)_ | Expose specifies options for exposing the API server.<br />By default, it's only exposed as a ClusterIP. |  |  |
 | `nodeSelector` _object (keys:string, values:string)_ | NodeSelector specifies node labels to constrain where server/agent pods are scheduled.<br />In "shared" mode, this also applies to workloads. |  |  |
 | `priorityClass` _string_ | PriorityClass specifies the priorityClassName for server/agent pods.<br />In "shared" mode, this also applies to workloads. |  |  |
-| `clusterLimit` _[ClusterLimit](#clusterlimit)_ | Limit defines resource limits for server/agent nodes. |  |  |
 | `tokenSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | TokenSecretRef is a Secret reference containing the token used by worker nodes to join the cluster.<br />The Secret must have a "token" field in its data. |  |  |
 | `tlsSANs` _string array_ | TLSSANs specifies subject alternative names for the K3s server certificate. |  |  |
 | `serverArgs` _string array_ | ServerArgs specifies ordered key-value pairs for K3s server pods.<br />Example: ["--tls-san=example.com"] |  |  |
@@ -229,6 +211,8 @@ PersistenceMode is the storage mode of a Cluster.
 
 _Appears in:_
 - [PersistenceConfig](#persistenceconfig)
+
+
 
 
 

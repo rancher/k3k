@@ -46,11 +46,6 @@ func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string) *S
 }
 
 func (s *Server) podSpec(image, name string, persistent bool, startupCmd string) v1.PodSpec {
-	var limit v1.ResourceList
-	if s.cluster.Spec.Limit != nil && s.cluster.Spec.Limit.ServerLimit != nil {
-		limit = s.cluster.Spec.Limit.ServerLimit
-	}
-
 	podSpec := v1.PodSpec{
 		NodeSelector:      s.cluster.Spec.NodeSelector,
 		PriorityClassName: s.cluster.Spec.PriorityClass,
@@ -119,7 +114,12 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 				Name:  name,
 				Image: image,
 				Resources: v1.ResourceRequirements{
-					Limits: limit,
+					// adding minimum requirements to run k3s server
+					// this is important so that ResourceQuota can be enabled.
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("500m"),
+						v1.ResourceMemory: resource.MustParse("128M"),
+					},
 				},
 				Env: []v1.EnvVar{
 					{

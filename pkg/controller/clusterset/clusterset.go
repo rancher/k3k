@@ -145,6 +145,7 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 	if err := c.reconcileQuota(ctx, &clusterSet); err != nil {
 		return reconcile.Result{}, err
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -326,10 +327,12 @@ func (c *ClusterSetReconciler) reconcileQuota(ctx context.Context, clusterSet *v
 	if clusterSet.Spec.Quota == nil {
 		// check if resourceQuota object exists and deletes it.
 		var toDeleteResourceQuota v1.ResourceQuota
+
 		key := types.NamespacedName{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
 			Namespace: clusterSet.Namespace,
 		}
+
 		if err := c.Client.Get(ctx, key, &toDeleteResourceQuota); err != nil {
 			return client.IgnoreNotFound(err)
 		}
@@ -344,6 +347,7 @@ func (c *ClusterSetReconciler) reconcileQuota(ctx context.Context, clusterSet *v
 			return c.Client.Update(ctx, &resourceQuota)
 		}
 	}
+
 	return nil
 }
 

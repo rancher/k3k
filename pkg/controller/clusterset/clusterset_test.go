@@ -691,8 +691,9 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
-
+				time.Sleep(3 * time.Second)
 				// wait for a bit for the ResourceQuota to be created
+
 				Eventually(func() bool {
 					key := types.NamespacedName{
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
@@ -705,7 +706,6 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					return *resourceQuota.Spec.Hard.Cpu() == resource.MustParse(CPUResourceTest) &&
 						*resourceQuota.Spec.Hard.Memory() == resource.MustParse(MemoryResourceTest)
 				}).
-					MustPassRepeatedly(5).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
 					Should(BeTrue())

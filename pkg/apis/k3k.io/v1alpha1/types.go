@@ -114,11 +114,6 @@ type ClusterSpec struct {
 	// +optional
 	PriorityClass string `json:"priorityClass,omitempty"`
 
-	// Limit defines resource limits for server/agent nodes.
-	//
-	// +optional
-	Limit *ClusterLimit `json:"clusterLimit,omitempty"`
-
 	// TokenSecretRef is a Secret reference containing the token used by worker nodes to join the cluster.
 	// The Secret must have a "token" field in its data.
 	//
@@ -175,13 +170,19 @@ const (
 	DynamicPersistenceMode = PersistenceMode("dynamic")
 )
 
-// ClusterLimit defines resource limits for server and agent nodes.
-type ClusterLimit struct {
-	// ServerLimit specifies resource limits for server nodes.
-	ServerLimit v1.ResourceList `json:"serverLimit,omitempty"`
+// Quota specifies the cluster set quota options.
+type Quota struct {
+	// Limits is the set of desired hard limits for each named resource.
+	Limits v1.ResourceList `json:"limits,omitempty"`
 
-	// WorkerLimit specifies resource limits for agent nodes.
-	WorkerLimit v1.ResourceList `json:"workerLimit,omitempty"`
+	// Scopes is a collection of filters that must match each object tracked by a quota. If
+	// not specified, the quota matches all objects.
+	Scopes []v1.ResourceQuotaScope `json:"scope,omitempty"`
+
+	// scopeSelector is also a collection of filters like scopes that must match each object tracked by a quota
+	// but expressed using ScopeSelectorOperator in combination with possible values.
+	// For a resource to match, both scopes AND scopeSelector, must be matched.
+	ScopeSelector *v1.ScopeSelector `json:"scopeSelector,omitempty"`
 }
 
 // Addon specifies a Secret containing YAML to be deployed on cluster startup.
@@ -338,10 +339,10 @@ type ClusterSet struct {
 // ClusterSetSpec defines the desired state of a ClusterSet.
 type ClusterSetSpec struct {
 
-	// DefaultLimits specifies the default resource limits for servers/agents when a cluster in the set doesn't provide any.
+	// Quota specifies the resource limits for clusters within a clusterset.
 	//
 	// +optional
-	DefaultLimits *ClusterLimit `json:"defaultLimits,omitempty"`
+	Quota *Quota `json:"quota,omitempty"`
 
 	// DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the set.
 	//
@@ -352,11 +353,6 @@ type ClusterSetSpec struct {
 	//
 	// +optional
 	DefaultPriorityClass string `json:"defaultPriorityClass,omitempty"`
-
-	// MaxLimits specifies the maximum resource limits that apply to all clusters (server + agent) in the set.
-	//
-	// +optional
-	MaxLimits v1.ResourceList `json:"maxLimits,omitempty"`
 
 	// AllowedModeTypes specifies the allowed cluster provisioning modes. Defaults to [shared].
 	//

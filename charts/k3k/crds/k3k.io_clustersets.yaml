@@ -59,30 +59,6 @@ spec:
                 x-kubernetes-validations:
                 - message: mode is immutable
                   rule: self == oldSelf
-              defaultLimits:
-                description: DefaultLimits specifies the default resource limits for
-                  servers/agents when a cluster in the set doesn't provide any.
-                properties:
-                  serverLimit:
-                    additionalProperties:
-                      anyOf:
-                      - type: integer
-                      - type: string
-                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      x-kubernetes-int-or-string: true
-                    description: ServerLimit specifies resource limits for server
-                      nodes.
-                    type: object
-                  workerLimit:
-                    additionalProperties:
-                      anyOf:
-                      - type: integer
-                      - type: string
-                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      x-kubernetes-int-or-string: true
-                    description: WorkerLimit specifies resource limits for agent nodes.
-                    type: object
-                type: object
               defaultNodeSelector:
                 additionalProperties:
                   type: string
@@ -97,16 +73,6 @@ spec:
                 description: DisableNetworkPolicy indicates whether to disable the
                   creation of a default network policy for cluster isolation.
                 type: boolean
-              maxLimits:
-                additionalProperties:
-                  anyOf:
-                  - type: integer
-                  - type: string
-                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                  x-kubernetes-int-or-string: true
-                description: MaxLimits specifies the maximum resource limits that
-                  apply to all clusters (server + agent) in the set.
-                type: object
               podSecurityAdmissionLevel:
                 description: PodSecurityAdmissionLevel specifies the pod security
                   admission level applied to the pods in the namespace.
@@ -115,6 +81,69 @@ spec:
                 - baseline
                 - restricted
                 type: string
+              quota:
+                description: Quota specifies the resource limits for clusters within
+                  a clusterset.
+                properties:
+                  limits:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: Limits is the set of desired hard limits for each
+                      named resource.
+                    type: object
+                  scope:
+                    description: |-
+                      Scopes is a collection of filters that must match each object tracked by a quota. If
+                      not specified, the quota matches all objects.
+                    items:
+                      description: A ResourceQuotaScope defines a filter that must
+                        match each object tracked by a quota
+                      type: string
+                    type: array
+                  scopeSelector:
+                    description: |-
+                      scopeSelector is also a collection of filters like scopes that must match each object tracked by a quota
+                      but expressed using ScopeSelectorOperator in combination with possible values.
+                      For a resource to match, both scopes AND scopeSelector, must be matched.
+                    properties:
+                      matchExpressions:
+                        description: A list of scope selector requirements by scope
+                          of the resources.
+                        items:
+                          description: |-
+                            A scoped-resource selector requirement is a selector that contains values, a scope name, and an operator
+                            that relates the scope name and values.
+                          properties:
+                            operator:
+                              description: |-
+                                Represents a scope's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists, DoesNotExist.
+                              type: string
+                            scopeName:
+                              description: The name of the scope that the selector
+                                applies to.
+                              type: string
+                            values:
+                              description: |-
+                                An array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty.
+                                This array is replaced during a strategic merge patch.
+                              items:
+                                type: string
+                              type: array
+                          required:
+                          - operator
+                          - scopeName
+                          type: object
+                        type: array
+                    type: object
+                    x-kubernetes-map-type: atomic
+                type: object
             type: object
           status:
             description: Status reflects the observed state of the ClusterSet.

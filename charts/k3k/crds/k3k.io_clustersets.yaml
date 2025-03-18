@@ -61,7 +61,7 @@ spec:
                   rule: self == oldSelf
               defaultLimits:
                 description: |-
-                  DefaultLimits specifies the default value for a limitRange taht will be applied to all pods within
+                  DefaultLimits specifies the default value for a limitRange that will be applied to all pods within
                   the clusterSet, if not specified a default value will be applied.
                 items:
                   description: LimitRangeItem defines a min/max usage limit for any

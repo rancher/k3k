@@ -10,6 +10,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -28,6 +29,8 @@ const (
 	clusterSetController    = "k3k-clusterset-controller"
 	allTrafficCIDR          = "0.0.0.0/0"
 	maxConcurrentReconciles = 1
+	defaultCPURequest       = "200m"
+	defaultMemoryRequest    = "128M"
 )
 
 type ClusterSetReconciler struct {
@@ -139,6 +142,10 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 	}
 
 	if err := c.reconcileClusters(ctx, &clusterSet); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if err := c.reconcileDefaultLimits(ctx, &clusterSet); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -342,6 +349,10 @@ func (c *ClusterSetReconciler) reconcileQuota(ctx context.Context, clusterSet *v
 
 	// create/update resource Quota
 	resourceQuota := resourceQuota(clusterSet)
+
+	if err := ctrl.SetControllerReference(clusterSet, &resourceQuota, c.Scheme); err != nil {
+		return err
+	}
 	if err := c.Client.Create(ctx, &resourceQuota); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return c.Client.Update(ctx, &resourceQuota)
@@ -365,6 +376,50 @@ func resourceQuota(clusterSet *v1alpha1.ClusterSet) v1.ResourceQuota {
 			Hard:          clusterSet.Spec.Quota.Limits,
 			Scopes:        clusterSet.Spec.Quota.Scopes,
 			ScopeSelector: clusterSet.Spec.Quota.ScopeSelector,
+		},
+	}
+}
+
+func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+	limitRange := limitRange(clusterSet)
+	if err := ctrl.SetControllerReference(clusterSet, &limitRange, c.Scheme); err != nil {
+		return err
+	}
+	if err := c.Client.Create(ctx, &limitRange); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return c.Client.Update(ctx, &limitRange)
+		}
+	}
+	return nil
+}
+
+func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
+	items := clusterSet.Spec.DefaultLimits
+	if items == nil {
+		// if defaultlimits is not specified we attempt to have a default value for
+		// requests for cpu/memory for the pods within the clusterset
+		items = []v1.LimitRangeItem{
+			{
+				Type: v1.LimitTypeContainer,
+				DefaultRequest: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse(defaultCPURequest),
+					v1.ResourceMemory: resource.MustParse(defaultMemoryRequest),
+				},
+			},
+		}
+	}
+
+	return v1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+			Namespace: clusterSet.Namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "LimitRange",
+			APIVersion: "v1",
+		},
+		Spec: v1.LimitRangeSpec{
+			Limits: items,
 		},
 	}
 }

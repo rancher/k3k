@@ -344,7 +344,7 @@ type ClusterSetSpec struct {
 	// +optional
 	Quota *Quota `json:"quota,omitempty"`
 
-	// DefaultLimits specifies the default value for a limitRange taht will be applied to all pods within
+	// DefaultLimits specifies the default value for a limitRange that will be applied to all pods within
 	// the clusterSet, if not specified a default value will be applied.
 	DefaultLimits []v1.LimitRangeItem `json:"defaultLimits,omitempty"`
 

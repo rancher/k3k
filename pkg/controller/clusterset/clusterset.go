@@ -353,6 +353,7 @@ func (c *ClusterSetReconciler) reconcileQuota(ctx context.Context, clusterSet *v
 	if err := ctrl.SetControllerReference(clusterSet, &resourceQuota, c.Scheme); err != nil {
 		return err
 	}
+
 	if err := c.Client.Create(ctx, &resourceQuota); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return c.Client.Update(ctx, &resourceQuota)
@@ -385,11 +386,13 @@ func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clust
 	if err := ctrl.SetControllerReference(clusterSet, &limitRange, c.Scheme); err != nil {
 		return err
 	}
+
 	if err := c.Client.Create(ctx, &limitRange); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return c.Client.Update(ctx, &limitRange)
 		}
 	}
+
 	return nil
 }
 

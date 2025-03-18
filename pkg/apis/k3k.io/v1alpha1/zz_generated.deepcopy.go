@@ -6,8 +6,8 @@
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -157,6 +157,13 @@ func (in *ClusterSetSpec) DeepCopyInto(out *ClusterSetSpec) {
 		*out = new(Quota)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.DefaultLimits != nil {
+		in, out := &in.DefaultLimits, &out.DefaultLimits
+		*out = make([]v1.LimitRangeItem, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.DefaultNodeSelector != nil {
 		in, out := &in.DefaultNodeSelector, &out.DefaultNodeSelector
 		*out = make(map[string]string, len(*in))
@@ -192,7 +199,7 @@ func (in *ClusterSetStatus) DeepCopyInto(out *ClusterSetStatus) {
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]v1.Condition, len(*in))
+		*out = make([]metav1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -238,7 +245,7 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	}
 	if in.TokenSecretRef != nil {
 		in, out := &in.TokenSecretRef, &out.TokenSecretRef
-		*out = new(corev1.SecretReference)
+		*out = new(v1.SecretReference)
 		**out = **in
 	}
 	if in.TLSSANs != nil {
@@ -423,19 +430,19 @@ func (in *Quota) DeepCopyInto(out *Quota) {
 	*out = *in
 	if in.Limits != nil {
 		in, out := &in.Limits, &out.Limits
-		*out = make(corev1.ResourceList, len(*in))
+		*out = make(v1.ResourceList, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val.DeepCopy()
 		}
 	}
 	if in.Scopes != nil {
 		in, out := &in.Scopes, &out.Scopes
-		*out = make([]corev1.ResourceQuotaScope, len(*in))
+		*out = make([]v1.ResourceQuotaScope, len(*in))
 		copy(*out, *in)
 	}
 	if in.ScopeSelector != nil {
 		in, out := &in.ScopeSelector, &out.ScopeSelector
-		*out = new(corev1.ScopeSelector)
+		*out = new(v1.ScopeSelector)
 		(*in).DeepCopyInto(*out)
 	}
 	return

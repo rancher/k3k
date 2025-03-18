@@ -761,6 +761,37 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					WithPolling(time.Second).
 					Should(BeTrue())
 			})
+			It("created a default limitRange", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				var limitRange v1.LimitRange
+
+				Eventually(func() error {
+					key := types.NamespacedName{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Namespace: namespace,
+					}
+					return k8sClient.Get(ctx, key, &limitRange)
+				}).
+					WithTimeout(time.Minute).
+					WithPolling(time.Second).
+					Should(BeNil())
+
+				// make sure that default limit range has the default requet values.
+				Expect(len(limitRange.Spec.Limits) > 0).To(BeTrue())
+				cpu := limitRange.Spec.Limits[0].DefaultRequest.Cpu().String()
+				memory := limitRange.Spec.Limits[0].DefaultRequest.Memory().String()
+				Expect(cpu).To(BeEquivalentTo("200m"))
+				Expect(memory).To(BeEquivalentTo("128M"))
+			})
 		})
 	})
 })

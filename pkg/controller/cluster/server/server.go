@@ -212,6 +212,13 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 		}
 	}
 
+	// specify resource limits if specified for the servers.
+	if s.cluster.Spec.ServerLimit != nil {
+		podSpec.Containers[0].Resources = v1.ResourceRequirements{
+			Limits: s.cluster.Spec.ServerLimit,
+		}
+	}
+
 	return podSpec
 }
 

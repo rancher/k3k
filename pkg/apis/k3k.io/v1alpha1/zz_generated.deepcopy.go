@@ -268,6 +268,20 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		*out = make([]Addon, len(*in))
 		copy(*out, *in)
 	}
+	if in.ServerLimit != nil {
+		in, out := &in.ServerLimit, &out.ServerLimit
+		*out = make(v1.ResourceList, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val.DeepCopy()
+		}
+	}
+	if in.WorkerLimit != nil {
+		in, out := &in.WorkerLimit, &out.WorkerLimit
+		*out = make(v1.ResourceList, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val.DeepCopy()
+		}
+	}
 	return
 }
 

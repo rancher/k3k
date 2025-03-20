@@ -141,6 +141,16 @@ type ClusterSpec struct {
 	//
 	// +optional
 	Addons []Addon `json:"addons,omitempty"`
+
+	// ServerLimit specifies resource limits for server nodes.
+	//
+	// +optional
+	ServerLimit v1.ResourceList `json:"serverLimit,omitempty"`
+
+	// WorkerLimit specifies resource limits for agent nodes.
+	//
+	// +optional
+	WorkerLimit v1.ResourceList `json:"workerLimit,omitempty"`
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.

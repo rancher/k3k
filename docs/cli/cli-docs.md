@@ -67,6 +67,8 @@ Delete an existing cluster
 
 >k3kcli cluster delete [command options] NAME
 
+**--keep-data**: keeps persistence volumes created for the cluster after deletion
+
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
 **--namespace**="": namespace to create the k3k cluster in

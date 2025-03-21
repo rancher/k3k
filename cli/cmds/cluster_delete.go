@@ -99,6 +99,7 @@ func delete(clx *cli.Context) error {
 
 func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl client.Client, cluster v1alpha1.Cluster) error {
 	var secret v1.Secret
+
 	key := types.NamespacedName{
 		Name:      name,
 		Namespace: cluster.Namespace,

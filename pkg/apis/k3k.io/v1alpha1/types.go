@@ -358,13 +358,13 @@ type ClusterSetSpec struct {
 	// +optional
 	MaxLimits v1.ResourceList `json:"maxLimits,omitempty"`
 
-	// AllowedNodeTypes specifies the allowed cluster provisioning modes. Defaults to [shared].
+	// AllowedModeTypes specifies the allowed cluster provisioning modes. Defaults to [shared].
 	//
 	// +kubebuilder:default={shared}
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
 	// +kubebuilder:validation:MinItems=1
 	// +optional
-	AllowedNodeTypes []ClusterMode `json:"allowedNodeTypes,omitempty"`
+	AllowedModeTypes []ClusterMode `json:"allowedModeTypes,omitempty"`
 
 	// DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation.
 	//

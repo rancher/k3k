@@ -201,8 +201,8 @@ func (in *ClusterSetSpec) DeepCopyInto(out *ClusterSetSpec) {
 			(*out)[key] = val
 		}
 	}
-	if in.AllowedNodeTypes != nil {
-		in, out := &in.AllowedNodeTypes, &out.AllowedNodeTypes
+	if in.AllowedModeTypes != nil {
+		in, out := &in.AllowedModeTypes, &out.AllowedModeTypes
 		*out = make([]ClusterMode, len(*in))
 		copy(*out, *in)
 	}

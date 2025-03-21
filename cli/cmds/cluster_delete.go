@@ -67,44 +67,19 @@ func delete(clx *cli.Context) error {
 	}
 	// keep bootstrap secrets and tokens if --keep-data flag is passed
 	if keepData {
-		var tokenSecret, webhookSecret v1.Secret
 		// skip removing tokenSecret
-		key := types.NamespacedName{
-			Name:      k3kcluster.TokenSecretName(cluster.Name),
-			Namespace: cluster.Namespace,
-		}
-		if err := ctrlClient.Get(ctx, key, &tokenSecret); err != nil {
-			return err
-		}
-
-		if err := controllerutil.RemoveOwnerReference(&cluster, &tokenSecret, ctrlClient.Scheme()); err != nil {
-			return err
-		}
-
-		if err := ctrlClient.Update(ctx, &tokenSecret); err != nil {
+		if err := RemoveOwnerReferenceFromSecret(ctx, k3kcluster.TokenSecretName(cluster.Name), ctrlClient, cluster); err != nil {
 			return err
 		}
 
 		// skip removing webhook secret
-		key = types.NamespacedName{
-			Name:      agent.WebhookSecretName(cluster.Name),
-			Namespace: cluster.Namespace,
-		}
-		if err := ctrlClient.Get(ctx, key, &webhookSecret); err != nil {
-			return err
-		}
-
-		if err := controllerutil.RemoveOwnerReference(&cluster, &webhookSecret, ctrlClient.Scheme()); err != nil {
-			return err
-		}
-
-		if err := ctrlClient.Update(ctx, &webhookSecret); err != nil {
+		if err := RemoveOwnerReferenceFromSecret(ctx, agent.WebhookSecretName(cluster.Name), ctrlClient, cluster); err != nil {
 			return err
 		}
 	}
 
 	if err := ctrlClient.Delete(ctx, &cluster); err != nil {
-		return err
+		return client.IgnoreNotFound(err)
 	}
 
 	// make sure to delete pv claims for the cluster if --keep-data is not used
@@ -115,9 +90,27 @@ func delete(clx *cli.Context) error {
 		deleteOpts := &client.DeleteAllOfOptions{ListOptions: listOpts}
 
 		if err := ctrlClient.DeleteAllOf(ctx, &v1.PersistentVolumeClaim{}, deleteOpts); err != nil {
-			return err
+			return client.IgnoreNotFound(err)
 		}
 	}
 
 	return nil
+}
+
+func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl client.Client, cluster v1alpha1.Cluster) error {
+	var secret v1.Secret
+	key := types.NamespacedName{
+		Name:      name,
+		Namespace: cluster.Namespace,
+	}
+
+	if err := cl.Get(ctx, key, &secret); err != nil {
+		return err
+	}
+
+	if err := controllerutil.RemoveOwnerReference(&cluster, &secret, cl.Scheme()); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	return cl.Update(ctx, &secret)
 }

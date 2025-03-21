@@ -46,11 +46,6 @@ func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string) *S
 }
 
 func (s *Server) podSpec(image, name string, persistent bool, startupCmd string) v1.PodSpec {
-	var limit v1.ResourceList
-	if s.cluster.Spec.Limit != nil && s.cluster.Spec.Limit.ServerLimit != nil {
-		limit = s.cluster.Spec.Limit.ServerLimit
-	}
-
 	podSpec := v1.PodSpec{
 		NodeSelector:      s.cluster.Spec.NodeSelector,
 		PriorityClassName: s.cluster.Spec.PriorityClass,
@@ -118,9 +113,6 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 			{
 				Name:  name,
 				Image: image,
-				Resources: v1.ResourceRequirements{
-					Limits: limit,
-				},
 				Env: []v1.EnvVar{
 					{
 						Name: "POD_NAME",
@@ -217,6 +209,13 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 	if s.mode == agent.VirtualNodeMode {
 		podSpec.Containers[0].SecurityContext = &v1.SecurityContext{
 			Privileged: ptr.To(true),
+		}
+	}
+
+	// specify resource limits if specified for the servers.
+	if s.cluster.Spec.ServerLimit != nil {
+		podSpec.Containers[0].Resources = v1.ResourceRequirements{
+			Limits: s.cluster.Spec.ServerLimit,
 		}
 	}
 

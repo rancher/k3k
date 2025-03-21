@@ -10,13 +10,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -29,10 +29,12 @@ const (
 	clusterSetController    = "k3k-clusterset-controller"
 	allTrafficCIDR          = "0.0.0.0/0"
 	maxConcurrentReconciles = 1
+	defaultCPURequest       = "200m"
+	defaultMemoryRequest    = "128M"
 )
 
 type ClusterSetReconciler struct {
-	Client      ctrlruntimeclient.Client
+	Client      client.Client
 	Scheme      *runtime.Scheme
 	ClusterCIDR string
 }
@@ -143,27 +145,14 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 		return reconcile.Result{}, err
 	}
 
-	// TODO: Add resource quota for clustersets
-	// if clusterSet.Spec.MaxLimits != nil {
-	// 	quota := v1.ResourceQuota{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      "clusterset-quota",
-	// 			Namespace: clusterSet.Namespace,
-	// 			OwnerReferences: []metav1.OwnerReference{
-	// 				{
-	// 					UID:        clusterSet.UID,
-	// 					Name:       clusterSet.Name,
-	// 					APIVersion: clusterSet.APIVersion,
-	// 					Kind:       clusterSet.Kind,
-	// 				},
-	// 			},
-	// 		},
-	// 	}
-	// 	quota.Spec.Hard = clusterSet.Spec.MaxLimits
-	// 	if err := c.Client.Create(ctx, &quota); err != nil {
-	// 		return reconcile.Result{}, fmt.Errorf("unable to create resource quota from cluster set: %w", err)
-	// 	}
-	// }
+	if err := c.reconcileDefaultLimits(ctx, &clusterSet); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if err := c.reconcileQuota(ctx, &clusterSet); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -315,7 +304,7 @@ func (c *ClusterSetReconciler) reconcileClusters(ctx context.Context, clusterSet
 	log.Info("reconciling Clusters")
 
 	var clusters v1alpha1.ClusterList
-	if err := c.Client.List(ctx, &clusters, ctrlruntimeclient.InNamespace(clusterSet.Namespace)); err != nil {
+	if err := c.Client.List(ctx, &clusters, client.InNamespace(clusterSet.Namespace)); err != nil {
 		return err
 	}
 
@@ -339,4 +328,101 @@ func (c *ClusterSetReconciler) reconcileClusters(ctx context.Context, clusterSet
 	}
 
 	return err
+}
+
+func (c *ClusterSetReconciler) reconcileQuota(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+	if clusterSet.Spec.Quota == nil {
+		// check if resourceQuota object exists and deletes it.
+		var toDeleteResourceQuota v1.ResourceQuota
+
+		key := types.NamespacedName{
+			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+			Namespace: clusterSet.Namespace,
+		}
+
+		if err := c.Client.Get(ctx, key, &toDeleteResourceQuota); err != nil {
+			return client.IgnoreNotFound(err)
+		}
+
+		return c.Client.Delete(ctx, &toDeleteResourceQuota)
+	}
+
+	// create/update resource Quota
+	resourceQuota := resourceQuota(clusterSet)
+
+	if err := ctrl.SetControllerReference(clusterSet, &resourceQuota, c.Scheme); err != nil {
+		return err
+	}
+
+	if err := c.Client.Create(ctx, &resourceQuota); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return c.Client.Update(ctx, &resourceQuota)
+		}
+	}
+
+	return nil
+}
+
+func resourceQuota(clusterSet *v1alpha1.ClusterSet) v1.ResourceQuota {
+	return v1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+			Namespace: clusterSet.Namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ResourceQuota",
+			APIVersion: "v1",
+		},
+		Spec: v1.ResourceQuotaSpec{
+			Hard:          clusterSet.Spec.Quota.Limits,
+			Scopes:        clusterSet.Spec.Quota.Scopes,
+			ScopeSelector: clusterSet.Spec.Quota.ScopeSelector,
+		},
+	}
+}
+
+func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+	limitRange := limitRange(clusterSet)
+	if err := ctrl.SetControllerReference(clusterSet, &limitRange, c.Scheme); err != nil {
+		return err
+	}
+
+	if err := c.Client.Create(ctx, &limitRange); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return c.Client.Update(ctx, &limitRange)
+		}
+	}
+
+	return nil
+}
+
+func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
+	items := clusterSet.Spec.DefaultLimits
+	if items == nil {
+		// if defaultlimits is not specified we attempt to have a default value for
+		// requests for cpu/memory for the pods within the clusterset
+		items = []v1.LimitRangeItem{
+			{
+				Type: v1.LimitTypeContainer,
+				DefaultRequest: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse(defaultCPURequest),
+					v1.ResourceMemory: resource.MustParse(defaultMemoryRequest),
+				},
+			},
+		}
+	}
+
+	return v1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+			Namespace: clusterSet.Namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "LimitRange",
+			APIVersion: "v1",
+		},
+		Spec: v1.LimitRangeSpec{
+			Limits: items,
+		},
+	}
 }

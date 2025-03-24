@@ -121,7 +121,9 @@ func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl client.
 		if err := controllerutil.RemoveOwnerReference(&cluster, &secret, cl.Scheme()); err != nil {
 			return err
 		}
+
+		return cl.Update(ctx, &secret)
 	}
 
-	return cl.Update(ctx, &secret)
+	return nil
 }

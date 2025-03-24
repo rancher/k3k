@@ -4,7 +4,7 @@ metadata:
   name: clusterset-example
 # spec:
   # disableNetworkPolicy: false
-  # allowedNodeTypes:
+  # allowedModeTypes:
   # - "shared"
   # - "virtual"
   # podSecurityAdmissionLevel: "baseline"

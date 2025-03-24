@@ -42,10 +42,10 @@ spec:
             default: {}
             description: Spec defines the desired state of the ClusterSet.
             properties:
-              allowedNodeTypes:
+              allowedModeTypes:
                 default:
                 - shared
-                description: AllowedNodeTypes specifies the allowed cluster provisioning
+                description: AllowedModeTypes specifies the allowed cluster provisioning
                   modes. Defaults to [shared].
                 items:
                   description: ClusterMode is the possible provisioning mode of a

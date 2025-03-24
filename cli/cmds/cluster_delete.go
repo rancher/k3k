@@ -108,6 +108,7 @@ func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl client.
 			logrus.Warnf("%s secret is not found", name)
 			return nil
 		}
+
 		return err
 	}
 

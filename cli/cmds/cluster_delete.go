@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -76,14 +77,7 @@ func delete(clx *cli.Context) error {
 		if err := RemoveOwnerReferenceFromSecret(ctx, agent.WebhookSecretName(cluster.Name), ctrlClient, cluster); err != nil {
 			return err
 		}
-	}
-
-	if err := ctrlClient.Delete(ctx, &cluster); err != nil {
-		return client.IgnoreNotFound(err)
-	}
-
-	// make sure to delete pv claims for the cluster if --keep-data is not used
-	if !keepData {
+	} else {
 		matchingLabels := client.MatchingLabels(map[string]string{"cluster": cluster.Name, "role": "server"})
 		listOpts := client.ListOptions{Namespace: cluster.Namespace}
 		matchingLabels.ApplyToList(&listOpts)
@@ -92,6 +86,10 @@ func delete(clx *cli.Context) error {
 		if err := ctrlClient.DeleteAllOf(ctx, &v1.PersistentVolumeClaim{}, deleteOpts); err != nil {
 			return client.IgnoreNotFound(err)
 		}
+	}
+
+	if err := ctrlClient.Delete(ctx, &cluster); err != nil {
+		return client.IgnoreNotFound(err)
 	}
 
 	return nil
@@ -106,11 +104,20 @@ func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl client.
 	}
 
 	if err := cl.Get(ctx, key, &secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			logrus.Warnf("%s secret is not found", name)
+			return nil
+		}
 		return err
 	}
 
+	owners := secret.GetOwnerReferences()
+	if len(owners) < 1 {
+		return nil
+	}
+
 	if err := controllerutil.RemoveOwnerReference(&cluster, &secret, cl.Scheme()); err != nil {
-		return client.IgnoreNotFound(err)
+		return err
 	}
 
 	return cl.Update(ctx, &secret)

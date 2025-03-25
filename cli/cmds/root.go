@@ -13,10 +13,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-const (
-	defaultNamespace = "default"
-)
-
 var (
 	Scheme = runtime.NewScheme()
 
@@ -71,19 +67,19 @@ func NewApp() *cli.App {
 	}
 
 	app.Commands = []*cli.Command{
-		NewClusterCommand(),
-		NewKubeconfigCommand(),
+		NewClusterCmd(),
+		NewKubeconfigCmd(),
 	}
 
 	return app
 }
 
-func Namespace() string {
-	if namespace == "" {
-		return defaultNamespace
+func Namespace(clusterName string) string {
+	if namespace != "" {
+		return namespace
 	}
 
-	return namespace
+	return "k3k-" + clusterName
 }
 
 func loadRESTConfig() (*rest.Config, error) {

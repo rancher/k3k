@@ -89,9 +89,8 @@ lint:	## Find any linting issues in the project
 validate: build-crds docs ## Validate the project checking for any dependency or doc mismatch
 	$(GINKGO) unfocus
 	go mod tidy
-	git --no-pager diff go.mod go.sum
 	git status --porcelain
-	test -z "$(shell git status --porcelain)"
+	git --no-pager diff --exit-code
 
 .PHONY: install
 install:	## Install K3k with Helm on the targeted Kubernetes cluster

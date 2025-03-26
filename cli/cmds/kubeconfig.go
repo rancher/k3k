@@ -73,21 +73,23 @@ var (
 	}
 )
 
-var subcommands = []*cli.Command{
-	{
+func NewKubeconfigCmd() *cli.Command {
+	return &cli.Command{
+		Name:  "kubeconfig",
+		Usage: "Manage kubeconfig for clusters",
+		Subcommands: []*cli.Command{
+			NewKubeconfigGenerateCmd(),
+		},
+	}
+}
+
+func NewKubeconfigGenerateCmd() *cli.Command {
+	return &cli.Command{
 		Name:            "generate",
 		Usage:           "Generate kubeconfig for clusters",
 		SkipFlagParsing: false,
 		Action:          generate,
 		Flags:           append(CommonFlags, generateKubeconfigFlags...),
-	},
-}
-
-func NewKubeconfigCommand() *cli.Command {
-	return &cli.Command{
-		Name:        "kubeconfig",
-		Usage:       "Manage kubeconfig for clusters",
-		Subcommands: subcommands,
 	}
 }
 
@@ -106,7 +108,7 @@ func generate(clx *cli.Context) error {
 
 	clusterKey := types.NamespacedName{
 		Name:      name,
-		Namespace: Namespace(),
+		Namespace: Namespace(name),
 	}
 
 	var cluster v1alpha1.Cluster
@@ -155,16 +157,20 @@ func generate(clx *cli.Context) error {
 		return err
 	}
 
+	return writeKubeconfigFile(&cluster, kubeconfig)
+}
+
+func writeKubeconfigFile(cluster *v1alpha1.Cluster, kubeconfig *clientcmdapi.Config) error {
+	if configName == "" {
+		configName = cluster.Namespace + "-" + cluster.Name + "-kubeconfig.yaml"
+	}
+
 	pwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 
-	if configName == "" {
-		configName = cluster.Name + "-kubeconfig.yaml"
-	}
-
-	logrus.Infof(`You can start using the cluster with: 
+	logrus.Infof(`You can start using the cluster with:
 
 	export KUBECONFIG=%s
 	kubectl cluster-info

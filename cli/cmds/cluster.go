@@ -4,7 +4,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func NewClusterCommand() *cli.Command {
+func NewClusterCmd() *cli.Command {
 	return &cli.Command{
 		Name:  "cluster",
 		Usage: "cluster command",

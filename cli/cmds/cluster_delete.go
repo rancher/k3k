@@ -58,12 +58,14 @@ func delete(clx *cli.Context) error {
 		return err
 	}
 
-	logrus.Infof("deleting [%s] cluster", name)
+	namespace := Namespace(name)
+
+	logrus.Infof("Deleting [%s] cluster in namespace [%s]", name, namespace)
 
 	cluster := v1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: Namespace(),
+			Namespace: namespace,
 		},
 	}
 	// keep bootstrap secrets and tokens if --keep-data flag is passed

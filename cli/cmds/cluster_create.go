@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,8 +15,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
@@ -79,6 +77,21 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 			return err
 		}
 
+		namespace := Namespace(name)
+
+		ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+		if err := ctrlClient.Get(ctx, types.NamespacedName{Name: namespace}, ns); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+
+			logrus.Infof(`Creating namespace [%s]`, namespace)
+
+			if err := ctrlClient.Create(ctx, ns); err != nil {
+				return err
+			}
+		}
+
 		if strings.Contains(config.version, "+") {
 			orig := config.version
 			config.version = strings.Replace(config.version, "+", "-", -1)
@@ -86,18 +99,18 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 		}
 
 		if config.token != "" {
-			logrus.Infof("Creating cluster token secret")
+			logrus.Info("Creating cluster token secret")
 
-			obj := k3kcluster.TokenSecretObj(config.token, name, Namespace())
+			obj := k3kcluster.TokenSecretObj(config.token, name, namespace)
 
 			if err := ctrlClient.Create(ctx, &obj); err != nil {
 				return err
 			}
 		}
 
-		logrus.Infof("Creating a new cluster [%s]", name)
+		logrus.Infof("Creating cluster [%s] in namespace [%s]", name, namespace)
 
-		cluster := newCluster(name, Namespace(), config)
+		cluster := newCluster(name, namespace, config)
 
 		cluster.Spec.Expose = &v1alpha1.ExposeConfig{
 			NodePort: &v1alpha1.NodePortConfig{},
@@ -146,23 +159,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 			return err
 		}
 
-		pwd, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-
-		logrus.Infof(`You can start using the cluster with: 
-	
-		export KUBECONFIG=%s
-		kubectl cluster-info
-		`, filepath.Join(pwd, cluster.Name+"-kubeconfig.yaml"))
-
-		kubeconfigData, err := clientcmd.Write(*kubeconfig)
-		if err != nil {
-			return err
-		}
-
-		return os.WriteFile(cluster.Name+"-kubeconfig.yaml", kubeconfigData, 0644)
+		return writeKubeconfigFile(cluster, kubeconfig)
 	}
 }
 

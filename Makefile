@@ -90,8 +90,8 @@ validate: build-crds docs ## Validate the project checking for any dependency or
 	$(GINKGO) unfocus
 	go mod tidy
 	git --no-pager diff go.mod go.sum
+	git status --porcelain
 	test -z "$(shell git status --porcelain)"
-
 
 .PHONY: install
 install:	## Install K3k with Helm on the targeted Kubernetes cluster

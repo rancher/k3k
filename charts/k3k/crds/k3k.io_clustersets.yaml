@@ -14,7 +14,14 @@ spec:
     singular: clusterset
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.displayName
+      name: Display Name
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
@@ -73,6 +80,9 @@ spec:
                 description: DisableNetworkPolicy indicates whether to disable the
                   creation of a default network policy for cluster isolation.
                 type: boolean
+              displayName:
+                description: DisplayName is the human-readable name for the set.
+                type: string
               limit:
                 description: |-
                   Limit specifies the LimitRange that will be applied to all pods within the ClusterSet
@@ -312,6 +322,9 @@ spec:
         required:
         - spec
         type: object
+        x-kubernetes-validations:
+        - message: Name must match 'default'
+          rule: self.metadata.name == "default"
     served: true
     storage: true
     subresources:

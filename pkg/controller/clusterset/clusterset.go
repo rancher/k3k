@@ -10,6 +10,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,6 +50,7 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ClusterSet{}).
 		Owns(&networkingv1.NetworkPolicy{}).
+		Owns(&v1.ResourceQuota{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: maxConcurrentReconciles,
 		}).
@@ -59,54 +61,33 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string) error {
 		).
 		Watches(
 			&v1alpha1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc(sameNamespaceEventHandler(reconciler)),
+			handler.EnqueueRequestsFromMapFunc(namespaceEventHandler(reconciler)),
 		).
 		Complete(&reconciler)
 }
 
-// namespaceEventHandler will enqueue reconciling requests for all the ClusterSets in the changed namespace
+// namespaceEventHandler will enqueue a reconcile request for the ClusterSet in the given namespace
 func namespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
-		var (
-			requests []reconcile.Request
-			set      v1alpha1.ClusterSetList
-		)
+		// if the object is a Namespace, use the name as the namespace
+		namespace := obj.GetName()
 
-		_ = reconciler.Client.List(ctx, &set, client.InNamespace(obj.GetName()))
-
-		for _, clusterSet := range set.Items {
-			requests = append(requests, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      clusterSet.Name,
-					Namespace: obj.GetName(),
-				},
-			})
+		// if the object is a namespaced resource, use the namespace
+		if obj.GetNamespace() != "" {
+			namespace = obj.GetNamespace()
 		}
 
-		return requests
-	}
-}
-
-// sameNamespaceEventHandler will enqueue reconciling requests for all the ClusterSets in the changed namespace
-func sameNamespaceEventHandler(reconciler ClusterSetReconciler) handler.MapFunc {
-	return func(ctx context.Context, obj client.Object) []reconcile.Request {
-		var (
-			requests []reconcile.Request
-			set      v1alpha1.ClusterSetList
-		)
-
-		_ = reconciler.Client.List(ctx, &set, client.InNamespace(obj.GetNamespace()))
-
-		for _, clusterSet := range set.Items {
-			requests = append(requests, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      clusterSet.Name,
-					Namespace: obj.GetNamespace(),
-				},
-			})
+		key := types.NamespacedName{
+			Name:      "default",
+			Namespace: namespace,
 		}
 
-		return requests
+		var clusterSet v1alpha1.ClusterSet
+		if err := reconciler.Client.Get(ctx, key, &clusterSet); err != nil {
+			return nil
+		}
+
+		return []reconcile.Request{{NamespacedName: key}}
 	}
 }
 
@@ -131,40 +112,50 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if err := c.reconcileNetworkPolicy(ctx, &clusterSet); err != nil {
-		return reconcile.Result{}, err
+	orig := clusterSet.DeepCopy()
+
+	reconcilerErr := c.reconcileClusterSet(ctx, &clusterSet)
+
+	// update Status if needed
+	if !reflect.DeepEqual(orig.Status, clusterSet.Status) {
+		if err := c.Client.Status().Update(ctx, &clusterSet); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
-	if err := c.reconcileNamespacePodSecurityLabels(ctx, &clusterSet); err != nil {
-		return reconcile.Result{}, err
+	// if there was an error during the reconciliation, return
+	if reconcilerErr != nil {
+		return reconcile.Result{}, reconcilerErr
 	}
 
-	if err := c.reconcileClusters(ctx, &clusterSet); err != nil {
-		return reconcile.Result{}, err
+	// update ClusterSet if needed
+	if !reflect.DeepEqual(orig.Spec, clusterSet.Spec) {
+		if err := c.Client.Update(ctx, &clusterSet); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
-	// TODO: Add resource quota for clustersets
-	// if clusterSet.Spec.MaxLimits != nil {
-	// 	quota := v1.ResourceQuota{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      "clusterset-quota",
-	// 			Namespace: clusterSet.Namespace,
-	// 			OwnerReferences: []metav1.OwnerReference{
-	// 				{
-	// 					UID:        clusterSet.UID,
-	// 					Name:       clusterSet.Name,
-	// 					APIVersion: clusterSet.APIVersion,
-	// 					Kind:       clusterSet.Kind,
-	// 				},
-	// 			},
-	// 		},
-	// 	}
-	// 	quota.Spec.Hard = clusterSet.Spec.MaxLimits
-	// 	if err := c.Client.Create(ctx, &quota); err != nil {
-	// 		return reconcile.Result{}, fmt.Errorf("unable to create resource quota from cluster set: %w", err)
-	// 	}
-	// }
 	return reconcile.Result{}, nil
+}
+
+func (c *ClusterSetReconciler) reconcileClusterSet(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+	if err := c.reconcileNetworkPolicy(ctx, clusterSet); err != nil {
+		return err
+	}
+
+	if err := c.reconcileNamespacePodSecurityLabels(ctx, clusterSet); err != nil {
+		return err
+	}
+
+	if err := c.reconcileResourceQuota(ctx, clusterSet); err != nil {
+		return err
+	}
+
+	if err := c.reconcileClusters(ctx, clusterSet); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *ClusterSetReconciler) reconcileNetworkPolicy(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
@@ -336,6 +327,34 @@ func (c *ClusterSetReconciler) reconcileClusters(ctx context.Context, clusterSet
 			// continue updating also the other clusters even if an error occurred
 			err = errors.Join(c.Client.Update(ctx, &cluster))
 		}
+	}
+
+	return err
+}
+
+func (c *ClusterSetReconciler) reconcileResourceQuota(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("reconciling ResourceQuota")
+
+	quota := &v1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "clusterset-quota",
+			Namespace: clusterSet.Namespace,
+		},
+		Spec: v1.ResourceQuotaSpec{
+			Hard: v1.ResourceList{
+				"count/clustersets.k3k.io": resource.MustParse("1"),
+			},
+		},
+	}
+
+	if err := ctrl.SetControllerReference(clusterSet, quota, c.Scheme); err != nil {
+		return err
+	}
+
+	err := c.Client.Create(ctx, quota)
+	if apierrors.IsAlreadyExists(err) {
+		return c.Client.Update(ctx, quota)
 	}
 
 	return err

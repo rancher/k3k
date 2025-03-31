@@ -10,6 +10,7 @@ func NewClusterSetCmd(appCtx *AppContext) *cli.Command {
 		Usage: "clusterset command",
 		Subcommands: []*cli.Command{
 			NewClusterSetCreateCmd(appCtx),
+			NewClusterSetDeleteCmd(appCtx),
 		},
 	}
 }

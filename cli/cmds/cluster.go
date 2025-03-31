@@ -4,13 +4,13 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func NewClusterCmd() *cli.Command {
+func NewClusterCmd(appCtx *AppContext) *cli.Command {
 	return &cli.Command{
 		Name:  "cluster",
 		Usage: "cluster command",
 		Subcommands: []*cli.Command{
-			NewClusterCreateCmd(),
-			NewClusterDeleteCmd(),
+			NewClusterCreateCmd(appCtx),
+			NewClusterDeleteCmd(appCtx),
 		},
 	}
 }

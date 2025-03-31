@@ -20,7 +20,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -73,91 +72,82 @@ var (
 	}
 )
 
-func NewKubeconfigCmd() *cli.Command {
+func NewKubeconfigCmd(appCtx *AppContext) *cli.Command {
 	return &cli.Command{
 		Name:  "kubeconfig",
 		Usage: "Manage kubeconfig for clusters",
 		Subcommands: []*cli.Command{
-			NewKubeconfigGenerateCmd(),
+			NewKubeconfigGenerateCmd(appCtx),
 		},
 	}
 }
 
-func NewKubeconfigGenerateCmd() *cli.Command {
+func NewKubeconfigGenerateCmd(appCtx *AppContext) *cli.Command {
 	return &cli.Command{
 		Name:            "generate",
 		Usage:           "Generate kubeconfig for clusters",
 		SkipFlagParsing: false,
-		Action:          generate,
+		Action:          generate(appCtx),
 		Flags:           append(CommonFlags, generateKubeconfigFlags...),
 	}
 }
 
-func generate(clx *cli.Context) error {
-	restConfig, err := loadRESTConfig()
-	if err != nil {
-		return err
-	}
+func generate(appCtx *AppContext) cli.ActionFunc {
+	return func(clx *cli.Context) error {
+		ctx := context.Background()
+		client := appCtx.Client
+		clusterKey := types.NamespacedName{
+			Name:      name,
+			Namespace: Namespace(name),
+		}
 
-	ctrlClient, err := client.New(restConfig, client.Options{
-		Scheme: Scheme,
-	})
-	if err != nil {
-		return err
-	}
+		var cluster v1alpha1.Cluster
 
-	clusterKey := types.NamespacedName{
-		Name:      name,
-		Namespace: Namespace(name),
-	}
-
-	var cluster v1alpha1.Cluster
-
-	ctx := context.Background()
-	if err := ctrlClient.Get(ctx, clusterKey, &cluster); err != nil {
-		return err
-	}
-
-	url, err := url.Parse(restConfig.Host)
-	if err != nil {
-		return err
-	}
-
-	host := strings.Split(url.Host, ":")
-	if kubeconfigServerHost != "" {
-		host = []string{kubeconfigServerHost}
-
-		if err := altNames.Set(kubeconfigServerHost); err != nil {
+		if err := client.Get(ctx, clusterKey, &cluster); err != nil {
 			return err
 		}
+
+		url, err := url.Parse(appCtx.RestConfig.Host)
+		if err != nil {
+			return err
+		}
+
+		host := strings.Split(url.Host, ":")
+		if kubeconfigServerHost != "" {
+			host = []string{kubeconfigServerHost}
+
+			if err := altNames.Set(kubeconfigServerHost); err != nil {
+				return err
+			}
+		}
+
+		certAltNames := certs.AddSANs(altNames.Value())
+
+		orgs := org.Value()
+		if orgs == nil {
+			orgs = []string{user.SystemPrivilegedGroup}
+		}
+
+		cfg := kubeconfig.KubeConfig{
+			CN:         cn,
+			ORG:        orgs,
+			ExpiryDate: time.Hour * 24 * time.Duration(expirationDays),
+			AltNames:   certAltNames,
+		}
+
+		logrus.Infof("waiting for cluster to be available..")
+
+		var kubeconfig *clientcmdapi.Config
+
+		if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
+			kubeconfig, err = cfg.Extract(ctx, client, &cluster, host[0])
+			return err
+		}); err != nil {
+			return err
+		}
+
+		return writeKubeconfigFile(&cluster, kubeconfig)
 	}
-
-	certAltNames := certs.AddSANs(altNames.Value())
-
-	orgs := org.Value()
-	if orgs == nil {
-		orgs = []string{user.SystemPrivilegedGroup}
-	}
-
-	cfg := kubeconfig.KubeConfig{
-		CN:         cn,
-		ORG:        orgs,
-		ExpiryDate: time.Hour * 24 * time.Duration(expirationDays),
-		AltNames:   certAltNames,
-	}
-
-	logrus.Infof("waiting for cluster to be available..")
-
-	var kubeconfig *clientcmdapi.Config
-
-	if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
-		kubeconfig, err = cfg.Extract(ctx, ctrlClient, &cluster, host[0])
-		return err
-	}); err != nil {
-		return err
-	}
-
-	return writeKubeconfigFile(&cluster, kubeconfig)
 }
 
 func writeKubeconfigFile(cluster *v1alpha1.Cluster, kubeconfig *clientcmdapi.Config) error {

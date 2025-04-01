@@ -73,6 +73,32 @@ Delete an existing cluster
 
 **--namespace**="": namespace to create the k3k cluster in
 
+## clusterset
+
+clusterset command
+
+### create
+
+Create new clusterset
+
+>k3kcli clusterset create [command options] NAME
+
+**--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
+
+**--mode**="": The allowed mode type of the clusterset (default: "shared")
+
+**--namespace**="": namespace to create the k3k cluster in
+
+### delete
+
+Delete an existing clusterset
+
+>k3kcli clusterset delete [command options] NAME
+
+**--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
+
+**--namespace**="": namespace to create the k3k cluster in
+
 ## kubeconfig
 
 Manage kubeconfig for clusters

@@ -331,7 +331,7 @@ func (c *ClusterSetReconciler) reconcileClusters(ctx context.Context, clusterSet
 }
 
 func (c *ClusterSetReconciler) reconcileQuota(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
-	if clusterSet.Spec.Quota == nil {
+	if clusterSet.Spec.Quota.Hard == nil {
 		// check if resourceQuota object exists and deletes it.
 		var toDeleteResourceQuota v1.ResourceQuota
 
@@ -373,15 +373,30 @@ func resourceQuota(clusterSet *v1alpha1.ClusterSet) v1.ResourceQuota {
 			Kind:       "ResourceQuota",
 			APIVersion: "v1",
 		},
-		Spec: v1.ResourceQuotaSpec{
-			Hard:          clusterSet.Spec.Quota.Limits,
-			Scopes:        clusterSet.Spec.Quota.Scopes,
-			ScopeSelector: clusterSet.Spec.Quota.ScopeSelector,
-		},
+		Spec: clusterSet.Spec.Quota,
 	}
 }
 
 func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Reconciling Default Limits")
+
+	// delete limitrange if spec.limits isnt specified.
+	if len(clusterSet.Spec.Limit.Limits) == 0 {
+		var toDeleteLimitRange v1.LimitRange
+
+		key := types.NamespacedName{
+			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+			Namespace: clusterSet.Namespace,
+		}
+
+		if err := c.Client.Get(ctx, key, &toDeleteLimitRange); err != nil {
+			return client.IgnoreNotFound(err)
+		}
+
+		return c.Client.Delete(ctx, &toDeleteLimitRange)
+	}
+
 	limitRange := limitRange(clusterSet)
 	if err := ctrl.SetControllerReference(clusterSet, &limitRange, c.Scheme); err != nil {
 		return err
@@ -397,21 +412,35 @@ func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clust
 }
 
 func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
-	items := clusterSet.Spec.DefaultLimits
-	if items == nil {
-		// if defaultlimits is not specified we attempt to have a default value for
-		// requests for cpu/memory for the pods within the clusterset
-		items = []v1.LimitRangeItem{
-			{
-				Type: v1.LimitTypeContainer,
-				DefaultRequest: v1.ResourceList{
-					v1.ResourceCPU:    resource.MustParse(defaultCPURequest),
-					v1.ResourceMemory: resource.MustParse(defaultMemoryRequest),
-				},
-			},
+	limitSpec := clusterSet.Spec.Limit
+
+	var cpuFound, memoryFound bool
+	// check existing limits if cpu or memory not found
+	for _, limit := range limitSpec.Limits {
+		if limit.DefaultRequest.Cpu().String() != "0" {
+			cpuFound = true
+		}
+		if limit.DefaultRequest.Memory().String() != "0" {
+			memoryFound = true
 		}
 	}
-
+	// Injecting defaultRequest limit for memory/cpu if not found.
+	for i, limit := range limitSpec.Limits {
+		if limit.Type == v1.LimitTypeContainer {
+			if !cpuFound {
+				limitSpec.Limits[i].DefaultRequest = v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse(defaultCPURequest),
+					v1.ResourceMemory: resource.MustParse(limit.DefaultRequest.Memory().String()),
+				}
+			}
+			if !memoryFound {
+				limitSpec.Limits[i].DefaultRequest = v1.ResourceList{
+					v1.ResourceMemory: resource.MustParse(defaultMemoryRequest),
+					v1.ResourceCPU:    resource.MustParse(limit.DefaultRequest.Cpu().String()),
+				}
+			}
+		}
+	}
 	return v1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
@@ -421,8 +450,7 @@ func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
 			Kind:       "LimitRange",
 			APIVersion: "v1",
 		},
-		Spec: v1.LimitRangeSpec{
-			Limits: items,
-		},
+		Spec: limitSpec,
 	}
+
 }

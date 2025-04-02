@@ -59,73 +59,6 @@ spec:
                 x-kubernetes-validations:
                 - message: mode is immutable
                   rule: self == oldSelf
-              defaultLimits:
-                description: |-
-                  DefaultLimits specifies the default value for a limitRange that will be applied to all pods within
-                  the clusterSet, if not specified a default value will be applied.
-                items:
-                  description: LimitRangeItem defines a min/max usage limit for any
-                    resource that matches on kind.
-                  properties:
-                    default:
-                      additionalProperties:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      description: Default resource requirement limit value by resource
-                        name if resource limit is omitted.
-                      type: object
-                    defaultRequest:
-                      additionalProperties:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      description: DefaultRequest is the default resource requirement
-                        request value by resource name if resource request is omitted.
-                      type: object
-                    max:
-                      additionalProperties:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      description: Max usage constraints on this kind by resource
-                        name.
-                      type: object
-                    maxLimitRequestRatio:
-                      additionalProperties:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      description: MaxLimitRequestRatio if specified, the named resource
-                        must have a request and limit that are both non-zero where
-                        limit divided by request is less than or equal to the enumerated
-                        value; this represents the max burst for the named resource.
-                      type: object
-                    min:
-                      additionalProperties:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      description: Min usage constraints on this kind by resource
-                        name.
-                      type: object
-                    type:
-                      description: Type of resource that this limit applies to.
-                      type: string
-                  required:
-                  - type
-                  type: object
-                type: array
               defaultNodeSelector:
                 additionalProperties:
                   type: string
@@ -140,6 +73,82 @@ spec:
                 description: DisableNetworkPolicy indicates whether to disable the
                   creation of a default network policy for cluster isolation.
                 type: boolean
+              limit:
+                description: |-
+                  Limit specifies the default value for a limitRange that will be applied to all pods within
+                  the clusterSet, if not specified a default value will be applied.
+                properties:
+                  limits:
+                    description: Limits is the list of LimitRangeItem objects that
+                      are enforced.
+                    items:
+                      description: LimitRangeItem defines a min/max usage limit for
+                        any resource that matches on kind.
+                      properties:
+                        default:
+                          additionalProperties:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: Default resource requirement limit value by
+                            resource name if resource limit is omitted.
+                          type: object
+                        defaultRequest:
+                          additionalProperties:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: DefaultRequest is the default resource requirement
+                            request value by resource name if resource request is
+                            omitted.
+                          type: object
+                        max:
+                          additionalProperties:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: Max usage constraints on this kind by resource
+                            name.
+                          type: object
+                        maxLimitRequestRatio:
+                          additionalProperties:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: MaxLimitRequestRatio if specified, the named
+                            resource must have a request and limit that are both non-zero
+                            where limit divided by request is less than or equal to
+                            the enumerated value; this represents the max burst for
+                            the named resource.
+                          type: object
+                        min:
+                          additionalProperties:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: Min usage constraints on this kind by resource
+                            name.
+                          type: object
+                        type:
+                          description: Type of resource that this limit applies to.
+                          type: string
+                      required:
+                      - type
+                      type: object
+                    type: array
+                required:
+                - limits
+                type: object
               podSecurityAdmissionLevel:
                 description: PodSecurityAdmissionLevel specifies the pod security
                   admission level applied to the pods in the namespace.
@@ -152,30 +161,22 @@ spec:
                 description: Quota specifies the resource limits for clusters within
                   a clusterset.
                 properties:
-                  limits:
+                  hard:
                     additionalProperties:
                       anyOf:
                       - type: integer
                       - type: string
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
-                    description: Limits is the set of desired hard limits for each
-                      named resource.
-                    type: object
-                  scope:
                     description: |-
-                      Scopes is a collection of filters that must match each object tracked by a quota. If
-                      not specified, the quota matches all objects.
-                    items:
-                      description: A ResourceQuotaScope defines a filter that must
-                        match each object tracked by a quota
-                      type: string
-                    type: array
+                      hard is the set of desired hard limits for each named resource.
+                      More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/
+                    type: object
                   scopeSelector:
                     description: |-
                       scopeSelector is also a collection of filters like scopes that must match each object tracked by a quota
                       but expressed using ScopeSelectorOperator in combination with possible values.
-                      For a resource to match, both scopes AND scopeSelector, must be matched.
+                      For a resource to match, both scopes AND scopeSelector (if specified in spec), must be matched.
                     properties:
                       matchExpressions:
                         description: A list of scope selector requirements by scope
@@ -210,6 +211,15 @@ spec:
                         type: array
                     type: object
                     x-kubernetes-map-type: atomic
+                  scopes:
+                    description: |-
+                      A collection of filters that must match each object tracked by a quota.
+                      If not specified, the quota matches all objects.
+                    items:
+                      description: A ResourceQuotaScope defines a filter that must
+                        match each object tracked by a quota
+                      type: string
+                    type: array
                 type: object
             type: object
           status:

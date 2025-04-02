@@ -680,8 +680,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 						Namespace:    namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
-						Quota: &v1alpha1.Quota{
-							Limits: v1.ResourceList{
+						Quota: v1.ResourceQuotaSpec{
+							Hard: v1.ResourceList{
 								v1.ResourceCPU:    resource.MustParse("800m"),
 								v1.ResourceMemory: resource.MustParse("1Gi"),
 							},
@@ -718,8 +718,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 						Namespace:    namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
-						Quota: &v1alpha1.Quota{
-							Limits: v1.ResourceList{
+						Quota: v1.ResourceQuotaSpec{
+							Hard: v1.ResourceList{
 								v1.ResourceCPU:    resource.MustParse("800m"),
 								v1.ResourceMemory: resource.MustParse("1Gi"),
 							},
@@ -743,7 +743,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					WithPolling(time.Second).
 					Should(BeNil())
 
-				clusterSet.Spec.Quota = nil
+				clusterSet.Spec.Quota = v1.ResourceQuotaSpec{}
 				err = k8sClient.Update(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
 

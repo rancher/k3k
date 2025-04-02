@@ -180,21 +180,6 @@ const (
 	DynamicPersistenceMode = PersistenceMode("dynamic")
 )
 
-// Quota specifies the cluster set quota options.
-type Quota struct {
-	// Limits is the set of desired hard limits for each named resource.
-	Limits v1.ResourceList `json:"limits,omitempty"`
-
-	// Scopes is a collection of filters that must match each object tracked by a quota. If
-	// not specified, the quota matches all objects.
-	Scopes []v1.ResourceQuotaScope `json:"scope,omitempty"`
-
-	// scopeSelector is also a collection of filters like scopes that must match each object tracked by a quota
-	// but expressed using ScopeSelectorOperator in combination with possible values.
-	// For a resource to match, both scopes AND scopeSelector, must be matched.
-	ScopeSelector *v1.ScopeSelector `json:"scopeSelector,omitempty"`
-}
-
 // Addon specifies a Secret containing YAML to be deployed on cluster startup.
 type Addon struct {
 	// SecretNamespace is the namespace of the Secret.
@@ -352,11 +337,11 @@ type ClusterSetSpec struct {
 	// Quota specifies the resource limits for clusters within a clusterset.
 	//
 	// +optional
-	Quota *Quota `json:"quota,omitempty"`
+	Quota v1.ResourceQuotaSpec `json:"quota,omitempty"`
 
-	// DefaultLimits specifies the default value for a limitRange that will be applied to all pods within
+	// Limit specifies the default value for a limitRange that will be applied to all pods within
 	// the clusterSet, if not specified a default value will be applied.
-	DefaultLimits []v1.LimitRangeItem `json:"defaultLimits,omitempty"`
+	Limit v1.LimitRangeSpec `json:"limit,omitempty"`
 
 	// DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the set.
 	//

@@ -743,6 +743,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					WithPolling(time.Second).
 					Should(BeNil())
 
+				clusterSet.Spec.Quota = nil
 				err = k8sClient.Update(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
 

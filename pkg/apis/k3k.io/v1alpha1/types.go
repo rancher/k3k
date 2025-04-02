@@ -343,7 +343,7 @@ type ClusterSetSpec struct {
 	// Limit specifies the default value for a limitRange that will be applied to all pods within
 	// the clusterSet, if not specified a default value will be applied.
 	//
-	// +kubebuilder:default={}
+	// +kubebuilder:default={"limits":[]}
 	// +optional
 	Limit v1.LimitRangeSpec `json:"limit,omitempty"`
 

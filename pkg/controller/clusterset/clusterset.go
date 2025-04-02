@@ -398,7 +398,6 @@ func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clust
 		}
 
 	}
-
 	limitRange := limitRange(clusterSet)
 	if err := ctrl.SetControllerReference(clusterSet, &limitRange, c.Scheme); err != nil {
 		return err

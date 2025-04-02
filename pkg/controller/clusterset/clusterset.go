@@ -396,7 +396,6 @@ func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clust
 		if err := c.Client.Delete(ctx, &toDeleteLimitRange); err != nil {
 			return err
 		}
-
 	}
 
 	limitRange := limitRange(clusterSet)

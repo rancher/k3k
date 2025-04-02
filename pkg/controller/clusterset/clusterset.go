@@ -420,6 +420,7 @@ func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
 		if limit.DefaultRequest.Cpu().String() != "0" {
 			cpuFound = true
 		}
+
 		if limit.DefaultRequest.Memory().String() != "0" {
 			memoryFound = true
 		}
@@ -433,6 +434,7 @@ func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
 					v1.ResourceMemory: resource.MustParse(limit.DefaultRequest.Memory().String()),
 				}
 			}
+
 			if !memoryFound {
 				limitSpec.Limits[i].DefaultRequest = v1.ResourceList{
 					v1.ResourceMemory: resource.MustParse(defaultMemoryRequest),
@@ -441,6 +443,7 @@ func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
 			}
 		}
 	}
+
 	return v1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),

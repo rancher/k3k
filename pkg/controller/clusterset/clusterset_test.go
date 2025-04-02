@@ -761,11 +761,23 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					WithPolling(time.Second).
 					Should(BeTrue())
 			})
-			It("created a default limitRange", func() {
+			It("should create resourceQuota if Quota is enabled", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						Limit: &v1.LimitRangeSpec{
+							Limits: []v1.LimitRangeItem{
+								{
+									Type: v1.LimitTypeContainer,
+									DefaultRequest: v1.ResourceList{
+										v1.ResourceCPU: resource.MustParse("500m"),
+									},
+								},
+							},
+						},
 					},
 				}
 
@@ -788,9 +800,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				// make sure that default limit range has the default requet values.
 				Expect(len(limitRange.Spec.Limits) > 0).To(BeTrue())
 				cpu := limitRange.Spec.Limits[0].DefaultRequest.Cpu().String()
-				memory := limitRange.Spec.Limits[0].DefaultRequest.Memory().String()
-				Expect(cpu).To(BeEquivalentTo("200m"))
-				Expect(memory).To(BeEquivalentTo("128M"))
+				Expect(cpu).To(BeEquivalentTo("500m"))
 			})
 		})
 	})

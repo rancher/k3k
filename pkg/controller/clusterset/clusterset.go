@@ -10,7 +10,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -391,17 +390,13 @@ func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clust
 		}
 
 		if err := c.Client.Get(ctx, key, &toDeleteLimitRange); err != nil {
-			// do not return if not found to set the default limits
-			if !apierrors.IsNotFound(err) {
-				return err
-			}
+			return client.IgnoreNotFound(err)
 		}
 
 		if err := c.Client.Delete(ctx, &toDeleteLimitRange); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return err
-			}
+			return err
 		}
+
 	}
 
 	limitRange := limitRange(clusterSet)
@@ -419,38 +414,6 @@ func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clust
 }
 
 func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
-	limitSpec := clusterSet.Spec.Limit
-
-	var cpuFound, memoryFound bool
-	// check existing limits if cpu or memory not found
-	for _, limit := range limitSpec.Limits {
-		if limit.DefaultRequest.Cpu().String() != "0" {
-			cpuFound = true
-		}
-
-		if limit.DefaultRequest.Memory().String() != "0" {
-			memoryFound = true
-		}
-	}
-	// Injecting defaultRequest limit for memory/cpu if not found.
-	for i, limit := range limitSpec.Limits {
-		if limit.Type == v1.LimitTypeContainer {
-			if !cpuFound {
-				limitSpec.Limits[i].DefaultRequest = v1.ResourceList{
-					v1.ResourceCPU:    resource.MustParse(defaultCPURequest),
-					v1.ResourceMemory: resource.MustParse(limit.DefaultRequest.Memory().String()),
-				}
-			}
-
-			if !memoryFound {
-				limitSpec.Limits[i].DefaultRequest = v1.ResourceList{
-					v1.ResourceMemory: resource.MustParse(defaultMemoryRequest),
-					v1.ResourceCPU:    resource.MustParse(limit.DefaultRequest.Cpu().String()),
-				}
-			}
-		}
-	}
-
 	return v1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
@@ -460,6 +423,6 @@ func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
 			Kind:       "LimitRange",
 			APIVersion: "v1",
 		},
-		Spec: *limitSpec,
+		Spec: *clusterSet.Spec.Limit,
 	}
 }

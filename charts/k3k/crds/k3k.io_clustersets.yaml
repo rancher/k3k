@@ -74,8 +74,6 @@ spec:
                   creation of a default network policy for cluster isolation.
                 type: boolean
               limit:
-                default:
-                  limits: '[]'
                 description: |-
                   Limit specifies the default value for a limitRange that will be applied to all pods within
                   the clusterSet, if not specified a default value will be applied.
@@ -160,7 +158,6 @@ spec:
                 - restricted
                 type: string
               quota:
-                default: {}
                 description: Quota specifies the resource limits for clusters within
                   a clusterset.
                 properties:

@@ -331,7 +331,7 @@ func (c *ClusterSetReconciler) reconcileClusters(ctx context.Context, clusterSet
 }
 
 func (c *ClusterSetReconciler) reconcileQuota(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
-	if clusterSet.Spec.Quota.Hard == nil {
+	if clusterSet.Spec.Quota == nil {
 		// check if resourceQuota object exists and deletes it.
 		var toDeleteResourceQuota v1.ResourceQuota
 
@@ -373,7 +373,7 @@ func resourceQuota(clusterSet *v1alpha1.ClusterSet) v1.ResourceQuota {
 			Kind:       "ResourceQuota",
 			APIVersion: "v1",
 		},
-		Spec: clusterSet.Spec.Quota,
+		Spec: *clusterSet.Spec.Quota,
 	}
 }
 
@@ -382,7 +382,7 @@ func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clust
 	log.Info("Reconciling Default Limits")
 
 	// delete limitrange if spec.limits isnt specified.
-	if len(clusterSet.Spec.Limit.Limits) == 0 {
+	if clusterSet.Spec.Limit == nil {
 		var toDeleteLimitRange v1.LimitRange
 
 		key := types.NamespacedName{
@@ -453,6 +453,6 @@ func limitRange(clusterSet *v1alpha1.ClusterSet) v1.LimitRange {
 			Kind:       "LimitRange",
 			APIVersion: "v1",
 		},
-		Spec: limitSpec,
+		Spec: *limitSpec,
 	}
 }

@@ -336,16 +336,14 @@ type ClusterSetSpec struct {
 
 	// Quota specifies the resource limits for clusters within a clusterset.
 	//
-	// +kubebuilder:default={}
 	// +optional
-	Quota v1.ResourceQuotaSpec `json:"quota,omitempty"`
+	Quota *v1.ResourceQuotaSpec `json:"quota,omitempty"`
 
 	// Limit specifies the default value for a limitRange that will be applied to all pods within
 	// the clusterSet, if not specified a default value will be applied.
 	//
-	// +kubebuilder:default={"limits":[]}
 	// +optional
-	Limit v1.LimitRangeSpec `json:"limit,omitempty"`
+	Limit *v1.LimitRangeSpec `json:"limit,omitempty"`
 
 	// DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the set.
 	//

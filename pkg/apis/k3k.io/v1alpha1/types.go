@@ -114,11 +114,6 @@ type ClusterSpec struct {
 	// +optional
 	PriorityClass string `json:"priorityClass,omitempty"`
 
-	// Limit defines resource limits for server/agent nodes.
-	//
-	// +optional
-	Limit *ClusterLimit `json:"clusterLimit,omitempty"`
-
 	// TokenSecretRef is a Secret reference containing the token used by worker nodes to join the cluster.
 	// The Secret must have a "token" field in its data.
 	//
@@ -146,6 +141,16 @@ type ClusterSpec struct {
 	//
 	// +optional
 	Addons []Addon `json:"addons,omitempty"`
+
+	// ServerLimit specifies resource limits for server nodes.
+	//
+	// +optional
+	ServerLimit v1.ResourceList `json:"serverLimit,omitempty"`
+
+	// WorkerLimit specifies resource limits for agent nodes.
+	//
+	// +optional
+	WorkerLimit v1.ResourceList `json:"workerLimit,omitempty"`
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.
@@ -174,15 +179,6 @@ const (
 	// DynamicPersistenceMode represents a cluster with dynamic data persistence using a PVC.
 	DynamicPersistenceMode = PersistenceMode("dynamic")
 )
-
-// ClusterLimit defines resource limits for server and agent nodes.
-type ClusterLimit struct {
-	// ServerLimit specifies resource limits for server nodes.
-	ServerLimit v1.ResourceList `json:"serverLimit,omitempty"`
-
-	// WorkerLimit specifies resource limits for agent nodes.
-	WorkerLimit v1.ResourceList `json:"workerLimit,omitempty"`
-}
 
 // Addon specifies a Secret containing YAML to be deployed on cluster startup.
 type Addon struct {
@@ -338,10 +334,16 @@ type ClusterSet struct {
 // ClusterSetSpec defines the desired state of a ClusterSet.
 type ClusterSetSpec struct {
 
-	// DefaultLimits specifies the default resource limits for servers/agents when a cluster in the set doesn't provide any.
+	// Quota specifies the resource limits for clusters within a clusterset.
 	//
 	// +optional
-	DefaultLimits *ClusterLimit `json:"defaultLimits,omitempty"`
+	Quota *v1.ResourceQuotaSpec `json:"quota,omitempty"`
+
+	// Limit specifies the LimitRange that will be applied to all pods within the ClusterSet
+	// to set defaults and constraints (min/max)
+	//
+	// +optional
+	Limit *v1.LimitRangeSpec `json:"limit,omitempty"`
 
 	// DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the set.
 	//
@@ -352,11 +354,6 @@ type ClusterSetSpec struct {
 	//
 	// +optional
 	DefaultPriorityClass string `json:"defaultPriorityClass,omitempty"`
-
-	// MaxLimits specifies the maximum resource limits that apply to all clusters (server + agent) in the set.
-	//
-	// +optional
-	MaxLimits v1.ResourceList `json:"maxLimits,omitempty"`
 
 	// AllowedModeTypes specifies the allowed cluster provisioning modes. Defaults to [shared].
 	//

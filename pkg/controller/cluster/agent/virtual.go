@@ -228,5 +228,12 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 		},
 	}
 
+	// specify resource limits if specified for the servers.
+	if v.cluster.Spec.WorkerLimit != nil {
+		podSpec.Containers[0].Resources = v1.ResourceRequirements{
+			Limits: v.cluster.Spec.WorkerLimit,
+		}
+	}
+
 	return podSpec
 }

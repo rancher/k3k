@@ -8,11 +8,11 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
@@ -29,7 +29,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 		)
 
 		BeforeEach(func() {
-			createdNS := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{GenerateName: "ns-"}}
+			createdNS := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "ns-"}}
 			err := k8sClient.Create(context.Background(), createdNS)
 			Expect(err).To(Not(HaveOccurred()))
 			namespace = createdNS.Name
@@ -38,7 +38,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 		When("created with a default spec", func() {
 			It("should have only the 'shared' allowedModeTypes", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -54,7 +54,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 			It("should create a NetworkPolicy", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -118,7 +118,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 		When("created with DisableNetworkPolicy", func() {
 			It("should not create a NetworkPolicy if true", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -147,7 +147,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 			It("should delete the NetworkPolicy if changed to false", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -191,7 +191,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 			It("should recreate the NetworkPolicy if deleted", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -242,7 +242,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 		When("created specifying the mode", func() {
 			It("should have the 'virtual' mode if specified", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -263,7 +263,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 			It("should have both modes if specified", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -288,7 +288,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 			It("should fail for a non-existing mode", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -315,7 +315,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				)
 
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -327,7 +327,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
 
-				var ns corev1.Namespace
+				var ns v1.Namespace
 
 				// Check privileged
 
@@ -418,7 +418,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				privileged := v1alpha1.PrivilegedPodSecurityAdmissionLevel
 
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -430,7 +430,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
 
-				var ns corev1.Namespace
+				var ns v1.Namespace
 
 				// wait a bit for the namespace to be updated
 				Eventually(func() bool {
@@ -469,7 +469,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 		When("a cluster in the same namespace is present", func() {
 			It("should update it if needed", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -482,7 +482,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				Expect(err).To(Not(HaveOccurred()))
 
 				cluster := &v1alpha1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
 						Namespace:    namespace,
 					},
@@ -510,7 +510,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 			It("should update the nodeSelector", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -523,7 +523,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				Expect(err).To(Not(HaveOccurred()))
 
 				cluster := &v1alpha1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
 						Namespace:    namespace,
 					},
@@ -551,7 +551,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 			It("should update the nodeSelector if changed", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -564,7 +564,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				Expect(err).To(Not(HaveOccurred()))
 
 				cluster := &v1alpha1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
 						Namespace:    namespace,
 					},
@@ -622,7 +622,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 		When("a cluster in a different namespace is present", func() {
 			It("should not be update", func() {
 				clusterSet := &v1alpha1.ClusterSet{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "clusterset-",
 						Namespace:    namespace,
 					},
@@ -634,12 +634,12 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
 
-				namespace2 := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{GenerateName: "ns-"}}
+				namespace2 := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "ns-"}}
 				err = k8sClient.Create(ctx, namespace2)
 				Expect(err).To(Not(HaveOccurred()))
 
 				cluster := &v1alpha1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
 						Namespace:    namespace2.Name,
 					},
@@ -664,6 +664,133 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
 					Should(BeTrue())
+			})
+		})
+
+		When("created with ResourceQuota", func() {
+			It("should create resourceQuota if Quota is enabled", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						Quota: &v1.ResourceQuotaSpec{
+							Hard: v1.ResourceList{
+								v1.ResourceCPU:    resource.MustParse("800m"),
+								v1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+						},
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				var resourceQuota v1.ResourceQuota
+				Eventually(func() error {
+					key := types.NamespacedName{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Namespace: namespace,
+					}
+
+					return k8sClient.Get(ctx, key, &resourceQuota)
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeNil())
+				Expect(resourceQuota.Spec.Hard.Cpu().String()).To(BeEquivalentTo("800m"))
+				Expect(resourceQuota.Spec.Hard.Memory().String()).To(BeEquivalentTo("1Gi"))
+			})
+			It("should delete the ResourceQuota if Quota is deleted", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						Quota: &v1.ResourceQuotaSpec{
+							Hard: v1.ResourceList{
+								v1.ResourceCPU:    resource.MustParse("800m"),
+								v1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+						},
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				var resourceQuota v1.ResourceQuota
+
+				Eventually(func() error {
+					key := types.NamespacedName{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Namespace: namespace,
+					}
+					return k8sClient.Get(ctx, key, &resourceQuota)
+				}).
+					WithTimeout(time.Minute).
+					WithPolling(time.Second).
+					Should(BeNil())
+
+				clusterSet.Spec.Quota = nil
+				err = k8sClient.Update(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait for a bit for the resourceQuota to be deleted
+				Eventually(func() bool {
+					key := types.NamespacedName{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Namespace: namespace,
+					}
+					err := k8sClient.Get(ctx, key, &resourceQuota)
+					return apierrors.IsNotFound(err)
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+			})
+			It("should create resourceQuota if Quota is enabled", func() {
+				clusterSet := &v1alpha1.ClusterSet{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "clusterset-",
+						Namespace:    namespace,
+					},
+					Spec: v1alpha1.ClusterSetSpec{
+						Limit: &v1.LimitRangeSpec{
+							Limits: []v1.LimitRangeItem{
+								{
+									Type: v1.LimitTypeContainer,
+									DefaultRequest: v1.ResourceList{
+										v1.ResourceCPU: resource.MustParse("500m"),
+									},
+								},
+							},
+						},
+					},
+				}
+
+				err := k8sClient.Create(ctx, clusterSet)
+				Expect(err).To(Not(HaveOccurred()))
+
+				var limitRange v1.LimitRange
+
+				Eventually(func() error {
+					key := types.NamespacedName{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Namespace: namespace,
+					}
+					return k8sClient.Get(ctx, key, &limitRange)
+				}).
+					WithTimeout(time.Minute).
+					WithPolling(time.Second).
+					Should(BeNil())
+
+				// make sure that default limit range has the default requet values.
+				Expect(limitRange.Spec.Limits).ShouldNot(BeEmpty())
+				cpu := limitRange.Spec.Limits[0].DefaultRequest.Cpu().String()
+				Expect(cpu).To(BeEquivalentTo("500m"))
 			})
 		})
 	})

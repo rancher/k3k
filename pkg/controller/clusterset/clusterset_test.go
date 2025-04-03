@@ -699,8 +699,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should create resourceQuota if Quota is enabled", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						Quota: &v1.ResourceQuotaSpec{
@@ -730,11 +730,12 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				Expect(resourceQuota.Spec.Hard.Cpu().String()).To(BeEquivalentTo("800m"))
 				Expect(resourceQuota.Spec.Hard.Memory().String()).To(BeEquivalentTo("1Gi"))
 			})
+
 			It("should delete the ResourceQuota if Quota is deleted", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						Quota: &v1.ResourceQuotaSpec{
@@ -779,11 +780,12 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					WithPolling(time.Second).
 					Should(BeTrue())
 			})
+
 			It("should create resourceQuota if Quota is enabled", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						Limit: &v1.LimitRangeSpec{

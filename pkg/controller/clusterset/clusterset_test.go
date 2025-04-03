@@ -39,8 +39,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should have only the 'shared' allowedModeTypes", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 				}
 
@@ -52,11 +52,39 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				Expect(allowedModeTypes).To(ContainElement(v1alpha1.SharedClusterMode))
 			})
 
+			It("should not be able to create a cluster with a non 'default' name", func() {
+				err := k8sClient.Create(ctx, &v1alpha1.ClusterSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "another-name",
+						Namespace: namespace,
+					},
+				})
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should not be able to create two ClusterSets in the same namespace", func() {
+				err := k8sClient.Create(ctx, &v1alpha1.ClusterSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "default",
+						Namespace: namespace,
+					},
+				})
+				Expect(err).To(Not(HaveOccurred()))
+
+				err = k8sClient.Create(ctx, &v1alpha1.ClusterSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "default-2",
+						Namespace: namespace,
+					},
+				})
+				Expect(err).To(HaveOccurred())
+			})
+
 			It("should create a NetworkPolicy", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 				}
 
@@ -119,8 +147,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should not create a NetworkPolicy if true", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						DisableNetworkPolicy: true,
@@ -148,8 +176,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should delete the NetworkPolicy if changed to false", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 				}
 
@@ -192,8 +220,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should recreate the NetworkPolicy if deleted", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 				}
 
@@ -243,8 +271,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should have the 'virtual' mode if specified", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						AllowedModeTypes: []v1alpha1.ClusterMode{
@@ -264,8 +292,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should have both modes if specified", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						AllowedModeTypes: []v1alpha1.ClusterMode{
@@ -289,8 +317,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should fail for a non-existing mode", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						AllowedModeTypes: []v1alpha1.ClusterMode{
@@ -316,8 +344,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						PodSecurityAdmissionLevel: &privileged,
@@ -419,8 +447,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						PodSecurityAdmissionLevel: &privileged,
@@ -470,8 +498,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should update it if needed", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						DefaultPriorityClass: "foobar",
@@ -511,8 +539,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should update the nodeSelector", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						DefaultNodeSelector: map[string]string{"label-1": "value-1"},
@@ -552,8 +580,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should update the nodeSelector if changed", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						DefaultNodeSelector: map[string]string{"label-1": "value-1"},
@@ -623,8 +651,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should not be update", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						DefaultPriorityClass: "foobar",
@@ -671,8 +699,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should create resourceQuota if Quota is enabled", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						Quota: &v1.ResourceQuotaSpec{
@@ -702,11 +730,12 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				Expect(resourceQuota.Spec.Hard.Cpu().String()).To(BeEquivalentTo("800m"))
 				Expect(resourceQuota.Spec.Hard.Memory().String()).To(BeEquivalentTo("1Gi"))
 			})
+
 			It("should delete the ResourceQuota if Quota is deleted", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						Quota: &v1.ResourceQuotaSpec{
@@ -751,11 +780,12 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					WithPolling(time.Second).
 					Should(BeTrue())
 			})
+
 			It("should create resourceQuota if Quota is enabled", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "clusterset-",
-						Namespace:    namespace,
+						Name:      "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.ClusterSetSpec{
 						Limit: &v1.LimitRangeSpec{

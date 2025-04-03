@@ -11,6 +11,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -40,7 +41,14 @@ func init() {
 	_ = v1alpha1.AddToScheme(Scheme)
 }
 
+type AppContext struct {
+	RestConfig *rest.Config
+	Client     client.Client
+}
+
 func NewApp() *cli.App {
+	appCtx := &AppContext{}
+
 	app := cli.NewApp()
 	app.Name = "k3kcli"
 	app.Usage = "CLI for K3K"
@@ -58,6 +66,19 @@ func NewApp() *cli.App {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
 
+		restConfig, err := loadRESTConfig()
+		if err != nil {
+			return err
+		}
+
+		ctrlClient, err := client.New(restConfig, client.Options{Scheme: Scheme})
+		if err != nil {
+			return err
+		}
+
+		appCtx.RestConfig = restConfig
+		appCtx.Client = ctrlClient
+
 		return nil
 	}
 
@@ -67,8 +88,9 @@ func NewApp() *cli.App {
 	}
 
 	app.Commands = []*cli.Command{
-		NewClusterCmd(),
-		NewKubeconfigCmd(),
+		NewClusterCmd(appCtx),
+		NewClusterSetCmd(appCtx),
+		NewKubeconfigCmd(appCtx),
 	}
 
 	return app

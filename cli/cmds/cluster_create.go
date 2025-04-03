@@ -20,7 +20,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type CreateConfig struct {
@@ -38,7 +37,7 @@ type CreateConfig struct {
 	kubeconfigServerHost string
 }
 
-func NewClusterCreateCmd() *cli.Command {
+func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
 	createConfig := &CreateConfig{}
 	createFlags := NewCreateFlags(createConfig)
 
@@ -46,15 +45,16 @@ func NewClusterCreateCmd() *cli.Command {
 		Name:            "create",
 		Usage:           "Create new cluster",
 		UsageText:       "k3kcli cluster create [command options] NAME",
-		Action:          createAction(createConfig),
+		Action:          createAction(appCtx, createConfig),
 		Flags:           append(CommonFlags, createFlags...),
 		HideHelpCommand: true,
 	}
 }
 
-func createAction(config *CreateConfig) cli.ActionFunc {
+func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 	return func(clx *cli.Context) error {
 		ctx := context.Background()
+		client := appCtx.Client
 
 		if clx.NArg() != 1 {
 			return cli.ShowSubcommandHelp(clx)
@@ -65,29 +65,17 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 			return errors.New("invalid cluster name")
 		}
 
-		restConfig, err := loadRESTConfig()
-		if err != nil {
-			return err
-		}
-
-		ctrlClient, err := client.New(restConfig, client.Options{
-			Scheme: Scheme,
-		})
-		if err != nil {
-			return err
-		}
-
 		namespace := Namespace(name)
 
 		ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-		if err := ctrlClient.Get(ctx, types.NamespacedName{Name: namespace}, ns); err != nil {
+		if err := client.Get(ctx, types.NamespacedName{Name: namespace}, ns); err != nil {
 			if !apierrors.IsNotFound(err) {
 				return err
 			}
 
 			logrus.Infof(`Creating namespace [%s]`, namespace)
 
-			if err := ctrlClient.Create(ctx, ns); err != nil {
+			if err := client.Create(ctx, ns); err != nil {
 				return err
 			}
 		}
@@ -103,7 +91,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 
 			obj := k3kcluster.TokenSecretObj(config.token, name, namespace)
 
-			if err := ctrlClient.Create(ctx, &obj); err != nil {
+			if err := client.Create(ctx, &obj); err != nil {
 				return err
 			}
 		}
@@ -117,7 +105,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 		}
 
 		// add Host IP address as an extra TLS-SAN to expose the k3k cluster
-		url, err := url.Parse(restConfig.Host)
+		url, err := url.Parse(appCtx.RestConfig.Host)
 		if err != nil {
 			return err
 		}
@@ -129,7 +117,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 
 		cluster.Spec.TLSSANs = []string{host[0]}
 
-		if err := ctrlClient.Create(ctx, cluster); err != nil {
+		if err := client.Create(ctx, cluster); err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				logrus.Infof("Cluster [%s] already exists", name)
 			} else {
@@ -153,7 +141,7 @@ func createAction(config *CreateConfig) cli.ActionFunc {
 		var kubeconfig *clientcmdapi.Config
 
 		if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = cfg.Extract(ctx, ctrlClient, cluster, host[0])
+			kubeconfig, err = cfg.Extract(ctx, client, cluster, host[0])
 			return err
 		}); err != nil {
 			return err

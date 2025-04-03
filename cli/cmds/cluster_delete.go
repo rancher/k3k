@@ -13,18 +13,18 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var keepData bool
 
-func NewClusterDeleteCmd() *cli.Command {
+func NewClusterDeleteCmd(appCtx *AppContext) *cli.Command {
 	return &cli.Command{
 		Name:      "delete",
 		Usage:     "Delete an existing cluster",
 		UsageText: "k3kcli cluster delete [command options] NAME",
-		Action:    delete,
+		Action:    delete(appCtx),
 		Flags: append(CommonFlags, &cli.BoolFlag{
 			Name:        "keep-data",
 			Usage:       "keeps persistence volumes created for the cluster after deletion",
@@ -34,70 +34,61 @@ func NewClusterDeleteCmd() *cli.Command {
 	}
 }
 
-func delete(clx *cli.Context) error {
-	ctx := context.Background()
+func delete(appCtx *AppContext) cli.ActionFunc {
+	return func(clx *cli.Context) error {
+		ctx := context.Background()
+		client := appCtx.Client
 
-	if clx.NArg() != 1 {
-		return cli.ShowSubcommandHelp(clx)
-	}
-
-	name := clx.Args().First()
-	if name == k3kcluster.ClusterInvalidName {
-		return errors.New("invalid cluster name")
-	}
-
-	restConfig, err := loadRESTConfig()
-	if err != nil {
-		return err
-	}
-
-	ctrlClient, err := client.New(restConfig, client.Options{
-		Scheme: Scheme,
-	})
-	if err != nil {
-		return err
-	}
-
-	namespace := Namespace(name)
-
-	logrus.Infof("Deleting [%s] cluster in namespace [%s]", name, namespace)
-
-	cluster := v1alpha1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-	}
-	// keep bootstrap secrets and tokens if --keep-data flag is passed
-	if keepData {
-		// skip removing tokenSecret
-		if err := RemoveOwnerReferenceFromSecret(ctx, k3kcluster.TokenSecretName(cluster.Name), ctrlClient, cluster); err != nil {
-			return err
+		if clx.NArg() != 1 {
+			return cli.ShowSubcommandHelp(clx)
 		}
 
-		// skip removing webhook secret
-		if err := RemoveOwnerReferenceFromSecret(ctx, agent.WebhookSecretName(cluster.Name), ctrlClient, cluster); err != nil {
-			return err
+		name := clx.Args().First()
+		if name == k3kcluster.ClusterInvalidName {
+			return errors.New("invalid cluster name")
 		}
-	} else {
-		matchingLabels := client.MatchingLabels(map[string]string{"cluster": cluster.Name, "role": "server"})
-		listOpts := client.ListOptions{Namespace: cluster.Namespace}
-		matchingLabels.ApplyToList(&listOpts)
-		deleteOpts := &client.DeleteAllOfOptions{ListOptions: listOpts}
 
-		if err := ctrlClient.DeleteAllOf(ctx, &v1.PersistentVolumeClaim{}, deleteOpts); err != nil {
-			return client.IgnoreNotFound(err)
+		namespace := Namespace(name)
+
+		logrus.Infof("Deleting [%s] cluster in namespace [%s]", name, namespace)
+
+		cluster := v1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
 		}
-	}
+		// keep bootstrap secrets and tokens if --keep-data flag is passed
+		if keepData {
+			// skip removing tokenSecret
+			if err := RemoveOwnerReferenceFromSecret(ctx, k3kcluster.TokenSecretName(cluster.Name), client, cluster); err != nil {
+				return err
+			}
 
-	if err := ctrlClient.Delete(ctx, &cluster); err != nil {
-		return client.IgnoreNotFound(err)
-	}
+			// skip removing webhook secret
+			if err := RemoveOwnerReferenceFromSecret(ctx, agent.WebhookSecretName(cluster.Name), client, cluster); err != nil {
+				return err
+			}
+		} else {
+			matchingLabels := ctrlclient.MatchingLabels(map[string]string{"cluster": cluster.Name, "role": "server"})
+			listOpts := ctrlclient.ListOptions{Namespace: cluster.Namespace}
+			matchingLabels.ApplyToList(&listOpts)
+			deleteOpts := &ctrlclient.DeleteAllOfOptions{ListOptions: listOpts}
 
-	return nil
+			if err := client.DeleteAllOf(ctx, &v1.PersistentVolumeClaim{}, deleteOpts); err != nil {
+				return ctrlclient.IgnoreNotFound(err)
+			}
+		}
+
+		if err := client.Delete(ctx, &cluster); err != nil {
+			return ctrlclient.IgnoreNotFound(err)
+		}
+
+		return nil
+	}
 }
 
-func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl client.Client, cluster v1alpha1.Cluster) error {
+func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl ctrlclient.Client, cluster v1alpha1.Cluster) error {
 	var secret v1.Secret
 
 	key := types.NamespacedName{

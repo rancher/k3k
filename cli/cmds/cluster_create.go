@@ -30,6 +30,8 @@ type CreateConfig struct {
 	agents               int
 	serverArgs           cli.StringSlice
 	agentArgs            cli.StringSlice
+	serverEnvs           cli.StringSlice
+	agentEnvs            cli.StringSlice
 	persistenceType      string
 	storageClassName     string
 	version              string
@@ -168,6 +170,8 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 			ServiceCIDR: config.serviceCIDR,
 			ServerArgs:  config.serverArgs.Value(),
 			AgentArgs:   config.agentArgs.Value(),
+			ServerEnvs:  env(config.serverEnvs.Value()),
+			AgentEnvs:   env(config.agentEnvs.Value()),
 			Version:     config.version,
 			Mode:        v1alpha1.ClusterMode(config.mode),
 			Persistence: v1alpha1.PersistenceConfig{
@@ -188,4 +192,19 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 	}
 
 	return cluster
+}
+
+func env(envSlice []string) []v1.EnvVar {
+	var envVars []v1.EnvVar
+	for _, env := range envSlice {
+		keyValue := strings.Split(env, "=")
+		if len(keyValue) != 2 {
+			logrus.Fatalf("incorrect value for environment variable %s", env)
+		}
+		envVars = append(envVars, v1.EnvVar{
+			Name:  keyValue[0],
+			Value: keyValue[1],
+		})
+	}
+	return envVars
 }

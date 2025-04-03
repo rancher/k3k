@@ -235,5 +235,7 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 		}
 	}
 
+	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, v.cluster.Spec.AgentEnvs...)
+
 	return podSpec
 }

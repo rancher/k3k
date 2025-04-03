@@ -123,6 +123,11 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	// if there was an error during the reconciliation, return
 	if reconcilerErr != nil {
+		if errors.Is(reconcilerErr, bootstrap.ErrServerNotReady) {
+			log.Info("server not ready, requeueing")
+			return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+		}
+
 		return reconcile.Result{}, reconcilerErr
 	}
 

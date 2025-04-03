@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"syscall"
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -16,6 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var ErrServerNotReady = errors.New("server not ready")
 
 type ControlRuntimeBootstrap struct {
 	ServerCA        content `json:"serverCA"`
@@ -68,6 +71,10 @@ func requestBootstrap(token, serverIP string) (*ControlRuntimeBootstrap, error) 
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if errors.Is(err, syscall.ECONNREFUSED) {
+			return nil, ErrServerNotReady
+		}
+
 		return nil, err
 	}
 	defer resp.Body.Close()

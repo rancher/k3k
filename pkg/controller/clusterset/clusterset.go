@@ -392,7 +392,6 @@ func (c *ClusterSetReconciler) reconcileLimit(ctx context.Context, clusterSet *v
 		}
 
 		return c.Client.Delete(ctx, &toDeleteLimitRange)
-
 	}
 
 	limitRange := limitRange(clusterSet)

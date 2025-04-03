@@ -28,8 +28,6 @@ const (
 	clusterSetController    = "k3k-clusterset-controller"
 	allTrafficCIDR          = "0.0.0.0/0"
 	maxConcurrentReconciles = 1
-	defaultCPURequest       = "200m"
-	defaultMemoryRequest    = "128M"
 )
 
 type ClusterSetReconciler struct {
@@ -144,7 +142,7 @@ func (c *ClusterSetReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 		return reconcile.Result{}, err
 	}
 
-	if err := c.reconcileDefaultLimits(ctx, &clusterSet); err != nil {
+	if err := c.reconcileLimit(ctx, &clusterSet); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -376,9 +374,9 @@ func resourceQuota(clusterSet *v1alpha1.ClusterSet) v1.ResourceQuota {
 	}
 }
 
-func (c *ClusterSetReconciler) reconcileDefaultLimits(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
+func (c *ClusterSetReconciler) reconcileLimit(ctx context.Context, clusterSet *v1alpha1.ClusterSet) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("Reconciling Default Limits")
+	log.Info("Reconciling ClusterSet Limit")
 
 	// delete limitrange if spec.limits isnt specified.
 	if clusterSet.Spec.Limit == nil {

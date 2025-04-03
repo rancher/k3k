@@ -20,11 +20,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const (
-	CPUResourceTest    = "800m"
-	MemoryResourceTest = "1Gi"
-)
-
 var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet"), func() {
 
 	Context("creating a ClusterSet", func() {
@@ -692,25 +687,21 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				err := k8sClient.Create(ctx, clusterSet)
 				Expect(err).To(Not(HaveOccurred()))
 
-				Eventually(func() bool {
+				var resourceQuota v1.ResourceQuota
+				Eventually(func() error {
 					key := types.NamespacedName{
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
 						Namespace: namespace,
 					}
-					var resourceQuota v1.ResourceQuota
-					err := k8sClient.Get(ctx, key, &resourceQuota)
-					if err != nil {
-						return false
-					}
-					// values must match the quota selected
-					return *resourceQuota.Spec.Hard.Cpu() == resource.MustParse(CPUResourceTest) &&
-						*resourceQuota.Spec.Hard.Memory() == resource.MustParse(MemoryResourceTest)
+
+					return k8sClient.Get(ctx, key, &resourceQuota)
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
-					Should(BeTrue())
+					Should(BeNil())
+				Expect(resourceQuota.Spec.Hard.Cpu().String()).To(BeEquivalentTo("800m"))
+				Expect(resourceQuota.Spec.Hard.Memory().String()).To(BeEquivalentTo("1Gi"))
 			})
-
 			It("should delete the ResourceQuota if Quota is deleted", func() {
 				clusterSet := &v1alpha1.ClusterSet{
 					ObjectMeta: metav1.ObjectMeta{
@@ -756,7 +747,6 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					err := k8sClient.Get(ctx, key, &resourceQuota)
 					return apierrors.IsNotFound(err)
 				}).
-					MustPassRepeatedly(5).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
 					Should(BeTrue())
@@ -798,7 +788,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					Should(BeNil())
 
 				// make sure that default limit range has the default requet values.
-				Expect(len(limitRange.Spec.Limits) > 0).To(BeTrue())
+				Expect(limitRange.Spec.Limits).ShouldNot(BeEmpty())
 				cpu := limitRange.Spec.Limits[0].DefaultRequest.Cpu().String()
 				Expect(cpu).To(BeEquivalentTo("500m"))
 			})

@@ -25,7 +25,7 @@ func NewClusterDeleteCmd(appCtx *AppContext) *cli.Command {
 		Usage:     "Delete an existing cluster",
 		UsageText: "k3kcli cluster delete [command options] NAME",
 		Action:    delete(appCtx),
-		Flags: append(CommonFlags, &cli.BoolFlag{
+		Flags: WithCommonFlags(appCtx, &cli.BoolFlag{
 			Name:        "keep-data",
 			Usage:       "keeps persistence volumes created for the cluster after deletion",
 			Destination: &keepData,
@@ -48,7 +48,7 @@ func delete(appCtx *AppContext) cli.ActionFunc {
 			return errors.New("invalid cluster name")
 		}
 
-		namespace := Namespace(name)
+		namespace := appCtx.Namespace(name)
 
 		logrus.Infof("Deleting [%s] cluster in namespace [%s]", name, namespace)
 

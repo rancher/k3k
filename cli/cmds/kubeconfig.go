@@ -88,7 +88,7 @@ func NewKubeconfigGenerateCmd(appCtx *AppContext) *cli.Command {
 		Usage:           "Generate kubeconfig for clusters",
 		SkipFlagParsing: false,
 		Action:          generate(appCtx),
-		Flags:           append(CommonFlags, generateKubeconfigFlags...),
+		Flags:           WithCommonFlags(appCtx, generateKubeconfigFlags...),
 	}
 }
 
@@ -96,9 +96,10 @@ func generate(appCtx *AppContext) cli.ActionFunc {
 	return func(clx *cli.Context) error {
 		ctx := context.Background()
 		client := appCtx.Client
+
 		clusterKey := types.NamespacedName{
 			Name:      name,
-			Namespace: Namespace(name),
+			Namespace: appCtx.Namespace(name),
 		}
 
 		var cluster v1alpha1.Cluster

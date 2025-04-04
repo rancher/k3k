@@ -8,6 +8,8 @@ k3kcli
 
 ```
 [--debug]
+[--kubeconfig]=[value]
+[--namespace]=[value]
 ```
 
 **Usage**:
@@ -19,6 +21,10 @@ k3kcli [GLOBAL OPTIONS] command [COMMAND OPTIONS] [ARGUMENTS...]
 # GLOBAL OPTIONS
 
 **--debug**: Turn on debug logs
+
+**--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
+
+**--namespace**="": namespace to create the k3k cluster in
 
 
 # COMMANDS
@@ -38,6 +44,10 @@ Create new cluster
 **--agents**="": number of agents (default: 0)
 
 **--cluster-cidr**="": cluster CIDR
+
+**--clusterset**="": The clusterset to create the cluster in
+
+**--debug**: Turn on debug logs
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
@@ -67,6 +77,8 @@ Delete an existing cluster
 
 >k3kcli cluster delete [command options] NAME
 
+**--debug**: Turn on debug logs
+
 **--keep-data**: keeps persistence volumes created for the cluster after deletion
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
@@ -83,6 +95,10 @@ Create new clusterset
 
 >k3kcli clusterset create [command options] NAME
 
+**--debug**: Turn on debug logs
+
+**--display-name**="": The display name of the clusterset
+
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
 **--mode**="": The allowed mode type of the clusterset (default: "shared")
@@ -94,6 +110,8 @@ Create new clusterset
 Delete an existing clusterset
 
 >k3kcli clusterset delete [command options] NAME
+
+**--debug**: Turn on debug logs
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
@@ -112,6 +130,8 @@ Generate kubeconfig for clusters
 **--cn**="": Common name (CN) of the generated certificates for the kubeconfig (default: "system:admin")
 
 **--config-name**="": the name of the generated kubeconfig file
+
+**--debug**: Turn on debug logs
 
 **--expiration-days**="": Expiration date of the certificates used for the kubeconfig (default: 356)
 

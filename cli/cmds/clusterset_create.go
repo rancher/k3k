@@ -12,10 +12,12 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type ClusterSetCreateConfig struct {
-	mode string
+	mode        string
+	displayName string
 }
 
 func NewClusterSetCreateCmd(appCtx *AppContext) *cli.Command {
@@ -36,6 +38,11 @@ func NewClusterSetCreateCmd(appCtx *AppContext) *cli.Command {
 				}
 			},
 		},
+		&cli.StringFlag{
+			Name:        "display-name",
+			Usage:       "The display name of the clusterset",
+			Destination: &config.displayName,
+		},
 	}
 
 	return &cli.Command{
@@ -43,7 +50,7 @@ func NewClusterSetCreateCmd(appCtx *AppContext) *cli.Command {
 		Usage:           "Create new clusterset",
 		UsageText:       "k3kcli clusterset create [command options] NAME",
 		Action:          clusterSetCreateAction(appCtx, config),
-		Flags:           append(CommonFlags, createFlags...),
+		Flags:           WithCommonFlags(appCtx, createFlags...),
 		HideHelpCommand: true,
 	}
 }
@@ -62,45 +69,70 @@ func clusterSetCreateAction(appCtx *AppContext, config *ClusterSetCreateConfig) 
 			return errors.New("invalid cluster name")
 		}
 
-		namespace := Namespace(name)
-
-		ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-		if err := client.Get(ctx, types.NamespacedName{Name: namespace}, ns); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return err
-			}
-
-			logrus.Infof(`Creating namespace [%s]`, namespace)
-
-			if err := client.Create(ctx, ns); err != nil {
-				return err
-			}
+		displayName := config.displayName
+		if displayName == "" {
+			displayName = name
 		}
 
-		logrus.Infof("Creating clusterset [%s] in namespace [%s]", name, namespace)
-
-		clusterSet := &v1alpha1.ClusterSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
-			},
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ClusterSet",
-				APIVersion: "k3k.io/v1alpha1",
-			},
-			Spec: v1alpha1.ClusterSetSpec{
-				AllowedModeTypes: []v1alpha1.ClusterMode{v1alpha1.ClusterMode(config.mode)},
-			},
+		// if both display name and namespace are set the name is ignored
+		if config.displayName != "" && appCtx.namespace != "" {
+			logrus.Warnf("Ignoring name [%s] because display name and namespace are set", name)
 		}
 
-		if err := client.Create(ctx, clusterSet); err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				logrus.Infof("ClusterSet [%s] already exists", name)
-			} else {
-				return err
-			}
+		namespace := appCtx.Namespace(name)
+
+		if err := createNamespace(ctx, client, namespace); err != nil {
+			return err
 		}
 
-		return nil
+		_, err := createClusterSet(ctx, client, namespace, v1alpha1.ClusterMode(config.mode), displayName)
+
+		return err
 	}
+}
+
+func createNamespace(ctx context.Context, client client.Client, name string) error {
+	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
+	if err := client.Get(ctx, types.NamespacedName{Name: name}, ns); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		logrus.Infof(`Creating namespace [%s]`, name)
+
+		if err := client.Create(ctx, ns); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createClusterSet(ctx context.Context, client client.Client, namespace string, mode v1alpha1.ClusterMode, displayName string) (*v1alpha1.ClusterSet, error) {
+	logrus.Infof("Creating clusterset in namespace [%s]", namespace)
+
+	clusterSet := &v1alpha1.ClusterSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterSet",
+			APIVersion: "k3k.io/v1alpha1",
+		},
+		Spec: v1alpha1.ClusterSetSpec{
+			AllowedModeTypes: []v1alpha1.ClusterMode{mode},
+			DisplayName:      displayName,
+		},
+	}
+
+	if err := client.Create(ctx, clusterSet); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			logrus.Infof("ClusterSet in namespace [%s] already exists", namespace)
+		} else {
+			return nil, err
+		}
+	}
+
+	return clusterSet, nil
 }

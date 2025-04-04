@@ -94,5 +94,10 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 			Usage:       "override the kubeconfig server host",
 			Destination: &config.kubeconfigServerHost,
 		},
+		&cli.StringFlag{
+			Name:        "clusterset",
+			Usage:       "The clusterset to create the cluster in",
+			Destination: &config.clusterset,
+		},
 	}
 }

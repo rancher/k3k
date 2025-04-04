@@ -14,36 +14,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	Scheme = runtime.NewScheme()
-
-	debug      bool
-	Kubeconfig string
-	namespace  string
-
-	CommonFlags = []cli.Flag{
-		&cli.StringFlag{
-			Name:        "kubeconfig",
-			Usage:       "kubeconfig path",
-			Destination: &Kubeconfig,
-			DefaultText: "$HOME/.kube/config or $KUBECONFIG if set",
-		},
-		&cli.StringFlag{
-			Name:        "namespace",
-			Usage:       "namespace to create the k3k cluster in",
-			Destination: &namespace,
-		},
-	}
-)
-
-func init() {
-	_ = clientgoscheme.AddToScheme(Scheme)
-	_ = v1alpha1.AddToScheme(Scheme)
-}
-
 type AppContext struct {
 	RestConfig *rest.Config
 	Client     client.Client
+
+	// Global flags
+	Debug      bool
+	Kubeconfig string
+	namespace  string
 }
 
 func NewApp() *cli.App {
@@ -52,26 +30,23 @@ func NewApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "k3kcli"
 	app.Usage = "CLI for K3K"
-	app.Flags = []cli.Flag{
-		&cli.BoolFlag{
-			Name:        "debug",
-			Usage:       "Turn on debug logs",
-			Destination: &debug,
-			EnvVars:     []string{"K3K_DEBUG"},
-		},
-	}
+	app.Flags = WithCommonFlags(appCtx)
 
 	app.Before = func(clx *cli.Context) error {
-		if debug {
+		if appCtx.Debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
 
-		restConfig, err := loadRESTConfig()
+		restConfig, err := loadRESTConfig(appCtx.Kubeconfig)
 		if err != nil {
 			return err
 		}
 
-		ctrlClient, err := client.New(restConfig, client.Options{Scheme: Scheme})
+		scheme := runtime.NewScheme()
+		_ = clientgoscheme.AddToScheme(scheme)
+		_ = v1alpha1.AddToScheme(scheme)
+
+		ctrlClient, err := client.New(restConfig, client.Options{Scheme: scheme})
 		if err != nil {
 			return err
 		}
@@ -96,23 +71,47 @@ func NewApp() *cli.App {
 	return app
 }
 
-func Namespace(clusterName string) string {
-	if namespace != "" {
-		return namespace
+func (ctx *AppContext) Namespace(name string) string {
+	if ctx.namespace != "" {
+		return ctx.namespace
 	}
 
-	return "k3k-" + clusterName
+	return "k3k-" + name
 }
 
-func loadRESTConfig() (*rest.Config, error) {
+func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	configOverrides := &clientcmd.ConfigOverrides{}
 
-	if Kubeconfig != "" {
-		loadingRules.ExplicitPath = Kubeconfig
+	if kubeconfig != "" {
+		loadingRules.ExplicitPath = kubeconfig
 	}
 
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
 
 	return kubeConfig.ClientConfig()
+}
+
+func WithCommonFlags(appCtx *AppContext, flags ...cli.Flag) []cli.Flag {
+	commonFlags := []cli.Flag{
+		&cli.BoolFlag{
+			Name:        "debug",
+			Usage:       "Turn on debug logs",
+			Destination: &appCtx.Debug,
+			EnvVars:     []string{"K3K_DEBUG"},
+		},
+		&cli.StringFlag{
+			Name:        "kubeconfig",
+			Usage:       "kubeconfig path",
+			Destination: &appCtx.Kubeconfig,
+			DefaultText: "$HOME/.kube/config or $KUBECONFIG if set",
+		},
+		&cli.StringFlag{
+			Name:        "namespace",
+			Usage:       "namespace to create the k3k cluster in",
+			Destination: &appCtx.namespace,
+		},
+	}
+
+	return append(commonFlags, flags...)
 }

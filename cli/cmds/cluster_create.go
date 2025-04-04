@@ -3,7 +3,9 @@ package cmds
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -35,6 +37,7 @@ type CreateConfig struct {
 	version              string
 	mode                 string
 	kubeconfigServerHost string
+	clusterset           string
 }
 
 func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
@@ -46,7 +49,7 @@ func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
 		Usage:           "Create new cluster",
 		UsageText:       "k3kcli cluster create [command options] NAME",
 		Action:          createAction(appCtx, createConfig),
-		Flags:           append(CommonFlags, createFlags...),
+		Flags:           WithCommonFlags(appCtx, createFlags...),
 		HideHelpCommand: true,
 	}
 }
@@ -65,18 +68,37 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 			return errors.New("invalid cluster name")
 		}
 
-		namespace := Namespace(name)
+		namespace := appCtx.Namespace(name)
 
-		ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-		if err := client.Get(ctx, types.NamespacedName{Name: namespace}, ns); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return err
+		// if clusterset is set, use the namespace of the clusterset
+		if config.clusterset != "" {
+			namespace = appCtx.Namespace(config.clusterset)
+		}
+
+		if err := createNamespace(ctx, client, namespace); err != nil {
+			return err
+		}
+
+		// if clusterset is set, create the cluster set
+		if config.clusterset != "" {
+			namespace = appCtx.Namespace(config.clusterset)
+
+			clusterSet := &v1alpha1.ClusterSet{}
+			if err := client.Get(ctx, types.NamespacedName{Name: "default", Namespace: namespace}, clusterSet); err != nil {
+				if !apierrors.IsNotFound(err) {
+					return err
+				}
+
+				clusterSet, err = createClusterSet(ctx, client, namespace, v1alpha1.ClusterMode(config.mode), config.clusterset)
+				if err != nil {
+					return err
+				}
 			}
 
-			logrus.Infof(`Creating namespace [%s]`, namespace)
+			logrus.Infof("ClusterSet in namespace [%s] available", namespace)
 
-			if err := client.Create(ctx, ns); err != nil {
-				return err
+			if !slices.Contains(clusterSet.Spec.AllowedModeTypes, v1alpha1.ClusterMode(config.mode)) {
+				return fmt.Errorf("invalid '%s' Cluster mode. ClusterSet only allows %v", config.mode, clusterSet.Spec.AllowedModeTypes)
 			}
 		}
 

@@ -18,7 +18,7 @@ func NewClusterSetDeleteCmd(appCtx *AppContext) *cli.Command {
 		Usage:           "Delete an existing clusterset",
 		UsageText:       "k3kcli clusterset delete [command options] NAME",
 		Action:          clusterSetDeleteAction(appCtx),
-		Flags:           CommonFlags,
+		Flags:           WithCommonFlags(appCtx),
 		HideHelpCommand: true,
 	}
 }
@@ -37,20 +37,20 @@ func clusterSetDeleteAction(appCtx *AppContext) cli.ActionFunc {
 			return errors.New("invalid cluster name")
 		}
 
-		namespace := Namespace(name)
+		namespace := appCtx.Namespace(name)
 
-		logrus.Infof("Deleting clusterset [%s] in namespace [%s]", name, namespace)
+		logrus.Infof("Deleting clusterset in namespace [%s]", namespace)
 
 		clusterSet := &v1alpha1.ClusterSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
+				Name:      "default",
 				Namespace: namespace,
 			},
 		}
 
 		if err := client.Delete(ctx, clusterSet); err != nil {
 			if apierrors.IsNotFound(err) {
-				logrus.Warnf("ClusterSet [%s] not found", name)
+				logrus.Warnf("ClusterSet not found in namespace [%s]", namespace)
 			} else {
 				return err
 			}

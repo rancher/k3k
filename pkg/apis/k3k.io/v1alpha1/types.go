@@ -340,7 +340,7 @@ type ClusterSetSpec struct {
 	// DisplayName is the human-readable name for the set.
 	//
 	// +optional
-	DisplayName string `json:"displayName"`
+	DisplayName string `json:"displayName,omitempty"`
 
 	// Quota specifies the resource limits for clusters within a clusterset.
 	//

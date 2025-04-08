@@ -196,15 +196,18 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 
 func env(envSlice []string) []v1.EnvVar {
 	var envVars []v1.EnvVar
+
 	for _, env := range envSlice {
 		keyValue := strings.Split(env, "=")
 		if len(keyValue) != 2 {
 			logrus.Fatalf("incorrect value for environment variable %s", env)
 		}
+
 		envVars = append(envVars, v1.EnvVar{
 			Name:  keyValue[0],
 			Value: keyValue[1],
 		})
 	}
+
 	return envVars
 }

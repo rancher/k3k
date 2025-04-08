@@ -2,10 +2,10 @@ package agent
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,14 +41,20 @@ func configSecretName(clusterName string) string {
 func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	result, err := controllerutil.CreateOrUpdate(ctx, cfg.client, obj, func() error {
-		return controllerutil.SetControllerReference(cfg.cluster, obj, cfg.scheme)
-	})
+	key := ctrlruntimeclient.ObjectKeyFromObject(obj)
 
-	if result != controllerutil.OperationResultNone {
-		key := ctrlruntimeclient.ObjectKeyFromObject(obj)
-		log.Info(fmt.Sprintf("ensuring %T", obj), "key", key, "result", result)
+	log.Info("ensuring %T", obj, "key", key)
+
+	if err := controllerutil.SetControllerReference(cfg.cluster, obj, cfg.scheme); err != nil {
+		return err
 	}
 
-	return err
+	if err := cfg.client.Create(ctx, obj); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return cfg.client.Update(ctx, obj)
+		}
+		return err
+	}
+
+	return nil
 }

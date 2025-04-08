@@ -43,7 +43,7 @@ func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object
 
 	key := ctrlruntimeclient.ObjectKeyFromObject(obj)
 
-	log.Info("ensuring %T", obj, "key", key)
+	log.Info(fmt.Sprintf("ensuring %T", obj), "key", key)
 
 	if err := controllerutil.SetControllerReference(cfg.cluster, obj, cfg.scheme); err != nil {
 		return err

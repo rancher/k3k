@@ -53,6 +53,7 @@ func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object
 		if apierrors.IsAlreadyExists(err) {
 			return cfg.client.Update(ctx, obj)
 		}
+
 		return err
 	}
 

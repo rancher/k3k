@@ -187,6 +187,7 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 				Resources: v1.ResourceRequirements{
 					Limits: limit,
 				},
+				Env: v.cluster.Spec.AgentEnvs,
 				VolumeMounts: []v1.VolumeMount{
 					{
 						Name:      "config",
@@ -234,8 +235,6 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 			Limits: v.cluster.Spec.WorkerLimit,
 		}
 	}
-
-	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, v.cluster.Spec.AgentEnvs...)
 
 	return podSpec
 }

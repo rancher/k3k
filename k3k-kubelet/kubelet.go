@@ -336,7 +336,7 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		return nil, err
 	}
 
-	url := fmt.Sprintf("https://%s:%d", server.ServiceName(cluster.Name), server.ServerPort)
+	url := "https://" + server.ServiceName(cluster.Name)
 
 	kubeconfigData, err := kubeconfigBytes(url, []byte(b.ServerCA.Content), adminCert, adminKey)
 	if err != nil {

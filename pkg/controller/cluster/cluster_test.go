@@ -92,13 +92,37 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				Expect(spec.Ingress).To(Equal([]networkingv1.NetworkPolicyIngressRule{{}}))
 			})
 
-			When("exposing the cluster with nodePort and custom ports", func() {
-				It("will have a NodePort service with the specified port exposed", func() {
+			When("exposing the cluster with nodePort", func() {
+				It("will have a NodePort service", func() {
+					cluster.Spec.Expose = &v1alpha1.ExposeConfig{
+						NodePort: &v1alpha1.NodePortConfig{},
+					}
+
+					err := k8sClient.Update(ctx, cluster)
+					Expect(err).To(Not(HaveOccurred()))
+
+					var service v1.Service
+
+					Eventually(func() v1.ServiceType {
+						serviceKey := client.ObjectKey{
+							Name:      server.ServiceName(cluster.Name),
+							Namespace: cluster.Namespace,
+						}
+
+						err := k8sClient.Get(ctx, serviceKey, &service)
+						Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
+						return service.Spec.Type
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Equal(v1.ServiceTypeNodePort))
+				})
+
+				It("will have the specified ports exposed when specified", func() {
 					cluster.Spec.Expose = &v1alpha1.ExposeConfig{
 						NodePort: &v1alpha1.NodePortConfig{
-							ServerPort:  ptr.To[int32](30010),
-							ServicePort: ptr.To[int32](30011),
-							ETCDPort:    ptr.To[int32](30012),
+							ServerPort: ptr.To[int32](30010),
+							ETCDPort:   ptr.To[int32](30011),
 						},
 					}
 
@@ -123,27 +147,112 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 					servicePorts := service.Spec.Ports
 					Expect(servicePorts).NotTo(BeEmpty())
-					Expect(servicePorts).To(HaveLen(3))
+					Expect(servicePorts).To(HaveLen(2))
 
 					Expect(servicePorts).To(ContainElement(
 						And(
 							HaveField("Name", "k3s-server-port"),
-							HaveField("Port", BeEquivalentTo(6443)),
-							HaveField("NodePort", BeEquivalentTo(30010)),
-						),
-					))
-					Expect(servicePorts).To(ContainElement(
-						And(
-							HaveField("Name", "k3s-service-port"),
 							HaveField("Port", BeEquivalentTo(443)),
-							HaveField("NodePort", BeEquivalentTo(30011)),
+							HaveField("NodePort", BeEquivalentTo(30010)),
 						),
 					))
 					Expect(servicePorts).To(ContainElement(
 						And(
 							HaveField("Name", "k3s-etcd-port"),
 							HaveField("Port", BeEquivalentTo(2379)),
-							HaveField("NodePort", BeEquivalentTo(30012)),
+							HaveField("NodePort", BeEquivalentTo(30011)),
+						),
+					))
+				})
+
+				It("will not expose the port when out of range", func() {
+					cluster.Spec.Expose = &v1alpha1.ExposeConfig{
+						NodePort: &v1alpha1.NodePortConfig{
+							ETCDPort: ptr.To[int32](2222),
+						},
+					}
+
+					err := k8sClient.Update(ctx, cluster)
+					Expect(err).To(Not(HaveOccurred()))
+
+					var service v1.Service
+
+					Eventually(func() v1.ServiceType {
+						serviceKey := client.ObjectKey{
+							Name:      server.ServiceName(cluster.Name),
+							Namespace: cluster.Namespace,
+						}
+
+						err := k8sClient.Get(ctx, serviceKey, &service)
+						Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
+						return service.Spec.Type
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Equal(v1.ServiceTypeNodePort))
+
+					servicePorts := service.Spec.Ports
+					Expect(servicePorts).NotTo(BeEmpty())
+					Expect(servicePorts).To(HaveLen(1))
+
+					Expect(servicePorts).To(ContainElement(
+						And(
+							HaveField("Name", "k3s-server-port"),
+							HaveField("Port", BeEquivalentTo(443)),
+						),
+					))
+					Expect(servicePorts).ToNot(ContainElement(
+						And(
+							HaveField("Name", "k3s-etcd-port"),
+						),
+					))
+				})
+
+			})
+
+			When("exposing the cluster with loadbalancer", func() {
+				It("will have a LoadBalancer service with the default ports exposed", func() {
+					cluster.Spec.Expose = &v1alpha1.ExposeConfig{
+						LoadBalancer: &v1alpha1.LoadBalancerConfig{},
+					}
+
+					err := k8sClient.Update(ctx, cluster)
+					Expect(err).To(Not(HaveOccurred()))
+
+					var service v1.Service
+
+					Eventually(func() v1.ServiceType {
+						serviceKey := client.ObjectKey{
+							Name:      server.ServiceName(cluster.Name),
+							Namespace: cluster.Namespace,
+						}
+
+						err := k8sClient.Get(ctx, serviceKey, &service)
+						Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
+						return service.Spec.Type
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Equal(v1.ServiceTypeLoadBalancer))
+
+					servicePorts := service.Spec.Ports
+					Expect(servicePorts).NotTo(BeEmpty())
+					Expect(servicePorts).To(HaveLen(2))
+
+					fmt.Fprintf(GinkgoWriter, "servicePorts: %v\n", servicePorts)
+
+					Expect(servicePorts).To(ContainElement(
+						And(
+							HaveField("Name", "k3s-server-port"),
+							HaveField("Port", BeEquivalentTo(443)),
+							HaveField("TargetPort", BeEquivalentTo(6443)),
+						),
+					))
+					Expect(servicePorts).To(ContainElement(
+						And(
+							HaveField("Name", "k3s-etcd-port"),
+							HaveField("Port", BeEquivalentTo(2379)),
+							HaveField("TargetPort", BeEquivalentTo(2379)),
 						),
 					))
 				})

@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	servicePort = 443
-	serverPort  = 6443
-	etcdPort    = 2379
+	httpsPort     = 443
+	k3sServerPort = 6443
+	etcdPort      = 2379
 )
 
 func IngressName(clusterName string) string {
@@ -64,7 +64,7 @@ func ingressRules(cluster *v1alpha1.Cluster) []networkingv1.IngressRule {
 			Service: &networkingv1.IngressServiceBackend{
 				Name: ServiceName(cluster.Name),
 				Port: networkingv1.ServiceBackendPort{
-					Number: serverPort,
+					Number: k3sServerPort,
 				},
 			},
 		},

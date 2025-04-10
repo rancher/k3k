@@ -39,7 +39,7 @@ func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
 }
 
 func serverConfigData(serviceIP string, cluster *v1alpha1.Cluster, token string) string {
-	return "cluster-init: true\nserver: https://" + serviceIP + ":6443\n" + serverOptions(cluster, token)
+	return "cluster-init: true\nserver: https://" + serviceIP + "\n" + serverOptions(cluster, token)
 }
 
 func initConfigData(cluster *v1alpha1.Cluster, token string) string {

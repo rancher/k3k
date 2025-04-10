@@ -230,6 +230,21 @@ spec:
                   loadbalancer:
                     description: LoadBalancer specifies options for exposing the API
                       server through a LoadBalancer service.
+                    properties:
+                      etcdPort:
+                        description: |-
+                          ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.
+                          If not specified, the default etcd 2379 port will be allocated.
+                          If 0 or negative, the port will not be exposed.
+                        format: int32
+                        type: integer
+                      serverPort:
+                        description: |-
+                          ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.
+                          If not specified, the default https 443 port will be allocated.
+                          If 0 or negative, the port will not be exposed.
+                        format: int32
+                        type: integer
                     type: object
                   nodePort:
                     description: NodePort specifies options for exposing the API server
@@ -238,19 +253,15 @@ spec:
                       etcdPort:
                         description: |-
                           ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
-                          If not specified, a port will be allocated (default: 30000-32767).
+                          If not specified, a random port between 30000-32767 will be allocated.
+                          If out of range, the port will not be exposed.
                         format: int32
                         type: integer
                       serverPort:
                         description: |-
-                          ServerPort is the port on each node on which the K3s server service is exposed when type is NodePort.
-                          If not specified, a port will be allocated (default: 30000-32767).
-                        format: int32
-                        type: integer
-                      servicePort:
-                        description: |-
-                          ServicePort is the port on each node on which the K3s service is exposed when type is NodePort.
-                          If not specified, a port will be allocated (default: 30000-32767).
+                          ServerPort is the port on each node on which the K3s server is exposed when type is NodePort.
+                          If not specified, a random port between 30000-32767 will be allocated.
+                          If out of range, the port will not be exposed.
                         format: int32
                         type: integer
                     type: object

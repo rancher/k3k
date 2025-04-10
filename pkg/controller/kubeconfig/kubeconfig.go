@@ -101,7 +101,7 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1alp
 		return "", err
 	}
 
-	url := fmt.Sprintf("https://%s:%d", k3kService.Spec.ClusterIP, server.ServerPort)
+	url := "https://" + k3kService.Spec.ClusterIP
 
 	if k3kService.Spec.Type == v1.ServiceTypeNodePort {
 		nodePort := k3kService.Spec.Ports[0].NodePort

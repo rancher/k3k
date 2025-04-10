@@ -51,7 +51,7 @@ func GenerateBootstrapData(ctx context.Context, cluster *v1alpha1.Cluster, ip, t
 }
 
 func requestBootstrap(token, serverIP string) (*ControlRuntimeBootstrap, error) {
-	url := "https://" + serverIP + ":6443/v1-k3s/server-bootstrap"
+	url := "https://" + serverIP + "/v1-k3s/server-bootstrap"
 
 	client := http.Client{
 		Transport: &http.Transport{

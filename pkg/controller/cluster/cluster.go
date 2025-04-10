@@ -84,6 +84,7 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 			MaxConcurrentReconciles: maxConcurrentReconciles,
 		}).
 		Owns(&apps.StatefulSet{}).
+		Owns(&v1.Service{}).
 		Complete(&reconciler)
 }
 

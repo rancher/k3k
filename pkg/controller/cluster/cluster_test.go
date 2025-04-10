@@ -149,20 +149,15 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(servicePorts).NotTo(BeEmpty())
 					Expect(servicePorts).To(HaveLen(2))
 
-					Expect(servicePorts).To(ContainElement(
-						And(
-							HaveField("Name", "k3s-server-port"),
-							HaveField("Port", BeEquivalentTo(443)),
-							HaveField("NodePort", BeEquivalentTo(30010)),
-						),
-					))
-					Expect(servicePorts).To(ContainElement(
-						And(
-							HaveField("Name", "k3s-etcd-port"),
-							HaveField("Port", BeEquivalentTo(2379)),
-							HaveField("NodePort", BeEquivalentTo(30011)),
-						),
-					))
+					serverPort := servicePorts[0]
+					Expect(serverPort.Name).To(Equal("k3s-server-port"))
+					Expect(serverPort.Port).To(BeEquivalentTo(443))
+					Expect(serverPort.NodePort).To(BeEquivalentTo(30010))
+
+					etcdPort := servicePorts[1]
+					Expect(etcdPort.Name).To(Equal("k3s-etcd-port"))
+					Expect(etcdPort.Port).To(BeEquivalentTo(2379))
+					Expect(etcdPort.NodePort).To(BeEquivalentTo(30011))
 				})
 
 				It("will not expose the port when out of range", func() {
@@ -195,17 +190,10 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(servicePorts).NotTo(BeEmpty())
 					Expect(servicePorts).To(HaveLen(1))
 
-					Expect(servicePorts).To(ContainElement(
-						And(
-							HaveField("Name", "k3s-server-port"),
-							HaveField("Port", BeEquivalentTo(443)),
-						),
-					))
-					Expect(servicePorts).ToNot(ContainElement(
-						And(
-							HaveField("Name", "k3s-etcd-port"),
-						),
-					))
+					serverPort := servicePorts[0]
+					Expect(serverPort.Name).To(Equal("k3s-server-port"))
+					Expect(serverPort.Port).To(BeEquivalentTo(443))
+					Expect(serverPort.TargetPort.IntValue()).To(BeEquivalentTo(6443))
 				})
 
 			})
@@ -239,22 +227,15 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(servicePorts).NotTo(BeEmpty())
 					Expect(servicePorts).To(HaveLen(2))
 
-					fmt.Fprintf(GinkgoWriter, "servicePorts: %v\n", servicePorts)
+					serverPort := servicePorts[0]
+					Expect(serverPort.Name).To(Equal("k3s-server-port"))
+					Expect(serverPort.Port).To(BeEquivalentTo(443))
+					Expect(serverPort.TargetPort.IntValue()).To(BeEquivalentTo(6443))
 
-					Expect(servicePorts).To(ContainElement(
-						And(
-							HaveField("Name", "k3s-server-port"),
-							HaveField("Port", BeEquivalentTo(443)),
-							HaveField("TargetPort", BeEquivalentTo(6443)),
-						),
-					))
-					Expect(servicePorts).To(ContainElement(
-						And(
-							HaveField("Name", "k3s-etcd-port"),
-							HaveField("Port", BeEquivalentTo(2379)),
-							HaveField("TargetPort", BeEquivalentTo(2379)),
-						),
-					))
+					etcdPort := servicePorts[1]
+					Expect(etcdPort.Name).To(Equal("k3s-etcd-port"))
+					Expect(etcdPort.Port).To(BeEquivalentTo(2379))
+					Expect(etcdPort.TargetPort.IntValue()).To(BeEquivalentTo(2379))
 				})
 			})
 		})

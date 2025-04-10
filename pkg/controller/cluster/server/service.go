@@ -49,6 +49,12 @@ func Service(cluster *v1alpha1.Cluster) *v1.Service {
 	if cluster.Spec.Expose != nil {
 		expose := cluster.Spec.Expose
 
+		// ingress
+		if expose.Ingress != nil {
+			service.Spec.Type = v1.ServiceTypeClusterIP
+			service.Spec.Ports = append(service.Spec.Ports, k3sServerPort, etcdPort)
+		}
+
 		// loadbalancer
 		if expose.LoadBalancer != nil {
 			service.Spec.Type = v1.ServiceTypeLoadBalancer

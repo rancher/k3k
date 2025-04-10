@@ -64,7 +64,7 @@ func ingressRules(cluster *v1alpha1.Cluster) []networkingv1.IngressRule {
 			Service: &networkingv1.IngressServiceBackend{
 				Name: ServiceName(cluster.Name),
 				Port: networkingv1.ServiceBackendPort{
-					Number: k3sServerPort,
+					Number: httpsPort,
 				},
 			},
 		},

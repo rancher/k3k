@@ -122,7 +122,7 @@ You can check the [k3kcli documentation](./cli/cli-docs.md) for the full specs.
 * Ephemeral Storage:
 
     ```bash
-    k3kcli cluster create my-cluster --persistence-type ephemeral
+    k3kcli cluster create --persistence-type ephemeral my-cluster
     ```
 
 *Important Notes:*

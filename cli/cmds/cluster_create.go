@@ -68,6 +68,10 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 			return errors.New("invalid cluster name")
 		}
 
+		if config.mode == string(v1alpha1.SharedClusterMode) && config.agents != 0 {
+			return errors.New("invalid flag, --agents flag is only allowed in virtual mode")
+		}
+
 		namespace := appCtx.Namespace(name)
 
 		// if clusterset is set, use the namespace of the clusterset

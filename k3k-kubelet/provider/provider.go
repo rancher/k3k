@@ -826,13 +826,10 @@ func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP
 	}
 
 	updatedEnvVars := []corev1.EnvVar{
-		{Name: "KUBERNETES_PORT", Value: "tcp://" + serverIP + ":6443"},
 		{Name: "KUBERNETES_SERVICE_HOST", Value: serverIP},
-		{Name: "KUBERNETES_SERVICE_PORT", Value: "6443"},
-		{Name: "KUBERNETES_SERVICE_PORT_HTTPS", Value: "6443"},
-		{Name: "KUBERNETES_PORT_443_TCP", Value: "tcp://" + serverIP + ":6443"},
+		{Name: "KUBERNETES_PORT", Value: "tcp://" + serverIP + ":443"},
+		{Name: "KUBERNETES_PORT_443_TCP", Value: "tcp://" + serverIP + ":443"},
 		{Name: "KUBERNETES_PORT_443_TCP_ADDR", Value: serverIP},
-		{Name: "KUBERNETES_PORT_443_TCP_PORT", Value: "6443"},
 	}
 
 	// inject networking information to the pod's environment variables

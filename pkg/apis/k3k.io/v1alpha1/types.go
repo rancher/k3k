@@ -137,6 +137,16 @@ type ClusterSpec struct {
 	// +optional
 	AgentArgs []string `json:"agentArgs,omitempty"`
 
+	// ServerEnvs specifies list of environment variables to set in the server pod.
+	//
+	// +optional
+	ServerEnvs []v1.EnvVar `json:"serverEnvs,omitempty"`
+
+	// AgentEnvs specifies list of environment variables to set in the agent pod.
+	//
+	// +optional
+	AgentEnvs []v1.EnvVar `json:"agentEnvs,omitempty"`
+
 	// Addons specifies secrets containing raw YAML to deploy on cluster startup.
 	//
 	// +optional

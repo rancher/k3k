@@ -261,6 +261,20 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ServerEnvs != nil {
+		in, out := &in.ServerEnvs, &out.ServerEnvs
+		*out = make([]v1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.AgentEnvs != nil {
+		in, out := &in.AgentEnvs, &out.AgentEnvs
+		*out = make([]v1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.Addons != nil {
 		in, out := &in.Addons, &out.Addons
 		*out = make([]Addon, len(*in))

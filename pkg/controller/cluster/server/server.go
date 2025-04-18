@@ -219,6 +219,8 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 		}
 	}
 
+	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, s.cluster.Spec.ServerEnvs...)
+
 	return podSpec
 }
 

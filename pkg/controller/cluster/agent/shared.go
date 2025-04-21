@@ -193,7 +193,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 					"--config",
 					sharedKubeletConfigPath,
 				},
-				Env: []v1.EnvVar{
+				Env: append([]v1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",
 						ValueFrom: &v1.EnvVarSource{
@@ -203,7 +203,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 							},
 						},
 					},
-				},
+				}, s.cluster.Spec.AgentEnvs...),
 				VolumeMounts: []v1.VolumeMount{
 					{
 						Name:      "config",

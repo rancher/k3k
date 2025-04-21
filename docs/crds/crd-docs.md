@@ -111,6 +111,8 @@ _Appears in:_
 | `tlsSANs` _string array_ | TLSSANs specifies subject alternative names for the K3s server certificate. |  |  |
 | `serverArgs` _string array_ | ServerArgs specifies ordered key-value pairs for K3s server pods.<br />Example: ["--tls-san=example.com"] |  |  |
 | `agentArgs` _string array_ | AgentArgs specifies ordered key-value pairs for K3s agent pods.<br />Example: ["--node-name=my-agent-node"] |  |  |
+| `serverEnvs` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core) array_ | ServerEnvs specifies list of environment variables to set in the server pod. |  |  |
+| `agentEnvs` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core) array_ | AgentEnvs specifies list of environment variables to set in the agent pod. |  |  |
 | `addons` _[Addon](#addon) array_ | Addons specifies secrets containing raw YAML to deploy on cluster startup. |  |  |
 | `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit specifies resource limits for server nodes. |  |  |
 | `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  |  |

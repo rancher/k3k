@@ -70,6 +70,16 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 			Usage:       "agents extra arguments",
 			Destination: &config.agentArgs,
 		},
+		&cli.StringSliceFlag{
+			Name:        "server-envs",
+			Usage:       "servers extra Envs",
+			Destination: &config.serverEnvs,
+		},
+		&cli.StringSliceFlag{
+			Name:        "agent-envs",
+			Usage:       "agents extra Envs",
+			Destination: &config.agentEnvs,
+		},
 		&cli.StringFlag{
 			Name:        "version",
 			Usage:       "k3s version",

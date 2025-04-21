@@ -41,6 +41,8 @@ Create new cluster
 
 **--agent-args**="": agents extra arguments
 
+**--agent-envs**="": agents extra Envs
+
 **--agents**="": number of agents (default: 0)
 
 **--cluster-cidr**="": cluster CIDR
@@ -60,6 +62,8 @@ Create new cluster
 **--persistence-type**="": persistence mode for the nodes (dynamic, ephemeral, static) (default: "dynamic")
 
 **--server-args**="": servers extra arguments
+
+**--server-envs**="": servers extra Envs
 
 **--servers**="": number of servers (default: 1)
 

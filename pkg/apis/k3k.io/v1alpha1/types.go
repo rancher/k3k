@@ -251,24 +251,34 @@ type IngressConfig struct {
 }
 
 // LoadBalancerConfig specifies options for exposing the API server through a LoadBalancer service.
-type LoadBalancerConfig struct{}
-
-// NodePortConfig specifies options for exposing the API server through NodePort.
-type NodePortConfig struct {
-	// ServerPort is the port on each node on which the K3s server service is exposed when type is NodePort.
-	// If not specified, a port will be allocated (default: 30000-32767).
+type LoadBalancerConfig struct {
+	// ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.
+	// If not specified, the default https 443 port will be allocated.
+	// If 0 or negative, the port will not be exposed.
 	//
 	// +optional
 	ServerPort *int32 `json:"serverPort,omitempty"`
 
-	// ServicePort is the port on each node on which the K3s service is exposed when type is NodePort.
-	// If not specified, a port will be allocated (default: 30000-32767).
+	// ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.
+	// If not specified, the default etcd 2379 port will be allocated.
+	// If 0 or negative, the port will not be exposed.
 	//
 	// +optional
-	ServicePort *int32 `json:"servicePort,omitempty"`
+	ETCDPort *int32 `json:"etcdPort,omitempty"`
+}
+
+// NodePortConfig specifies options for exposing the API server through NodePort.
+type NodePortConfig struct {
+	// ServerPort is the port on each node on which the K3s server is exposed when type is NodePort.
+	// If not specified, a random port between 30000-32767 will be allocated.
+	// If out of range, the port will not be exposed.
+	//
+	// +optional
+	ServerPort *int32 `json:"serverPort,omitempty"`
 
 	// ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
-	// If not specified, a port will be allocated (default: 30000-32767).
+	// If not specified, a random port between 30000-32767 will be allocated.
+	// If out of range, the port will not be exposed.
 	//
 	// +optional
 	ETCDPort *int32 `json:"etcdPort,omitempty"`

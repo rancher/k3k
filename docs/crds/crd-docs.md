@@ -166,6 +166,10 @@ LoadBalancerConfig specifies options for exposing the API server through a LoadB
 _Appears in:_
 - [ExposeConfig](#exposeconfig)
 
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />If not specified, the default https 443 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
+| `etcdPort` _integer_ | ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
 
 
 #### NodePortConfig
@@ -181,9 +185,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `serverPort` _integer_ | ServerPort is the port on each node on which the K3s server service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767). |  |  |
-| `servicePort` _integer_ | ServicePort is the port on each node on which the K3s service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767). |  |  |
-| `etcdPort` _integer_ | ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.<br />If not specified, a port will be allocated (default: 30000-32767). |  |  |
+| `serverPort` _integer_ | ServerPort is the port on each node on which the K3s server is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
+| `etcdPort` _integer_ | ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
 
 
 #### PersistenceConfig

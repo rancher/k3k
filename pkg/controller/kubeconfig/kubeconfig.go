@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"slices"
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
@@ -12,6 +13,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -101,15 +103,41 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1alp
 		return "", err
 	}
 
-	url := fmt.Sprintf("https://%s:%d", k3kService.Spec.ClusterIP, server.ServerPort)
+	ip := k3kService.Spec.ClusterIP
+	port := int32(443)
 
-	if k3kService.Spec.Type == v1.ServiceTypeNodePort {
-		nodePort := k3kService.Spec.Ports[0].NodePort
-		url = fmt.Sprintf("https://%s:%d", hostServerIP, nodePort)
+	switch k3kService.Spec.Type {
+	case v1.ServiceTypeNodePort:
+		ip = hostServerIP
+		port = k3kService.Spec.Ports[0].NodePort
+	case v1.ServiceTypeLoadBalancer:
+		ip = k3kService.Status.LoadBalancer.Ingress[0].IP
+		port = k3kService.Spec.Ports[0].Port
 	}
 
-	expose := cluster.Spec.Expose
-	if expose != nil && expose.Ingress != nil {
+	if !slices.Contains(cluster.Status.TLSSANs, ip) {
+		logrus.Warnf("ip %s not in tlsSANs", ip)
+
+		if len(cluster.Spec.TLSSANs) > 0 {
+			logrus.Warnf("Using the first TLS SAN in the spec as a fallback: %s", cluster.Spec.TLSSANs[0])
+
+			ip = cluster.Spec.TLSSANs[0]
+		} else if len(cluster.Status.TLSSANs) > 0 {
+			logrus.Warnf("No explicit tlsSANs specified. Trying to use the first TLS SAN in the status: %s", cluster.Status.TLSSANs[0])
+
+			ip = cluster.Status.TLSSANs[0]
+		} else {
+			logrus.Warn("ip not found in tlsSANs. This could cause issue with the certificate validation.")
+		}
+	}
+
+	url := "https://" + ip
+	if port != 443 {
+		url = fmt.Sprintf("%s:%d", url, port)
+	}
+
+	// if ingress is specified, use the ingress host
+	if cluster.Spec.Expose != nil && cluster.Spec.Expose.Ingress != nil {
 		var k3kIngress networkingv1.Ingress
 
 		ingressKey := types.NamespacedName{

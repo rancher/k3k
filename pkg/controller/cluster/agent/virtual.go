@@ -72,7 +72,7 @@ func (v *VirtualAgent) config(ctx context.Context) error {
 }
 
 func virtualAgentData(serviceIP, token string) string {
-	return fmt.Sprintf(`server: https://%s:6443
+	return fmt.Sprintf(`server: https://%s
 token: %s
 with-node-id: true`, serviceIP, token)
 }

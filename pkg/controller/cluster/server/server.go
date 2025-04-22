@@ -24,8 +24,6 @@ const (
 	serverName         = "server"
 	configName         = "server-config"
 	initConfigName     = "init-server-config"
-
-	ServerPort = 6443
 )
 
 // Server

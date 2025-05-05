@@ -33,5 +33,5 @@ jobs:
         args: --clean --snapshot
       env:
         REPO: ${{ github.repository }}
-        REGISTRY:
+        REGISTRY: ""
         

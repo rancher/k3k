@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -eou pipefail
+
+
+CONTROLLER_TOOLS_VERSION=v0.14.0
+
+# This will return non-zero until all of our objects in ./pkg/apis can generate valid crds.
+# allowDangerousTypes is needed for struct that use floats
+go run sigs.k8s.io/controller-tools/cmd/controller-gen@${CONTROLLER_TOOLS_VERSION} \
+    crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=false \
+    object paths=./pkg/apis/... \
+    output:crd:dir=./charts/k3k/crds

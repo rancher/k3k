@@ -1,4 +1,4 @@
-//go:generate ./hack/update-codegen.sh
+//go:generate ./scripts/generate
 package main
 
 import (

@@ -4,15 +4,13 @@ VERSION ?= $(shell git describe --tags --always --dirty --match="v[0-9]*")
 
 ## Dependencies
 
-GOLANGCI_LINT_VERSION := v1.63.4
-CONTROLLER_TOOLS_VERSION ?= v0.14.0
+GOLANGCI_LINT_VERSION := v1.64.8
 GINKGO_VERSION ?= v2.21.0
-ENVTEST_VERSION ?= latest
+ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
 ENVTEST_K8S_VERSION := 1.31.0
 CRD_REF_DOCS_VER ?= v0.1.0
 
 GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
-CONTROLLER_GEN ?= go run sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 GINKGO ?= go run github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
 CRD_REF_DOCS := go run github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VER)
 
@@ -22,7 +20,7 @@ export KUBEBUILDER_ASSETS ?= $(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin
 
 
 .PHONY: all
-all: version build-crds build package ## Run 'make' or 'make all' to run 'version', 'build-crds', 'build' and 'package'
+all: version generate build package ## Run 'make' or 'make all' to run 'version', 'generate', 'build' and 'package'
 
 .PHONY: version
 version: ## Print the current version
@@ -51,7 +49,6 @@ push-%:
 	docker push $(REPO)/$*:latest
 	docker push $(REPO)/$*:dev
 
-
 .PHONY: test
 test:	## Run all the tests
 	$(GINKGO) -v -r --label-filter=$(label-filter)
@@ -68,17 +65,16 @@ test-controller:	## Run the controller tests (pkg/controller)
 test-e2e:	## Run the e2e tests
 	$(GINKGO) -v -r tests
 
-.PHONY: build-crds
-build-crds:	## Build the CRDs specs
-	@# This will return non-zero until all of our objects in ./pkg/apis can generate valid crds.
-	@# allowDangerousTypes is needed for struct that use floats
-	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=false \
-		paths=./pkg/apis/... \
-		output:crd:dir=./charts/k3k/crds
+.PHONY: generate
+generate:	## Generate the CRDs specs
+	go generate ./...
 
 .PHONY: docs
 docs:	## Build the CRDs and CLI docs
-	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml --renderer=markdown --source-path=./pkg/apis/k3k.io/v1alpha1 --output-path=./docs/crds/crd-docs.md
+	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml \
+		--renderer=markdown \
+		--source-path=./pkg/apis/k3k.io/v1alpha1 \
+		--output-path=./docs/crds/crd-docs.md
 	@go run ./docs/cli/genclidoc.go
 
 .PHONY: lint
@@ -86,7 +82,7 @@ lint:	## Find any linting issues in the project
 	$(GOLANGCI_LINT) run --timeout=5m
 
 .PHONY: validate
-validate: build-crds docs ## Validate the project checking for any dependency or doc mismatch
+validate: generate docs ## Validate the project checking for any dependency or doc mismatch
 	$(GINKGO) unfocus
 	go mod tidy
 	git status --porcelain

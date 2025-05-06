@@ -33,7 +33,7 @@ To see all the available Make commands you can run `make help`, i.e:
 
 ```
 -> % make help
-  all                            Run 'make' or 'make all' to run 'version', 'build-crds', 'build' and 'package'
+  all                            Run 'make' or 'make all' to run 'version', 'generate', 'build' and 'package'
   version                        Print the current version
   build                          Build the the K3k binaries (k3k, k3k-kubelet and k3kcli)
   package                        Package the k3k and k3k-kubelet Docker images
@@ -42,8 +42,8 @@ To see all the available Make commands you can run `make help`, i.e:
   test-unit                      Run the unit tests (skips the e2e)
   test-controller                Run the controller tests (pkg/controller)
   test-e2e                       Run the e2e tests
-  build-crds                     Build the CRDs specs
-  docs                           Build the CRDs docs
+  generate                       Generate the CRDs specs
+  docs                           Build the CRDs and CLI docs
   lint                           Find any linting issues in the project
   validate                       Validate the project checking for any dependency or doc mismatch
   install                        Install K3k with Helm on the targeted Kubernetes cluster
@@ -88,7 +88,7 @@ The required binaries for `envtest` are installed with [`setup-envtest`](https:/
 
 ## CRDs and Docs
 
-We are using Kubebuilder and `controller-gen` to build the needed CRDs. To generate the specs you can run `make build-crds`.
+We are using Kubebuilder and `controller-gen` to build the needed CRDs. To generate the specs you can run `make generate`.
 
 Remember also to update the CRDs documentation running the `make docs` command.
 

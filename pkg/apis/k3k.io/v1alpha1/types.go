@@ -337,8 +337,8 @@ type ClusterList struct {
 // +kubebuilder:printcolumn:JSONPath=".spec.displayName",name=Display Name,type=string
 // +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
 
-// VirtualClusterPolicy allows defining common configurations and constraints
-// for the clusters in a namespace activated by an annotation on that Namespace.
+// VirtualClusterPolicy represents a group of virtual Kubernetes clusters managed by k3k.
+// It allows defining common configurations and constraints for the clusters within the set.
 type VirtualClusterPolicy struct {
 	metav1.ObjectMeta `json:"metadata"`
 	metav1.TypeMeta   `json:",inline"`
@@ -362,12 +362,12 @@ type VirtualClusterPolicySpec struct {
 	// +optional
 	DisplayName string `json:"displayName,omitempty"`
 
-	// Quota defines the ResourceQuotaSpec to be applied to the target Namespace.
+	// Quota specifies the resource limits for clusters within a clusterpolicy.
 	//
 	// +optional
 	Quota *v1.ResourceQuotaSpec `json:"quota,omitempty"`
 
-	// Limit specifies the LimitRange that will be applied to all pods in the target Namespace
+	// Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy
 	// to set defaults and constraints (min/max)
 	//
 	// +optional

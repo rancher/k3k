@@ -12,18 +12,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func NewClusterSetDeleteCmd(appCtx *AppContext) *cli.Command {
+func NewPolicyDeleteCmd(appCtx *AppContext) *cli.Command {
 	return &cli.Command{
 		Name:            "delete",
-		Usage:           "Delete an existing clusterset",
-		UsageText:       "k3kcli clusterset delete [command options] NAME",
-		Action:          clusterSetDeleteAction(appCtx),
+		Usage:           "Delete an existing policy",
+		UsageText:       "k3kcli policy delete [command options] NAME",
+		Action:          policyDeleteAction(appCtx),
 		Flags:           WithCommonFlags(appCtx),
 		HideHelpCommand: true,
 	}
 }
 
-func clusterSetDeleteAction(appCtx *AppContext) cli.ActionFunc {
+func policyDeleteAction(appCtx *AppContext) cli.ActionFunc {
 	return func(clx *cli.Context) error {
 		ctx := context.Background()
 		client := appCtx.Client
@@ -39,18 +39,18 @@ func clusterSetDeleteAction(appCtx *AppContext) cli.ActionFunc {
 
 		namespace := appCtx.Namespace(name)
 
-		logrus.Infof("Deleting clusterset in namespace [%s]", namespace)
+		logrus.Infof("Deleting policy in namespace [%s]", namespace)
 
-		clusterSet := &v1alpha1.ClusterSet{
+		policy := &v1alpha1.VirtualClusterPolicy{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "default",
 				Namespace: namespace,
 			},
 		}
 
-		if err := client.Delete(ctx, clusterSet); err != nil {
+		if err := client.Delete(ctx, policy); err != nil {
 			if apierrors.IsNotFound(err) {
-				logrus.Warnf("ClusterSet not found in namespace [%s]", namespace)
+				logrus.Warnf("Policy not found in namespace [%s]", namespace)
 			} else {
 				return err
 			}

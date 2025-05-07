@@ -1,7 +1,7 @@
 apiVersion: k3k.io/v1alpha1
-kind: ClusterSet
+kind: VirtualClusterPolicy
 metadata:
-  name: clusterset-example
+  name: policy-example
 # spec:
   # disableNetworkPolicy: false
   # allowedModeTypes:

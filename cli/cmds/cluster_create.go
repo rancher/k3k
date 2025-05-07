@@ -39,7 +39,7 @@ type CreateConfig struct {
 	version              string
 	mode                 string
 	kubeconfigServerHost string
-	clusterset           string
+	policy               string
 }
 
 func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
@@ -76,35 +76,35 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 
 		namespace := appCtx.Namespace(name)
 
-		// if clusterset is set, use the namespace of the clusterset
-		if config.clusterset != "" {
-			namespace = appCtx.Namespace(config.clusterset)
+		// if policy is set, use the namespace of the policy
+		if config.policy != "" {
+			namespace = appCtx.Namespace(config.policy)
 		}
 
 		if err := createNamespace(ctx, client, namespace); err != nil {
 			return err
 		}
 
-		// if clusterset is set, create the cluster set
-		if config.clusterset != "" {
-			namespace = appCtx.Namespace(config.clusterset)
+		// if policy is set, create the cluster set
+		if config.policy != "" {
+			namespace = appCtx.Namespace(config.policy)
 
-			clusterSet := &v1alpha1.ClusterSet{}
-			if err := client.Get(ctx, types.NamespacedName{Name: "default", Namespace: namespace}, clusterSet); err != nil {
+			policy := &v1alpha1.VirtualClusterPolicy{}
+			if err := client.Get(ctx, types.NamespacedName{Name: "default", Namespace: namespace}, policy); err != nil {
 				if !apierrors.IsNotFound(err) {
 					return err
 				}
 
-				clusterSet, err = createClusterSet(ctx, client, namespace, v1alpha1.ClusterMode(config.mode), config.clusterset)
+				policy, err = createPolicy(ctx, client, namespace, v1alpha1.ClusterMode(config.mode), config.policy)
 				if err != nil {
 					return err
 				}
 			}
 
-			logrus.Infof("ClusterSet in namespace [%s] available", namespace)
+			logrus.Infof("VirtualClusterPolicy in namespace [%s] available", namespace)
 
-			if !slices.Contains(clusterSet.Spec.AllowedModeTypes, v1alpha1.ClusterMode(config.mode)) {
-				return fmt.Errorf("invalid '%s' Cluster mode. ClusterSet only allows %v", config.mode, clusterSet.Spec.AllowedModeTypes)
+			if !slices.Contains(policy.Spec.AllowedModeTypes, v1alpha1.ClusterMode(config.mode)) {
+				return fmt.Errorf("invalid '%s' Cluster mode. VirtualClusterPolicy only allows %v", config.mode, policy.Spec.AllowedModeTypes)
 			}
 		}
 

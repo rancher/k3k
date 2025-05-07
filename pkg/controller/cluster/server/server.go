@@ -203,6 +203,20 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 			},
 		},
 	}
+	podSpec.Containers[0].LivenessProbe = &v1.Probe{
+		InitialDelaySeconds: 10,
+		FailureThreshold:    3,
+		PeriodSeconds:       3,
+		ProbeHandler: v1.ProbeHandler{
+			Exec: &v1.ExecAction{
+				Command: []string{
+					"sh",
+					"-c",
+					`grep -q "rejoin the cluster" /var/log/k3s.log && exit 1 || exit 0`,
+				},
+			},
+		},
+	}
 	// start the pod unprivileged in shared mode
 	if s.mode == agent.VirtualNodeMode {
 		podSpec.Containers[0].SecurityContext = &v1.SecurityContext{

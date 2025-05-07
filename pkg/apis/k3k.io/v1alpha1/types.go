@@ -337,37 +337,37 @@ type ClusterList struct {
 // +kubebuilder:printcolumn:JSONPath=".spec.displayName",name=Display Name,type=string
 // +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
 
-// ClusterSet represents a group of virtual Kubernetes clusters managed by k3k.
+// VirtualClusterPolicy represents a group of virtual Kubernetes clusters managed by k3k.
 // It allows defining common configurations and constraints for the clusters within the set.
-type ClusterSet struct {
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+type VirtualClusterPolicy struct {
+	metav1.ObjectMeta `json:"metadata"`
 	metav1.TypeMeta   `json:",inline"`
 
-	// Spec defines the desired state of the ClusterSet.
+	// Spec defines the desired state of the VirtualClusterPolicy.
 	//
 	// +kubebuilder:default={}
-	Spec ClusterSetSpec `json:"spec"`
+	Spec VirtualClusterPolicySpec `json:"spec"`
 
-	// Status reflects the observed state of the ClusterSet.
+	// Status reflects the observed state of the VirtualClusterPolicy.
 	//
 	// +optional
-	Status ClusterSetStatus `json:"status,omitempty"`
+	Status VirtualClusterPolicyStatus `json:"status"`
 }
 
-// ClusterSetSpec defines the desired state of a ClusterSet.
-type ClusterSetSpec struct {
+// VirtualClusterPolicySpec defines the desired state of a VirtualClusterPolicy.
+type VirtualClusterPolicySpec struct {
 
 	// DisplayName is the human-readable name for the set.
 	//
 	// +optional
 	DisplayName string `json:"displayName,omitempty"`
 
-	// Quota specifies the resource limits for clusters within a clusterset.
+	// Quota specifies the resource limits for clusters within a clusterpolicy.
 	//
 	// +optional
 	Quota *v1.ResourceQuotaSpec `json:"quota,omitempty"`
 
-	// Limit specifies the LimitRange that will be applied to all pods within the ClusterSet
+	// Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy
 	// to set defaults and constraints (min/max)
 	//
 	// +optional
@@ -418,8 +418,8 @@ const (
 	RestrictedPodSecurityAdmissionLevel = PodSecurityAdmissionLevel("restricted")
 )
 
-// ClusterSetStatus reflects the observed state of a ClusterSet.
-type ClusterSetStatus struct {
+// VirtualClusterPolicyStatus reflects the observed state of a VirtualClusterPolicy.
+type VirtualClusterPolicyStatus struct {
 	// ObservedGeneration was the generation at the time the status was updated.
 	//
 	// +optional
@@ -446,10 +446,10 @@ type ClusterSetStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 
-// ClusterSetList is a list of ClusterSet resources.
-type ClusterSetList struct {
+// VirtualClusterPolicyList is a list of VirtualClusterPolicy resources.
+type VirtualClusterPolicyList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta `json:",inline"`
 
-	Items []ClusterSet `json:"items"`
+	Items []VirtualClusterPolicy `json:"items"`
 }

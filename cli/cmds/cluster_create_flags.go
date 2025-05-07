@@ -105,9 +105,9 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 			Destination: &config.kubeconfigServerHost,
 		},
 		&cli.StringFlag{
-			Name:        "clusterset",
-			Usage:       "The clusterset to create the cluster in",
-			Destination: &config.clusterset,
+			Name:        "policy",
+			Usage:       "The policy to create the cluster in",
+			Destination: &config.policy,
 		},
 	}
 }

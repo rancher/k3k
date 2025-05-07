@@ -1,4 +1,4 @@
-package clusterset
+package policy
 
 import (
 	"context"
@@ -47,35 +47,35 @@ func (n *NodeReconciler) Reconcile(ctx context.Context, req reconcile.Request) (
 
 	log.Info("reconciling node")
 
-	var clusterSetList v1alpha1.ClusterSetList
-	if err := n.Client.List(ctx, &clusterSetList); err != nil {
+	var clusterPolicyList v1alpha1.VirtualClusterPolicyList
+	if err := n.Client.List(ctx, &clusterPolicyList); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if len(clusterSetList.Items) <= 0 {
+	if len(clusterPolicyList.Items) <= 0 {
 		return reconcile.Result{}, nil
 	}
 
-	if err := n.ensureNetworkPolicies(ctx, clusterSetList); err != nil {
+	if err := n.ensureNetworkPolicies(ctx, clusterPolicyList); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterSetList v1alpha1.ClusterSetList) error {
+func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterPolicyList v1alpha1.VirtualClusterPolicyList) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring network policies")
 
 	var setNetworkPolicy *networkingv1.NetworkPolicy
 
-	for _, cs := range clusterSetList.Items {
+	for _, cs := range clusterPolicyList.Items {
 		if cs.Spec.DisableNetworkPolicy {
 			continue
 		}
 
-		log = log.WithValues("clusterset", cs.Namespace+"/"+cs.Name)
-		log.Info("updating NetworkPolicy for ClusterSet")
+		log = log.WithValues("clusterpolicy", cs.Namespace+"/"+cs.Name)
+		log.Info("updating NetworkPolicy for VirtualClusterPolicy")
 
 		var err error
 		setNetworkPolicy, err = netpol(ctx, "", &cs, n.Client)
@@ -84,7 +84,7 @@ func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterSetLi
 			return err
 		}
 
-		log.Info("new NetworkPolicy for clusterset")
+		log.Info("new NetworkPolicy for clusterpolicy")
 
 		if err := n.Client.Update(ctx, setNetworkPolicy); err != nil {
 			return err

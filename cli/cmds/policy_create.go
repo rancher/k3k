@@ -15,18 +15,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ClusterSetCreateConfig struct {
+type VirtualClusterPolicyCreateConfig struct {
 	mode        string
 	displayName string
 }
 
-func NewClusterSetCreateCmd(appCtx *AppContext) *cli.Command {
-	config := &ClusterSetCreateConfig{}
+func NewPolicyCreateCmd(appCtx *AppContext) *cli.Command {
+	config := &VirtualClusterPolicyCreateConfig{}
 
 	createFlags := []cli.Flag{
 		&cli.StringFlag{
 			Name:        "mode",
-			Usage:       "The allowed mode type of the clusterset",
+			Usage:       "The allowed mode type of the policy",
 			Destination: &config.mode,
 			Value:       "shared",
 			Action: func(ctx *cli.Context, value string) error {
@@ -40,22 +40,22 @@ func NewClusterSetCreateCmd(appCtx *AppContext) *cli.Command {
 		},
 		&cli.StringFlag{
 			Name:        "display-name",
-			Usage:       "The display name of the clusterset",
+			Usage:       "The display name of the policy",
 			Destination: &config.displayName,
 		},
 	}
 
 	return &cli.Command{
 		Name:            "create",
-		Usage:           "Create new clusterset",
-		UsageText:       "k3kcli clusterset create [command options] NAME",
-		Action:          clusterSetCreateAction(appCtx, config),
+		Usage:           "Create new policy",
+		UsageText:       "k3kcli policy create [command options] NAME",
+		Action:          policyCreateAction(appCtx, config),
 		Flags:           WithCommonFlags(appCtx, createFlags...),
 		HideHelpCommand: true,
 	}
 }
 
-func clusterSetCreateAction(appCtx *AppContext, config *ClusterSetCreateConfig) cli.ActionFunc {
+func policyCreateAction(appCtx *AppContext, config *VirtualClusterPolicyCreateConfig) cli.ActionFunc {
 	return func(clx *cli.Context) error {
 		ctx := context.Background()
 		client := appCtx.Client
@@ -85,7 +85,7 @@ func clusterSetCreateAction(appCtx *AppContext, config *ClusterSetCreateConfig) 
 			return err
 		}
 
-		_, err := createClusterSet(ctx, client, namespace, v1alpha1.ClusterMode(config.mode), displayName)
+		_, err := createPolicy(ctx, client, namespace, v1alpha1.ClusterMode(config.mode), displayName)
 
 		return err
 	}
@@ -108,31 +108,31 @@ func createNamespace(ctx context.Context, client client.Client, name string) err
 	return nil
 }
 
-func createClusterSet(ctx context.Context, client client.Client, namespace string, mode v1alpha1.ClusterMode, displayName string) (*v1alpha1.ClusterSet, error) {
-	logrus.Infof("Creating clusterset in namespace [%s]", namespace)
+func createPolicy(ctx context.Context, client client.Client, namespace string, mode v1alpha1.ClusterMode, displayName string) (*v1alpha1.VirtualClusterPolicy, error) {
+	logrus.Infof("Creating policy in namespace [%s]", namespace)
 
-	clusterSet := &v1alpha1.ClusterSet{
+	policy := &v1alpha1.VirtualClusterPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: namespace,
 		},
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "ClusterSet",
+			Kind:       "VirtualClusterPolicy",
 			APIVersion: "k3k.io/v1alpha1",
 		},
-		Spec: v1alpha1.ClusterSetSpec{
+		Spec: v1alpha1.VirtualClusterPolicySpec{
 			AllowedModeTypes: []v1alpha1.ClusterMode{mode},
 			DisplayName:      displayName,
 		},
 	}
 
-	if err := client.Create(ctx, clusterSet); err != nil {
+	if err := client.Create(ctx, policy); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			logrus.Infof("ClusterSet in namespace [%s] already exists", namespace)
+			logrus.Infof("Policy in namespace [%s] already exists", namespace)
 		} else {
 			return nil, err
 		}
 	}
 
-	return clusterSet, nil
+	return policy, nil
 }

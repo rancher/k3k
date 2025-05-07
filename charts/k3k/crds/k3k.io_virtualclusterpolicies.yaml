@@ -4,14 +4,14 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
-  name: clustersets.k3k.io
+  name: virtualclusterpolicies.k3k.io
 spec:
   group: k3k.io
   names:
-    kind: ClusterSet
-    listKind: ClusterSetList
-    plural: clustersets
-    singular: clusterset
+    kind: VirtualClusterPolicy
+    listKind: VirtualClusterPolicyList
+    plural: virtualclusterpolicies
+    singular: virtualclusterpolicy
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -25,7 +25,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          ClusterSet represents a group of virtual Kubernetes clusters managed by k3k.
+          VirtualClusterPolicy represents a group of virtual Kubernetes clusters managed by k3k.
           It allows defining common configurations and constraints for the clusters within the set.
         properties:
           apiVersion:
@@ -47,7 +47,7 @@ spec:
             type: object
           spec:
             default: {}
-            description: Spec defines the desired state of the ClusterSet.
+            description: Spec defines the desired state of the VirtualClusterPolicy.
             properties:
               allowedModeTypes:
                 default:
@@ -85,7 +85,7 @@ spec:
                 type: string
               limit:
                 description: |-
-                  Limit specifies the LimitRange that will be applied to all pods within the ClusterSet
+                  Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy
                   to set defaults and constraints (min/max)
                 properties:
                   limits:
@@ -169,7 +169,7 @@ spec:
                 type: string
               quota:
                 description: Quota specifies the resource limits for clusters within
-                  a clusterset.
+                  a clusterpolicy.
                 properties:
                   hard:
                     additionalProperties:
@@ -233,7 +233,7 @@ spec:
                 type: object
             type: object
           status:
-            description: Status reflects the observed state of the ClusterSet.
+            description: Status reflects the observed state of the VirtualClusterPolicy.
             properties:
               conditions:
                 description: Conditions are the individual conditions for the cluster
@@ -320,6 +320,7 @@ spec:
                 type: string
             type: object
         required:
+        - metadata
         - spec
         type: object
         x-kubernetes-validations:

@@ -1,4 +1,4 @@
-package clusterset_test
+package policy_test
 
 import (
 	"context"
@@ -20,9 +20,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet"), func() {
+var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("VirtualClusterPolicy"), func() {
 
-	Context("creating a ClusterSet", func() {
+	Context("creating a VirtualClusterPolicy", func() {
 
 		var (
 			namespace string
@@ -37,23 +37,23 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 		When("created with a default spec", func() {
 			It("should have only the 'shared' allowedModeTypes", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
-				allowedModeTypes := clusterSet.Spec.AllowedModeTypes
+				allowedModeTypes := policy.Spec.AllowedModeTypes
 				Expect(allowedModeTypes).To(HaveLen(1))
 				Expect(allowedModeTypes).To(ContainElement(v1alpha1.SharedClusterMode))
 			})
 
 			It("should not be able to create a cluster with a non 'default' name", func() {
-				err := k8sClient.Create(ctx, &v1alpha1.ClusterSet{
+				err := k8sClient.Create(ctx, &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "another-name",
 						Namespace: namespace,
@@ -62,8 +62,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				Expect(err).To(HaveOccurred())
 			})
 
-			It("should not be able to create two ClusterSets in the same namespace", func() {
-				err := k8sClient.Create(ctx, &v1alpha1.ClusterSet{
+			It("should not be able to create two VirtualClusterPolicys in the same namespace", func() {
+				err := k8sClient.Create(ctx, &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
@@ -71,7 +71,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				})
 				Expect(err).To(Not(HaveOccurred()))
 
-				err = k8sClient.Create(ctx, &v1alpha1.ClusterSet{
+				err = k8sClient.Create(ctx, &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default-2",
 						Namespace: namespace,
@@ -81,31 +81,31 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			})
 
 			It("should create a NetworkPolicy", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// look for network policies etc
-				clusterSetNetworkPolicy := &networkingv1.NetworkPolicy{}
+				networkPolicy := &networkingv1.NetworkPolicy{}
 
 				Eventually(func() error {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
-					return k8sClient.Get(ctx, key, clusterSetNetworkPolicy)
+					return k8sClient.Get(ctx, key, networkPolicy)
 				}).
 					WithTimeout(time.Minute).
 					WithPolling(time.Second).
 					Should(BeNil())
 
-				spec := clusterSetNetworkPolicy.Spec
+				spec := networkPolicy.Spec
 				Expect(spec.PolicyTypes).To(ContainElement(networkingv1.PolicyTypeEgress))
 				Expect(spec.PolicyTypes).To(ContainElement(networkingv1.PolicyTypeIngress))
 
@@ -121,7 +121,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				}
 
 				// allow networking in the same namespace
-				clusterSetNamespaceRule := networkingv1.NetworkPolicyPeer{
+				namespaceRule := networkingv1.NetworkPolicyPeer{
 					NamespaceSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"kubernetes.io/metadata.name": namespace},
 					},
@@ -138,30 +138,30 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				}
 
 				Expect(spec.Egress[0].To).To(ContainElements(
-					ipBlockRule, clusterSetNamespaceRule, kubeDNSRule,
+					ipBlockRule, namespaceRule, kubeDNSRule,
 				))
 			})
 		})
 
 		When("created with DisableNetworkPolicy", func() {
 			It("should not create a NetworkPolicy if true", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						DisableNetworkPolicy: true,
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait for a bit for the network policy, but it should not be created
 				Eventually(func() bool {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
 					err := k8sClient.Get(ctx, key, &networkingv1.NetworkPolicy{})
@@ -174,41 +174,41 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			})
 
 			It("should delete the NetworkPolicy if changed to false", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// look for network policy
-				clusterSetNetworkPolicy := &networkingv1.NetworkPolicy{}
+				networkPolicy := &networkingv1.NetworkPolicy{}
 
 				Eventually(func() error {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
-					return k8sClient.Get(ctx, key, clusterSetNetworkPolicy)
+					return k8sClient.Get(ctx, key, networkPolicy)
 				}).
 					WithTimeout(time.Minute).
 					WithPolling(time.Second).
 					Should(BeNil())
 
-				clusterSet.Spec.DisableNetworkPolicy = true
-				err = k8sClient.Update(ctx, clusterSet)
+				policy.Spec.DisableNetworkPolicy = true
+				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait for a bit for the network policy to being deleted
 				Eventually(func() bool {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
-					err := k8sClient.Get(ctx, key, clusterSetNetworkPolicy)
+					err := k8sClient.Get(ctx, key, networkPolicy)
 					return apierrors.IsNotFound(err)
 				}).
 					MustPassRepeatedly(5).
@@ -218,47 +218,47 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			})
 
 			It("should recreate the NetworkPolicy if deleted", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// look for network policy
-				clusterSetNetworkPolicy := &networkingv1.NetworkPolicy{}
+				networkPolicy := &networkingv1.NetworkPolicy{}
 
 				Eventually(func() error {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
-					return k8sClient.Get(context.Background(), key, clusterSetNetworkPolicy)
+					return k8sClient.Get(context.Background(), key, networkPolicy)
 				}).
 					WithTimeout(time.Minute).
 					WithPolling(time.Second).
 					Should(BeNil())
 
-				err = k8sClient.Delete(ctx, clusterSetNetworkPolicy)
+				err = k8sClient.Delete(ctx, networkPolicy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				key := types.NamespacedName{
-					Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+					Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 					Namespace: namespace,
 				}
-				err = k8sClient.Get(ctx, key, clusterSetNetworkPolicy)
+				err = k8sClient.Get(ctx, key, networkPolicy)
 				Expect(apierrors.IsNotFound(err)).Should(BeTrue())
 
 				// wait a bit for the network policy to being recreated
 				Eventually(func() error {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
-					return k8sClient.Get(ctx, key, clusterSetNetworkPolicy)
+					return k8sClient.Get(ctx, key, networkPolicy)
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
@@ -269,33 +269,33 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 		When("created specifying the mode", func() {
 			It("should have the 'virtual' mode if specified", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						AllowedModeTypes: []v1alpha1.ClusterMode{
 							v1alpha1.VirtualClusterMode,
 						},
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
-				allowedModeTypes := clusterSet.Spec.AllowedModeTypes
+				allowedModeTypes := policy.Spec.AllowedModeTypes
 				Expect(allowedModeTypes).To(HaveLen(1))
 				Expect(allowedModeTypes).To(ContainElement(v1alpha1.VirtualClusterMode))
 			})
 
 			It("should have both modes if specified", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						AllowedModeTypes: []v1alpha1.ClusterMode{
 							v1alpha1.SharedClusterMode,
 							v1alpha1.VirtualClusterMode,
@@ -303,10 +303,10 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
-				allowedModeTypes := clusterSet.Spec.AllowedModeTypes
+				allowedModeTypes := policy.Spec.AllowedModeTypes
 				Expect(allowedModeTypes).To(HaveLen(2))
 				Expect(allowedModeTypes).To(ContainElements(
 					v1alpha1.SharedClusterMode,
@@ -315,12 +315,12 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			})
 
 			It("should fail for a non-existing mode", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						AllowedModeTypes: []v1alpha1.ClusterMode{
 							v1alpha1.SharedClusterMode,
 							v1alpha1.VirtualClusterMode,
@@ -329,7 +329,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -342,17 +342,17 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					restricted = v1alpha1.RestrictedPodSecurityAdmissionLevel
 				)
 
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						PodSecurityAdmissionLevel: &privileged,
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				var ns v1.Namespace
@@ -377,8 +377,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 				// Check baseline
 
-				clusterSet.Spec.PodSecurityAdmissionLevel = &baseline
-				err = k8sClient.Update(ctx, clusterSet)
+				policy.Spec.PodSecurityAdmissionLevel = &baseline
+				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait a bit for the namespace to be updated
@@ -399,8 +399,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 				// Check restricted
 
-				clusterSet.Spec.PodSecurityAdmissionLevel = &restricted
-				err = k8sClient.Update(ctx, clusterSet)
+				policy.Spec.PodSecurityAdmissionLevel = &restricted
+				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait a bit for the namespace to be updated
@@ -421,8 +421,8 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 				// check cleanup
 
-				clusterSet.Spec.PodSecurityAdmissionLevel = nil
-				err = k8sClient.Update(ctx, clusterSet)
+				policy.Spec.PodSecurityAdmissionLevel = nil
+				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait a bit for the namespace to be updated
@@ -445,17 +445,17 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			It("should restore the labels if Namespace is updated", func() {
 				privileged := v1alpha1.PrivilegedPodSecurityAdmissionLevel
 
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						PodSecurityAdmissionLevel: &privileged,
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				var ns v1.Namespace
@@ -496,17 +496,17 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 		When("a cluster in the same namespace is present", func() {
 			It("should update it if needed", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						DefaultPriorityClass: "foobar",
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				cluster := &v1alpha1.Cluster{
@@ -529,7 +529,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
 					err = k8sClient.Get(ctx, key, cluster)
 					Expect(err).To(Not(HaveOccurred()))
-					return cluster.Spec.PriorityClass == clusterSet.Spec.DefaultPriorityClass
+					return cluster.Spec.PriorityClass == policy.Spec.DefaultPriorityClass
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
@@ -537,17 +537,17 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			})
 
 			It("should update the nodeSelector", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						DefaultNodeSelector: map[string]string{"label-1": "value-1"},
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				cluster := &v1alpha1.Cluster{
@@ -570,7 +570,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
 					err = k8sClient.Get(ctx, key, cluster)
 					Expect(err).To(Not(HaveOccurred()))
-					return reflect.DeepEqual(cluster.Spec.NodeSelector, clusterSet.Spec.DefaultNodeSelector)
+					return reflect.DeepEqual(cluster.Spec.NodeSelector, policy.Spec.DefaultNodeSelector)
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
@@ -578,17 +578,17 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			})
 
 			It("should update the nodeSelector if changed", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						DefaultNodeSelector: map[string]string{"label-1": "value-1"},
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				cluster := &v1alpha1.Cluster{
@@ -607,20 +607,20 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				err = k8sClient.Create(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
 
-				Expect(cluster.Spec.NodeSelector).To(Equal(clusterSet.Spec.DefaultNodeSelector))
+				Expect(cluster.Spec.NodeSelector).To(Equal(policy.Spec.DefaultNodeSelector))
 
-				// update the ClusterSet
-				clusterSet.Spec.DefaultNodeSelector["label-2"] = "value-2"
-				err = k8sClient.Update(ctx, clusterSet)
+				// update the VirtualClusterPolicy
+				policy.Spec.DefaultNodeSelector["label-2"] = "value-2"
+				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
-				Expect(cluster.Spec.NodeSelector).To(Not(Equal(clusterSet.Spec.DefaultNodeSelector)))
+				Expect(cluster.Spec.NodeSelector).To(Not(Equal(policy.Spec.DefaultNodeSelector)))
 
 				// wait a bit
 				Eventually(func() bool {
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
 					err = k8sClient.Get(ctx, key, cluster)
 					Expect(err).To(Not(HaveOccurred()))
-					return reflect.DeepEqual(cluster.Spec.NodeSelector, clusterSet.Spec.DefaultNodeSelector)
+					return reflect.DeepEqual(cluster.Spec.NodeSelector, policy.Spec.DefaultNodeSelector)
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
@@ -630,7 +630,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 				cluster.Spec.NodeSelector["label-3"] = "value-3"
 				err = k8sClient.Update(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
-				Expect(cluster.Spec.NodeSelector).To(Not(Equal(clusterSet.Spec.DefaultNodeSelector)))
+				Expect(cluster.Spec.NodeSelector).To(Not(Equal(policy.Spec.DefaultNodeSelector)))
 
 				// wait a bit and check it's restored
 				Eventually(func() bool {
@@ -639,7 +639,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
 					err = k8sClient.Get(ctx, key, &updatedCluster)
 					Expect(err).To(Not(HaveOccurred()))
-					return reflect.DeepEqual(updatedCluster.Spec.NodeSelector, clusterSet.Spec.DefaultNodeSelector)
+					return reflect.DeepEqual(updatedCluster.Spec.NodeSelector, policy.Spec.DefaultNodeSelector)
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
@@ -649,17 +649,17 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 		When("a cluster in a different namespace is present", func() {
 			It("should not be update", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						DefaultPriorityClass: "foobar",
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				namespace2 := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "ns-"}}
@@ -686,7 +686,7 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
 					err = k8sClient.Get(ctx, key, cluster)
 					Expect(err).To(Not(HaveOccurred()))
-					return cluster.Spec.PriorityClass != clusterSet.Spec.DefaultPriorityClass
+					return cluster.Spec.PriorityClass != policy.Spec.DefaultPriorityClass
 				}).
 					MustPassRepeatedly(5).
 					WithTimeout(time.Second * 10).
@@ -697,12 +697,12 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 
 		When("created with ResourceQuota", func() {
 			It("should create resourceQuota if Quota is enabled", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						Quota: &v1.ResourceQuotaSpec{
 							Hard: v1.ResourceList{
 								v1.ResourceCPU:    resource.MustParse("800m"),
@@ -712,13 +712,13 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				var resourceQuota v1.ResourceQuota
 				Eventually(func() error {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
 
@@ -732,12 +732,12 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			})
 
 			It("should delete the ResourceQuota if Quota is deleted", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						Quota: &v1.ResourceQuotaSpec{
 							Hard: v1.ResourceList{
 								v1.ResourceCPU:    resource.MustParse("800m"),
@@ -747,14 +747,14 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				var resourceQuota v1.ResourceQuota
 
 				Eventually(func() error {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
 					return k8sClient.Get(ctx, key, &resourceQuota)
@@ -763,14 +763,14 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					WithPolling(time.Second).
 					Should(BeNil())
 
-				clusterSet.Spec.Quota = nil
-				err = k8sClient.Update(ctx, clusterSet)
+				policy.Spec.Quota = nil
+				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait for a bit for the resourceQuota to be deleted
 				Eventually(func() bool {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
 					err := k8sClient.Get(ctx, key, &resourceQuota)
@@ -782,12 +782,12 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 			})
 
 			It("should create resourceQuota if Quota is enabled", func() {
-				clusterSet := &v1alpha1.ClusterSet{
+				policy := &v1alpha1.VirtualClusterPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "default",
 						Namespace: namespace,
 					},
-					Spec: v1alpha1.ClusterSetSpec{
+					Spec: v1alpha1.VirtualClusterPolicySpec{
 						Limit: &v1.LimitRangeSpec{
 							Limits: []v1.LimitRangeItem{
 								{
@@ -801,14 +801,14 @@ var _ = Describe("ClusterSet Controller", Label("controller"), Label("ClusterSet
 					},
 				}
 
-				err := k8sClient.Create(ctx, clusterSet)
+				err := k8sClient.Create(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				var limitRange v1.LimitRange
 
 				Eventually(func() error {
 					key := types.NamespacedName{
-						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterSet.Name),
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace,
 					}
 					return k8sClient.Get(ctx, key, &limitRange)

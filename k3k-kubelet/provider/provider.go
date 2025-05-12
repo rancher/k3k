@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -613,8 +614,8 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 	currentHostPod.Spec.Tolerations = pod.Spec.Tolerations
 
 	// in the virtual cluster we can update also the labels and annotations
-	currentHostPod.Annotations = pod.Annotations
-	currentHostPod.Labels = pod.Labels
+	maps.Copy(currentHostPod.Annotations, pod.Annotations)
+	maps.Copy(currentHostPod.Labels, pod.Labels)
 
 	if err := p.HostClient.Update(ctx, &currentHostPod); err != nil {
 		return fmt.Errorf("unable to update pod in the host cluster: %w", err)

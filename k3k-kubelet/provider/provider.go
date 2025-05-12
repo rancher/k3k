@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/rancher/k3k/k3k-kubelet/provider/collectors"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	k3klog "github.com/rancher/k3k/pkg/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
@@ -366,7 +368,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 
 	// setting the hostname for the pod if its not set
 	if pod.Spec.Hostname == "" {
-		tPod.Spec.Hostname = pod.Name
+		tPod.Spec.Hostname = k3kcontroller.SafeConcatName(pod.Name)
 	}
 
 	// if the priorityCluss for the virtual cluster is set then override the provided value
@@ -486,18 +488,22 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 					if err := p.syncSecret(ctx, podNamespace, secretName, optional); err != nil {
 						return fmt.Errorf("unable to sync projected secret %s: %w", secretName, err)
 					}
+
+					source.Secret.Name = p.Translator.TranslateName(podNamespace, secretName)
 				}
 			}
 		} else if volume.PersistentVolumeClaim != nil {
 			volume.PersistentVolumeClaim.ClaimName = p.Translator.TranslateName(podNamespace, volume.PersistentVolumeClaim.ClaimName)
 		} else if volume.DownwardAPI != nil {
 			for _, downwardAPI := range volume.DownwardAPI.Items {
-				if downwardAPI.FieldRef.FieldPath == translate.MetadataNameField {
-					downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
-				}
+				if downwardAPI.FieldRef != nil {
+					if downwardAPI.FieldRef.FieldPath == translate.MetadataNameField {
+						downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
+					}
 
-				if downwardAPI.FieldRef.FieldPath == translate.MetadataNamespaceField {
-					downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNamespaceAnnotation)
+					if downwardAPI.FieldRef.FieldPath == translate.MetadataNamespaceField {
+						downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNamespaceAnnotation)
+					}
 				}
 			}
 		}
@@ -607,6 +613,10 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 	// update ActiveDeadlineSeconds and Tolerations
 	currentHostPod.Spec.ActiveDeadlineSeconds = pod.Spec.ActiveDeadlineSeconds
 	currentHostPod.Spec.Tolerations = pod.Spec.Tolerations
+
+	// in the virtual cluster we can update also the labels and annotations
+	maps.Copy(currentHostPod.Annotations, pod.Annotations)
+	maps.Copy(currentHostPod.Labels, pod.Labels)
 
 	if err := p.HostClient.Update(ctx, &currentHostPod); err != nil {
 		return fmt.Errorf("unable to update pod in the host cluster: %w", err)

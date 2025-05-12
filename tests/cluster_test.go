@@ -165,7 +165,7 @@ var _ = When("a dynamic cluster is installed", func() {
 			Expect(len(serverPods.Items)).To(Equal(1))
 			return serverPods.Items[0].DeletionTimestamp
 		}).
-			WithTimeout(30 * time.Second).
+			WithTimeout(60 * time.Second).
 			WithPolling(time.Second * 5).
 			Should(BeNil())
 

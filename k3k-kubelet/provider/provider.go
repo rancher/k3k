@@ -488,6 +488,7 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 					if err := p.syncSecret(ctx, podNamespace, secretName, optional); err != nil {
 						return fmt.Errorf("unable to sync projected secret %s: %w", secretName, err)
 					}
+
 					source.Secret.Name = p.Translator.TranslateName(podNamespace, secretName)
 				}
 			}

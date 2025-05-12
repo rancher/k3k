@@ -5,11 +5,9 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	v1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -34,9 +32,6 @@ func AddNodeController(ctx context.Context, mgr manager.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1.Node{}).
-		WithOptions(controller.Options{
-			MaxConcurrentReconciles: maxConcurrentReconciles,
-		}).
 		Named(nodeController).
 		Complete(&reconciler)
 }
@@ -67,29 +62,31 @@ func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterPolic
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring network policies")
 
-	var setNetworkPolicy *networkingv1.NetworkPolicy
-
-	for _, cs := range clusterPolicyList.Items {
-		if cs.Spec.DisableNetworkPolicy {
-			continue
-		}
-
-		log = log.WithValues("clusterpolicy", cs.Namespace+"/"+cs.Name)
-		log.Info("updating NetworkPolicy for VirtualClusterPolicy")
-
-		var err error
-		setNetworkPolicy, err = netpol(ctx, "", &cs, n.Client)
-
-		if err != nil {
-			return err
-		}
-
-		log.Info("new NetworkPolicy for clusterpolicy")
-
-		if err := n.Client.Update(ctx, setNetworkPolicy); err != nil {
-			return err
-		}
-	}
-
 	return nil
+
+	// var setNetworkPolicy *networkingv1.NetworkPolicy
+
+	// for _, cs := range clusterPolicyList.Items {
+	// 	if cs.Spec.DisableNetworkPolicy {
+	// 		continue
+	// 	}
+
+	// 	log = log.WithValues("clusterpolicy", cs.Namespace+"/"+cs.Name)
+	// 	log.Info("updating NetworkPolicy for VirtualClusterPolicy")
+
+	// 	var err error
+	// 	setNetworkPolicy, err = netpol(ctx, n.Client, nil, &cs)
+
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	log.Info("new NetworkPolicy for clusterpolicy")
+
+	// 	if err := n.Client.Update(ctx, setNetworkPolicy); err != nil {
+	// 		return err
+	// 	}
+	// }
+
+	// return nil
 }

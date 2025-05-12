@@ -57,6 +57,9 @@ var _ = BeforeSuite(func() {
 	err = policy.Add(ctx, mgr, "")
 	Expect(err).NotTo(HaveOccurred())
 
+	err = policy.AddNSReconciler(mgr, "")
+	Expect(err).NotTo(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = mgr.Start(ctx)

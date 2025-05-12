@@ -333,9 +333,9 @@ type ClusterList struct {
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:object:root=true
-// +kubebuilder:validation:XValidation:rule="self.metadata.name == \"default\"",message="Name must match 'default'"
 // +kubebuilder:printcolumn:JSONPath=".spec.displayName",name=Display Name,type=string
 // +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
+// +kubebuilder:resource:scope=Cluster
 
 // VirtualClusterPolicy represents a group of virtual Kubernetes clusters managed by k3k.
 // It allows defining common configurations and constraints for the clusters within the set.

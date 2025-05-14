@@ -12,7 +12,7 @@ spec:
     listKind: VirtualClusterPolicyList
     plural: virtualclusterpolicies
     singular: virtualclusterpolicy
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.displayName
@@ -323,9 +323,6 @@ spec:
         - metadata
         - spec
         type: object
-        x-kubernetes-validations:
-        - message: Name must match 'default'
-          rule: self.metadata.name == "default"
     served: true
     storage: true
     subresources:

@@ -56,10 +56,10 @@ This section provides instructions on how to install K3k and the `k3kcli`.
 2. Install the K3k controller:
 
    ```bash
-   helm install --namespace k3k-system --create-namespace k3k k3k/k3k --devel
+   helm install --namespace k3k-system --create-namespace k3k k3k/k3k
    ```
 
-**NOTE:** K3k is currently under development, so the chart is marked as a development chart. This means you need to add the `--devel` flag to install it.  For production use, keep an eye on releases for stable versions. We recommend using the latest released version when possible.
+**NOTE:** K3k is currently under development. We recommend using the latest released version when possible.
 
 
 ### Install the `k3kcli`

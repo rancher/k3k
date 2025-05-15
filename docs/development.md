@@ -114,7 +114,7 @@ Install now k3k as usual:
 
 ```bash
 helm repo update
-helm install --namespace k3k-system --create-namespace k3k k3k/k3k --devel
+helm install --namespace k3k-system --create-namespace k3k k3k/k3k
 ```
 
 ### Create a virtual cluster

@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	cv1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/utils/ptr"
 
 	"errors"
 
@@ -821,7 +822,7 @@ func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP
 	})
 
 	// injecting cluster DNS IP to the pods except for coredns pod
-	if !strings.HasPrefix(podName, "coredns") {
+	if !strings.HasPrefix(podName, "coredns") && pod.Spec.DNSConfig == nil {
 		pod.Spec.DNSPolicy = corev1.DNSNone
 		pod.Spec.DNSConfig = &corev1.PodDNSConfig{
 			Nameservers: []string{
@@ -831,6 +832,12 @@ func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP
 				podNamespace + ".svc.cluster.local",
 				"svc.cluster.local",
 				"cluster.local",
+			},
+			Options: []v1.PodDNSConfigOption{
+				{
+					Name:  "ndots",
+					Value: ptr.To("5"),
+				},
 			},
 		}
 	}

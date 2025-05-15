@@ -10,7 +10,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 host:
-  # clusterCIDR specifies the clusterCIDR that will be added to the default networkpolicy for clustersets, if not set
+  # clusterCIDR specifies the clusterCIDR that will be added to the default networkpolicy, if not set
   # the controller will collect the PodCIDRs of all the nodes on the system.
   clusterCIDR: ""
 

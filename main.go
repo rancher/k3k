@@ -12,7 +12,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/buildinfo"
 	"github.com/rancher/k3k/pkg/controller/cluster"
-	"github.com/rancher/k3k/pkg/controller/clusterset"
+	"github.com/rancher/k3k/pkg/controller/policy"
 	"github.com/rancher/k3k/pkg/log"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -43,7 +43,7 @@ var (
 		&cli.StringFlag{
 			Name:        "cluster-cidr",
 			EnvVars:     []string{"CLUSTER_CIDR"},
-			Usage:       "Cluster CIDR to be added to the networkpolicy of the clustersets",
+			Usage:       "Cluster CIDR to be added to the networkpolicy",
 			Destination: &clusterCIDR,
 		},
 		&cli.StringFlag{
@@ -125,17 +125,17 @@ func run(clx *cli.Context) error {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 
-	logger.Info("adding clusterset controller")
+	logger.Info("adding clusterpolicy controller")
 
-	if err := clusterset.Add(ctx, mgr, clusterCIDR); err != nil {
-		return fmt.Errorf("failed to add the clusterset controller: %v", err)
+	if err := policy.Add(ctx, mgr, clusterCIDR); err != nil {
+		return fmt.Errorf("failed to add the clusterpolicy controller: %v", err)
 	}
 
 	if clusterCIDR == "" {
 		logger.Info("adding networkpolicy node controller")
 
-		if err := clusterset.AddNodeController(ctx, mgr); err != nil {
-			return fmt.Errorf("failed to add the clusterset node controller: %v", err)
+		if err := policy.AddNodeController(ctx, mgr); err != nil {
+			return fmt.Errorf("failed to add the clusterpolicy node controller: %v", err)
 		}
 	}
 

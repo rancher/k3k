@@ -47,8 +47,6 @@ Create new cluster
 
 **--cluster-cidr**="": cluster CIDR
 
-**--clusterset**="": The clusterset to create the cluster in
-
 **--debug**: Turn on debug logs
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
@@ -60,6 +58,8 @@ Create new cluster
 **--namespace**="": namespace to create the k3k cluster in
 
 **--persistence-type**="": persistence mode for the nodes (dynamic, ephemeral, static) (default: "dynamic")
+
+**--policy**="": The policy to create the cluster in
 
 **--server-args**="": servers extra arguments
 
@@ -89,31 +89,31 @@ Delete an existing cluster
 
 **--namespace**="": namespace to create the k3k cluster in
 
-## clusterset
+## policy
 
-clusterset command
+policy command
 
 ### create
 
-Create new clusterset
+Create new policy
 
->k3kcli clusterset create [command options] NAME
+>k3kcli policy create [command options] NAME
 
 **--debug**: Turn on debug logs
 
-**--display-name**="": The display name of the clusterset
+**--display-name**="": The display name of the policy
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
-**--mode**="": The allowed mode type of the clusterset (default: "shared")
+**--mode**="": The allowed mode type of the policy (default: "shared")
 
 **--namespace**="": namespace to create the k3k cluster in
 
 ### delete
 
-Delete an existing clusterset
+Delete an existing policy
 
->k3kcli clusterset delete [command options] NAME
+>k3kcli policy delete [command options] NAME
 
 **--debug**: Turn on debug logs
 

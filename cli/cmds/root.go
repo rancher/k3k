@@ -64,7 +64,7 @@ func NewApp() *cli.App {
 
 	app.Commands = []*cli.Command{
 		NewClusterCmd(appCtx),
-		NewClusterSetCmd(appCtx),
+		NewPolicyCmd(appCtx),
 		NewKubeconfigCmd(appCtx),
 	}
 

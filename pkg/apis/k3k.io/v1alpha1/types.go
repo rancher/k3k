@@ -337,8 +337,8 @@ type ClusterList struct {
 // +kubebuilder:printcolumn:JSONPath=".spec.displayName",name=Display Name,type=string
 // +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
 
-// VirtualClusterPolicy represents a group of virtual Kubernetes clusters managed by k3k.
-// It allows defining common configurations and constraints for the clusters within the set.
+// VirtualClusterPolicy allows defining common configurations and constraints
+// for the clusters in a namespace activated by an annotation on that Namespace.
 type VirtualClusterPolicy struct {
 	metav1.ObjectMeta `json:"metadata"`
 	metav1.TypeMeta   `json:",inline"`
@@ -357,28 +357,28 @@ type VirtualClusterPolicy struct {
 // VirtualClusterPolicySpec defines the desired state of a VirtualClusterPolicy.
 type VirtualClusterPolicySpec struct {
 
-	// DisplayName is the human-readable name for the set.
+	// DisplayName is the human-readable name for the policy.
 	//
 	// +optional
 	DisplayName string `json:"displayName,omitempty"`
 
-	// Quota specifies the resource limits for clusters within a clusterpolicy.
+	// Quota defines the ResourceQuotaSpec to be applied to the target Namespace.
 	//
 	// +optional
 	Quota *v1.ResourceQuotaSpec `json:"quota,omitempty"`
 
-	// Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy
+	// Limit specifies the LimitRange that will be applied to all pods in the target Namespace
 	// to set defaults and constraints (min/max)
 	//
 	// +optional
 	Limit *v1.LimitRangeSpec `json:"limit,omitempty"`
 
-	// DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the set.
+	// DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace.
 	//
 	// +optional
 	DefaultNodeSelector map[string]string `json:"defaultNodeSelector,omitempty"`
 
-	// DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the set.
+	// DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace.
 	//
 	// +optional
 	DefaultPriorityClass string `json:"defaultPriorityClass,omitempty"`

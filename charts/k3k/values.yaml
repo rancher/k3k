@@ -27,3 +27,8 @@ sharedAgent:
     repository: "rancher/k3k-kubelet"
     tag: ""
     pullPolicy: ""
+# image registry configuration related to the k3s server
+k3sServer:
+  image:
+    repository: "rancher/k3s"
+    pullPolicy: ""

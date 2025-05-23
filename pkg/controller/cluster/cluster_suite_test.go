@@ -60,7 +60,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())
-	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "")
+	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "", "rancher/k3s", "")
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

@@ -26,6 +26,10 @@ spec:
             value: "{{ .Values.sharedAgent.image.repository }}:{{ default .Chart.AppVersion .Values.sharedAgent.image.tag }}"
           - name: SHARED_AGENT_PULL_POLICY
             value: {{ .Values.sharedAgent.image.pullPolicy }}
+          - name: K3S_IMAGE
+            value: {{ .Values.k3sServer.image.repository }}
+          - name: K3S_IMAGE_PULL_POLICY
+            value: {{ .Values.k3sServer.image.pullPolicy }}
           ports:
           - containerPort: 8080
             name: https

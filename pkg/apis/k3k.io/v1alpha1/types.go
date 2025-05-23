@@ -337,8 +337,8 @@ type ClusterList struct {
 // +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
 // +kubebuilder:resource:scope=Cluster
 
-// VirtualClusterPolicy represents a group of virtual Kubernetes clusters managed by k3k.
-// It allows defining common configurations and constraints for the clusters within the set.
+// VirtualClusterPolicy allows defining common configurations and constraints
+// for clusters within a clusterpolicy.
 type VirtualClusterPolicy struct {
 	metav1.ObjectMeta `json:"metadata"`
 	metav1.TypeMeta   `json:",inline"`

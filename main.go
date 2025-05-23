@@ -127,16 +127,8 @@ func run(clx *cli.Context) error {
 
 	logger.Info("adding clusterpolicy controller")
 
-	if err := policy.Add(ctx, mgr, clusterCIDR); err != nil {
+	if err := policy.AddControllers(mgr, clusterCIDR); err != nil {
 		return fmt.Errorf("failed to add the clusterpolicy controller: %v", err)
-	}
-
-	if clusterCIDR == "" {
-		logger.Info("adding networkpolicy node controller")
-
-		if err := policy.AddNodeController(ctx, mgr); err != nil {
-			return fmt.Errorf("failed to add the clusterpolicy node controller: %v", err)
-		}
 	}
 
 	if err := mgr.Start(ctx); err != nil {

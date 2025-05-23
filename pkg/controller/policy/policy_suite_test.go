@@ -54,10 +54,7 @@ var _ = BeforeSuite(func() {
 	ctrl.SetLogger(zapr.NewLogger(zap.NewNop()))
 
 	ctx, cancel = context.WithCancel(context.Background())
-	err = policy.Add(ctx, mgr, "")
-	Expect(err).NotTo(HaveOccurred())
-
-	err = policy.AddNSReconciler(mgr, "")
+	err = policy.AddControllers(mgr, "")
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

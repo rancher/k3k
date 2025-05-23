@@ -14,9 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -46,16 +44,16 @@ func Add(ctx context.Context, mgr manager.Manager, clusterCIDR string) error {
 }
 
 // namespaceLabelsPredicate returns a predicate that will allow a reconciliation if the labels of a Namespace changed
-func namespaceLabelsPredicate() predicate.Predicate {
-	return predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldObj := e.ObjectOld.(*v1.Namespace)
-			newObj := e.ObjectNew.(*v1.Namespace)
+// func namespaceLabelsPredicate() predicate.Predicate {
+// 	return predicate.Funcs{
+// 		UpdateFunc: func(e event.UpdateEvent) bool {
+// 			oldObj := e.ObjectOld.(*v1.Namespace)
+// 			newObj := e.ObjectNew.(*v1.Namespace)
 
-			return !reflect.DeepEqual(oldObj.Labels, newObj.Labels)
-		},
-	}
-}
+// 			return !reflect.DeepEqual(oldObj.Labels, newObj.Labels)
+// 		},
+// 	}
+// }
 
 func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("clusterpolicy", req.NamespacedName)
@@ -93,7 +91,6 @@ func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reco
 }
 
 func (c *VirtualClusterPolicyReconciler) reconcileVirtualClusterPolicy(ctx context.Context, policy *v1alpha1.VirtualClusterPolicy) error {
-
 	listOpts := client.MatchingLabels{
 		// "app.kubernetes.io/managed-by": "k3k-policy-controller",
 		NamespacePolicyLabel: policy.Name,
@@ -141,33 +138,33 @@ func (c *VirtualClusterPolicyReconciler) reconcileVirtualClusterPolicy(ctx conte
 	return nil
 }
 
-func (c *VirtualClusterPolicyReconciler) reconcileNetworkPolicy(ctx context.Context, policy *v1alpha1.VirtualClusterPolicy) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling NetworkPolicy")
+// func (c *VirtualClusterPolicyReconciler) reconcileNetworkPolicy(ctx context.Context, policy *v1alpha1.VirtualClusterPolicy) error {
+// 	log := ctrl.LoggerFrom(ctx)
+// 	log.Info("reconciling NetworkPolicy")
 
-	networkPolicy, err := netpol(ctx, c.Client, "", policy, c.ClusterCIDR)
-	if err != nil {
-		return err
-	}
+// 	networkPolicy, err := netpol(ctx, c.Client, "", policy, c.ClusterCIDR)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	if err = ctrl.SetControllerReference(policy, networkPolicy, c.Scheme); err != nil {
-		return err
-	}
+// 	if err = ctrl.SetControllerReference(policy, networkPolicy, c.Scheme); err != nil {
+// 		return err
+// 	}
 
-	// if disabled then delete the existing network policy
-	if policy.Spec.DisableNetworkPolicy {
-		err := c.Client.Delete(ctx, networkPolicy)
-		return client.IgnoreNotFound(err)
-	}
+// 	// if disabled then delete the existing network policy
+// 	if policy.Spec.DisableNetworkPolicy {
+// 		err := c.Client.Delete(ctx, networkPolicy)
+// 		return client.IgnoreNotFound(err)
+// 	}
 
-	// otherwise try to create/update
-	err = c.Client.Create(ctx, networkPolicy)
-	if apierrors.IsAlreadyExists(err) {
-		return c.Client.Update(ctx, networkPolicy)
-	}
+// 	// otherwise try to create/update
+// 	err = c.Client.Create(ctx, networkPolicy)
+// 	if apierrors.IsAlreadyExists(err) {
+// 		return c.Client.Update(ctx, networkPolicy)
+// 	}
 
-	return err
-}
+// 	return err
+// }
 
 func netpol(ctx context.Context, client client.Client, namespaceName string, policy *v1alpha1.VirtualClusterPolicy, clusterCIDR string) (*networkingv1.NetworkPolicy, error) {
 	var cidrList []string

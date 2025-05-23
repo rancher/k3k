@@ -3,7 +3,6 @@ package policy
 import (
 	"context"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,55 +37,55 @@ func AddNodeController(ctx context.Context, mgr manager.Manager) error {
 
 func (n *NodeReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("node", req.NamespacedName)
-	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
+	//ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
 
 	log.Info("reconciling node")
 
-	var clusterPolicyList v1alpha1.VirtualClusterPolicyList
-	if err := n.Client.List(ctx, &clusterPolicyList); err != nil {
-		return reconcile.Result{}, err
-	}
+	// var clusterPolicyList v1alpha1.VirtualClusterPolicyList
+	// if err := n.Client.List(ctx, &clusterPolicyList); err != nil {
+	// 	return reconcile.Result{}, err
+	// }
 
-	if len(clusterPolicyList.Items) <= 0 {
-		return reconcile.Result{}, nil
-	}
+	// if len(clusterPolicyList.Items) <= 0 {
+	// 	return reconcile.Result{}, nil
+	// }
 
-	if err := n.ensureNetworkPolicies(ctx, clusterPolicyList); err != nil {
-		return reconcile.Result{}, err
-	}
+	// if err := n.ensureNetworkPolicies(ctx, clusterPolicyList); err != nil {
+	// 	return reconcile.Result{}, err
+	// }
 
 	return reconcile.Result{}, nil
 }
 
-func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterPolicyList v1alpha1.VirtualClusterPolicyList) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("ensuring network policies")
+// func (n *NodeReconciler) ensureNetworkPolicies(ctx context.Context, clusterPolicyList v1alpha1.VirtualClusterPolicyList) error {
+// 	log := ctrl.LoggerFrom(ctx)
+// 	log.Info("ensuring network policies")
 
-	return nil
+// 	return nil
 
-	// var setNetworkPolicy *networkingv1.NetworkPolicy
+// var setNetworkPolicy *networkingv1.NetworkPolicy
 
-	// for _, cs := range clusterPolicyList.Items {
-	// 	if cs.Spec.DisableNetworkPolicy {
-	// 		continue
-	// 	}
+// for _, cs := range clusterPolicyList.Items {
+// 	if cs.Spec.DisableNetworkPolicy {
+// 		continue
+// 	}
 
-	// 	log = log.WithValues("clusterpolicy", cs.Namespace+"/"+cs.Name)
-	// 	log.Info("updating NetworkPolicy for VirtualClusterPolicy")
+// 	log = log.WithValues("clusterpolicy", cs.Namespace+"/"+cs.Name)
+// 	log.Info("updating NetworkPolicy for VirtualClusterPolicy")
 
-	// 	var err error
-	// 	setNetworkPolicy, err = netpol(ctx, n.Client, nil, &cs)
+// 	var err error
+// 	setNetworkPolicy, err = netpol(ctx, n.Client, nil, &cs)
 
-	// 	if err != nil {
-	// 		return err
-	// 	}
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// 	log.Info("new NetworkPolicy for clusterpolicy")
+// 	log.Info("new NetworkPolicy for clusterpolicy")
 
-	// 	if err := n.Client.Update(ctx, setNetworkPolicy); err != nil {
-	// 		return err
-	// 	}
-	// }
+// 	if err := n.Client.Update(ctx, setNetworkPolicy); err != nil {
+// 		return err
+// 	}
+// }
 
-	// return nil
-}
+// return nil
+// }

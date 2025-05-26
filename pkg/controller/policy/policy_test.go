@@ -561,7 +561,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 				fmt.Printf("%+v\n", resourceQuota)
 
-				delete(namespace.Labels, policy.NamespacePolicyLabel)
+				delete(namespace.Labels, policy.PolicyNameLabelKey)
 				err := k8sClient.Update(ctx, namespace)
 				Expect(err).To(Not(HaveOccurred()))
 
@@ -605,7 +605,7 @@ func bindPolicyToNamespace(namespace *v1.Namespace, pol *v1alpha1.VirtualCluster
 		namespace.Labels = map[string]string{}
 	}
 
-	namespace.Labels[policy.NamespacePolicyLabel] = pol.Name
+	namespace.Labels[policy.PolicyNameLabelKey] = pol.Name
 
 	err := k8sClient.Update(ctx, namespace)
 	Expect(err).To(Not(HaveOccurred()))

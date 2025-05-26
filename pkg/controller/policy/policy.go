@@ -2,6 +2,7 @@ package policy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -11,9 +12,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -25,7 +24,7 @@ import (
 )
 
 const (
-	VCPLabelKey                 = "policy.k3k.io/policy-name"
+	PolicyNameLabelKey          = "policy.k3k.io/policy-name"
 	ManagedByLabelKey           = "app.kubernetes.io/managed-by"
 	VirtualPolicyControllerName = "k3k-policy-controller"
 )
@@ -48,7 +47,7 @@ func Add(mgr manager.Manager, clusterCIDR string) error {
 		For(&v1alpha1.VirtualClusterPolicy{}).
 		Watches(&v1.Namespace{}, namespaceEventHandler()).
 		Watches(&v1.Node{}, nodeEventHandler(&reconciler)).
-		Watches(&v1alpha1.Cluster{}, nodeEventHandler(&reconciler)).
+		Watches(&v1alpha1.Cluster{}, clusterEventHandler(&reconciler)).
 		Owns(&networkingv1.NetworkPolicy{}).
 		Owns(&v1.ResourceQuota{}).
 		Complete(&reconciler)
@@ -62,8 +61,8 @@ func namespaceEventHandler() handler.Funcs {
 				return
 			}
 
-			if ns.Labels[VCPLabelKey] != "" {
-				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.Labels[VCPLabelKey]}})
+			if ns.Labels[PolicyNameLabelKey] != "" {
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.Labels[PolicyNameLabelKey]}})
 			}
 
 		},
@@ -75,8 +74,8 @@ func namespaceEventHandler() handler.Funcs {
 				return
 			}
 
-			oldVCPName := oldNs.Labels[VCPLabelKey]
-			newVCPName := newNs.Labels[VCPLabelKey]
+			oldVCPName := oldNs.Labels[PolicyNameLabelKey]
+			newVCPName := newNs.Labels[PolicyNameLabelKey]
 
 			// if labels haven't changed -> skip reconciliation
 			if reflect.DeepEqual(oldNs.Labels, newNs.Labels) {
@@ -111,8 +110,8 @@ func namespaceEventHandler() handler.Funcs {
 
 			// When a namespace is deleted all the resources in the namespace are deleted
 			// but we trigger the reconciliation to eventually perform some cluster-wide cleanup if necessary
-			if ns.Labels[VCPLabelKey] != "" {
-				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.Labels[VCPLabelKey]}})
+			if ns.Labels[PolicyNameLabelKey] != "" {
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.Labels[PolicyNameLabelKey]}})
 			}
 		},
 	}
@@ -160,6 +159,63 @@ func nodeEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.RateLimitingInterface) {
 			enqueueAllVCPs(ctx, q)
 		},
+	}
+}
+
+func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
+	type clusterSubSpec struct {
+		PriorityClass string
+		NodeSelector  map[string]string
+	}
+
+	return handler.Funcs{
+		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
+			cluster, ok := e.Object.(*v1alpha1.Cluster)
+			if !ok {
+				return
+			}
+
+			var ns v1.Namespace
+			if err := r.Client.Get(ctx, types.NamespacedName{Name: cluster.Namespace}, &ns); err != nil {
+				return
+			}
+
+			if ns.Labels[PolicyNameLabelKey] != "" {
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.Labels[PolicyNameLabelKey]}})
+			}
+		},
+		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+			oldCluster, okOld := e.ObjectOld.(*v1alpha1.Cluster)
+			newCluster, okNew := e.ObjectNew.(*v1alpha1.Cluster)
+
+			if !okOld || !okNew {
+				return
+			}
+
+			var ns v1.Namespace
+			if err := r.Client.Get(ctx, types.NamespacedName{Name: oldCluster.Namespace}, &ns); err != nil {
+				return
+			}
+
+			if ns.Labels[PolicyNameLabelKey] == "" {
+				return
+			}
+
+			clusterSubSpecOld := clusterSubSpec{
+				PriorityClass: oldCluster.Spec.PriorityClass,
+				NodeSelector:  oldCluster.Spec.NodeSelector,
+			}
+
+			clusterSubSpecNew := clusterSubSpec{
+				PriorityClass: newCluster.Spec.PriorityClass,
+				NodeSelector:  newCluster.Spec.NodeSelector,
+			}
+
+			if !reflect.DeepEqual(clusterSubSpecOld, clusterSubSpecNew) {
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.Labels[PolicyNameLabelKey]}})
+			}
+		},
+		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.RateLimitingInterface) {},
 	}
 }
 
@@ -212,7 +268,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileVirtualClusterPolicy(ctx conte
 
 func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context.Context, policy *v1alpha1.VirtualClusterPolicy) error {
 	listOpts := client.MatchingLabels{
-		NamespacePolicyLabel: policy.Name,
+		PolicyNameLabelKey: policy.Name,
 	}
 
 	var namespaces v1.NamespaceList
@@ -247,72 +303,6 @@ func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context
 			if err := c.Client.Update(ctx, &ns); err != nil {
 				return err
 			}
-		}
-	}
-
-	return nil
-}
-
-func (c *VirtualClusterPolicyReconciler) reconcileNetworkPolicy(ctx context.Context, namespace string, policy *v1alpha1.VirtualClusterPolicy) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling NetworkPolicy")
-
-	var cidrList []string
-	if c.ClusterCIDR != "" {
-		cidrList = []string{c.ClusterCIDR}
-	} else {
-		var nodeList v1.NodeList
-		if err := c.Client.List(ctx, &nodeList); err != nil {
-			return err
-		}
-
-		for _, node := range nodeList.Items {
-			cidrList = append(cidrList, node.Spec.PodCIDRs...)
-		}
-	}
-
-	networkPolicy := networkPolicy(namespace, policy, cidrList)
-
-	if err := ctrl.SetControllerReference(policy, networkPolicy, c.Scheme); err != nil {
-		return err
-	}
-
-	// if disabled then delete the existing network policy
-	if policy.Spec.DisableNetworkPolicy {
-		err := c.Client.Delete(ctx, networkPolicy)
-		return client.IgnoreNotFound(err)
-	}
-
-	// otherwise try to create/update
-	err := c.Client.Create(ctx, networkPolicy)
-	if apierrors.IsAlreadyExists(err) {
-		return c.Client.Update(ctx, networkPolicy)
-	}
-
-	return err
-}
-
-func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, namespace *v1.Namespace, policy *v1alpha1.VirtualClusterPolicy) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling Namespace")
-
-	// cleanup of old labels
-	delete(namespace.Labels, "pod-security.kubernetes.io/enforce")
-	delete(namespace.Labels, "pod-security.kubernetes.io/enforce-version")
-	delete(namespace.Labels, "pod-security.kubernetes.io/warn")
-	delete(namespace.Labels, "pod-security.kubernetes.io/warn-version")
-
-	// if a PSA level is specified add the proper labels
-	if policy.Spec.PodSecurityAdmissionLevel != nil {
-		psaLevel := *policy.Spec.PodSecurityAdmissionLevel
-
-		namespace.Labels["pod-security.kubernetes.io/enforce"] = string(psaLevel)
-		namespace.Labels["pod-security.kubernetes.io/enforce-version"] = "latest"
-
-		// skip the 'warn' only for the privileged PSA level
-		if psaLevel != v1alpha1.PrivilegedPodSecurityAdmissionLevel {
-			namespace.Labels["pod-security.kubernetes.io/warn"] = string(psaLevel)
-			namespace.Labels["pod-security.kubernetes.io/warn-version"] = "latest"
 		}
 	}
 
@@ -420,125 +410,19 @@ func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, 
 		return err
 	}
 
-	var err error
+	var clusterUpdateErrs []error
 
-	for range clusters.Items {
-		// TODO update status
+	for _, cluster := range clusters.Items {
+		orig := cluster.DeepCopy()
 
-		// oldClusterSpec := cluster.Spec
+		cluster.Spec.PriorityClass = policy.Spec.DefaultPriorityClass
+		cluster.Spec.NodeSelector = policy.Spec.DefaultNodeSelector
 
-		// if cluster.Spec.PriorityClass != policy.Spec.DefaultPriorityClass {
-		// 	cluster.Spec.PriorityClass = policy.Spec.DefaultPriorityClass
-		// }
-
-		// if !reflect.DeepEqual(cluster.Spec.NodeSelector, policy.Spec.DefaultNodeSelector) {
-		// 	cluster.Spec.NodeSelector = policy.Spec.DefaultNodeSelector
-		// }
-
-		// if !reflect.DeepEqual(oldClusterSpec, cluster.Spec) {
-		// 	// continue updating also the other clusters even if an error occurred
-		// 	// TODO add status?
-		// 	err = errors.Join(c.Client.Update(ctx, &cluster))
-		// }
-	}
-
-	return err
-}
-
-func networkPolicy(namespaceName string, policy *v1alpha1.VirtualClusterPolicy, cidrList []string) *networkingv1.NetworkPolicy {
-	return &networkingv1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
-			Namespace: namespaceName,
-			Labels: map[string]string{
-				ManagedByLabelKey: VirtualPolicyControllerName,
-			},
-		},
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "NetworkPolicy",
-			APIVersion: "networking.k8s.io/v1",
-		},
-		Spec: networkingv1.NetworkPolicySpec{
-			PolicyTypes: []networkingv1.PolicyType{
-				networkingv1.PolicyTypeIngress,
-				networkingv1.PolicyTypeEgress,
-			},
-			Ingress: []networkingv1.NetworkPolicyIngressRule{
-				{},
-			},
-			Egress: []networkingv1.NetworkPolicyEgressRule{
-				{
-					To: []networkingv1.NetworkPolicyPeer{
-						{
-							IPBlock: &networkingv1.IPBlock{
-								CIDR:   "0.0.0.0/0",
-								Except: cidrList,
-							},
-						},
-						{
-							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"kubernetes.io/metadata.name": namespaceName,
-								},
-							},
-						},
-						{
-							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"kubernetes.io/metadata.name": metav1.NamespaceSystem,
-								},
-							},
-							PodSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"k8s-app": "kube-dns",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("deleting resources")
-
-	fmt.Println("CLEANUPPPPP")
-
-	requirement, err := labels.NewRequirement(VCPLabelKey, selection.DoesNotExist, nil)
-	if err != nil {
-		return err
-	}
-
-	sel := labels.NewSelector().Add(*requirement)
-
-	var namespaces v1.NamespaceList
-	if err := c.Client.List(ctx, &namespaces, client.MatchingLabelsSelector{Selector: sel}); err != nil {
-		return err
-	}
-
-	fmt.Println("found", len(namespaces.Items), "namespaces")
-
-	for _, ns := range namespaces.Items {
-		deleteOpts := []client.DeleteAllOfOption{
-			client.InNamespace(ns.Name),
-			client.MatchingLabels{ManagedByLabelKey: VirtualPolicyControllerName},
-		}
-
-		if err := c.Client.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, deleteOpts...); err != nil {
-			return err
-		}
-
-		if err := c.Client.DeleteAllOf(ctx, &v1.ResourceQuota{}, deleteOpts...); err != nil {
-			return err
-		}
-
-		if err := c.Client.DeleteAllOf(ctx, &v1.LimitRange{}, deleteOpts...); err != nil {
-			return err
+		if !reflect.DeepEqual(orig, cluster) {
+			// continue updating also the other clusters even if an error occurred
+			clusterUpdateErrs = append(clusterUpdateErrs, c.Client.Update(ctx, &cluster))
 		}
 	}
 
-	return nil
+	return errors.Join(clusterUpdateErrs...)
 }

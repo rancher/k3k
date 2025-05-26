@@ -12,9 +12,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, namespace *v1.Namespace, policy *v1alpha1.VirtualClusterPolicy) error {
+// reconcileNamespacePodSecurityLabels will update the labels of the namespace to reconcile the PSA level specified in the VirtualClusterPolicy
+func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, namespace *v1.Namespace, policy *v1alpha1.VirtualClusterPolicy) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling Namespace")
+	log.Info("reconciling PSA labels")
 
 	// cleanup of old labels
 	delete(namespace.Labels, "pod-security.kubernetes.io/enforce")
@@ -35,10 +36,10 @@ func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx
 			namespace.Labels["pod-security.kubernetes.io/warn-version"] = "latest"
 		}
 	}
-
-	return nil
 }
 
+// cleanupNamespaces will cleanup the Namespaces without the "policy.k3k.io/policy-name" label
+// deleting the resources in them with the "app.kubernetes.io/managed-by=k3k-policy-controller" label
 func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("deleting resources")

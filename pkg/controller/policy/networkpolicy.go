@@ -18,6 +18,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileNetworkPolicy(ctx context.Cont
 	log.Info("reconciling NetworkPolicy")
 
 	var cidrList []string
+
 	if c.ClusterCIDR != "" {
 		cidrList = []string{c.ClusterCIDR}
 	} else {
@@ -27,7 +28,11 @@ func (c *VirtualClusterPolicyReconciler) reconcileNetworkPolicy(ctx context.Cont
 		}
 
 		for _, node := range nodeList.Items {
-			cidrList = append(cidrList, node.Spec.PodCIDRs...)
+			if len(node.Spec.PodCIDRs) > 0 {
+				cidrList = append(cidrList, node.Spec.PodCIDRs...)
+			} else {
+				cidrList = append(cidrList, node.Spec.PodCIDR)
+			}
 		}
 	}
 
@@ -54,16 +59,16 @@ func (c *VirtualClusterPolicyReconciler) reconcileNetworkPolicy(ctx context.Cont
 
 func networkPolicy(namespaceName string, policy *v1alpha1.VirtualClusterPolicy, cidrList []string) *networkingv1.NetworkPolicy {
 	return &networkingv1.NetworkPolicy{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "NetworkPolicy",
+			APIVersion: "networking.k8s.io/v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 			Namespace: namespaceName,
 			Labels: map[string]string{
 				ManagedByLabelKey: VirtualPolicyControllerName,
 			},
-		},
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "NetworkPolicy",
-			APIVersion: "networking.k8s.io/v1",
 		},
 		Spec: networkingv1.NetworkPolicySpec{
 			PolicyTypes: []networkingv1.PolicyType{

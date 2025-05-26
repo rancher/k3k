@@ -333,7 +333,6 @@ type ClusterList struct {
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:object:root=true
-// +kubebuilder:printcolumn:JSONPath=".spec.displayName",name=Display Name,type=string
 // +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
 // +kubebuilder:resource:scope=Cluster
 
@@ -356,11 +355,6 @@ type VirtualClusterPolicy struct {
 
 // VirtualClusterPolicySpec defines the desired state of a VirtualClusterPolicy.
 type VirtualClusterPolicySpec struct {
-
-	// DisplayName is the human-readable name for the policy.
-	//
-	// +optional
-	DisplayName string `json:"displayName,omitempty"`
 
 	// Quota specifies the resource limits for clusters within a clusterpolicy.
 	//

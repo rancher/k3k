@@ -101,8 +101,6 @@ Create new policy
 
 **--debug**: Turn on debug logs
 
-**--display-name**="": The display name of the policy
-
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
 **--mode**="": The allowed mode type of the policy (default: "shared")

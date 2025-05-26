@@ -15,9 +15,6 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.displayName
-      name: Display Name
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -80,9 +77,6 @@ spec:
                 description: DisableNetworkPolicy indicates whether to disable the
                   creation of a default network policy for cluster isolation.
                 type: boolean
-              displayName:
-                description: DisplayName is the human-readable name for the policy.
-                type: string
               limit:
                 description: |-
                   Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy

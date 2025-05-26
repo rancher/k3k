@@ -51,7 +51,7 @@ k3sServer:
 
 These values enforce the use of internal image repositories for the K3k controller, the agent and the server.
 
-**Note** : All virtual cluster will use automatically those settings. 
+**Note** : All virtual clusters will use automatically those settings. 
 
 ---
 

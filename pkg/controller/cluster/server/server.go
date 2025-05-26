@@ -32,17 +32,17 @@ type Server struct {
 	client             client.Client
 	mode               string
 	token              string
-	k3SImageName       string
+	k3SImage           string
 	k3SImagePullPolicy string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string, k3SImageName string, k3SImagePullPolicy string) *Server {
+func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string, k3SImage string, k3SImagePullPolicy string) *Server {
 	return &Server{
 		cluster:            cluster,
 		client:             client,
 		token:              token,
 		mode:               mode,
-		k3SImageName:       k3SImageName,
+		k3SImage:           k3SImage,
 		k3SImagePullPolicy: k3SImagePullPolicy,
 	}
 }
@@ -249,7 +249,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		persistent bool
 	)
 
-	image := controller.K3SImage(s.cluster, s.k3SImageName)
+	image := controller.K3SImage(s.cluster, s.k3SImage)
 	name := controller.SafeConcatNameWithPrefix(s.cluster.Name, serverName)
 
 	replicas = *s.cluster.Spec.Servers

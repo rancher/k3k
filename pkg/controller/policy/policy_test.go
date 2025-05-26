@@ -2,6 +2,7 @@ package policy_test
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -523,6 +524,51 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				Eventually(func() bool {
 					key := types.NamespacedName{
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
+						Namespace: namespace.Name,
+					}
+					err := k8sClient.Get(ctx, key, &resourceQuota)
+					return apierrors.IsNotFound(err)
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(BeTrue())
+			})
+
+			It("should delete the ResourceQuota if unbound", func() {
+				clusterPolicy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
+					Quota: &v1.ResourceQuotaSpec{
+						Hard: v1.ResourceList{
+							v1.ResourceCPU:    resource.MustParse("800m"),
+							v1.ResourceMemory: resource.MustParse("1Gi"),
+						},
+					},
+				})
+
+				bindPolicyToNamespace(namespace, clusterPolicy)
+
+				var resourceQuota v1.ResourceQuota
+
+				Eventually(func() error {
+					key := types.NamespacedName{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterPolicy.Name),
+						Namespace: namespace.Name,
+					}
+					return k8sClient.Get(ctx, key, &resourceQuota)
+				}).
+					WithTimeout(time.Minute).
+					WithPolling(time.Second).
+					Should(BeNil())
+
+				fmt.Printf("%+v\n", resourceQuota)
+
+				delete(namespace.Labels, policy.NamespacePolicyLabel)
+				err := k8sClient.Update(ctx, namespace)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait for a bit for the resourceQuota to be deleted
+				Eventually(func() bool {
+					key := types.NamespacedName{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterPolicy.Name),
 						Namespace: namespace.Name,
 					}
 					err := k8sClient.Get(ctx, key, &resourceQuota)

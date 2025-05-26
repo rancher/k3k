@@ -2,7 +2,7 @@ package policy
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -11,14 +11,23 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+const (
+	VCPLabelKey                 = "policy.k3k.io/policy-name"
+	ManagedByLabelKey           = "app.kubernetes.io/managed-by"
+	VirtualPolicyControllerName = "k3k-policy-controller"
 )
 
 type VirtualClusterPolicyReconciler struct {
@@ -27,42 +36,131 @@ type VirtualClusterPolicyReconciler struct {
 	ClusterCIDR string
 }
 
-// AddControllers adds the necessary controllers to manage the Virtual Cluster policies
-func AddControllers(mgr manager.Manager, clusterCIDR string) error {
-	if err := addVirtualPolicyController(mgr); err != nil {
-		return err
-	}
-
-	if err := addNamespaceController(mgr, clusterCIDR); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Add adds a new controller to the manager
-func addVirtualPolicyController(mgr manager.Manager) error {
+// Add the controller to manage the Virtual Cluster policies
+func Add(mgr manager.Manager, clusterCIDR string) error {
 	reconciler := VirtualClusterPolicyReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		ClusterCIDR: clusterCIDR,
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.VirtualClusterPolicy{}).
-		Watches(
-			&v1.Namespace{},
-			handler.EnqueueRequestsFromMapFunc(mapVCPToNamespaces(reconciler)),
-			builder.WithPredicates(updatePodCIDRNodePredicate),
-		).
-		Watches(
-			&v1.Node{},
-			handler.EnqueueRequestsFromMapFunc(mapVCPToNamespaces(reconciler)),
-			builder.WithPredicates(updatePodCIDRNodePredicate),
-		).
+		Watches(&v1.Namespace{}, namespaceEventHandler()).
+		Watches(&v1.Node{}, nodeEventHandler(&reconciler)).
+		Watches(&v1alpha1.Cluster{}, nodeEventHandler(&reconciler)).
 		Owns(&networkingv1.NetworkPolicy{}).
 		Owns(&v1.ResourceQuota{}).
-		Owns(&v1alpha1.Cluster{}).
 		Complete(&reconciler)
+}
+
+func namespaceEventHandler() handler.Funcs {
+	return handler.Funcs{
+		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
+			ns, ok := e.Object.(*v1.Namespace)
+			if !ok {
+				return
+			}
+
+			if ns.Labels[VCPLabelKey] != "" {
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.Labels[VCPLabelKey]}})
+			}
+
+		},
+		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+			oldNs, okOld := e.ObjectOld.(*v1.Namespace)
+			newNs, okNew := e.ObjectNew.(*v1.Namespace)
+
+			if !okOld || !okNew {
+				return
+			}
+
+			oldVCPName := oldNs.Labels[VCPLabelKey]
+			newVCPName := newNs.Labels[VCPLabelKey]
+
+			// if labels haven't changed -> skip reconciliation
+			if reflect.DeepEqual(oldNs.Labels, newNs.Labels) {
+				return
+			}
+
+			fmt.Println("labels changed!", "oldVCPName", oldVCPName, "newVCPName", newVCPName)
+
+			// If the VCP have not changed we need to check if labels changed
+			if oldVCPName == newVCPName {
+				if oldVCPName != "" {
+					q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: oldVCPName}})
+				}
+				return
+			}
+
+			// Enqueue the old VCP name for cleanup
+			if oldVCPName != "" {
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: oldVCPName}})
+			}
+
+			// Enqueue the new VCP name
+			if newVCPName != "" {
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: newVCPName}})
+			}
+		},
+		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.RateLimitingInterface) {
+			ns, ok := e.Object.(*v1.Namespace)
+			if !ok {
+				return
+			}
+
+			// When a namespace is deleted all the resources in the namespace are deleted
+			// but we trigger the reconciliation to eventually perform some cluster-wide cleanup if necessary
+			if ns.Labels[VCPLabelKey] != "" {
+				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.Labels[VCPLabelKey]}})
+			}
+		},
+	}
+}
+
+func nodeEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
+	// Helper function in your VirtualClusterPolicyReconciler to enqueue VCPs
+	enqueueAllVCPs := func(ctx context.Context, q workqueue.RateLimitingInterface) {
+		vcpList := &v1alpha1.VirtualClusterPolicyList{}
+		if err := r.Client.List(ctx, vcpList); err != nil {
+			return
+		}
+
+		for _, vcp := range vcpList.Items {
+			q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: vcp.Name}})
+		}
+	}
+
+	return handler.Funcs{
+		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
+			enqueueAllVCPs(ctx, q)
+		},
+		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+			oldNode, okOld := e.ObjectOld.(*v1.Node)
+			newNode, okNew := e.ObjectNew.(*v1.Node)
+
+			if !okOld || !okNew {
+				return
+			}
+
+			// Check if PodCIDR or PodCIDRs fields have changed.
+
+			var podCIDRChanged bool
+			if oldNode.Spec.PodCIDR != newNode.Spec.PodCIDR {
+				podCIDRChanged = true
+			}
+			if !reflect.DeepEqual(oldNode.Spec.PodCIDRs, newNode.Spec.PodCIDRs) {
+				podCIDRChanged = true
+			}
+
+			if podCIDRChanged {
+				enqueueAllVCPs(ctx, q)
+			}
+		},
+		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.RateLimitingInterface) {
+			enqueueAllVCPs(ctx, q)
+		},
+	}
 }
 
 func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -101,6 +199,18 @@ func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reco
 }
 
 func (c *VirtualClusterPolicyReconciler) reconcileVirtualClusterPolicy(ctx context.Context, policy *v1alpha1.VirtualClusterPolicy) error {
+	if err := c.reconcileMatchingNamespaces(ctx, policy); err != nil {
+		return err
+	}
+
+	if err := c.cleanupNamespaces(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context.Context, policy *v1alpha1.VirtualClusterPolicy) error {
 	listOpts := client.MatchingLabels{
 		NamespacePolicyLabel: policy.Name,
 	}
@@ -231,6 +341,9 @@ func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, nam
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 			Namespace: namespace,
+			Labels: map[string]string{
+				ManagedByLabelKey: VirtualPolicyControllerName,
+			},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ResourceQuota",
@@ -275,6 +388,9 @@ func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, nam
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 			Namespace: namespace,
+			Labels: map[string]string{
+				ManagedByLabelKey: VirtualPolicyControllerName,
+			},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "LimitRange",
@@ -306,51 +422,27 @@ func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, 
 
 	var err error
 
-	for _, cluster := range clusters.Items {
-		oldClusterSpec := cluster.Spec
+	for range clusters.Items {
+		// TODO update status
 
-		if cluster.Spec.PriorityClass != policy.Spec.DefaultPriorityClass {
-			cluster.Spec.PriorityClass = policy.Spec.DefaultPriorityClass
-		}
+		// oldClusterSpec := cluster.Spec
 
-		if !reflect.DeepEqual(cluster.Spec.NodeSelector, policy.Spec.DefaultNodeSelector) {
-			cluster.Spec.NodeSelector = policy.Spec.DefaultNodeSelector
-		}
+		// if cluster.Spec.PriorityClass != policy.Spec.DefaultPriorityClass {
+		// 	cluster.Spec.PriorityClass = policy.Spec.DefaultPriorityClass
+		// }
 
-		if err := ctrl.SetControllerReference(policy, &cluster, c.Scheme); err != nil {
-			return err
-		}
+		// if !reflect.DeepEqual(cluster.Spec.NodeSelector, policy.Spec.DefaultNodeSelector) {
+		// 	cluster.Spec.NodeSelector = policy.Spec.DefaultNodeSelector
+		// }
 
-		if !reflect.DeepEqual(oldClusterSpec, cluster.Spec) {
-			// continue updating also the other clusters even if an error occurred
-			// TODO add status?
-			err = errors.Join(c.Client.Update(ctx, &cluster))
-		}
+		// if !reflect.DeepEqual(oldClusterSpec, cluster.Spec) {
+		// 	// continue updating also the other clusters even if an error occurred
+		// 	// TODO add status?
+		// 	err = errors.Join(c.Client.Update(ctx, &cluster))
+		// }
 	}
 
 	return err
-}
-
-func (c *NamespaceReconciler) deleteResources(ctx context.Context, namespace *v1.Namespace) error {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("deleting resources")
-
-	deleteOpts := []client.DeleteAllOfOption{
-		client.InNamespace(namespace.Name),
-		client.MatchingLabels{
-			"app.kubernetes.io/managed-by": "k3k-policy-controller",
-		},
-	}
-
-	if err := c.Client.DeleteAllOf(ctx, &v1.ResourceQuota{}, deleteOpts...); err != nil {
-		return err
-	}
-
-	if err := c.Client.DeleteAllOf(ctx, &v1.LimitRange{}, deleteOpts...); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func networkPolicy(namespaceName string, policy *v1alpha1.VirtualClusterPolicy, cidrList []string) *networkingv1.NetworkPolicy {
@@ -358,6 +450,9 @@ func networkPolicy(namespaceName string, policy *v1alpha1.VirtualClusterPolicy, 
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 			Namespace: namespaceName,
+			Labels: map[string]string{
+				ManagedByLabelKey: VirtualPolicyControllerName,
+			},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "NetworkPolicy",
@@ -404,4 +499,46 @@ func networkPolicy(namespaceName string, policy *v1alpha1.VirtualClusterPolicy, 
 			},
 		},
 	}
+}
+
+func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("deleting resources")
+
+	fmt.Println("CLEANUPPPPP")
+
+	requirement, err := labels.NewRequirement(VCPLabelKey, selection.DoesNotExist, nil)
+	if err != nil {
+		return err
+	}
+
+	sel := labels.NewSelector().Add(*requirement)
+
+	var namespaces v1.NamespaceList
+	if err := c.Client.List(ctx, &namespaces, client.MatchingLabelsSelector{Selector: sel}); err != nil {
+		return err
+	}
+
+	fmt.Println("found", len(namespaces.Items), "namespaces")
+
+	for _, ns := range namespaces.Items {
+		deleteOpts := []client.DeleteAllOfOption{
+			client.InNamespace(ns.Name),
+			client.MatchingLabels{ManagedByLabelKey: VirtualPolicyControllerName},
+		}
+
+		if err := c.Client.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, deleteOpts...); err != nil {
+			return err
+		}
+
+		if err := c.Client.DeleteAllOf(ctx, &v1.ResourceQuota{}, deleteOpts...); err != nil {
+			return err
+		}
+
+		if err := c.Client.DeleteAllOf(ctx, &v1.LimitRange{}, deleteOpts...); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

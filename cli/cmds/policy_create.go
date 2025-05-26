@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
+	"github.com/rancher/k3k/pkg/controller/policy"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	v1 "k8s.io/api/core/v1"
@@ -16,8 +16,7 @@ import (
 )
 
 type VirtualClusterPolicyCreateConfig struct {
-	mode        string
-	displayName string
+	mode string
 }
 
 func NewPolicyCreateCmd(appCtx *AppContext) *cli.Command {
@@ -37,11 +36,6 @@ func NewPolicyCreateCmd(appCtx *AppContext) *cli.Command {
 					return errors.New(`mode should be one of "shared" or "virtual"`)
 				}
 			},
-		},
-		&cli.StringFlag{
-			Name:        "display-name",
-			Usage:       "The display name of the policy",
-			Destination: &config.displayName,
 		},
 	}
 
@@ -64,35 +58,23 @@ func policyCreateAction(appCtx *AppContext, config *VirtualClusterPolicyCreateCo
 			return cli.ShowSubcommandHelp(clx)
 		}
 
-		name := clx.Args().First()
-		if name == k3kcluster.ClusterInvalidName {
-			return errors.New("invalid cluster name")
-		}
+		policyName := clx.Args().First()
 
-		displayName := config.displayName
-		if displayName == "" {
-			displayName = name
-		}
-
-		// if both display name and namespace are set the name is ignored
-		if config.displayName != "" && appCtx.namespace != "" {
-			logrus.Warnf("Ignoring name [%s] because display name and namespace are set", name)
-		}
-
-		namespace := appCtx.Namespace(name)
-
-		if err := createNamespace(ctx, client, namespace); err != nil {
-			return err
-		}
-
-		_, err := createPolicy(ctx, client, namespace, v1alpha1.ClusterMode(config.mode), displayName)
+		_, err := createPolicy(ctx, client, v1alpha1.ClusterMode(config.mode), policyName)
 
 		return err
 	}
 }
 
-func createNamespace(ctx context.Context, client client.Client, name string) error {
+func createNamespace(ctx context.Context, client client.Client, name, policyName string) error {
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
+
+	if policyName != "" {
+		ns.Labels = map[string]string{
+			policy.PolicyNameLabelKey: policyName,
+		}
+	}
+
 	if err := client.Get(ctx, types.NamespacedName{Name: name}, ns); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
@@ -108,13 +90,12 @@ func createNamespace(ctx context.Context, client client.Client, name string) err
 	return nil
 }
 
-func createPolicy(ctx context.Context, client client.Client, namespace string, mode v1alpha1.ClusterMode, displayName string) (*v1alpha1.VirtualClusterPolicy, error) {
-	logrus.Infof("Creating policy in namespace [%s]", namespace)
+func createPolicy(ctx context.Context, client client.Client, mode v1alpha1.ClusterMode, policyName string) (*v1alpha1.VirtualClusterPolicy, error) {
+	logrus.Infof("Creating policy [%s]", policyName)
 
 	policy := &v1alpha1.VirtualClusterPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: namespace,
+			Name: policyName,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "VirtualClusterPolicy",
@@ -122,16 +103,15 @@ func createPolicy(ctx context.Context, client client.Client, namespace string, m
 		},
 		Spec: v1alpha1.VirtualClusterPolicySpec{
 			AllowedModeTypes: []v1alpha1.ClusterMode{mode},
-			DisplayName:      displayName,
 		},
 	}
 
 	if err := client.Create(ctx, policy); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			logrus.Infof("Policy in namespace [%s] already exists", namespace)
-		} else {
+		if !apierrors.IsAlreadyExists(err) {
 			return nil, err
 		}
+
+		logrus.Infof("Policy [%s] already exists", policyName)
 	}
 
 	return policy, nil

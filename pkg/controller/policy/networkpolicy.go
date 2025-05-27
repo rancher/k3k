@@ -67,7 +67,8 @@ func networkPolicy(namespaceName string, policy *v1alpha1.VirtualClusterPolicy, 
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 			Namespace: namespaceName,
 			Labels: map[string]string{
-				ManagedByLabelKey: VirtualPolicyControllerName,
+				ManagedByLabelKey:  VirtualPolicyControllerName,
+				PolicyNameLabelKey: policy.Name,
 			},
 		},
 		Spec: networkingv1.NetworkPolicySpec{

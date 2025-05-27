@@ -365,7 +365,8 @@ func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, nam
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 			Namespace: namespace,
 			Labels: map[string]string{
-				ManagedByLabelKey: VirtualPolicyControllerName,
+				ManagedByLabelKey:  VirtualPolicyControllerName,
+				PolicyNameLabelKey: policy.Name,
 			},
 		},
 		Spec: *policy.Spec.Quota,
@@ -412,7 +413,8 @@ func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, nam
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 			Namespace: namespace,
 			Labels: map[string]string{
-				ManagedByLabelKey: VirtualPolicyControllerName,
+				ManagedByLabelKey:  VirtualPolicyControllerName,
+				PolicyNameLabelKey: policy.Name,
 			},
 		},
 		Spec: *policy.Spec.Limit,

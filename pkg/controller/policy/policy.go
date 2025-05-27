@@ -49,6 +49,7 @@ func Add(mgr manager.Manager, clusterCIDR string) error {
 		Watches(&v1alpha1.Cluster{}, clusterEventHandler(&reconciler)).
 		Owns(&networkingv1.NetworkPolicy{}).
 		Owns(&v1.ResourceQuota{}).
+		Owns(&v1.LimitRange{}).
 		Complete(&reconciler)
 }
 

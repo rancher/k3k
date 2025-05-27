@@ -31,6 +31,8 @@ var (
 	sharedAgentImage           string
 	sharedAgentImagePullPolicy string
 	kubeconfig                 string
+	k3SImage                   string
+	k3SImagePullPolicy         string
 	debug                      bool
 	logger                     *log.Logger
 	flags                      = []cli.Flag{
@@ -64,6 +66,19 @@ var (
 			EnvVars:     []string{"DEBUG"},
 			Usage:       "Debug level logging",
 			Destination: &debug,
+		},
+		&cli.StringFlag{
+			Name:        "k3s-image",
+			EnvVars:     []string{"K3S_IMAGE"},
+			Usage:       "K3K server image",
+			Value:       "rancher/k3k",
+			Destination: &k3SImage,
+		},
+		&cli.StringFlag{
+			Name:        "k3s-image-pull-policy",
+			EnvVars:     []string{"K3S_IMAGE_PULL_POLICY"},
+			Usage:       "K3K server image pull policy",
+			Destination: &k3SImagePullPolicy,
 		},
 	}
 )
@@ -115,7 +130,7 @@ func run(clx *cli.Context) error {
 
 	logger.Info("adding cluster controller")
 
-	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy); err != nil {
+	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage, k3SImagePullPolicy); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 

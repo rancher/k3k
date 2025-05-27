@@ -12,7 +12,6 @@ import (
 
 const (
 	namePrefix      = "k3k"
-	k3SImageName    = "rancher/k3s"
 	AdminCommonName = "system:admin"
 )
 
@@ -27,16 +26,16 @@ var Backoff = wait.Backoff{
 // K3SImage returns the rancher/k3s image tagged with the specified Version.
 // If Version is empty it will use with the same k8s version of the host cluster,
 // stored in the Status object. It will return the untagged version as last fallback.
-func K3SImage(cluster *v1alpha1.Cluster) string {
+func K3SImage(cluster *v1alpha1.Cluster, k3SImage string) string {
 	if cluster.Spec.Version != "" {
-		return k3SImageName + ":" + cluster.Spec.Version
+		return k3SImage + ":" + cluster.Spec.Version
 	}
 
 	if cluster.Status.HostVersion != "" {
-		return k3SImageName + ":" + cluster.Status.HostVersion
+		return k3SImage + ":" + cluster.Status.HostVersion
 	}
 
-	return k3SImageName
+	return k3SImage
 }
 
 // SafeConcatNameWithPrefix runs the SafeConcatName with extra prefix.

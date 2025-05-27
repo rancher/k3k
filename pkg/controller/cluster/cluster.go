@@ -56,10 +56,12 @@ type ClusterReconciler struct {
 	Scheme                     *runtime.Scheme
 	SharedAgentImage           string
 	SharedAgentImagePullPolicy string
+	K3SImage                   string
+	K3SImagePullPolicy         string
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy string) error {
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy string, k3SImage string, k3SImagePullPolicy string) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
@@ -76,6 +78,8 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		Scheme:                     mgr.GetScheme(),
 		SharedAgentImage:           sharedAgentImage,
 		SharedAgentImagePullPolicy: sharedAgentImagePullPolicy,
+		K3SImage:                   k3SImage,
+		K3SImagePullPolicy:         k3SImagePullPolicy,
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -171,7 +175,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	s := server.New(cluster, c.Client, token, string(cluster.Spec.Mode))
+	s := server.New(cluster, c.Client, token, string(cluster.Spec.Mode), c.K3SImage, c.K3SImagePullPolicy)
 
 	cluster.Status.Persistence = cluster.Spec.Persistence
 	if cluster.Spec.Persistence.StorageRequestSize == "" {
@@ -526,7 +530,7 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 
 	var agentEnsurer agent.ResourceEnsurer
 	if cluster.Spec.Mode == agent.VirtualNodeMode {
-		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token)
+		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.K3SImage, c.K3SImagePullPolicy)
 	} else {
 		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token)
 	}

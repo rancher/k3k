@@ -20,15 +20,19 @@ const (
 
 type VirtualAgent struct {
 	*Config
-	serviceIP string
-	token     string
+	serviceIP          string
+	token              string
+	k3SImage           string
+	k3SImagePullPolicy string
 }
 
-func NewVirtualAgent(config *Config, serviceIP, token string) *VirtualAgent {
+func NewVirtualAgent(config *Config, serviceIP, token string, k3SImage string, k3SImagePullPolicy string) *VirtualAgent {
 	return &VirtualAgent{
-		Config:    config,
-		serviceIP: serviceIP,
-		token:     token,
+		Config:             config,
+		serviceIP:          serviceIP,
+		token:              token,
+		k3SImage:           k3SImage,
+		k3SImagePullPolicy: k3SImagePullPolicy,
 	}
 }
 
@@ -78,7 +82,7 @@ with-node-id: true`, serviceIP, token)
 }
 
 func (v *VirtualAgent) deployment(ctx context.Context) error {
-	image := controller.K3SImage(v.cluster)
+	image := controller.K3SImage(v.cluster, v.k3SImage)
 
 	const name = "k3k-agent"
 
@@ -175,8 +179,9 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 		},
 		Containers: []v1.Container{
 			{
-				Name:  name,
-				Image: image,
+				Name:            name,
+				Image:           image,
+				ImagePullPolicy: v1.PullPolicy(v.k3SImagePullPolicy),
 				SecurityContext: &v1.SecurityContext{
 					Privileged: ptr.To(true),
 				},

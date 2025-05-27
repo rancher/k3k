@@ -28,18 +28,22 @@ const (
 
 // Server
 type Server struct {
-	cluster *v1alpha1.Cluster
-	client  client.Client
-	mode    string
-	token   string
+	cluster            *v1alpha1.Cluster
+	client             client.Client
+	mode               string
+	token              string
+	k3SImage           string
+	k3SImagePullPolicy string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string) *Server {
+func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string, k3SImage string, k3SImagePullPolicy string) *Server {
 	return &Server{
-		cluster: cluster,
-		client:  client,
-		token:   token,
-		mode:    mode,
+		cluster:            cluster,
+		client:             client,
+		token:              token,
+		mode:               mode,
+		k3SImage:           k3SImage,
+		k3SImagePullPolicy: k3SImagePullPolicy,
 	}
 }
 
@@ -109,8 +113,9 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 		},
 		Containers: []v1.Container{
 			{
-				Name:  name,
-				Image: image,
+				Name:            name,
+				Image:           image,
+				ImagePullPolicy: v1.PullPolicy(s.k3SImagePullPolicy),
 				Env: []v1.EnvVar{
 					{
 						Name: "POD_NAME",
@@ -244,7 +249,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		persistent bool
 	)
 
-	image := controller.K3SImage(s.cluster)
+	image := controller.K3SImage(s.cluster, s.k3SImage)
 	name := controller.SafeConcatNameWithPrefix(s.cluster.Name, serverName)
 
 	replicas = *s.cluster.Spec.Servers

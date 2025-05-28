@@ -1,4 +1,4 @@
-# How-to: Expose Workloads Outside the Host Cluster
+# How-to: Expose Workloads Outside the Virtual Cluster
 
 This guide explains how to expose workloads running in k3k-managed virtual clusters to external networks. Behavior varies depending on the operating mode of the virtual cluster.
 

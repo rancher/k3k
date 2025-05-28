@@ -144,6 +144,5 @@ spec:
 
 ## Further Reading
 
-* For a complete reference of all `VirtualClusterPolicy` spec fields, see the [API Reference for VirtualClusterPolicy](./link-to-your-auto-generated-spec.md).
-* For more complex scenarios and advanced use cases, refer to the [Advanced Usage](./advanced-usage.md) guide.
+* For a complete reference of all `VirtualClusterPolicy` spec fields, see the [API Reference for VirtualClusterPolicy](./crds/crd-docs.md#virtualclusterpolicy).
 * To understand how VCPs fit into the overall K3k system, see the [Architecture](./architecture.md) document.

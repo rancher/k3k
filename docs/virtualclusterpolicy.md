@@ -29,6 +29,8 @@ metadata:
 
 In this example, `my-app-namespace` will adhere to the rules defined in the `VirtualClusterPolicy` named `standard-dev-policy`. Multiple Namespaces can be bound to the same policy for uniform configuration, or different Namespaces can be bound to distinct policies.
 
+It's also important to note what happens when a Namespace's policy binding changes. If a Namespace is unbound from a VirtualClusterPolicy (by removing the policy.k3k.io/policy-name label), K3k will clean up and remove the resources (such as ResourceQuotas, LimitRanges, and managed Namespace labels) that were originally applied by that policy. Similarly, if the label is changed to bind the Namespace to a new VirtualClusterPolicy, K3k will first remove the resources associated with the old policy before applying the configurations from the new one, ensuring a clean transition.
+
 ### Default Policy Values
 
 If you create a `VirtualClusterPolicy` without specifying any `spec` fields (e.g., using `k3kcli policy create my-default-policy`), it will be created with default settings. Currently, this includes `spec.allowedModeTypes` being set to `["shared"]`.

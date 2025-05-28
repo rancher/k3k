@@ -88,6 +88,25 @@ K3k consists of two main components:
 * **CLI:** The K3k CLI provides a command-line interface for interacting with K3k. It allows users to easily create, manage, and access virtual clusters. The CLI simplifies common tasks such as creating `Cluster` CRs, retrieving kubeconfigs for accessing virtual clusters, and performing other management operations.
 
 
+## VirtualClusterPolicy
+
+K3k introduces the VirtualClusterPolicy Custom Resource, a way to set up and apply common configurations and how your virtual clusters operate within the K3k environment.
+
+The primary goal of VCPs is to allow administrators to centrally manage and apply consistent policies. This reduces repetitive configuration, helps meet organizational standards, and enhances the security and operational consistency of virtual clusters managed by K3k.
+
+A VirtualClusterPolicy is bound to one or more Kubernetes Namespaces. Once bound, the rules defined in the VCP apply to all K3k virtual clusters that are running or get created in that Namespace. This allows for flexible policy application, meaning different Namespaces can use their own unique VCPs, while others can share a single VCP for a consistent setup.
+
+Common use cases for administrators leveraging VirtualClusterPolicy include:
+
+- Defining the operational mode (like "shared" or "virtual") for virtual clusters.
+- Setting up resource quotas and limit ranges to effectively manage how much resources virtual clusters and their workloads can use.
+- Enforcing security standards, for example, by configuring Pod Security Admission (PSA) labels for Namespaces.
+
+The K3k controller actively monitors VirtualClusterPolicy resources and the corresponding Namespace bindings. When a VCP is applied or updated, the controller ensures that the defined configurations are enforced on the relevant virtual clusters and their associated resources within the targeted Namespaces.
+
+For a deep dive into what VirtualClusterPolicy can do, along with more examples, check out the [VirtualClusterPolicy Concepts](./virtual-cluster-policy.md) page. For a full list of all the spec fields, see the [API Reference for VirtualClusterPolicy](./link-to-your-auto-generated-spec.md).
+
+
 ## Comparison and Trade-offs
 
 K3k offers two distinct modes for deploying virtual clusters: `shared` and `virtual`. Each mode has its own strengths and weaknesses, and the best choice depends on the specific needs and priorities of the user. Here's a comparison to help you make an informed decision:

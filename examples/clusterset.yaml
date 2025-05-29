@@ -4,8 +4,6 @@ metadata:
   name: policy-example
 # spec:
   # disableNetworkPolicy: false
-  # allowedModeTypes:
-  # - "shared"
-  # - "virtual"
+  # allowedMode: "shared"
   # podSecurityAdmissionLevel: "baseline"
   # defaultPriorityClass: "lowpriority"

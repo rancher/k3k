@@ -293,7 +293,7 @@ _Appears in:_
 | `limit` _[LimitRangeSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#limitrangespec-v1-core)_ | Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy<br />to set defaults and constraints (min/max) |  |  |
 | `defaultNodeSelector` _object (keys:string, values:string)_ | DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace. |  |  |
 | `defaultPriorityClass` _string_ | DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace. |  |  |
-| `allowedModeTypes` _[ClusterMode](#clustermode) array_ | AllowedModeTypes specifies the allowed cluster provisioning modes. Defaults to [shared]. | [shared] | Enum: [shared virtual] <br />MinItems: 1 <br /> |
+| `allowedMode` _[ClusterMode](#clustermode)_ | AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared". | shared | Enum: [shared virtual] <br /> |
 | `disableNetworkPolicy` _boolean_ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. |  |  |
 | `podSecurityAdmissionLevel` _[PodSecurityAdmissionLevel](#podsecurityadmissionlevel)_ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. |  | Enum: [privileged baseline restricted] <br /> |
 

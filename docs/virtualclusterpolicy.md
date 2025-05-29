@@ -33,7 +33,7 @@ It's also important to note what happens when a Namespace's policy binding chang
 
 ### Default Policy Values
 
-If you create a `VirtualClusterPolicy` without specifying any `spec` fields (e.g., using `k3kcli policy create my-default-policy`), it will be created with default settings. Currently, this includes `spec.allowedModeTypes` being set to `["shared"]`.
+If you create a `VirtualClusterPolicy` without specifying any `spec` fields (e.g., using `k3kcli policy create my-default-policy`), it will be created with default settings. Currently, this includes `spec.allowedMode` being set to `"shared"`.
 
 ```yaml
 # Example of a minimal VCP (after creation with defaults)
@@ -42,17 +42,16 @@ kind: VirtualClusterPolicy
 metadata:
   name: my-default-policy
 spec:
-  allowedModeTypes:
-  - shared
+  allowedMode: shared
 ```
 
 ## Key Capabilities & Examples
 
 A `VirtualClusterPolicy` can configure several aspects of the Namespaces it's bound to and the virtual clusters operating within them.
 
-### 1. Restricting Allowed Virtual Cluster Modes (`allowedModeTypes`)
+### 1. Restricting Allowed Virtual Cluster Modes (`AllowedMode`)
 
-You can restrict the `mode` (e.g., "shared" or "virtual") in which K3k `Cluster` resources can be provisioned within bound Namespaces. If a `Cluster` is created in a bound Namespace with a mode not listed in `allowedModeTypes`, its creation might proceed but an error should be reported in the `Cluster` resource's status.
+You can restrict the `mode` (e.g., "shared" or "virtual") in which K3k `Cluster` resources can be provisioned within bound Namespaces. If a `Cluster` is created in a bound Namespace with a mode not allowed in `allowedMode`, its creation might proceed but an error should be reported in the `Cluster` resource's status.
 
 **Example:** Allow only "shared" mode clusters.
 

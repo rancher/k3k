@@ -397,11 +397,6 @@ func (in *VirtualClusterPolicySpec) DeepCopyInto(out *VirtualClusterPolicySpec) 
 			(*out)[key] = val
 		}
 	}
-	if in.AllowedModeTypes != nil {
-		in, out := &in.AllowedModeTypes, &out.AllowedModeTypes
-		*out = make([]ClusterMode, len(*in))
-		copy(*out, *in)
-	}
 	if in.PodSecurityAdmissionLevel != nil {
 		in, out := &in.PodSecurityAdmissionLevel, &out.PodSecurityAdmissionLevel
 		*out = new(PodSecurityAdmissionLevel)

@@ -377,13 +377,12 @@ type VirtualClusterPolicySpec struct {
 	// +optional
 	DefaultPriorityClass string `json:"defaultPriorityClass,omitempty"`
 
-	// AllowedModeTypes specifies the allowed cluster provisioning modes. Defaults to [shared].
+	// AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared".
 	//
-	// +kubebuilder:default={shared}
+	// +kubebuilder:default=shared
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
-	// +kubebuilder:validation:MinItems=1
 	// +optional
-	AllowedModeTypes []ClusterMode `json:"allowedModeTypes,omitempty"`
+	AllowedMode ClusterMode `json:"allowedMode,omitempty"`
 
 	// DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation.
 	//

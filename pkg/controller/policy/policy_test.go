@@ -26,40 +26,17 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 	Context("creating a VirtualClusterPolicy", func() {
 
-		It("should have only the 'shared' allowedModeTypes", func() {
+		It("should have the 'shared' allowedMode", func() {
 			policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{})
-
-			allowedModeTypes := policy.Spec.AllowedModeTypes
-			Expect(allowedModeTypes).To(HaveLen(1))
-			Expect(allowedModeTypes).To(ContainElement(v1alpha1.SharedClusterMode))
+			Expect(policy.Spec.AllowedMode).To(Equal(v1alpha1.SharedClusterMode))
 		})
 
 		It("should have the 'virtual' mode if specified", func() {
 			policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
-				AllowedModeTypes: []v1alpha1.ClusterMode{
-					v1alpha1.VirtualClusterMode,
-				},
+				AllowedMode: v1alpha1.VirtualClusterMode,
 			})
 
-			allowedModeTypes := policy.Spec.AllowedModeTypes
-			Expect(allowedModeTypes).To(HaveLen(1))
-			Expect(allowedModeTypes).To(ContainElement(v1alpha1.VirtualClusterMode))
-		})
-
-		It("should have both modes if specified", func() {
-			policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
-				AllowedModeTypes: []v1alpha1.ClusterMode{
-					v1alpha1.SharedClusterMode,
-					v1alpha1.VirtualClusterMode,
-				},
-			})
-
-			allowedModeTypes := policy.Spec.AllowedModeTypes
-			Expect(allowedModeTypes).To(HaveLen(2))
-			Expect(allowedModeTypes).To(ContainElements(
-				v1alpha1.SharedClusterMode,
-				v1alpha1.VirtualClusterMode,
-			))
+			Expect(policy.Spec.AllowedMode).To(Equal(v1alpha1.VirtualClusterMode))
 		})
 
 		It("should fail for a non-existing mode", func() {
@@ -68,11 +45,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					GenerateName: "policy-",
 				},
 				Spec: v1alpha1.VirtualClusterPolicySpec{
-					AllowedModeTypes: []v1alpha1.ClusterMode{
-						v1alpha1.SharedClusterMode,
-						v1alpha1.VirtualClusterMode,
-						v1alpha1.ClusterMode("non-existing"),
-					},
+					AllowedMode: v1alpha1.ClusterMode("non-existing"),
 				},
 			}
 

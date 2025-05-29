@@ -102,7 +102,7 @@ func createPolicy(ctx context.Context, client client.Client, mode v1alpha1.Clust
 			APIVersion: "k3k.io/v1alpha1",
 		},
 		Spec: v1alpha1.VirtualClusterPolicySpec{
-			AllowedModeTypes: []v1alpha1.ClusterMode{mode},
+			AllowedMode: mode,
 		},
 	}
 

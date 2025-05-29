@@ -46,20 +46,14 @@ spec:
             default: {}
             description: Spec defines the desired state of the VirtualClusterPolicy.
             properties:
-              allowedModeTypes:
-                default:
+              allowedMode:
+                default: shared
+                description: AllowedMode specifies the allowed cluster provisioning
+                  mode. Defaults to "shared".
+                enum:
                 - shared
-                description: AllowedModeTypes specifies the allowed cluster provisioning
-                  modes. Defaults to [shared].
-                items:
-                  description: ClusterMode is the possible provisioning mode of a
-                    Cluster.
-                  enum:
-                  - shared
-                  - virtual
-                  type: string
-                minItems: 1
-                type: array
+                - virtual
+                type: string
                 x-kubernetes-validations:
                 - message: mode is immutable
                   rule: self == oldSelf

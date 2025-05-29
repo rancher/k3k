@@ -243,7 +243,7 @@ _Appears in:_
 
 
 VirtualClusterPolicy allows defining common configurations and constraints
-for the clusters in a namespace activated by an annotation on that Namespace.
+for clusters within a clusterpolicy.
 
 
 
@@ -289,9 +289,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `displayName` _string_ | DisplayName is the human-readable name for the policy. |  |  |
-| `quota` _[ResourceQuotaSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcequotaspec-v1-core)_ | Quota defines the ResourceQuotaSpec to be applied to the target Namespace. |  |  |
-| `limit` _[LimitRangeSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#limitrangespec-v1-core)_ | Limit specifies the LimitRange that will be applied to all pods in the target Namespace<br />to set defaults and constraints (min/max) |  |  |
+| `quota` _[ResourceQuotaSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcequotaspec-v1-core)_ | Quota specifies the resource limits for clusters within a clusterpolicy. |  |  |
+| `limit` _[LimitRangeSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#limitrangespec-v1-core)_ | Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy<br />to set defaults and constraints (min/max) |  |  |
 | `defaultNodeSelector` _object (keys:string, values:string)_ | DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace. |  |  |
 | `defaultPriorityClass` _string_ | DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace. |  |  |
 | `allowedModeTypes` _[ClusterMode](#clustermode) array_ | AllowedModeTypes specifies the allowed cluster provisioning modes. Defaults to [shared]. | [shared] | Enum: [shared virtual] <br />MinItems: 1 <br /> |

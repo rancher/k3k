@@ -3,9 +3,7 @@ package cmds
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
-	"slices"
 	"strings"
 	"time"
 
@@ -17,7 +15,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
@@ -76,36 +73,8 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 
 		namespace := appCtx.Namespace(name)
 
-		// if policy is set, use the namespace of the policy
-		if config.policy != "" {
-			namespace = appCtx.Namespace(config.policy)
-		}
-
-		if err := createNamespace(ctx, client, namespace); err != nil {
+		if err := createNamespace(ctx, client, namespace, config.policy); err != nil {
 			return err
-		}
-
-		// if policy is set, create the cluster set
-		if config.policy != "" {
-			namespace = appCtx.Namespace(config.policy)
-
-			policy := &v1alpha1.VirtualClusterPolicy{}
-			if err := client.Get(ctx, types.NamespacedName{Name: "default", Namespace: namespace}, policy); err != nil {
-				if !apierrors.IsNotFound(err) {
-					return err
-				}
-
-				policy, err = createPolicy(ctx, client, namespace, v1alpha1.ClusterMode(config.mode), config.policy)
-				if err != nil {
-					return err
-				}
-			}
-
-			logrus.Infof("VirtualClusterPolicy in namespace [%s] available", namespace)
-
-			if !slices.Contains(policy.Spec.AllowedModeTypes, v1alpha1.ClusterMode(config.mode)) {
-				return fmt.Errorf("invalid '%s' Cluster mode. VirtualClusterPolicy only allows %v", config.mode, policy.Spec.AllowedModeTypes)
-			}
 		}
 
 		if strings.Contains(config.version, "+") {

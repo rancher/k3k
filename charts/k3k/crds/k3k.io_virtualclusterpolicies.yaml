@@ -12,12 +12,9 @@ spec:
     listKind: VirtualClusterPolicyList
     plural: virtualclusterpolicies
     singular: virtualclusterpolicy
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.displayName
-      name: Display Name
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -26,7 +23,7 @@ spec:
       openAPIV3Schema:
         description: |-
           VirtualClusterPolicy allows defining common configurations and constraints
-          for the clusters in a namespace activated by an annotation on that Namespace.
+          for clusters within a clusterpolicy.
         properties:
           apiVersion:
             description: |-
@@ -80,12 +77,9 @@ spec:
                 description: DisableNetworkPolicy indicates whether to disable the
                   creation of a default network policy for cluster isolation.
                 type: boolean
-              displayName:
-                description: DisplayName is the human-readable name for the policy.
-                type: string
               limit:
                 description: |-
-                  Limit specifies the LimitRange that will be applied to all pods in the target Namespace
+                  Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy
                   to set defaults and constraints (min/max)
                 properties:
                   limits:
@@ -168,8 +162,8 @@ spec:
                 - restricted
                 type: string
               quota:
-                description: Quota defines the ResourceQuotaSpec to be applied to
-                  the target Namespace.
+                description: Quota specifies the resource limits for clusters within
+                  a clusterpolicy.
                 properties:
                   hard:
                     additionalProperties:
@@ -323,9 +317,6 @@ spec:
         - metadata
         - spec
         type: object
-        x-kubernetes-validations:
-        - message: Name must match 'default'
-          rule: self.metadata.name == "default"
     served: true
     storage: true
     subresources:

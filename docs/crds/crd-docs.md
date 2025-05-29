@@ -10,6 +10,8 @@
 ### Resource Types
 - [Cluster](#cluster)
 - [ClusterList](#clusterlist)
+- [VirtualClusterPolicy](#virtualclusterpolicy)
+- [VirtualClusterPolicyList](#virtualclusterpolicylist)
 
 
 
@@ -80,6 +82,7 @@ _Validation:_
 
 _Appears in:_
 - [ClusterSpec](#clusterspec)
+- [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
 
 
 
@@ -219,6 +222,80 @@ PersistenceMode is the storage mode of a Cluster.
 _Appears in:_
 - [PersistenceConfig](#persistenceconfig)
 
+
+
+#### PodSecurityAdmissionLevel
+
+_Underlying type:_ _string_
+
+PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.
+
+_Validation:_
+- Enum: [privileged baseline restricted]
+
+_Appears in:_
+- [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
+
+
+
+#### VirtualClusterPolicy
+
+
+
+VirtualClusterPolicy allows defining common configurations and constraints
+for clusters within a clusterpolicy.
+
+
+
+_Appears in:_
+- [VirtualClusterPolicyList](#virtualclusterpolicylist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `k3k.io/v1alpha1` | | |
+| `kind` _string_ | `VirtualClusterPolicy` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[VirtualClusterPolicySpec](#virtualclusterpolicyspec)_ | Spec defines the desired state of the VirtualClusterPolicy. | \{  \} |  |
+
+
+#### VirtualClusterPolicyList
+
+
+
+VirtualClusterPolicyList is a list of VirtualClusterPolicy resources.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `k3k.io/v1alpha1` | | |
+| `kind` _string_ | `VirtualClusterPolicyList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[VirtualClusterPolicy](#virtualclusterpolicy) array_ |  |  |  |
+
+
+#### VirtualClusterPolicySpec
+
+
+
+VirtualClusterPolicySpec defines the desired state of a VirtualClusterPolicy.
+
+
+
+_Appears in:_
+- [VirtualClusterPolicy](#virtualclusterpolicy)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `quota` _[ResourceQuotaSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcequotaspec-v1-core)_ | Quota specifies the resource limits for clusters within a clusterpolicy. |  |  |
+| `limit` _[LimitRangeSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#limitrangespec-v1-core)_ | Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy<br />to set defaults and constraints (min/max) |  |  |
+| `defaultNodeSelector` _object (keys:string, values:string)_ | DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace. |  |  |
+| `defaultPriorityClass` _string_ | DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace. |  |  |
+| `allowedModeTypes` _[ClusterMode](#clustermode) array_ | AllowedModeTypes specifies the allowed cluster provisioning modes. Defaults to [shared]. | [shared] | Enum: [shared virtual] <br />MinItems: 1 <br /> |
+| `disableNetworkPolicy` _boolean_ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. |  |  |
+| `podSecurityAdmissionLevel` _[PodSecurityAdmissionLevel](#podsecurityadmissionlevel)_ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. |  | Enum: [privileged baseline restricted] <br /> |
 
 
 

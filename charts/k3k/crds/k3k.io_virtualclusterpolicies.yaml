@@ -11,10 +11,15 @@ spec:
     kind: VirtualClusterPolicy
     listKind: VirtualClusterPolicyList
     plural: virtualclusterpolicies
+    shortNames:
+    - vcp
     singular: virtualclusterpolicy
   scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.allowedMode
+      name: Mode
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date

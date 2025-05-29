@@ -333,8 +333,9 @@ type ClusterList struct {
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:JSONPath=".spec.allowedMode",name=Mode,type=string
 // +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Cluster,shortName=vcp
 
 // VirtualClusterPolicy allows defining common configurations and constraints
 // for clusters within a clusterpolicy.

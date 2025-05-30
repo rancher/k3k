@@ -41,12 +41,8 @@ func list(appCtx *AppContext) cli.ActionFunc {
 			return err
 		}
 
-		printerColumns := makePrinterColumns(crd)
-		table := makeTable(printerColumns)
-
-		for _, vcp := range clusters.Items {
-			table.Rows = append(table.Rows, makeRow(&vcp, printerColumns))
-		}
+		items := toPointerSlice(clusters.Items)
+		table := createTable(crd, items)
 
 		printer := printers.NewTablePrinter(printers.PrintOptions{WithNamespace: true})
 

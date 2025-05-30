@@ -11,6 +11,7 @@ func NewClusterCmd(appCtx *AppContext) *cli.Command {
 		Subcommands: []*cli.Command{
 			NewClusterCreateCmd(appCtx),
 			NewClusterDeleteCmd(appCtx),
+			NewClusterListCmd(appCtx),
 		},
 	}
 }

@@ -11,6 +11,7 @@ func NewPolicyCmd(appCtx *AppContext) *cli.Command {
 		Subcommands: []*cli.Command{
 			NewPolicyCreateCmd(appCtx),
 			NewPolicyDeleteCmd(appCtx),
+			NewPolicyListCmd(appCtx),
 		},
 	}
 }

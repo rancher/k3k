@@ -10,6 +10,7 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:JSONPath=".spec.mode",name=Mode,type=string
 
 // Cluster defines a virtual Kubernetes cluster managed by k3k.
 // It specifies the desired state of a virtual cluster, including version, node configuration, and networking.
@@ -334,7 +335,6 @@ type ClusterList struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:JSONPath=".spec.allowedMode",name=Mode,type=string
-// +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
 // +kubebuilder:resource:scope=Cluster,shortName=vcp
 
 // VirtualClusterPolicy allows defining common configurations and constraints

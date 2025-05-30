@@ -14,7 +14,11 @@ spec:
     singular: cluster
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.mode
+      name: Mode
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-

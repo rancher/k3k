@@ -7,6 +7,7 @@ import (
 	"github.com/rancher/k3k/pkg/buildinfo"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -45,6 +46,7 @@ func NewApp() *cli.App {
 		scheme := runtime.NewScheme()
 		_ = clientgoscheme.AddToScheme(scheme)
 		_ = v1alpha1.AddToScheme(scheme)
+		_ = apiextensionsv1.AddToScheme(scheme)
 
 		ctrlClient, err := client.New(restConfig, client.Options{Scheme: scheme})
 		if err != nil {
@@ -109,6 +111,7 @@ func WithCommonFlags(appCtx *AppContext, flags ...cli.Flag) []cli.Flag {
 		&cli.StringFlag{
 			Name:        "namespace",
 			Usage:       "namespace to create the k3k cluster in",
+			Aliases:     []string{"n"},
 			Destination: &appCtx.namespace,
 		},
 	}

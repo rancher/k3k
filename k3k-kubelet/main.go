@@ -98,6 +98,12 @@ func main() {
 			Destination: &debug,
 			EnvVars:     []string{"DEBUG"},
 		},
+		&cli.BoolFlag{
+			Name:        "mirrorHostNodes",
+			Usage:       "Mirror real node objects from host cluster",
+			Destination: &cfg.MirrorHostNodes,
+			EnvVars:     []string{"MIRROR_HOST_NODES"},
+		},
 	}
 	app.Before = func(clx *cli.Context) error {
 		logger = log.New(debug)
@@ -128,7 +134,7 @@ func run(clx *cli.Context) error {
 		logger.Fatalw("failed to create new virtual kubelet instance", zap.Error(err))
 	}
 
-	if err := k.registerNode(ctx, k.agentIP, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, cfg.ServerIP, k.dnsIP, cfg.Version); err != nil {
+	if err := k.registerNode(ctx, k.agentIP, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, cfg.ServerIP, k.dnsIP, cfg.Version, cfg.MirrorHostNodes); err != nil {
 		logger.Fatalw("failed to register new node", zap.Error(err))
 	}
 

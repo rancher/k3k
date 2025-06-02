@@ -39,15 +39,17 @@ func configSecretName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, configName)
 }
 
-func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object) error {
+func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object, setClusterOwner bool) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	key := ctrlruntimeclient.ObjectKeyFromObject(obj)
 
 	log.Info(fmt.Sprintf("ensuring %T", obj), "key", key)
 
-	if err := controllerutil.SetControllerReference(cfg.cluster, obj, cfg.scheme); err != nil {
-		return err
+	if setClusterOwner {
+		if err := controllerutil.SetControllerReference(cfg.cluster, obj, cfg.scheme); err != nil {
+			return err
+		}
 	}
 
 	if err := cfg.client.Create(ctx, obj); err != nil {

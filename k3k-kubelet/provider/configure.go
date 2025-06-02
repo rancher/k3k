@@ -15,36 +15,50 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster, version string) {
-	node.Status.Conditions = nodeConditions()
-	node.Status.DaemonEndpoints.KubeletEndpoint.Port = int32(servicePort)
-	node.Status.Addresses = []v1.NodeAddress{
-		{
-			Type:    v1.NodeHostName,
-			Address: hostname,
-		},
-		{
-			Type:    v1.NodeInternalIP,
-			Address: ip,
-		},
-	}
-
-	node.Labels["node.kubernetes.io/exclude-from-external-load-balancers"] = "true"
-	node.Labels["kubernetes.io/os"] = "linux"
-
-	// configure versions
-	node.Status.NodeInfo.KubeletVersion = version
-
-	updateNodeCapacityInterval := 10 * time.Second
-	ticker := time.NewTicker(updateNodeCapacityInterval)
-
-	go func() {
-		for range ticker.C {
-			if err := updateNodeCapacity(coreClient, virtualClient, node.Name, virtualCluster.Spec.NodeSelector); err != nil {
-				logger.Error("error updating node capacity", err)
-			}
+func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster, version string, mirrorHostNodes bool) {
+	ctx := context.Background()
+	if mirrorHostNodes {
+		hostNode, err := coreClient.Nodes().Get(ctx, node.Name, metav1.GetOptions{})
+		if err != nil {
+			logger.Fatal("error getting host node for mirroring", err)
 		}
-	}()
+		node.Spec = *hostNode.Spec.DeepCopy()
+		node.Status = *hostNode.Status.DeepCopy()
+		node.Labels = hostNode.GetLabels()
+		node.Annotations = hostNode.GetAnnotations()
+		node.Finalizers = hostNode.GetFinalizers()
+	} else {
+		node.Status.Conditions = nodeConditions()
+		node.Status.DaemonEndpoints.KubeletEndpoint.Port = int32(servicePort)
+		node.Status.Addresses = []v1.NodeAddress{
+			{
+				Type:    v1.NodeHostName,
+				Address: hostname,
+			},
+			{
+				Type:    v1.NodeInternalIP,
+				Address: ip,
+			},
+		}
+
+		node.Labels["node.kubernetes.io/exclude-from-external-load-balancers"] = "true"
+		node.Labels["kubernetes.io/os"] = "linux"
+
+		// configure versions
+		node.Status.NodeInfo.KubeletVersion = version
+		node.Status.NodeInfo.KubeProxyVersion = version
+
+		updateNodeCapacityInterval := 10 * time.Second
+		ticker := time.NewTicker(updateNodeCapacityInterval)
+
+		go func() {
+			for range ticker.C {
+				if err := updateNodeCapacity(ctx, coreClient, virtualClient, node.Name, virtualCluster.Spec.NodeSelector); err != nil {
+					logger.Error("error updating node capacity", err)
+				}
+			}
+		}()
+	}
 }
 
 // nodeConditions returns the basic conditions which mark the node as ready
@@ -95,9 +109,7 @@ func nodeConditions() []v1.NodeCondition {
 
 // updateNodeCapacity will update the virtual node capacity (and the allocatable field) with the sum of all the resource in the host nodes.
 // If the nodeLabels are specified only the matching nodes will be considered.
-func updateNodeCapacity(coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualNodeName string, nodeLabels map[string]string) error {
-	ctx := context.Background()
-
+func updateNodeCapacity(ctx context.Context, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualNodeName string, nodeLabels map[string]string) error {
 	capacity, allocatable, err := getResourcesFromNodes(ctx, coreClient, nodeLabels)
 	if err != nil {
 		return err

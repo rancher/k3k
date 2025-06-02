@@ -42,6 +42,11 @@ func newCreateFlags(config *CreateConfig) []cli.Flag {
 			Usage:       "service CIDR",
 			Destination: &config.serviceCIDR,
 		},
+		&cli.BoolFlag{
+			Name:        "mirror-host-nodes",
+			Usage:       "Mirror Host Cluster Nodes",
+			Destination: &config.mirrorHostNodes,
+		},
 		&cli.StringFlag{
 			Name:        "persistence-type",
 			Usage:       "persistence mode for the nodes (dynamic, ephemeral, static)",

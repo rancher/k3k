@@ -279,6 +279,11 @@ spec:
                         type: integer
                     type: object
                 type: object
+              mirrorHostNodes:
+                description: |-
+                  MirrorHostNodes controls whether node objects from the host cluster
+                  are mirrored into the virtual cluster.
+                type: boolean
               mode:
                 allOf:
                 - enum:

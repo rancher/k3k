@@ -13,6 +13,9 @@ This guide explains how to expose workloads running in k3k-managed virtual clust
 
 In *shared mode*, workloads can be exposed to the external network using standard Kubernetes service types or an ingress controller, depending on your requirements.
 
+> [!NOTE]
+> *`Services`* are always synced from the virtual cluster to the host cluster following the same principle described [here](../architecture.md#shared-mode) for pods. 
+
 ### Option 1: Use `NodePort` or `LoadBalancer`
 
 To expose a service such as a web application outside the host cluster:

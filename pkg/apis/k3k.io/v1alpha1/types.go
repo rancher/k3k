@@ -162,6 +162,12 @@ type ClusterSpec struct {
 	//
 	// +optional
 	WorkerLimit v1.ResourceList `json:"workerLimit,omitempty"`
+
+	// MirrorHostNodes controls whether node objects from the host cluster
+	// are mirrored into the virtual cluster.
+	//
+	// +optional
+	MirrorHostNodes bool `json:"mirrorHostNodes,omitempty"`
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.

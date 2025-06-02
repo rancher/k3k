@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -19,6 +20,7 @@ type config struct {
 	KubeletPort       string `yaml:"kubeletPort,omitempty"`
 	ServerIP          string `yaml:"serverIP,omitempty"`
 	Version           string `yaml:"version,omitempty"`
+	MirrorHostNodes   bool   `yaml:"mirrorHostNodes,omitempty"`
 }
 
 func (c *config) unmarshalYAML(data []byte) error {
@@ -66,6 +68,11 @@ func (c *config) unmarshalYAML(data []byte) error {
 
 	if c.Version == "" {
 		c.Version = conf.Version
+	}
+	fmt.Printf("marshalled yaml: %v\n", conf.MirrorHostNodes)
+	fmt.Printf("command line: %v\n", c.MirrorHostNodes)
+	if !c.MirrorHostNodes {
+		c.MirrorHostNodes = conf.MirrorHostNodes
 	}
 
 	return nil

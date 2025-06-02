@@ -37,6 +37,7 @@ type CreateConfig struct {
 	mode                 string
 	kubeconfigServerHost string
 	policy               string
+	mirrorHostNodes      bool
 }
 
 func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
@@ -176,6 +177,7 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 				Type:             v1alpha1.PersistenceMode(config.persistenceType),
 				StorageClassName: ptr.To(config.storageClassName),
 			},
+			MirrorHostNodes: config.mirrorHostNodes,
 		},
 	}
 	if config.storageClassName == "" {

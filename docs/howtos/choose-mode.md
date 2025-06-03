@@ -71,3 +71,9 @@ In **Virtual mode**, the virtual cluster runs its own isolated Kubernetes contro
 #### 🔒 Security Engineer  
 *"I’m testing a new admission controller and policy engine before rolling it out cluster-wide."*  
 → Use **Virtual mode**, if you need to test cluster-wide policies, custom admission flow, or advanced extensions with full control.
+
+---
+
+## Still Not Sure?
+
+If you're evaluating more advanced use cases or want a deeper comparison, see the full trade-off breakdown in the [Architecture documentation](../architecture.md).

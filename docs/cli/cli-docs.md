@@ -71,6 +71,8 @@ Create new cluster
 
 **--storage-class-name**="": storage class name for dynamic persistence type
 
+**--storage-request-size**="": storage size for dynamic persistence type
+
 **--token**="": token of the cluster
 
 **--version**="": k3s version

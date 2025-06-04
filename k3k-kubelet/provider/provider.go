@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/rancher/k3k/k3k-kubelet/controller"
 	"github.com/rancher/k3k/k3k-kubelet/controller/webhook"
@@ -20,7 +21,6 @@ import (
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	k3klog "github.com/rancher/k3k/pkg/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
-	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	cv1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 	"k8s.io/utils/ptr"
 
 	"errors"
@@ -209,7 +210,7 @@ func (p *Provider) AttachToContainer(ctx context.Context, namespace, podName, co
 }
 
 // GetStatsSummary gets the stats for the node, including running pods
-func (p *Provider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary, error) {
+func (p *Provider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
 	p.logger.Debug("GetStatsSummary")
 
 	nodeList := &v1.NodeList{}
@@ -219,8 +220,8 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary,
 
 	// fetch the stats from all the nodes
 	var (
-		nodeStats    statsv1alpha1.NodeStats
-		allPodsStats []statsv1alpha1.PodStats
+		nodeStats    stats.NodeStats
+		allPodsStats []stats.PodStats
 	)
 
 	for _, n := range nodeList.Items {
@@ -238,7 +239,7 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary,
 			)
 		}
 
-		stats := &statsv1alpha1.Summary{}
+		stats := &stats.Summary{}
 		if err := json.Unmarshal(res, stats); err != nil {
 			return nil, err
 		}
@@ -262,9 +263,9 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary,
 		podsNameMap[hostPodName] = pod
 	}
 
-	filteredStats := &statsv1alpha1.Summary{
+	filteredStats := &stats.Summary{
 		Node: nodeStats,
-		Pods: make([]statsv1alpha1.PodStats, 0),
+		Pods: make([]stats.PodStats, 0),
 	}
 
 	for _, podStat := range allPodsStats {
@@ -275,7 +276,7 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*statsv1alpha1.Summary,
 
 		// rewrite the PodReference to match the data of the virtual cluster
 		if pod, found := podsNameMap[podStat.PodRef.Name]; found {
-			podStat.PodRef = statsv1alpha1.PodReference{
+			podStat.PodRef = stats.PodReference{
 				Name:      pod.Name,
 				Namespace: pod.Namespace,
 				UID:       string(pod.UID),
@@ -582,6 +583,25 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 		return fmt.Errorf("unable to get pod to update from virtual cluster: %w", err)
 	}
 
+	hostNamespaceName := types.NamespacedName{
+		Namespace: p.ClusterNamespace,
+		Name:      p.Translator.TranslateName(pod.Namespace, pod.Name),
+	}
+	var currentHostPod corev1.Pod
+	if err := p.HostClient.Get(ctx, hostNamespaceName, &currentHostPod); err != nil {
+		return fmt.Errorf("unable to get pod to update from host cluster: %w", err)
+	}
+
+	// Handle ephemeral containers
+	if !cmp.Equal(currentHostPod.Spec.EphemeralContainers, pod.Spec.EphemeralContainers) {
+		p.logger.Info("Updating ephemeral containers")
+		currentHostPod.Spec.EphemeralContainers = pod.Spec.EphemeralContainers
+		if _, err := p.CoreClient.Pods(p.ClusterNamespace).UpdateEphemeralContainers(ctx, currentHostPod.Name, &currentHostPod, metav1.UpdateOptions{}); err != nil {
+			p.logger.Errorf("error when updating ephemeral containers: %v", err)
+			return err
+		}
+		return nil
+	}
 	currentVirtualPod.Spec.Containers = updateContainerImages(currentVirtualPod.Spec.Containers, pod.Spec.Containers)
 	currentVirtualPod.Spec.InitContainers = updateContainerImages(currentVirtualPod.Spec.InitContainers, pod.Spec.InitContainers)
 
@@ -597,17 +617,6 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 	}
 
 	// Update Pod in the host cluster
-
-	hostNamespaceName := types.NamespacedName{
-		Namespace: p.ClusterNamespace,
-		Name:      p.Translator.TranslateName(pod.Namespace, pod.Name),
-	}
-
-	var currentHostPod corev1.Pod
-	if err := p.HostClient.Get(ctx, hostNamespaceName, &currentHostPod); err != nil {
-		return fmt.Errorf("unable to get pod to update from host cluster: %w", err)
-	}
-
 	currentHostPod.Spec.Containers = updateContainerImages(currentHostPod.Spec.Containers, pod.Spec.Containers)
 	currentHostPod.Spec.InitContainers = updateContainerImages(currentHostPod.Spec.InitContainers, pod.Spec.InitContainers)
 
@@ -858,6 +867,11 @@ func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP
 	for i := range pod.Spec.InitContainers {
 		pod.Spec.InitContainers[i].Env = overrideEnvVars(pod.Spec.InitContainers[i].Env, updatedEnvVars)
 	}
+
+	// handle ephemeral containers as well
+	for i := range pod.Spec.EphemeralContainers {
+		pod.Spec.EphemeralContainers[i].Env = overrideEnvVars(pod.Spec.EphemeralContainers[i].Env, updatedEnvVars)
+	}
 }
 
 // overrideEnvVars will override the orig environment variables if found in the updated list
@@ -912,6 +926,26 @@ func getSecretsAndConfigmaps(pod *corev1.Pod) ([]string, []string) {
 // to assign env fieldpaths to pods, it will also make sure to change the metadata.name and metadata.namespace to the
 // assigned annotations
 func (p *Provider) configureFieldPathEnv(pod, tPod *v1.Pod) error {
+	// handle ephemeral containers
+	for i, container := range pod.Spec.EphemeralContainers {
+		for j, envVar := range container.Env {
+			if envVar.ValueFrom == nil || envVar.ValueFrom.FieldRef == nil {
+				continue
+			}
+
+			fieldPath := envVar.ValueFrom.FieldRef.FieldPath
+
+			if fieldPath == translate.MetadataNameField {
+				envVar.ValueFrom.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
+				pod.Spec.EphemeralContainers[i].Env[j] = envVar
+			}
+
+			if fieldPath == translate.MetadataNamespaceField {
+				envVar.ValueFrom.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.MetadataNamespaceField)
+				pod.Spec.EphemeralContainers[i].Env[j] = envVar
+			}
+		}
+	}
 	// override metadata.name and metadata.namespace with pod annotations
 	for i, container := range pod.Spec.InitContainers {
 		for j, envVar := range container.Env {

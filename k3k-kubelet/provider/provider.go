@@ -587,7 +587,9 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 		Namespace: p.ClusterNamespace,
 		Name:      p.Translator.TranslateName(pod.Namespace, pod.Name),
 	}
+
 	var currentHostPod corev1.Pod
+
 	if err := p.HostClient.Get(ctx, hostNamespaceName, &currentHostPod); err != nil {
 		return fmt.Errorf("unable to get pod to update from host cluster: %w", err)
 	}
@@ -595,13 +597,16 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 	// Handle ephemeral containers
 	if !cmp.Equal(currentHostPod.Spec.EphemeralContainers, pod.Spec.EphemeralContainers) {
 		p.logger.Info("Updating ephemeral containers")
+
 		currentHostPod.Spec.EphemeralContainers = pod.Spec.EphemeralContainers
+
 		if _, err := p.CoreClient.Pods(p.ClusterNamespace).UpdateEphemeralContainers(ctx, currentHostPod.Name, &currentHostPod, metav1.UpdateOptions{}); err != nil {
 			p.logger.Errorf("error when updating ephemeral containers: %v", err)
 			return err
 		}
 		return nil
 	}
+
 	currentVirtualPod.Spec.Containers = updateContainerImages(currentVirtualPod.Spec.Containers, pod.Spec.Containers)
 	currentVirtualPod.Spec.InitContainers = updateContainerImages(currentVirtualPod.Spec.InitContainers, pod.Spec.InitContainers)
 

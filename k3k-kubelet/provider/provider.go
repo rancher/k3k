@@ -605,6 +605,7 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 			return err
 		}
 		return nil
+
 	}
 
 	currentVirtualPod.Spec.Containers = updateContainerImages(currentVirtualPod.Spec.Containers, pod.Spec.Containers)

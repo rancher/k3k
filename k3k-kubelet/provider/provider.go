@@ -604,8 +604,8 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 			p.logger.Errorf("error when updating ephemeral containers: %v", err)
 			return err
 		}
-		return nil
 
+		return nil
 	}
 
 	currentVirtualPod.Spec.Containers = updateContainerImages(currentVirtualPod.Spec.Containers, pod.Spec.Containers)

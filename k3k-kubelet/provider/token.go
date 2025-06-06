@@ -121,6 +121,15 @@ func removeKubeAccessVolume(pod *corev1.Pod) {
 		}
 	}
 
+	// ephemeral containers
+	for i, container := range pod.Spec.EphemeralContainers {
+		for j, mountPath := range container.VolumeMounts {
+			if strings.HasPrefix(mountPath.Name, kubeAPIAccessPrefix) {
+				pod.Spec.EphemeralContainers[i].VolumeMounts = append(pod.Spec.EphemeralContainers[i].VolumeMounts[:j], pod.Spec.EphemeralContainers[i].VolumeMounts[j+1:]...)
+			}
+		}
+	}
+
 	for i, container := range pod.Spec.Containers {
 		for j, mountPath := range container.VolumeMounts {
 			if strings.HasPrefix(mountPath.Name, kubeAPIAccessPrefix) {

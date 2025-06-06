@@ -10,8 +10,8 @@ package collectors
 import (
 	"time"
 
-	stats "github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	compbasemetrics "k8s.io/component-base/metrics"
+	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 )
 
 // defining metrics

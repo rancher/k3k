@@ -110,6 +110,7 @@ func removeKubeAccessVolume(pod *corev1.Pod) {
 	for i, volume := range pod.Spec.Volumes {
 		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
 			pod.Spec.Volumes = append(pod.Spec.Volumes[:i], pod.Spec.Volumes[i+1:]...)
+			break
 		}
 	}
 	// init containers
@@ -117,6 +118,7 @@ func removeKubeAccessVolume(pod *corev1.Pod) {
 		for j, mountPath := range container.VolumeMounts {
 			if strings.HasPrefix(mountPath.Name, kubeAPIAccessPrefix) {
 				pod.Spec.InitContainers[i].VolumeMounts = append(pod.Spec.InitContainers[i].VolumeMounts[:j], pod.Spec.InitContainers[i].VolumeMounts[j+1:]...)
+				break
 			}
 		}
 	}
@@ -126,6 +128,7 @@ func removeKubeAccessVolume(pod *corev1.Pod) {
 		for j, mountPath := range container.VolumeMounts {
 			if strings.HasPrefix(mountPath.Name, kubeAPIAccessPrefix) {
 				pod.Spec.EphemeralContainers[i].VolumeMounts = append(pod.Spec.EphemeralContainers[i].VolumeMounts[:j], pod.Spec.EphemeralContainers[i].VolumeMounts[j+1:]...)
+				break
 			}
 		}
 	}
@@ -134,6 +137,7 @@ func removeKubeAccessVolume(pod *corev1.Pod) {
 		for j, mountPath := range container.VolumeMounts {
 			if strings.HasPrefix(mountPath.Name, kubeAPIAccessPrefix) {
 				pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts[:j], pod.Spec.Containers[i].VolumeMounts[j+1:]...)
+				break
 			}
 		}
 	}

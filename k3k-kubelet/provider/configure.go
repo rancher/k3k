@@ -34,7 +34,6 @@ func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servic
 
 	// configure versions
 	node.Status.NodeInfo.KubeletVersion = version
-	node.Status.NodeInfo.KubeProxyVersion = version
 
 	updateNodeCapacityInterval := 10 * time.Second
 	ticker := time.NewTicker(updateNodeCapacityInterval)

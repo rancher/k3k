@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-logr/zapr"
 	certutil "github.com/rancher/dynamiclistener/cert"
 	k3kkubeletcontroller "github.com/rancher/k3k/k3k-kubelet/controller"
 	k3kwebhook "github.com/rancher/k3k/k3k-kubelet/controller/webhook"
@@ -93,6 +94,8 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, err
 	}
 
+	ctrl.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
+
 	hostMgr, err := ctrl.NewManager(hostConfig, manager.Options{
 		Scheme:                  baseScheme,
 		LeaderElection:          true,
@@ -144,19 +147,19 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 
 	logger.Info("adding service syncer controller")
 
-	if err := k3kkubeletcontroller.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
+	if err := k3kkubeletcontroller.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 		return nil, errors.New("failed to add service syncer controller: " + err.Error())
 	}
 
 	logger.Info("adding pvc syncer controller")
 
-	if err := k3kkubeletcontroller.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
+	if err := k3kkubeletcontroller.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 		return nil, errors.New("failed to add pvc syncer controller: " + err.Error())
 	}
 
 	logger.Info("adding pod pvc controller")
 
-	if err := k3kkubeletcontroller.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, k3klog.New(false)); err != nil {
+	if err := k3kkubeletcontroller.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 		return nil, errors.New("failed to add pod pvc controller: " + err.Error())
 	}
 

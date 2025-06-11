@@ -3,6 +3,7 @@ package controller
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"slices"
 	"strings"
 	"time"
 
@@ -45,7 +46,12 @@ func SafeConcatNameWithPrefix(name ...string) string {
 
 // SafeConcatName concatenates the given strings and ensures the returned name is under 64 characters
 // by cutting the string off at 57 characters and setting the last 6 with an encoded version of the concatenated string.
+// Empty strings in the array will be ignored.
 func SafeConcatName(name ...string) string {
+	name = slices.DeleteFunc(name, func(s string) bool {
+		return s == ""
+	})
+
 	fullPath := strings.Join(name, "-")
 	if len(fullPath) < 64 {
 		return fullPath

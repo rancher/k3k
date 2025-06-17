@@ -60,6 +60,43 @@ var PriorityClassTests = func() {
 		ctx := context.Background()
 
 		priorityClass := &schedulingv1.PriorityClass{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "pc-",
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+			},
+			Value: 1001,
+		}
+
+		err := virtTestEnv.k8sClient.Create(ctx, priorityClass)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Created priorityClass %s in virtual cluster", priorityClass.Name))
+
+		var hostPriorityClass schedulingv1.PriorityClass
+		hostPriorityClassName := translateName(cluster, priorityClass.Namespace, priorityClass.Name)
+
+		Eventually(func() error {
+			key := client.ObjectKey{Name: hostPriorityClassName}
+			return hostTestEnv.k8sClient.Get(ctx, key, &hostPriorityClass)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeNil())
+
+		By(fmt.Sprintf("Created priorityClass %s in host cluster", hostPriorityClassName))
+
+		Expect(hostPriorityClass.Value).To(Equal(priorityClass.Value))
+		Expect(hostPriorityClass.Labels).To(ContainElement("bar"))
+
+		fmt.Fprintf(GinkgoWriter, "labels: %v\n", hostPriorityClass.Labels)
+	})
+
+	It("updates a priorityClass on the host cluster", func() {
+		ctx := context.Background()
+
+		priorityClass := &schedulingv1.PriorityClass{
 			ObjectMeta: metav1.ObjectMeta{GenerateName: "pc-"},
 			Value:      1001,
 		}
@@ -83,6 +120,29 @@ var PriorityClassTests = func() {
 		By(fmt.Sprintf("Created priorityClass %s in host cluster", hostPriorityClassName))
 
 		Expect(hostPriorityClass.Value).To(Equal(priorityClass.Value))
+		Expect(hostPriorityClass.Labels).NotTo(ContainElement("bar"))
+
+		key := client.ObjectKeyFromObject(priorityClass)
+		err = virtTestEnv.k8sClient.Get(ctx, key, priorityClass)
+		Expect(err).NotTo(HaveOccurred())
+
+		priorityClass.Labels = map[string]string{"foo": "bar"}
+
+		// update virtual priorityClass
+		err = virtTestEnv.k8sClient.Update(ctx, priorityClass)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(priorityClass.Labels).To(ContainElement("bar"))
+
+		// check hostPriorityClass
+		Eventually(func() map[string]string {
+			key := client.ObjectKey{Name: hostPriorityClassName}
+			err = hostTestEnv.k8sClient.Get(ctx, key, &hostPriorityClass)
+			Expect(err).NotTo(HaveOccurred())
+			return hostPriorityClass.Labels
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(ContainElement("bar"))
 	})
 
 	It("deletes a priorityClass on the host cluster", func() {

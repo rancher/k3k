@@ -131,6 +131,8 @@ func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.R
 		if !apierrors.IsAlreadyExists(err) {
 			return reconcile.Result{}, err
 		}
+
+		return reconcile.Result{}, r.hostClient.Update(ctx, hostPriorityClass)
 	}
 
 	return reconcile.Result{}, nil

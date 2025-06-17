@@ -41,6 +41,7 @@ To see all the available Make commands you can run `make help`, i.e:
   test                           Run all the tests
   test-unit                      Run the unit tests (skips the e2e)
   test-controller                Run the controller tests (pkg/controller)
+  test-kubelet-controller        Run the controller tests (pkg/controller)
   test-e2e                       Run the e2e tests
   generate                       Generate the CRDs specs
   docs                           Build the CRDs and CLI docs

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -12,11 +13,15 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
+	PriorityClassGlobalDefaultAnnotation = "priorityclass.k3k.io/globalDefault"
+
 	priorityClassControllerName = "priorityclass-syncer-controller"
 	priorityClassFinalizerName  = "priorityclass.k3k.io/finalizer"
 )
@@ -54,7 +59,24 @@ func AddPriorityClassReconciler(ctx context.Context, virtMgr, hostMgr manager.Ma
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(priorityClassControllerName).
 		For(&schedulingv1.PriorityClass{}).
+		WithEventFilter(ignoreSystemPrefixPredicate).
 		Complete(&reconciler)
+}
+
+// IgnoreSystemPrefixPredicate filters out resources whose names start with "system-".
+var ignoreSystemPrefixPredicate = predicate.Funcs{
+	UpdateFunc: func(e event.UpdateEvent) bool {
+		return !strings.HasPrefix(e.ObjectOld.GetName(), "system-")
+	},
+	CreateFunc: func(e event.CreateEvent) bool {
+		return !strings.HasPrefix(e.Object.GetName(), "system-")
+	},
+	DeleteFunc: func(e event.DeleteEvent) bool {
+		return !strings.HasPrefix(e.Object.GetName(), "system-")
+	},
+	GenericFunc: func(e event.GenericEvent) bool {
+		return !strings.HasPrefix(e.Object.GetName(), "system-")
+	},
 }
 
 func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -104,12 +126,28 @@ func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.R
 	// create the priorityClass on the host
 	log.Info("creating the priorityClass for the first time on the host cluster")
 
-	return reconcile.Result{}, ctrlruntimeclient.IgnoreAlreadyExists(r.hostClient.Create(ctx, hostPriorityClass))
+	err := r.hostClient.Create(ctx, hostPriorityClass)
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return reconcile.Result{}, err
+		}
+	}
+
+	return reconcile.Result{}, nil
 }
 
 func (r *PriorityClassReconciler) translatePriorityClass(priorityClass schedulingv1.PriorityClass) *schedulingv1.PriorityClass {
 	hostPriorityClass := priorityClass.DeepCopy()
 	r.Translator.TranslateTo(hostPriorityClass)
+
+	if hostPriorityClass.Annotations == nil {
+		hostPriorityClass.Annotations = make(map[string]string)
+	}
+
+	if hostPriorityClass.GlobalDefault {
+		hostPriorityClass.GlobalDefault = false
+		hostPriorityClass.Annotations[PriorityClassGlobalDefaultAnnotation] = "true"
+	}
 
 	return hostPriorityClass
 }

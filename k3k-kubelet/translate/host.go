@@ -2,7 +2,7 @@ package translate
 
 import (
 	"encoding/hex"
-	"fmt"
+	"strings"
 
 	"github.com/rancher/k3k/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -99,14 +99,26 @@ func (t *ToHostTranslator) TranslateFrom(obj client.Object) {
 
 // TranslateName returns the name of the resource in the host cluster. Will not update the object with this name.
 func (t *ToHostTranslator) TranslateName(namespace string, name string) string {
+	var names []string
+
+	// some resources are not namespaced (i.e. priorityclasses)
+	/// for these resources we skip the namespace to avoid having a name like: prioritclass--cluster-123
+	if namespace == "" {
+		names = []string{name, t.ClusterName}
+	} else {
+		names = []string{name, namespace, t.ClusterName}
+	}
+
 	// we need to come up with a name which is:
 	// - somewhat connectable to the original resource
 	// - a valid k8s name
 	// - idempotently calculatable
 	// - unique for this combination of name/namespace/cluster
-	namePrefix := fmt.Sprintf("%s-%s-%s", name, namespace, t.ClusterName)
+
+	namePrefix := strings.Join(names, "-")
+
 	// use + as a separator since it can't be in an object name
-	nameKey := fmt.Sprintf("%s+%s+%s", name, namespace, t.ClusterName)
+	nameKey := strings.Join(names, "+")
 	// it's possible that the suffix will be in the name, so we use hex to make it valid for k8s
 	nameSuffix := hex.EncodeToString([]byte(nameKey))
 

@@ -9,7 +9,6 @@ k3kcli
 ```
 [--debug]
 [--kubeconfig]=[value]
-[--namespace|-n]=[value]
 ```
 
 **Usage**:
@@ -23,8 +22,6 @@ k3kcli [GLOBAL OPTIONS] command [COMMAND OPTIONS] [ARGUMENTS...]
 **--debug**: Turn on debug logs
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
-
-**--namespace, -n**="": namespace to create the k3k cluster in
 
 
 # COMMANDS
@@ -55,7 +52,7 @@ Create new cluster
 
 **--mode**="": k3k mode type (shared, virtual) (default: "shared")
 
-**--namespace, -n**="": namespace to create the k3k cluster in
+**--namespace, -n**="": namespace of the k3k cluster
 
 **--persistence-type**="": persistence mode for the nodes (dynamic, ephemeral, static) (default: "dynamic")
 
@@ -87,7 +84,7 @@ Delete an existing cluster
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
-**--namespace, -n**="": namespace to create the k3k cluster in
+**--namespace, -n**="": namespace of the k3k cluster
 
 ### list
 
@@ -99,7 +96,7 @@ List all the existing cluster
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
-**--namespace, -n**="": namespace to create the k3k cluster in
+**--namespace, -n**="": namespace of the k3k cluster
 
 ## policy
 
@@ -117,8 +114,6 @@ Create new policy
 
 **--mode**="": The allowed mode type of the policy (default: "shared")
 
-**--namespace, -n**="": namespace to create the k3k cluster in
-
 ### delete
 
 Delete an existing policy
@@ -129,8 +124,6 @@ Delete an existing policy
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
 
-**--namespace, -n**="": namespace to create the k3k cluster in
-
 ### list
 
 List all the existing policies
@@ -140,8 +133,6 @@ List all the existing policies
 **--debug**: Turn on debug logs
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)
-
-**--namespace, -n**="": namespace to create the k3k cluster in
 
 ## kubeconfig
 
@@ -167,6 +158,6 @@ Generate kubeconfig for clusters
 
 **--name**="": cluster name
 
-**--namespace, -n**="": namespace to create the k3k cluster in
+**--namespace, -n**="": namespace of the k3k cluster
 
 **--org**="": Organization name (ORG) of the generated certificates for the kubeconfig

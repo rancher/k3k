@@ -31,6 +31,7 @@ func NewApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "k3kcli"
 	app.Usage = "CLI for K3K"
+	app.Flags = CommonFlags(appCtx)
 
 	app.Before = func(clx *cli.Context) error {
 		if appCtx.Debug {

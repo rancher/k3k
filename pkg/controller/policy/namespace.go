@@ -65,7 +65,23 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 			} else {
 				sel := labels.NewSelector().Add(*requirement)
 				deleteOpts = append(deleteOpts, client.MatchingLabelsSelector{Selector: sel})
+
+				log.Info("requirement created", "sel", sel.String())
 			}
+		}
+
+		var policies v1alpha1.VirtualClusterPolicyList
+		if err := c.Client.List(ctx, &policies,
+			client.InNamespace(ns.Name),
+			client.MatchingLabels{ManagedByLabelKey: VirtualPolicyControllerName},
+		); err != nil {
+			return err
+		}
+
+		log.Info("getting policies to delete")
+
+		for _, policy := range policies.Items {
+			log.Info("policy to delete: " + policy.Name)
 		}
 
 		if err := c.Client.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, deleteOpts...); err != nil {

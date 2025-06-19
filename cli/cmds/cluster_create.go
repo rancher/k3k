@@ -41,14 +41,17 @@ type CreateConfig struct {
 
 func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
 	createConfig := &CreateConfig{}
-	createFlags := NewCreateFlags(createConfig)
+
+	flags := CommonFlags(appCtx)
+	flags = append(flags, FlagNamespace(appCtx))
+	flags = append(flags, newCreateFlags(createConfig)...)
 
 	return &cli.Command{
 		Name:            "create",
 		Usage:           "Create new cluster",
 		UsageText:       "k3kcli cluster create [command options] NAME",
 		Action:          createAction(appCtx, createConfig),
-		Flags:           WithCommonFlags(appCtx, createFlags...),
+		Flags:           flags,
 		HideHelpCommand: true,
 	}
 }

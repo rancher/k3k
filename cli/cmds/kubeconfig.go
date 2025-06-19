@@ -23,14 +23,17 @@ import (
 )
 
 var (
-	name                    string
-	cn                      string
-	org                     cli.StringSlice
-	altNames                cli.StringSlice
-	expirationDays          int64
-	configName              string
-	kubeconfigServerHost    string
-	generateKubeconfigFlags = []cli.Flag{
+	name                 string
+	cn                   string
+	org                  cli.StringSlice
+	altNames             cli.StringSlice
+	expirationDays       int64
+	configName           string
+	kubeconfigServerHost string
+)
+
+func newGenerateKubeconfigFlags(appCtx *AppContext) []cli.Flag {
+	return []cli.Flag{
 		&cli.StringFlag{
 			Name:        "name",
 			Usage:       "cluster name",
@@ -70,7 +73,7 @@ var (
 			Value:       "",
 		},
 	}
-)
+}
 
 func NewKubeconfigCmd(appCtx *AppContext) *cli.Command {
 	return &cli.Command{
@@ -83,12 +86,16 @@ func NewKubeconfigCmd(appCtx *AppContext) *cli.Command {
 }
 
 func NewKubeconfigGenerateCmd(appCtx *AppContext) *cli.Command {
+	flags := CommonFlags(appCtx)
+	flags = append(flags, FlagNamespace(appCtx))
+	flags = append(flags, newGenerateKubeconfigFlags(appCtx)...)
+
 	return &cli.Command{
 		Name:            "generate",
 		Usage:           "Generate kubeconfig for clusters",
 		SkipFlagParsing: false,
 		Action:          generate(appCtx),
-		Flags:           WithCommonFlags(appCtx, generateKubeconfigFlags...),
+		Flags:           flags,
 	}
 }
 

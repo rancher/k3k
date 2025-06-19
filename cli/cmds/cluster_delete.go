@@ -20,16 +20,22 @@ import (
 var keepData bool
 
 func NewClusterDeleteCmd(appCtx *AppContext) *cli.Command {
-	return &cli.Command{
-		Name:      "delete",
-		Usage:     "Delete an existing cluster",
-		UsageText: "k3kcli cluster delete [command options] NAME",
-		Action:    delete(appCtx),
-		Flags: WithCommonFlags(appCtx, &cli.BoolFlag{
+	flags := CommonFlags(appCtx)
+	flags = append(flags, FlagNamespace(appCtx))
+	flags = append(flags,
+		&cli.BoolFlag{
 			Name:        "keep-data",
 			Usage:       "keeps persistence volumes created for the cluster after deletion",
 			Destination: &keepData,
-		}),
+		},
+	)
+
+	return &cli.Command{
+		Name:            "delete",
+		Usage:           "Delete an existing cluster",
+		UsageText:       "k3kcli cluster delete [command options] NAME",
+		Action:          delete(appCtx),
+		Flags:           flags,
 		HideHelpCommand: true,
 	}
 }

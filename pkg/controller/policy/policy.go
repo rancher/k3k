@@ -66,7 +66,6 @@ func namespaceEventHandler() handler.Funcs {
 			if ns.Labels[PolicyNameLabelKey] != "" {
 				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.Labels[PolicyNameLabelKey]}})
 			}
-
 		},
 		// When a Namespace is updated, if it has the "policy.k3k.io/policy-name" label
 		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {

@@ -31,7 +31,7 @@ func NewApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "k3kcli"
 	app.Usage = "CLI for K3K"
-	app.Flags = WithCommonFlags(appCtx)
+	app.Flags = CommonFlags(appCtx)
 
 	app.Before = func(clx *cli.Context) error {
 		if appCtx.Debug {
@@ -94,27 +94,36 @@ func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
 	return kubeConfig.ClientConfig()
 }
 
-func WithCommonFlags(appCtx *AppContext, flags ...cli.Flag) []cli.Flag {
-	commonFlags := []cli.Flag{
-		&cli.BoolFlag{
-			Name:        "debug",
-			Usage:       "Turn on debug logs",
-			Destination: &appCtx.Debug,
-			EnvVars:     []string{"K3K_DEBUG"},
-		},
-		&cli.StringFlag{
-			Name:        "kubeconfig",
-			Usage:       "kubeconfig path",
-			Destination: &appCtx.Kubeconfig,
-			DefaultText: "$HOME/.kube/config or $KUBECONFIG if set",
-		},
-		&cli.StringFlag{
-			Name:        "namespace",
-			Usage:       "namespace to create the k3k cluster in",
-			Aliases:     []string{"n"},
-			Destination: &appCtx.namespace,
-		},
+func CommonFlags(appCtx *AppContext) []cli.Flag {
+	return []cli.Flag{
+		FlagDebug(appCtx),
+		FlagKubeconfig(appCtx),
 	}
+}
 
-	return append(commonFlags, flags...)
+func FlagDebug(appCtx *AppContext) *cli.BoolFlag {
+	return &cli.BoolFlag{
+		Name:        "debug",
+		Usage:       "Turn on debug logs",
+		Destination: &appCtx.Debug,
+		EnvVars:     []string{"K3K_DEBUG"},
+	}
+}
+
+func FlagKubeconfig(appCtx *AppContext) *cli.StringFlag {
+	return &cli.StringFlag{
+		Name:        "kubeconfig",
+		Usage:       "kubeconfig path",
+		Destination: &appCtx.Kubeconfig,
+		DefaultText: "$HOME/.kube/config or $KUBECONFIG if set",
+	}
+}
+
+func FlagNamespace(appCtx *AppContext) *cli.StringFlag {
+	return &cli.StringFlag{
+		Name:        "namespace",
+		Usage:       "namespace of the k3k cluster",
+		Aliases:     []string{"n"},
+		Destination: &appCtx.namespace,
+	}
 }

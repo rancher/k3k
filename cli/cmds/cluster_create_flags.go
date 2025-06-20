@@ -7,7 +7,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func NewCreateFlags(config *CreateConfig) []cli.Flag {
+func newCreateFlags(config *CreateConfig) []cli.Flag {
 	return []cli.Flag{
 		&cli.IntFlag{
 			Name:        "servers",

@@ -12,12 +12,15 @@ import (
 )
 
 func NewClusterListCmd(appCtx *AppContext) *cli.Command {
+	flags := CommonFlags(appCtx)
+	flags = append(flags, FlagNamespace(appCtx))
+
 	return &cli.Command{
 		Name:            "list",
 		Usage:           "List all the existing cluster",
 		UsageText:       "k3kcli cluster list [command options]",
 		Action:          list(appCtx),
-		Flags:           WithCommonFlags(appCtx),
+		Flags:           flags,
 		HideHelpCommand: true,
 	}
 }

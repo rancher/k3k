@@ -22,7 +22,8 @@ type VirtualClusterPolicyCreateConfig struct {
 func NewPolicyCreateCmd(appCtx *AppContext) *cli.Command {
 	config := &VirtualClusterPolicyCreateConfig{}
 
-	createFlags := []cli.Flag{
+	flags := CommonFlags(appCtx)
+	flags = append(flags,
 		&cli.StringFlag{
 			Name:        "mode",
 			Usage:       "The allowed mode type of the policy",
@@ -37,14 +38,14 @@ func NewPolicyCreateCmd(appCtx *AppContext) *cli.Command {
 				}
 			},
 		},
-	}
+	)
 
 	return &cli.Command{
 		Name:            "create",
 		Usage:           "Create new policy",
 		UsageText:       "k3kcli policy create [command options] NAME",
 		Action:          policyCreateAction(appCtx, config),
-		Flags:           WithCommonFlags(appCtx, createFlags...),
+		Flags:           flags,
 		HideHelpCommand: true,
 	}
 }

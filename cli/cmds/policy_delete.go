@@ -2,14 +2,11 @@ package cmds
 
 import (
 	"context"
-	"errors"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func NewPolicyDeleteCmd(appCtx *AppContext) *cli.Command {
@@ -18,7 +15,7 @@ func NewPolicyDeleteCmd(appCtx *AppContext) *cli.Command {
 		Usage:           "Delete an existing policy",
 		UsageText:       "k3kcli policy delete [command options] NAME",
 		Action:          policyDeleteAction(appCtx),
-		Flags:           WithCommonFlags(appCtx),
+		Flags:           CommonFlags(appCtx),
 		HideHelpCommand: true,
 	}
 }
@@ -33,24 +30,13 @@ func policyDeleteAction(appCtx *AppContext) cli.ActionFunc {
 		}
 
 		name := clx.Args().First()
-		if name == k3kcluster.ClusterInvalidName {
-			return errors.New("invalid cluster name")
-		}
 
-		namespace := appCtx.Namespace(name)
-
-		logrus.Infof("Deleting policy in namespace [%s]", namespace)
-
-		policy := &v1alpha1.VirtualClusterPolicy{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: namespace,
-			},
-		}
+		policy := &v1alpha1.VirtualClusterPolicy{}
+		policy.Name = name
 
 		if err := client.Delete(ctx, policy); err != nil {
 			if apierrors.IsNotFound(err) {
-				logrus.Warnf("Policy not found in namespace [%s]", namespace)
+				logrus.Warnf("Policy not found")
 			} else {
 				return err
 			}

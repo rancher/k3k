@@ -5,6 +5,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/urfave/cli/v2"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func newCreateFlags(config *CreateConfig) []cli.Flag {
@@ -59,6 +60,17 @@ func newCreateFlags(config *CreateConfig) []cli.Flag {
 			Name:        "storage-class-name",
 			Usage:       "storage class name for dynamic persistence type",
 			Destination: &config.storageClassName,
+		},
+		&cli.StringFlag{
+			Name:        "storage-request-size",
+			Usage:       "storage size for dynamic persistence type",
+			Destination: &config.storageRequestSize,
+			Action: func(ctx *cli.Context, value string) error {
+				if _, err := resource.ParseQuantity(value); err != nil {
+					return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
+				}
+				return nil
+			},
 		},
 		&cli.StringSliceFlag{
 			Name:        "server-args",

@@ -11,6 +11,7 @@ import (
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:JSONPath=".spec.mode",name=Mode,type=string
+// +kubebuilder:printcolumn:JSONPath=".status.policyName",name=Policy,type=string
 
 // Cluster defines a virtual Kubernetes cluster managed by k3k.
 // It specifies the desired state of a virtual cluster, including version, node configuration, and networking.
@@ -316,6 +317,11 @@ type ClusterStatus struct {
 	//
 	// +optional
 	Persistence PersistenceConfig `json:"persistence,omitempty"`
+
+	// PolicyName specifies the virtual cluster policy name bound to the virtual cluster.
+	//
+	// +optional
+	PolicyName string `json:"policyName,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

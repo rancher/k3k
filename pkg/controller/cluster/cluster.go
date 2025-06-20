@@ -15,6 +15,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	"github.com/rancher/k3k/pkg/controller/policy"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -24,11 +25,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlruntimecontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -84,12 +87,45 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Cluster{}).
-		WithOptions(ctrlruntimecontroller.Options{
-			MaxConcurrentReconciles: maxConcurrentReconciles,
-		}).
+		Watches(&v1.Namespace{}, namespaceEventHandler(&reconciler)).
 		Owns(&apps.StatefulSet{}).
 		Owns(&v1.Service{}).
 		Complete(&reconciler)
+}
+
+func namespaceEventHandler(r *ClusterReconciler) handler.Funcs {
+	return handler.Funcs{
+		// We don't need to update for create or delete events
+		CreateFunc: func(context.Context, event.CreateEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {},
+		DeleteFunc: func(context.Context, event.DeleteEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {},
+		// When a Namespace is updated, if it has the "policy.k3k.io/policy-name" label
+		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+			oldNs, okOld := e.ObjectOld.(*v1.Namespace)
+			newNs, okNew := e.ObjectNew.(*v1.Namespace)
+
+			if !okOld || !okNew {
+				return
+			}
+
+			oldVCPName := oldNs.Labels[policy.PolicyNameLabelKey]
+			newVCPName := newNs.Labels[policy.PolicyNameLabelKey]
+
+			// If policy hasn't changed we can skip the reconciliation
+			if oldVCPName == newVCPName {
+				return
+			}
+
+			// Enqueue all the Cluster in the namespace
+			var clusterList v1alpha1.ClusterList
+			if err := r.Client.List(ctx, &clusterList, client.InNamespace(oldNs.Name)); err != nil {
+				return
+			}
+
+			for _, cluster := range clusterList.Items {
+				q.Add(reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&cluster)})
+			}
+		},
+	}
 }
 
 func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -214,6 +250,14 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		}
 	}
 
+	var ns v1.Namespace
+	if err := c.Client.Get(ctx, client.ObjectKey{Name: cluster.Namespace}, &ns); err != nil {
+		return err
+	}
+
+	policyName := ns.Labels[policy.PolicyNameLabelKey]
+	cluster.Status.PolicyName = policyName
+
 	if err := c.ensureNetworkPolicy(ctx, cluster); err != nil {
 		return err
 	}
@@ -319,6 +363,20 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1alpha1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring network policy")
+
+	networkPolicyName := k3kcontroller.SafeConcatNameWithPrefix(cluster.Name)
+
+	// network policies are managed by the Policy -> delete the one created as a standalone cluster
+	if cluster.Status.PolicyName != "" {
+		netpol := &networkingv1.NetworkPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      networkPolicyName,
+				Namespace: cluster.Namespace,
+			},
+		}
+
+		return ctrlruntimeclient.IgnoreNotFound(c.Client.Delete(ctx, netpol))
+	}
 
 	expectedNetworkPolicy := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{

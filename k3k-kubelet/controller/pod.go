@@ -5,7 +5,6 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,7 +12,6 @@ import (
 	"k8s.io/component-helpers/storage/volume"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -24,44 +22,44 @@ const (
 )
 
 type PodReconciler struct {
-	virtualClient    ctrlruntimeclient.Client
-	hostClient       ctrlruntimeclient.Client
 	clusterName      string
 	clusterNamespace string
-	Scheme           *runtime.Scheme
-	HostScheme       *runtime.Scheme
-	logger           *log.Logger
-	Translator       translate.ToHostTranslator
+
+	virtualClient ctrlruntimeclient.Client
+	hostClient    ctrlruntimeclient.Client
+	Scheme        *runtime.Scheme
+	HostScheme    *runtime.Scheme
+	Translator    translate.ToHostTranslator
 }
 
 // AddPodPVCController adds pod controller to k3k-kubelet
-func AddPodPVCController(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, logger *log.Logger) error {
+func AddPodPVCController(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	translator := translate.ToHostTranslator{
 		ClusterName:      clusterName,
 		ClusterNamespace: clusterNamespace,
 	}
+
 	// initialize a new Reconciler
 	reconciler := PodReconciler{
-		virtualClient:    virtMgr.GetClient(),
-		hostClient:       hostMgr.GetClient(),
-		Scheme:           virtMgr.GetScheme(),
-		HostScheme:       hostMgr.GetScheme(),
-		logger:           logger.Named(podController),
-		Translator:       translator,
 		clusterName:      clusterName,
 		clusterNamespace: clusterNamespace,
+
+		virtualClient: virtMgr.GetClient(),
+		hostClient:    hostMgr.GetClient(),
+		Scheme:        virtMgr.GetScheme(),
+		HostScheme:    hostMgr.GetScheme(),
+		Translator:    translator,
 	}
 
 	return ctrl.NewControllerManagedBy(virtMgr).
+		Named(podController).
 		For(&v1.Pod{}).
-		WithOptions(controller.Options{
-			MaxConcurrentReconciles: maxConcurrentReconciles,
-		}).
 		Complete(&reconciler)
 }
 
 func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.clusterName, "clusterNamespace", r.clusterNamespace)
+	ctx = ctrl.LoggerInto(ctx, log)
 
 	var (
 		virtPod v1.Pod
@@ -72,7 +70,6 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		return reconcile.Result{}, err
 	}
 
-	// handling pod
 	if err := r.virtualClient.Get(ctx, req.NamespacedName, &virtPod); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
@@ -95,6 +92,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 // and then created on the host, the PV is not synced to the host cluster.
 func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pvcSource *v1.PersistentVolumeClaimVolumeSource) error {
 	log := ctrl.LoggerFrom(ctx).WithValues("PersistentVolumeClaim", pvcSource.ClaimName)
+	ctx = ctrl.LoggerInto(ctx, log)
 
 	var pvc v1.PersistentVolumeClaim
 

@@ -5,14 +5,12 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/log"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -24,44 +22,44 @@ const (
 )
 
 type PVCReconciler struct {
-	virtualClient    ctrlruntimeclient.Client
-	hostClient       ctrlruntimeclient.Client
 	clusterName      string
 	clusterNamespace string
-	Scheme           *runtime.Scheme
-	HostScheme       *runtime.Scheme
-	logger           *log.Logger
-	Translator       translate.ToHostTranslator
+
+	virtualClient ctrlruntimeclient.Client
+	hostClient    ctrlruntimeclient.Client
+	Scheme        *runtime.Scheme
+	HostScheme    *runtime.Scheme
+	Translator    translate.ToHostTranslator
 }
 
 // AddPVCSyncer adds persistentvolumeclaims syncer controller to k3k-kubelet
-func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, logger *log.Logger) error {
+func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	translator := translate.ToHostTranslator{
 		ClusterName:      clusterName,
 		ClusterNamespace: clusterNamespace,
 	}
+
 	// initialize a new Reconciler
 	reconciler := PVCReconciler{
-		virtualClient:    virtMgr.GetClient(),
-		hostClient:       hostMgr.GetClient(),
-		Scheme:           virtMgr.GetScheme(),
-		HostScheme:       hostMgr.GetScheme(),
-		logger:           logger.Named(pvcController),
-		Translator:       translator,
 		clusterName:      clusterName,
 		clusterNamespace: clusterNamespace,
+
+		virtualClient: virtMgr.GetClient(),
+		hostClient:    hostMgr.GetClient(),
+		Scheme:        virtMgr.GetScheme(),
+		HostScheme:    hostMgr.GetScheme(),
+		Translator:    translator,
 	}
 
 	return ctrl.NewControllerManagedBy(virtMgr).
+		Named(pvcController).
 		For(&v1.PersistentVolumeClaim{}).
-		WithOptions(controller.Options{
-			MaxConcurrentReconciles: maxConcurrentReconciles,
-		}).
 		Complete(&reconciler)
 }
 
 func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := r.logger.With("Cluster", r.clusterName, "PersistentVolumeClaim", req.NamespacedName)
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.clusterName, "clusterNamespace", r.clusterNamespace)
+	ctx = ctrl.LoggerInto(ctx, log)
 
 	var (
 		virtPVC v1.PersistentVolumeClaim
@@ -72,7 +70,6 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		return reconcile.Result{}, err
 	}
 
-	// handling persistent volume sync
 	if err := r.virtualClient.Get(ctx, req.NamespacedName, &virtPVC); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}

@@ -59,10 +59,14 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 	// we need to manually lock/unlock since we intned on write locking to add a new controller
 	c.RUnlock()
 
-	var r updateableReconciler
+	var (
+		r              updateableReconciler
+		controllerName string
+	)
 
 	switch obj.(type) {
 	case *v1.Secret:
+		controllerName = "secrets-syncer-controller"
 		r = &SecretSyncer{
 			HostClient:    c.HostClient,
 			VirtualClient: c.VirtualClient,
@@ -80,6 +84,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 			Logger: c.Logger,
 		}
 	case *v1.ConfigMap:
+		controllerName = "configmap-syncer-controller"
 		r = &ConfigMapSyncer{
 			HostClient:    c.HostClient,
 			VirtualClient: c.VirtualClient,
@@ -97,6 +102,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 	}
 
 	err := ctrl.NewControllerManagedBy(c.Mgr).
+		Named(controllerName).
 		For(&v1.ConfigMap{}).
 		Complete(r)
 

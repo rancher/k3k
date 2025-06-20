@@ -57,7 +57,7 @@ func Add(mgr manager.Manager, clusterCIDR string) error {
 func namespaceEventHandler() handler.Funcs {
 	return handler.Funcs{
 		// When a Namespace is created, if it has the "policy.k3k.io/policy-name" label
-		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
+		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			ns, ok := e.Object.(*v1.Namespace)
 			if !ok {
 				return
@@ -69,7 +69,7 @@ func namespaceEventHandler() handler.Funcs {
 
 		},
 		// When a Namespace is updated, if it has the "policy.k3k.io/policy-name" label
-		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			oldNs, okOld := e.ObjectOld.(*v1.Namespace)
 			newNs, okNew := e.ObjectNew.(*v1.Namespace)
 
@@ -108,7 +108,7 @@ func namespaceEventHandler() handler.Funcs {
 		},
 		// When a namespace is deleted all the resources in the namespace are deleted
 		// but we trigger the reconciliation to eventually perform some cluster-wide cleanup if necessary
-		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.RateLimitingInterface) {
+		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			ns, ok := e.Object.(*v1.Namespace)
 			if !ok {
 				return
@@ -125,7 +125,7 @@ func namespaceEventHandler() handler.Funcs {
 // This happens only if the ClusterCIDR is NOT specified, to handle the PodCIDRs in the NetworkPolicies.
 func nodeEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 	// enqueue all the available VirtualClusterPolicies
-	enqueueAllVCPs := func(ctx context.Context, q workqueue.RateLimitingInterface) {
+	enqueueAllVCPs := func(ctx context.Context, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 		vcpList := &v1alpha1.VirtualClusterPolicyList{}
 		if err := r.Client.List(ctx, vcpList); err != nil {
 			return
@@ -137,14 +137,14 @@ func nodeEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 	}
 
 	return handler.Funcs{
-		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
+		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			if r.ClusterCIDR != "" {
 				return
 			}
 
 			enqueueAllVCPs(ctx, q)
 		},
-		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			if r.ClusterCIDR != "" {
 				return
 			}
@@ -170,7 +170,7 @@ func nodeEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 				enqueueAllVCPs(ctx, q)
 			}
 		},
-		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.RateLimitingInterface) {
+		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			if r.ClusterCIDR != "" {
 				return
 			}
@@ -189,7 +189,7 @@ func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 
 	return handler.Funcs{
 		// When a Cluster is created, if its Namespace has the "policy.k3k.io/policy-name" label
-		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
+		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			cluster, ok := e.Object.(*v1alpha1.Cluster)
 			if !ok {
 				return
@@ -206,7 +206,7 @@ func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 		},
 		// When a Cluster is updated, if its Namespace has the "policy.k3k.io/policy-name" label
 		// and if some of its spec influenced by the policy changed
-		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			oldCluster, okOld := e.ObjectOld.(*v1alpha1.Cluster)
 			newCluster, okNew := e.ObjectNew.(*v1alpha1.Cluster)
 
@@ -238,7 +238,8 @@ func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 			}
 		},
 		// When a Cluster is deleted -> nothing to do
-		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.RateLimitingInterface) {},
+		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+		},
 	}
 }
 

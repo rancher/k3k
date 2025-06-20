@@ -1,12 +1,10 @@
-# How to: Troubleshoot K3K
+# Troubleshooting
 
 This guide walks through common troubleshooting steps for working with K3K virtual clusters.
 
 ---
 
-## Virtual Cluster Fails with “too many open files” Error
-
-### Symptom
+## `too many open files` error
 
 The `k3k-kubelet` or `k3kcluster-server-` run into the following issue:  
 
@@ -17,9 +15,7 @@ E0604 13:14:53.369369       1 leaderelection.go:336] error initially creating le
 
 This typically indicates a low limit on inotify watchers or file descriptors on the host system.
 
-### Solution: Adjust Host System Settings
-
-Connect to the host nodes and increase inotify limits:
+To increase the inotify limits connect to the host nodes and run:
 
 ```sh
 sudo sysctl -w fs.inotify.max_user_watches=2099999999
@@ -62,7 +58,7 @@ This retrieves logs from K3k controller components.
 To view logs for a failed virtual cluster:
 
 ```sh
-kubectl logs -n k3k-<cluster_name> -l cluster=<cluster_name>
+kubectl logs -n <cluster_namespace> -l cluster=<cluster_name>
 ```
 
 This retrieves logs from K3k cluster components (`agents, server and virtual-kubelet`).
@@ -73,46 +69,79 @@ This retrieves logs from K3k cluster components (`agents, server and virtual-kub
 
 ## Virtual Cluster Not Starting or Stuck in Pending
 
-### Common Causes
+Some of the most common causes are related to missing prerequisites or wrong configuration.
 
-- Storage class not available
-- Insufficient node resources
-- Wrong node selector
-- Image pull issues (airgapped setup)
+### Storage class not available
 
-### Solution
+When creating a Virtual Cluster with `dynamic` persistence, a PVC is needed. You can check if the PVC was claimed but not bound with `kubectl get pvc -n <cluster_namespace>`. If you see a pending PVC you probably don't have a default storage class defined, or you have specified a wrong one.
 
-Check the associated pods in the K3K system namespace:
+#### Example with wrong storage class
 
-```sh
-kubectl get pods -n <cluster_namespace>
-kubectl describe pod <pod-name> -n k3k-system
+The `pvc` is pending:
+
+```bash
+kubectl get pvc -n k3k-test-storage
+NAME                                         STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS    VOLUMEATTRIBUTESCLASS   AGE
+varlibrancherk3s-k3k-test-storage-server-0   Pending                                      not-available   <unset>                 4s
 ```
 
-Look for events like `FailedScheduling`, `ImagePullBackOff`, or `VolumeBindingFailed`.
+The `server` is pending:
 
----
-
-## Troubleshoot Cluster Networking Issues
-
-If the virtual cluster cannot reach external services or internal DNS isn't resolving, inspect CNI setup and DNS.
-
-```sh
-kubectl exec -n k3k-system <pod-name> -- nslookup kubernetes.default
-kubectl get pods -n kube-system -l k8s-app=kube-dns
+```bash
+kubectl get po -n k3k-test-storage
+NAME                             READY   STATUS    RESTARTS   AGE
+k3k-test-storage-kubelet-j4zn5   1/1     Running   0          54s
+k3k-test-storage-server-0        0/1     Pending   0          54s
 ```
 
-Ensure CNI and DNS pods are healthy and check for network policies blocking traffic.
+To fix this you should use a valid storage class, you can list existing storage class using:
 
----
-
-## Inspect Cluster Resource Usage
-
-Virtual clusters may fail silently if resource quotas or limits are exceeded.
-
-```sh
-kubectl get resourcequotas -n <cluster_namespace>
-kubectl describe node
+```bash
+kubectl get storageclasses.storage.k8s.io
+NAME                   PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+local-path (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  3d6h
 ```
 
-This helps identify memory, CPU, or disk exhaustion.
+### Wrong node selector
+
+When creating a Virtual Cluster with `defaultNodeSelector`, if the selector is not valid all pods will be pending.
+
+#### Example
+
+The `server` is pending:
+
+```bash
+kubectl get po
+NAME                                  READY   STATUS    RESTARTS   AGE
+k3k-k3kcluster-node-placed-server-0   0/1     Pending   0          58s
+```
+
+The description of the pod provide the reason:
+
+```bash
+kubectl describe po k3k-k3kcluster-node-placed-server-0
+...
+Events:
+  Type     Reason            Age   From               Message
+  ----     ------            ----  ----               -------
+  Warning  FailedScheduling  84s   default-scheduler  0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.
+```
+
+To fix this you should use a valid node affinity/selector.
+
+### Image pull issues (airgapped setup)
+
+When creating a Virtual Cluster in air-gapped environment, images need to be available in the configured registry. You can check for `ImagePullBackOff` status when getting the pods in the virtual cluster namespace.
+
+#### Example
+
+The `server` is failing:
+
+```bash
+kubectl get po -n k3k-test-registry
+NAME                             READY   STATUS          RESTARTS       AGE
+k3k-test-registry-kubelet-r4zh5   1/1     Running            0          54s
+k3k-test-registry-server-0        0/1     ImagePullBackOff   0          54s
+```
+
+To fix this make sure the failing image is available. you can describe the failing pod to get more details.

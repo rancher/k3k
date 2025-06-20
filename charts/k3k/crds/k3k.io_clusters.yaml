@@ -561,6 +561,10 @@ spec:
                 items:
                   type: string
                 type: array
+              virtualClusterPolicy:
+                description: VirtualClusterPolicy specifies the virtual cluster policy
+                  bound to the virtual cluster.
+                type: string
             type: object
         type: object
     served: true

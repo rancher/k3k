@@ -50,9 +50,10 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 	}
 
 	for _, ns := range namespaces.Items {
-		deleteOpts := []client.DeleteAllOfOption{
-			client.InNamespace(ns.Name),
-			client.MatchingLabels{ManagedByLabelKey: VirtualPolicyControllerName},
+		selector := labels.NewSelector()
+
+		if req, err := labels.NewRequirement(ManagedByLabelKey, selection.Equals, []string{VirtualPolicyControllerName}); err == nil {
+			selector = selector.Add(*req)
 		}
 
 		// if the namespace is bound to a policy -> cleanup resources of other policies
@@ -63,25 +64,13 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 			if err != nil {
 				log.Error(err, "error creating requirement", "policy", ns.Labels[PolicyNameLabelKey])
 			} else {
-				sel := labels.NewSelector().Add(*requirement)
-				deleteOpts = append(deleteOpts, client.MatchingLabelsSelector{Selector: sel})
-
-				log.Info("requirement created", "sel", sel.String())
+				selector = selector.Add(*requirement)
 			}
 		}
 
-		var policies v1alpha1.VirtualClusterPolicyList
-		if err := c.Client.List(ctx, &policies,
+		deleteOpts := []client.DeleteAllOfOption{
 			client.InNamespace(ns.Name),
-			client.MatchingLabels{ManagedByLabelKey: VirtualPolicyControllerName},
-		); err != nil {
-			return err
-		}
-
-		log.Info("getting policies to delete")
-
-		for _, policy := range policies.Items {
-			log.Info("policy to delete: " + policy.Name)
+			client.MatchingLabelsSelector{Selector: selector},
 		}
 
 		if err := c.Client.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, deleteOpts...); err != nil {

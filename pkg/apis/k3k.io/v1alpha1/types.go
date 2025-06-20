@@ -316,6 +316,11 @@ type ClusterStatus struct {
 	//
 	// +optional
 	Persistence PersistenceConfig `json:"persistence,omitempty"`
+
+	// VirtualClusterPolicy specifies the virtual cluster policy bound to the virtual cluster.
+	//
+	// +optional
+	VirtualClusterPolicy string `json:"virtualClusterPolicy,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

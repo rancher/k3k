@@ -66,7 +66,9 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 			Usage:       "storage size for dynamic persistence type",
 			Destination: &config.storageRequestSize,
 			Action: func(ctx *cli.Context, value string) error {
-				_, err := resource.ParseQuantity(value)
+				if _, err := resource.ParseQuantity(value); err != nil {
+				  return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`) 
+				}
 				if err != nil {
 					return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
 				}

@@ -54,12 +54,17 @@ func main() {
 			Destination: &cfg.VirtualConfigPath,
 			EnvVars:     []string{"CLUSTER_NAME"},
 		},
-		&cli.StringFlag{
+		&cli.IntFlag{
 			Name:        "kubelet-port",
 			Usage:       "kubelet API port number",
 			Destination: &cfg.KubeletPort,
 			EnvVars:     []string{"SERVER_PORT"},
-			Value:       "10250",
+		},
+		&cli.IntFlag{
+			Name:        "webhook-port",
+			Usage:       "Webhook port number",
+			Destination: &cfg.WebhookPort,
+			EnvVars:     []string{"WEBHOOK_PORT"},
 		},
 		&cli.StringFlag{
 			Name:        "service-name",
@@ -99,7 +104,7 @@ func main() {
 			EnvVars:     []string{"DEBUG"},
 		},
 		&cli.BoolFlag{
-			Name:        "mirrorHostNodes",
+			Name:        "mirror-host-nodes",
 			Usage:       "Mirror real node objects from host cluster",
 			Destination: &cfg.MirrorHostNodes,
 			EnvVars:     []string{"MIRROR_HOST_NODES"},

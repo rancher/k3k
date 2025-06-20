@@ -540,6 +540,10 @@ spec:
               hostVersion:
                 description: HostVersion is the Kubernetes version of the host node.
                 type: string
+              kubeletPort:
+                description: KubeletPort specefies the port used by k3k-kubelet in
+                  shared mode.
+                type: integer
               persistence:
                 description: Persistence specifies options for persisting etcd data.
                 properties:
@@ -573,6 +577,10 @@ spec:
                 items:
                   type: string
                 type: array
+              webhookPort:
+                description: WebhookPort specefies the port used by webhook in k3k-kubelet
+                  in shared mode.
+                type: integer
             type: object
         type: object
     served: true

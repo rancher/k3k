@@ -328,6 +328,16 @@ type ClusterStatus struct {
 	//
 	// +optional
 	PolicyName string `json:"policyName,omitempty"`
+
+	// KubeletPort specefies the port used by k3k-kubelet in shared mode.
+	//
+	// +optional
+	KubeletPort int `json:"kubeletPort,omitempty"`
+
+	// WebhookPort specefies the port used by webhook in k3k-kubelet in shared mode.
+	//
+	// +optional
+	WebhookPort int `json:"webhookPort,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

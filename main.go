@@ -33,6 +33,8 @@ var (
 	kubeconfig                 string
 	k3SImage                   string
 	k3SImagePullPolicy         string
+	kubeletPortRange           string
+	webhookPortRange           string
 	debug                      bool
 	logger                     *log.Logger
 	flags                      = []cli.Flag{
@@ -60,6 +62,20 @@ var (
 			EnvVars:     []string{"SHARED_AGENT_PULL_POLICY"},
 			Usage:       "K3K Virtual Kubelet image pull policy must be one of Always, IfNotPresent or Never",
 			Destination: &sharedAgentImagePullPolicy,
+		},
+		&cli.StringFlag{
+			Name:        "kubelet-port-range",
+			EnvVars:     []string{"KUBELET_PORT_RANGE"},
+			Usage:       "Port Range for k3k kubelet in shared mode",
+			Destination: &kubeletPortRange,
+			Value:       "50000-51000",
+		},
+		&cli.StringFlag{
+			Name:        "webhook-port-range",
+			EnvVars:     []string{"WEBHOOK_PORT_RANGE"},
+			Usage:       "Port Range for k3k kubelet webhook in shared mode",
+			Destination: &webhookPortRange,
+			Value:       "51001-52000",
 		},
 		&cli.BoolFlag{
 			Name:        "debug",
@@ -130,7 +146,7 @@ func run(clx *cli.Context) error {
 
 	logger.Info("adding cluster controller")
 
-	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage, k3SImagePullPolicy); err != nil {
+	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage, k3SImagePullPolicy, kubeletPortRange, webhookPortRange); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 

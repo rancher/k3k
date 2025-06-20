@@ -27,6 +27,7 @@ func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servic
 		node.Labels = hostNode.GetLabels()
 		node.Annotations = hostNode.GetAnnotations()
 		node.Finalizers = hostNode.GetFinalizers()
+		node.Status.DaemonEndpoints.KubeletEndpoint.Port = int32(servicePort)
 	} else {
 		node.Status.Conditions = nodeConditions()
 		node.Status.DaemonEndpoints.KubeletEndpoint.Port = int32(servicePort)

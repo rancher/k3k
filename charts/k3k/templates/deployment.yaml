@@ -30,6 +30,14 @@ spec:
             value: {{ .Values.k3sServer.image.repository }}
           - name: K3S_IMAGE_PULL_POLICY
             value: {{ .Values.k3sServer.image.pullPolicy }}
+          - name: KUBELET_PORT_RANGE
+            value: {{ .Values.sharedAgent.kubeletPortRange }}
+          - name: WEBHOOK_PORT_RANGE
+            value: {{ .Values.sharedAgent.webhookPortRange }}
+          - name: CONTROLLER_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
           ports:
           - containerPort: 8080
             name: https

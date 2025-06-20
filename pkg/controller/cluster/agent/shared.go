@@ -34,15 +34,19 @@ type SharedAgent struct {
 	image           string
 	imagePullPolicy string
 	token           string
+	kubeletPort     *int
+	webhookPort     *int
 }
 
-func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string) *SharedAgent {
+func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort, webhookPort *int) *SharedAgent {
 	return &SharedAgent{
 		Config:          config,
 		serviceIP:       serviceIP,
 		image:           image,
 		imagePullPolicy: imagePullPolicy,
 		token:           token,
+		kubeletPort:     kubeletPort,
+		webhookPort:     webhookPort,
 	}
 }
 
@@ -85,7 +89,7 @@ func (s *SharedAgent) ensureObjectWithoutOwner(ctx context.Context, obj ctrlrunt
 }
 
 func (s *SharedAgent) config(ctx context.Context) error {
-	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP)
+	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP, *s.kubeletPort, *s.webhookPort)
 
 	configSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -104,7 +108,7 @@ func (s *SharedAgent) config(ctx context.Context) error {
 	return s.ensureObject(ctx, configSecret)
 }
 
-func sharedAgentData(cluster *v1alpha1.Cluster, serviceName, token, ip string) string {
+func sharedAgentData(cluster *v1alpha1.Cluster, serviceName, token, ip string, kubeletPort, webhookPort int) string {
 	version := cluster.Spec.Version
 	if cluster.Spec.Version == "" {
 		version = cluster.Status.HostVersion
@@ -116,8 +120,10 @@ serverIP: %s
 serviceName: %s
 token: %v
 mirrorHostNodes: %t
-version: %s`,
-		cluster.Name, cluster.Namespace, ip, serviceName, token, cluster.Spec.MirrorHostNodes, version)
+version: %s
+webhookPort: %d
+kubeletPort: %d`,
+		cluster.Name, cluster.Namespace, ip, serviceName, token, cluster.Spec.MirrorHostNodes, version, webhookPort, kubeletPort)
 }
 
 func (s *SharedAgent) daemonset(ctx context.Context) error {
@@ -154,7 +160,15 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 }
 
 func (s *SharedAgent) podSpec() v1.PodSpec {
+	hostNetwork := false
+	dnsPolicy := v1.DNSClusterFirst
+	if s.cluster.Spec.MirrorHostNodes {
+		hostNetwork = true
+		dnsPolicy = v1.DNSClusterFirstWithHostNet
+	}
 	return v1.PodSpec{
+		HostNetwork:        hostNetwork,
+		DNSPolicy:          dnsPolicy,
 		ServiceAccountName: s.Name(),
 		NodeSelector:       s.cluster.Spec.NodeSelector,
 		Volumes: []v1.Volume{
@@ -217,6 +231,15 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 							},
 						},
 					},
+					{
+						Name: "POD_IP",
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "status.podIP",
+							},
+						},
+					},
 				}, s.cluster.Spec.AgentEnvs...),
 				VolumeMounts: []v1.VolumeMount{
 					{
@@ -232,9 +255,14 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 				},
 				Ports: []v1.ContainerPort{
 					{
+						Name:          "kubelet-port",
+						Protocol:      v1.ProtocolTCP,
+						ContainerPort: int32(*s.kubeletPort),
+					},
+					{
 						Name:          "webhook-port",
 						Protocol:      v1.ProtocolTCP,
-						ContainerPort: 9443,
+						ContainerPort: int32(*s.webhookPort),
 					},
 				},
 			},
@@ -263,13 +291,13 @@ func (s *SharedAgent) service(ctx context.Context) error {
 				{
 					Name:     "k3s-kubelet-port",
 					Protocol: v1.ProtocolTCP,
-					Port:     10250,
+					Port:     int32(*s.kubeletPort),
 				},
 				{
 					Name:       "webhook-server",
 					Protocol:   v1.ProtocolTCP,
-					Port:       9443,
-					TargetPort: intstr.FromInt32(9443),
+					Port:       int32(*s.webhookPort),
+					TargetPort: intstr.FromInt32(int32(*s.webhookPort)),
 				},
 			},
 		},

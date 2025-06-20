@@ -108,6 +108,7 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
 func (p *Provider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
+	p.logger.Infof("recieved log request for container %s", containerName)
 	hostPodName := p.Translator.TranslateName(namespace, podName)
 	options := corev1.PodLogOptions{
 		Container:  containerName,

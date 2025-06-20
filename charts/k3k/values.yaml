@@ -23,6 +23,10 @@ serviceAccount:
 
 # configuration related to the shared agent mode in k3k
 sharedAgent:
+  # Specifies the port range that will be used for k3k-kubelet api if mirrorHostNodes is enabled
+  kubeletPortRange: "50000-51000"
+  # Specifies the port range that will be used for webhook if mirrorHostNodes is enabled
+  webhookPortRange: "51001-52000"
   image:
     repository: "rancher/k3k-kubelet"
     tag: ""

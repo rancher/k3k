@@ -47,6 +47,16 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster v1alpha
 		return reconcile.Result{}, err
 	}
 
+	// Dellaocate ports for kubelet and webhook if used
+	if cluster.Spec.Mode == v1alpha1.SharedClusterMode && cluster.Spec.MirrorHostNodes {
+		log.Info("dellocating ports for kubelet and webhook")
+		if err := c.PortAllocator.DeallocateKubeletPort(ctx, c.Client, cluster.Name, cluster.Namespace, cluster.Status.KubeletPort); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := c.PortAllocator.DeallocateWebhookPort(ctx, c.Client, cluster.Name, cluster.Namespace, cluster.Status.WebhookPort); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
 	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
 		// remove finalizer from the cluster and update it.
 		controllerutil.RemoveFinalizer(&cluster, clusterFinalizerName)

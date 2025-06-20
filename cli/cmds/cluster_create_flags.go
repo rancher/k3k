@@ -67,9 +67,6 @@ func NewCreateFlags(config *CreateConfig) []cli.Flag {
 			Destination: &config.storageRequestSize,
 			Action: func(ctx *cli.Context, value string) error {
 				if _, err := resource.ParseQuantity(value); err != nil {
-				  return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`) 
-				}
-				if err != nil {
 					return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
 				}
 				return nil

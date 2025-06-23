@@ -347,19 +347,19 @@ func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster 
 		return err
 	}
 
-	KubeconfigSecret := &v1.Secret{
+	kubeconfigSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "kubeconfig"),
 			Namespace: cluster.Namespace,
 		},
 	}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, c.Client, KubeconfigSecret, func() error {
-		if err := controllerutil.SetControllerReference(cluster, KubeconfigSecret, c.Scheme); err != nil {
+	_, err = controllerutil.CreateOrUpdate(ctx, c.Client, kubeconfigSecret, func() error {
+		if err := controllerutil.SetControllerReference(cluster, kubeconfigSecret, c.Scheme); err != nil {
 			return err
 		}
 
-		KubeconfigSecret.Data = map[string][]byte{
+		kubeconfigSecret.Data = map[string][]byte{
 			"kubeconfig.yaml": kubeconfigData,
 		}
 

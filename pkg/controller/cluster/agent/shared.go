@@ -166,6 +166,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 		hostNetwork = true
 		dnsPolicy = v1.DNSClusterFirstWithHostNet
 	}
+
 	return v1.PodSpec{
 		HostNetwork:        hostNetwork,
 		DNSPolicy:          dnsPolicy,

@@ -22,6 +22,7 @@ func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servic
 		if err != nil {
 			logger.Fatal("error getting host node for mirroring", err)
 		}
+
 		node.Spec = *hostNode.Spec.DeepCopy()
 		node.Status = *hostNode.Status.DeepCopy()
 		node.Labels = hostNode.GetLabels()

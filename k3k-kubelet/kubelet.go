@@ -100,6 +100,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 
 	hostMetricsBindAddress := ":8083"
 	virtualMetricsBindAddress := ":8084"
+
 	if c.MirrorHostNodes {
 		hostMetricsBindAddress = "0"
 		virtualMetricsBindAddress = "0"

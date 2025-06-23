@@ -654,20 +654,25 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 		// Assign port from pool if shared agent enabled mirroring of host nodes
 		kubeletPort := ptr.To(10250)
 		webhookPort := ptr.To(9443)
+
 		if cluster.Spec.MirrorHostNodes {
 			var err error
+
 			kubeletPort, err = c.PortAllocator.AllocateKubeletPort(ctx, config)
 			if err != nil {
 				return err
 			}
+
 			cluster.Status.KubeletPort = *kubeletPort
 
 			webhookPort, err = c.PortAllocator.AllocateWebhookPort(ctx, config)
 			if err != nil {
 				return err
 			}
+
 			cluster.Status.WebhookPort = *webhookPort
 		}
+
 		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token, kubeletPort, webhookPort)
 	}
 

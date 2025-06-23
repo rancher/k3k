@@ -75,6 +75,7 @@ func (a *PortAllocator) InitPortAllocatorConfig(ctx context.Context, client ctrl
 		if err := a.getOrCreate(ctx, client, a.WebhookCM); err != nil {
 			return err
 		}
+
 		return nil
 	})
 }
@@ -109,6 +110,7 @@ func (a *PortAllocator) getOrCreate(ctx context.Context, client ctrlruntimeclien
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -151,6 +153,7 @@ func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap
 	}
 
 	var allocatedPort int
+
 	for p := portStart; p <= portEnd; p++ {
 		if !used[p] {
 			allocatedPort = p
@@ -185,6 +188,7 @@ func (a *PortAllocator) deallocatePort(ctx context.Context, client ctrlruntimecl
 		if usedPort != port {
 			return fmt.Errorf("port %d does not match used port %d for the cluster", port, usedPort)
 		}
+
 		delete(configMap.Data, clusterNameNamespace)
 	}
 
@@ -194,6 +198,7 @@ func (a *PortAllocator) deallocatePort(ctx context.Context, client ctrlruntimecl
 // parsePortMap will convert ConfigMap Data to a portMap of string keys and values of ints
 func parsePortMap(portMap map[string]string) (map[string]int, error) {
 	result := map[string]int{}
+
 	for cluster, portString := range portMap {
 		port, err := strconv.Atoi(portString)
 		if err != nil {
@@ -201,17 +206,20 @@ func parsePortMap(portMap map[string]string) (map[string]int, error) {
 		}
 		result[cluster] = port
 	}
+
 	return result, nil
 }
 
 // serializePortMap will convert a portMap of string keys and values of ints to ConfigMap Data
 func serializePortMap(m map[string]int) map[string]string {
 	result := map[string]string{}
+
 	for cluster, port := range m {
 		portString := strconv.Itoa(port)
 		result[cluster] = portString
 
 	}
+
 	return result
 }
 

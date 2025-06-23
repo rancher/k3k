@@ -142,7 +142,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 		var kubeconfig *clientcmdapi.Config
 
 		if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = cfg.Extract(ctx, client, cluster, host[0])
+			kubeconfig, err = cfg.Generate(ctx, client, cluster, host[0])
 			return err
 		}); err != nil {
 			return err

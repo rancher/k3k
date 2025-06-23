@@ -37,7 +37,7 @@ func New() *KubeConfig {
 	}
 }
 
-func (k *KubeConfig) Extract(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string) (*clientcmdapi.Config, error) {
+func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string) (*clientcmdapi.Config, error) {
 	bootstrapData, err := bootstrap.GetFromSecret(ctx, client, cluster)
 	if err != nil {
 		return nil, err

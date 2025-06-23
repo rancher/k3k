@@ -162,6 +162,7 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 func (s *SharedAgent) podSpec() v1.PodSpec {
 	hostNetwork := false
 	dnsPolicy := v1.DNSClusterFirst
+
 	if s.cluster.Spec.MirrorHostNodes {
 		hostNetwork = true
 		dnsPolicy = v1.DNSClusterFirstWithHostNet

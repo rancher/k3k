@@ -171,6 +171,7 @@ func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap
 
 	portMap[clusterNameNamespace] = allocatedPort
 	configMap.Data = serializePortMap(portMap)
+
 	if err := cfg.client.Update(ctx, configMap); err != nil {
 		return nil, err
 	}

@@ -138,7 +138,9 @@ func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap
 	if err := a.getOrCreate(ctx, cfg.client, configMap); err != nil {
 		return nil, err
 	}
+
 	clusterNameNamespace := cfg.cluster.Name + "-" + cfg.cluster.Namespace
+
 	portMap, err := parsePortMap(configMap.Data)
 	if err != nil {
 		return nil, err
@@ -209,6 +211,7 @@ func parsePortMap(portMap map[string]string) (map[string]int, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		result[cluster] = port
 	}
 
@@ -233,6 +236,7 @@ func parsePortRange(portRange string) (*int, *int, error) {
 	if len(portRangeSplitted) > 2 {
 		return nil, nil, fmt.Errorf("incorrect port range")
 	}
+
 	portRangeStart, err := strconv.Atoi(portRangeSplitted[0])
 	if err != nil {
 		return nil, nil, err

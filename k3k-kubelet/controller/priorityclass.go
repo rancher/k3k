@@ -56,8 +56,10 @@ func AddPriorityClassReconciler(ctx context.Context, virtMgr, hostMgr manager.Ma
 		Translator:    translator,
 	}
 
+	name := translator.TranslateName("", priorityClassControllerName)
+
 	return ctrl.NewControllerManagedBy(virtMgr).
-		Named(priorityClassControllerName).
+		Named(name).
 		For(&schedulingv1.PriorityClass{}).
 		WithEventFilter(ignoreSystemPrefixPredicate).
 		Complete(&reconciler)

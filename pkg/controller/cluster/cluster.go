@@ -15,6 +15,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/rancher/k3k/pkg/controller/policy"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -25,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -289,6 +291,10 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
+	if err := c.ensureKubeconfigSecret(ctx, cluster, serviceIP, token); err != nil {
+		return err
+	}
+
 	return c.bindNodeProxyClusterRole(ctx, cluster)
 }
 
@@ -316,6 +322,45 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 
 		bootstrapSecret.Data = map[string][]byte{
 			"bootstrap": bootstrapData,
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// ensureKubeconfigSecret will create or update the Secret containing the kubeconfig data from the k3s server
+func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("ensuring kubeconfig secret")
+
+	adminKubeconfig := kubeconfig.New()
+
+	kubeconfig, err := adminKubeconfig.Generate(ctx, c.Client, cluster, serviceIP)
+	if err != nil {
+		return err
+	}
+
+	kubeconfigData, err := clientcmd.Write(*kubeconfig)
+	if err != nil {
+		return err
+	}
+
+	kubeconfigSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "kubeconfig"),
+			Namespace: cluster.Namespace,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, c.Client, kubeconfigSecret, func() error {
+		if err := controllerutil.SetControllerReference(cluster, kubeconfigSecret, c.Scheme); err != nil {
+			return err
+		}
+
+		kubeconfigSecret.Data = map[string][]byte{
+			"kubeconfig.yaml": kubeconfigData,
 		}
 
 		return nil

@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -74,8 +73,7 @@ func (c *config) unmarshalYAML(data []byte) error {
 	if c.Version == "" {
 		c.Version = conf.Version
 	}
-	fmt.Printf("marshalled yaml: %v\n", conf.MirrorHostNodes)
-	fmt.Printf("command line: %v\n", c.MirrorHostNodes)
+
 	if !c.MirrorHostNodes {
 		c.MirrorHostNodes = conf.MirrorHostNodes
 	}

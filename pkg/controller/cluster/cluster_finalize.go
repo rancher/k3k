@@ -59,6 +59,7 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster v1alpha
 			return reconcile.Result{}, err
 		}
 	}
+
 	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
 		// remove finalizer from the cluster and update it.
 		controllerutil.RemoveFinalizer(&cluster, clusterFinalizerName)

@@ -36,6 +36,7 @@ func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client, kube
 	log.Info("starting port allocator")
 
 	var kubeletPortRangeCM, webhookPortRangeCM v1.ConfigMap
+
 	portRangeConfigMapNamespace := os.Getenv("CONTROLLER_NAMESPACE")
 	if portRangeConfigMapNamespace == "" {
 		return nil, fmt.Errorf("failed to find k3k controller namespace")
@@ -72,6 +73,7 @@ func (a *PortAllocator) InitPortAllocatorConfig(ctx context.Context, client ctrl
 		if err := a.getOrCreate(ctx, client, a.KubeletCM); err != nil {
 			return err
 		}
+
 		if err := a.getOrCreate(ctx, client, a.WebhookCM); err != nil {
 			return err
 		}
@@ -160,6 +162,7 @@ func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap
 			break
 		}
 	}
+
 	if allocatedPort == 0 {
 		return ptr.To(allocatedPort), fmt.Errorf("no ports available")
 	}
@@ -178,7 +181,9 @@ func (a *PortAllocator) deallocatePort(ctx context.Context, client ctrlruntimecl
 	if err := a.getOrCreate(ctx, client, configMap); err != nil {
 		return err
 	}
+
 	clusterNameNamespace := clusterName + "-" + clusterNamespace
+
 	portMap, err := parsePortMap(configMap.Data)
 	if err != nil {
 		return err
@@ -217,7 +222,6 @@ func serializePortMap(m map[string]int) map[string]string {
 	for cluster, port := range m {
 		portString := strconv.Itoa(port)
 		result[cluster] = portString
-
 	}
 
 	return result
@@ -233,6 +237,7 @@ func parsePortRange(portRange string) (*int, *int, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+
 	portRangeEnd, err := strconv.Atoi(portRangeSplitted[1])
 	if err != nil {
 		return nil, nil, err

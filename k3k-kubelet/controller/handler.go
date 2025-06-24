@@ -39,6 +39,7 @@ type ControllerHandler struct {
 // be altered through the Add and Remove methods
 type updateableReconciler interface {
 	reconcile.Reconciler
+	Name() string
 	AddResource(ctx context.Context, namespace string, name string) error
 	RemoveResource(ctx context.Context, namespace string, name string) error
 }
@@ -97,6 +98,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 	}
 
 	err := ctrl.NewControllerManagedBy(c.Mgr).
+		Named(r.Name()).
 		For(&v1.ConfigMap{}).
 		Complete(r)
 

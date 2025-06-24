@@ -16,6 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const SecretSyncerName = "secret-syncer"
+
 type SecretSyncer struct {
 	mutex sync.RWMutex
 	// VirtualClient is the client for the virtual cluster
@@ -30,6 +32,10 @@ type SecretSyncer struct {
 	// objs are the objects that the syncer should watch/syncronize. Should only be manipulated
 	// through add/remove
 	objs sets.Set[types.NamespacedName]
+}
+
+func (s *SecretSyncer) Name() string {
+	return SecretSyncerName
 }
 
 // Reconcile implements reconcile.Reconciler and synchronizes the objects in objs to the host cluster

@@ -16,6 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const ConfigMapSyncerName = "configmap-syncer"
+
 type ConfigMapSyncer struct {
 	mutex sync.RWMutex
 	// VirtualClient is the client for the virtual cluster
@@ -30,6 +32,10 @@ type ConfigMapSyncer struct {
 	// objs are the objects that the syncer should watch/syncronize. Should only be manipulated
 	// through add/remove
 	objs sets.Set[types.NamespacedName]
+}
+
+func (c *ConfigMapSyncer) Name() string {
+	return ConfigMapSyncerName
 }
 
 // Reconcile implements reconcile.Reconciler and synchronizes the objects in objs to the host cluster

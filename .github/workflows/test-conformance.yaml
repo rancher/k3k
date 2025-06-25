@@ -282,15 +282,12 @@ jobs:
         kubectl get pods -A
 
     - name: Run sigs tests
+      if: inputs.test == '' || inputs.test == matrix.tests.name
       run: |
         FOCUS="${{ matrix.tests.focus }}"
-        if [ -n "${{ inputs.test }}" ]; then
-          FOCUS="${{ inputs.test }}"
-        fi
-
         echo "Running with --focus=${FOCUS}"
 
-        hydrophone --focus ${FOCUS} \
+        hydrophone --focus "${FOCUS}" \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
 

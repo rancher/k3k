@@ -28,13 +28,143 @@ permissions:
 jobs:
   conformance:
     runs-on: ubuntu-latest
+    if: inputs.test == '' || inputs.test == 'conformance'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Install helm
+      uses: azure/setup-helm@v4.3.0
+    
+    - name: Install hydrophone
+      run: go install sigs.k8s.io/hydrophone@latest
+
+    - name: Install k3d and kubectl
+      run: |
+        wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+        k3d version
+
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+    - name: Setup Kubernetes (k3d)
+      env:
+        REPO_NAME: k3k-registry
+        REPO_PORT: 12345
+      run: |
+        echo "127.0.0.1 ${REPO_NAME}" | sudo tee -a /etc/hosts
+
+        k3d registry create ${REPO_NAME} --port ${REPO_PORT}
+        
+        k3d cluster create k3k --servers 3 \
+          -p "30000-30010:30000-30010@server:0" \
+          --registry-use k3d-${REPO_NAME}:${REPO_PORT}
+        
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Setup K3k
+      env:
+        REPO: k3k-registry:12345
+      run: |
+        echo "127.0.0.1 k3k-registry" | sudo tee -a /etc/hosts
+
+        make build
+        make package
+        make push
+
+        # add k3kcli to $PATH
+        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+        VERSION=$(make version)
+        k3d image import ${REPO}/k3k:${VERSION} -c k3k --verbose
+        k3d image import ${REPO}/k3k-kubelet:${VERSION} -c k3k --verbose
+
+        make install
+        
+        echo "Wait for K3k controller to be available"
+        kubectl wait -n k3k-system pod --for condition=Ready -l "app.kubernetes.io/name=k3k" --timeout=5m
+
+    - name: Check k3kcli
+      run: k3kcli -v
+
+    - name: Create virtual cluster
+      run: |
+        kubectl create namespace k3k-mycluster
+
+        cat <<EOF | kubectl apply -f -
+        apiVersion: k3k.io/v1alpha1
+        kind: Cluster
+        metadata:
+          name: mycluster
+          namespace: k3k-mycluster
+        spec:
+          servers: 2
+          tlsSANs:
+            - "127.0.0.1"
+          expose:
+            nodePort:
+              serverPort: 30001
+        EOF
+
+        echo "Wait for bootstrap secret to be available"
+        kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m
+
+        k3kcli kubeconfig generate --name mycluster
+
+        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
+        
+        kubectl cluster-info
+        kubectl get nodes
+        kubectl get pods -A
+    
+    - name: Run conformance tests (parallel)
+      run: |
+        # Run conformance tests in parallel mode (skipping serial)
+        hydrophone --conformance --parallel 4 --skip='\[Serial\]' \
+          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
+          --output-dir /tmp
+    
+    - name: Keep parallel conformance logs
+      if: success() || failure()
+      run: mv /tmp/e2e.log /tmp/e2e.log.parallel
+
+    - name: Run conformance tests (serial)
+      if: success() || failure()
+      run: |        
+        # Run serial conformance tests
+        hydrophone --focus='\[Serial\].*\[Conformance\]' \
+          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
+          --output-dir /tmp
+
+    - name: Merge conformance logs
+      if: success() || failure()
+      run: |
+        echo "\n\nParallel Tests:\n" >> /tmp/e2e.log
+        cat /tmp/e2e.log.parallel >> /tmp/e2e.log        
+
+    - name: Archive conformance logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: conformance-logs
+        path: /tmp/e2e.log
+
+  sigs:
+    runs-on: ubuntu-latest
+    if: inputs.test == '' || inputs.test != 'conformance'
 
     strategy:
       fail-fast: false
       matrix:
         tests:
-          - name: conformance
-            focus: '\[Conformance\]'
           - name: sig-api-machinery
             focus: '\[sig-api-machinery\].*\[Conformance\]'
           - name: sig-apps
@@ -150,33 +280,8 @@ jobs:
         kubectl cluster-info
         kubectl get nodes
         kubectl get pods -A
-    
-    - name: Run conformance tests
-      if: inputs.test == 'conformance' || (inputs.test == '' && matrix.tests.name == 'conformance')
-      env:
-        KUBECONFIG: ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
-      run: |
-        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
-
-        # Run conformance tests in parallel mode (skipping serial)
-        hydrophone --conformance --parallel 4 --skip='\[Serial\]' \
-          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
-          --output-dir /tmp
-        
-        mv /tmp/e2e.log /tmp/e2e.log.parallel
-        
-        # Run serial conformance tests
-        hydrophone --focus='\[Serial\].*\[Conformance\]' \
-          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
-          --output-dir /tmp
-        
-        echo "\n\nParallel Tests:\n" >> /tmp/e2e.log
-        cat /tmp/e2e.log.parallel >> /tmp/e2e.log
 
     - name: Run sigs tests
-      if: (inputs.test != '' && inputs.test != 'conformance') || (inputs.test == '' && matrix.tests.name != 'conformance')
-      env:
-        KUBECONFIG: ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
       run: |
         FOCUS="${{ matrix.tests.focus }}"
         if [ -n "${{ inputs.test }}" ]; then
@@ -184,8 +289,6 @@ jobs:
         fi
 
         echo "Running with --focus=${FOCUS}"
-
-        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
 
         hydrophone --focus ${FOCUS} \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \

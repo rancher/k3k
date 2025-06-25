@@ -2,6 +2,7 @@ package cluster_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -44,6 +45,10 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "charts", "k3k", "crds")},
 		ErrorIfCRDPathMissing: true,
 	}
+
+	// setting controller namespace env to activate port range allocator
+	os.Setenv("CONTROLLER_NAMESPACE", "k3k-system")
+
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 

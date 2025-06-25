@@ -166,7 +166,7 @@ jobs:
         mv /tmp/e2e.log /tmp/e2e.log.parallel
         
         # Run serial conformance tests
-        hydrophone --focus --parallel 4 --skip='\[Serial\].*\[Conformance\]' \
+        hydrophone --focus='\[Serial\].*\[Conformance\]' \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
         

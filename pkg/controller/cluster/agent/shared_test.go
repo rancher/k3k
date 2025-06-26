@@ -36,6 +36,8 @@ func Test_sharedAgentData(t *testing.T) {
 						Version: "v1.2.3",
 					},
 				},
+				kubeletPort: 10250,
+				webhookPort: 9443,
 				ip:          "10.0.0.21",
 				serviceName: "service-name",
 				token:       "dnjklsdjnksd892389238",
@@ -47,6 +49,9 @@ func Test_sharedAgentData(t *testing.T) {
 				"serviceName":      "service-name",
 				"token":            "dnjklsdjnksd892389238",
 				"version":          "v1.2.3",
+				"mirrorHostNodes":  "false",
+				"kubeletPort":      "10250",
+				"webhookPort":      "9443",
 			},
 		},
 		{
@@ -77,6 +82,9 @@ func Test_sharedAgentData(t *testing.T) {
 				"serviceName":      "service-name",
 				"token":            "dnjklsdjnksd892389238",
 				"version":          "v1.2.3",
+				"mirrorHostNodes":  "false",
+				"kubeletPort":      "10250",
+				"webhookPort":      "9443",
 			},
 		},
 		{

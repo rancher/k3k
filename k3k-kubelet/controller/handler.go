@@ -60,7 +60,9 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 	// we need to manually lock/unlock since we intned on write locking to add a new controller
 	c.RUnlock()
 
-	var r updateableReconciler
+	var (
+		r updateableReconciler
+	)
 
 	switch obj.(type) {
 	case *v1.Secret:

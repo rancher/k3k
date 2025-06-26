@@ -16,9 +16,11 @@ type config struct {
 	AgentHostname     string `yaml:"agentHostname,omitempty"`
 	HostConfigPath    string `yaml:"hostConfigPath,omitempty"`
 	VirtualConfigPath string `yaml:"virtualConfigPath,omitempty"`
-	KubeletPort       string `yaml:"kubeletPort,omitempty"`
+	KubeletPort       int    `yaml:"kubeletPort,omitempty"`
+	WebhookPort       int    `yaml:"webhookPort,omitempty"`
 	ServerIP          string `yaml:"serverIP,omitempty"`
 	Version           string `yaml:"version,omitempty"`
+	MirrorHostNodes   bool   `yaml:"mirrorHostNodes,omitempty"`
 }
 
 func (c *config) unmarshalYAML(data []byte) error {
@@ -44,8 +46,12 @@ func (c *config) unmarshalYAML(data []byte) error {
 		c.VirtualConfigPath = conf.VirtualConfigPath
 	}
 
-	if c.KubeletPort == "" {
+	if c.KubeletPort == 0 {
 		c.KubeletPort = conf.KubeletPort
+	}
+
+	if c.WebhookPort == 0 {
+		c.WebhookPort = conf.WebhookPort
 	}
 
 	if c.AgentHostname == "" {
@@ -66,6 +72,10 @@ func (c *config) unmarshalYAML(data []byte) error {
 
 	if c.Version == "" {
 		c.Version = conf.Version
+	}
+
+	if !c.MirrorHostNodes {
+		c.MirrorHostNodes = conf.MirrorHostNodes
 	}
 
 	return nil

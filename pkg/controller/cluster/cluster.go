@@ -31,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -45,7 +46,7 @@ const (
 	etcdPodFinalizerName = "etcdpod.k3k.io/finalizer"
 	ClusterInvalidName   = "system"
 
-	maxConcurrentReconciles = 1
+	maxConcurrentReconciles = 50
 
 	defaultVirtualClusterCIDR    = "10.52.0.0/16"
 	defaultVirtualServiceCIDR    = "10.53.0.0/16"
@@ -92,6 +93,7 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		Watches(&v1.Namespace{}, namespaceEventHandler(&reconciler)).
 		Owns(&apps.StatefulSet{}).
 		Owns(&v1.Service{}).
+		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
 

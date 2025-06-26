@@ -132,9 +132,11 @@ jobs:
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
     
-    - name: Keep parallel conformance logs
+    - name: Keep parallel conformance logs and cleanup
       if: success() || failure()
-      run: mv /tmp/e2e.log /tmp/e2e.log.parallel
+      run: |
+        mv /tmp/e2e.log /tmp/e2e.log.parallel
+        kubectl delete namespace conformance-serviceaccou
 
     - name: Run conformance tests (serial)
       if: success() || failure()

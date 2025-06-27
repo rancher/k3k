@@ -144,4 +144,4 @@ k3k-test-registry-kubelet-r4zh5   1/1     Running            0          54s
 k3k-test-registry-server-0        0/1     ImagePullBackOff   0          54s
 ```
 
-To fix this make sure the failing image is available. you can describe the failing pod to get more details.
+To fix this make sure the failing image is available. You can describe the failing pod to get more details.

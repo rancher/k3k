@@ -336,7 +336,7 @@ func (s *SharedAgent) role(ctx context.Context) error {
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"persistentvolumeclaims", "pods", "pods/log", "pods/exec", "pods/ephemeralcontainers", "secrets", "configmaps", "services"},
+				Resources: []string{"persistentvolumeclaims", "pods", "pods/log", "pods/attach", "pods/exec", "pods/ephemeralcontainers", "secrets", "configmaps", "services"},
 				Verbs:     []string{"*"},
 			},
 			{

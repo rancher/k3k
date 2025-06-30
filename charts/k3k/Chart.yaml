@@ -2,5 +2,5 @@ apiVersion: v2
 name: k3k
 description: A Helm chart for K3K
 type: application
-version: 0.3.3-r6
-appVersion: v0.3.3-rc6
+version: 0.3.3
+appVersion: v0.3.3

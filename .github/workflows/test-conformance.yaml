@@ -156,7 +156,6 @@ jobs:
 
   sigs:
     runs-on: ubuntu-latest
-    if: inputs.test == '' || inputs.test != 'conformance'
 
     strategy:
       fail-fast: false
@@ -184,6 +183,12 @@ jobs:
             focus: '\[sig-storage\].*\[Conformance\]'
 
     steps:
+    - name: Validate input and fail fast
+      if: inputs.test != '' && inputs.test != matrix.tests.name
+      run: |
+        echo "Failing this job as it's not the intended target."
+        exit 1
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
@@ -279,7 +284,6 @@ jobs:
         kubectl get pods -A
 
     - name: Run sigs tests
-      if: inputs.test == '' || inputs.test == matrix.tests.name
       run: |
         FOCUS="${{ matrix.tests.focus }}"
         echo "Running with --focus=${FOCUS}"

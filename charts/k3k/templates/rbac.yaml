@@ -16,7 +16,7 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "k3k.fullname" . }}-node-proxy
+  name: k3k-node-proxy
 rules:
 - apiGroups:
   - ""
@@ -30,8 +30,29 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ include "k3k.fullname" . }}-node-proxy
+  name: k3k-node-proxy
 roleRef:
   kind: ClusterRole
-  name: {{ include "k3k.fullname" . }}-node-proxy
+  name: k3k-node-proxy
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k3k-priorityclass
+rules:
+- apiGroups:
+  - "scheduling.k8s.io"
+  resources:
+  - "priorityclasses"
+  verbs:
+  - "*"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: k3k-priorityclass
+roleRef:
+  kind: ClusterRole
+  name: k3k-priorityclass
   apiGroup: rbac.authorization.k8s.io

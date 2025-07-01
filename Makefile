@@ -61,6 +61,10 @@ test-unit:	## Run the unit tests (skips the e2e)
 test-controller:	## Run the controller tests (pkg/controller)
 	$(GINKGO) -v -r pkg/controller
 
+.PHONY: test-kubelet-controller
+test-kubelet-controller:	## Run the controller tests (pkg/controller)
+	$(GINKGO) -v -r k3k-kubelet/controller
+
 .PHONY: test-e2e
 test-e2e:	## Run the e2e tests
 	$(GINKGO) -v -r tests

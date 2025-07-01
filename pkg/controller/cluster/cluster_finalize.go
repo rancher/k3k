@@ -2,8 +2,10 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -41,7 +43,7 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster v1alpha
 		}
 	}
 
-	if err := c.unbindNodeProxyClusterRole(ctx, &cluster); err != nil {
+	if err := c.unbindClusterRoles(ctx, &cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -57,28 +59,37 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster v1alpha
 	return reconcile.Result{}, nil
 }
 
-func (c *ClusterReconciler) unbindNodeProxyClusterRole(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	if err := c.Client.Get(ctx, types.NamespacedName{Name: "k3k-node-proxy"}, clusterRoleBinding); err != nil {
-		return fmt.Errorf("failed to get or find k3k-node-proxy ClusterRoleBinding: %w", err)
-	}
+func (c *ClusterReconciler) unbindClusterRoles(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	clusterRoles := []string{"k3k-node-proxy", "k3k-priorityclass"}
 
-	subjectName := controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName)
+	var err error
 
-	var cleanedSubjects []rbacv1.Subject
+	for _, clusterRole := range clusterRoles {
+		var clusterRoleBinding rbacv1.ClusterRoleBinding
+		if getErr := c.Client.Get(ctx, types.NamespacedName{Name: clusterRole}, &clusterRoleBinding); getErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to get or find %s ClusterRoleBinding: %w", clusterRole, getErr))
+			continue
+		}
 
-	for _, subject := range clusterRoleBinding.Subjects {
-		if subject.Name != subjectName || subject.Namespace != cluster.Namespace {
-			cleanedSubjects = append(cleanedSubjects, subject)
+		clusterSubject := rbacv1.Subject{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName),
+			Namespace: cluster.Namespace,
+		}
+
+		// remove the clusterSubject from the ClusterRoleBinding
+		cleanedSubjects := slices.DeleteFunc(clusterRoleBinding.Subjects, func(subject rbacv1.Subject) bool {
+			return reflect.DeepEqual(subject, clusterSubject)
+		})
+
+		if !reflect.DeepEqual(clusterRoleBinding.Subjects, cleanedSubjects) {
+			clusterRoleBinding.Subjects = cleanedSubjects
+
+			if updateErr := c.Client.Update(ctx, &clusterRoleBinding); updateErr != nil {
+				err = errors.Join(err, fmt.Errorf("failed to update %s ClusterRoleBinding: %w", clusterRole, updateErr))
+			}
 		}
 	}
 
-	// if no subject was removed, all good
-	if reflect.DeepEqual(clusterRoleBinding.Subjects, cleanedSubjects) {
-		return nil
-	}
-
-	clusterRoleBinding.Subjects = cleanedSubjects
-
-	return c.Client.Update(ctx, clusterRoleBinding)
+	return err
 }

@@ -163,6 +163,12 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, errors.New("failed to add pod pvc controller: " + err.Error())
 	}
 
+	logger.Info("adding priorityclass controller")
+
+	if err := k3kkubeletcontroller.AddPriorityClassReconciler(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return nil, errors.New("failed to add priorityclass controller: " + err.Error())
+	}
+
 	clusterIP, err := clusterIP(ctx, c.ServiceName, c.ClusterNamespace, hostClient)
 	if err != nil {
 		return nil, errors.New("failed to extract the clusterIP for the server service: " + err.Error())

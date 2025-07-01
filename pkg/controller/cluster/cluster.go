@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -291,11 +292,11 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		return err
 	}
 
-	if err := c.ensureKubeconfigSecret(ctx, cluster, serviceIP, token); err != nil {
+	if err := c.ensureKubeconfigSecret(ctx, cluster, serviceIP); err != nil {
 		return err
 	}
 
-	return c.bindNodeProxyClusterRole(ctx, cluster)
+	return c.bindClusterRoles(ctx, cluster)
 }
 
 // ensureBootstrapSecret will create or update the Secret containing the bootstrap data from the k3s server
@@ -331,7 +332,7 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 }
 
 // ensureKubeconfigSecret will create or update the Secret containing the kubeconfig data from the k3s server
-func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
+func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring kubeconfig secret")
 
@@ -601,31 +602,34 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 	return err
 }
 
-func (c *ClusterReconciler) bindNodeProxyClusterRole(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	if err := c.Client.Get(ctx, types.NamespacedName{Name: "k3k-node-proxy"}, clusterRoleBinding); err != nil {
-		return fmt.Errorf("failed to get or find k3k-node-proxy ClusterRoleBinding: %w", err)
-	}
+func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	clusterRoles := []string{"k3k-node-proxy", "k3k-priorityclass"}
 
-	subjectName := controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName)
+	var err error
 
-	found := false
+	for _, clusterRole := range clusterRoles {
+		var clusterRoleBinding rbacv1.ClusterRoleBinding
+		if getErr := c.Client.Get(ctx, types.NamespacedName{Name: clusterRole}, &clusterRoleBinding); getErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to get or find %s ClusterRoleBinding: %w", clusterRole, getErr))
+			continue
+		}
 
-	for _, subject := range clusterRoleBinding.Subjects {
-		if subject.Name == subjectName && subject.Namespace == cluster.Namespace {
-			found = true
+		clusterSubject := rbacv1.Subject{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName),
+			Namespace: cluster.Namespace,
+		}
+
+		if !slices.Contains(clusterRoleBinding.Subjects, clusterSubject) {
+			clusterRoleBinding.Subjects = append(clusterRoleBinding.Subjects, clusterSubject)
+
+			if updateErr := c.Client.Update(ctx, &clusterRoleBinding); updateErr != nil {
+				err = errors.Join(err, fmt.Errorf("failed to update %s ClusterRoleBinding: %w", clusterRole, updateErr))
+			}
 		}
 	}
 
-	if !found {
-		clusterRoleBinding.Subjects = append(clusterRoleBinding.Subjects, rbacv1.Subject{
-			Kind:      "ServiceAccount",
-			Name:      subjectName,
-			Namespace: cluster.Namespace,
-		})
-	}
-
-	return c.Client.Update(ctx, clusterRoleBinding)
+	return err
 }
 
 func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {

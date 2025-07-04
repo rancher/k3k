@@ -188,10 +188,12 @@ func (a *PortAllocator) deallocatePort(ctx context.Context, client ctrlruntimecl
 		if usedPort != port {
 			return fmt.Errorf("port %d does not match used port %d for the cluster", port, usedPort)
 		}
+
 		snapshot := core.RangeAllocation{
 			Range: configMap.Data["range"],
 			Data:  configMap.BinaryData["snapshotData"],
 		}
+
 		pa, err := portallocator.NewFromSnapshot(&snapshot)
 		if err != nil {
 			return err
@@ -225,8 +227,9 @@ func parsePortMap(portMapData string) (map[string]int, error) {
 func serializePortMap(m map[string]int) (string, error) {
 	out, err := yaml.Marshal(m)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal allocatedPorts: %w", err)
+		return "", fmt.Errorf("failed to serialize allocatedPorts: %w", err)
 	}
+
 	return string(out), nil
 }
 

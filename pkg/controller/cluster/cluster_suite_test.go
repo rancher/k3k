@@ -2,6 +2,7 @@ package cluster_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -44,6 +45,10 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "charts", "k3k", "crds")},
 		ErrorIfCRDPathMissing: true,
 	}
+
+	// setting controller namespace env to activate port range allocator
+	os.Setenv("CONTROLLER_NAMESPACE", "default")
+
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 
@@ -60,7 +65,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())
-	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "", "rancher/k3s", "")
+	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "", "rancher/k3s", "", "50000-51000", "51001-52000")
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

@@ -50,6 +50,8 @@ Create new cluster
 
 **--kubeconfig-server**="": override the kubeconfig server host
 
+**--mirror-host-nodes**: Mirror Host Cluster Nodes
+
 **--mode**="": k3k mode type (shared, virtual) (default: "shared")
 
 **--namespace, -n**="": namespace of the k3k cluster

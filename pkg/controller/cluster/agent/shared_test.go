@@ -14,6 +14,8 @@ func Test_sharedAgentData(t *testing.T) {
 		cluster     *v1alpha1.Cluster
 		serviceName string
 		ip          string
+		kubeletPort int
+		webhookPort int
 		token       string
 	}
 
@@ -34,6 +36,8 @@ func Test_sharedAgentData(t *testing.T) {
 						Version: "v1.2.3",
 					},
 				},
+				kubeletPort: 10250,
+				webhookPort: 9443,
 				ip:          "10.0.0.21",
 				serviceName: "service-name",
 				token:       "dnjklsdjnksd892389238",
@@ -45,6 +49,9 @@ func Test_sharedAgentData(t *testing.T) {
 				"serviceName":      "service-name",
 				"token":            "dnjklsdjnksd892389238",
 				"version":          "v1.2.3",
+				"mirrorHostNodes":  "false",
+				"kubeletPort":      "10250",
+				"webhookPort":      "9443",
 			},
 		},
 		{
@@ -63,6 +70,8 @@ func Test_sharedAgentData(t *testing.T) {
 					},
 				},
 				ip:          "10.0.0.21",
+				kubeletPort: 10250,
+				webhookPort: 9443,
 				serviceName: "service-name",
 				token:       "dnjklsdjnksd892389238",
 			},
@@ -73,6 +82,9 @@ func Test_sharedAgentData(t *testing.T) {
 				"serviceName":      "service-name",
 				"token":            "dnjklsdjnksd892389238",
 				"version":          "v1.2.3",
+				"mirrorHostNodes":  "false",
+				"kubeletPort":      "10250",
+				"webhookPort":      "9443",
 			},
 		},
 		{
@@ -87,6 +99,8 @@ func Test_sharedAgentData(t *testing.T) {
 						HostVersion: "v1.3.3",
 					},
 				},
+				kubeletPort: 10250,
+				webhookPort: 9443,
 				ip:          "10.0.0.21",
 				serviceName: "service-name",
 				token:       "dnjklsdjnksd892389238",
@@ -98,13 +112,16 @@ func Test_sharedAgentData(t *testing.T) {
 				"serviceName":      "service-name",
 				"token":            "dnjklsdjnksd892389238",
 				"version":          "v1.3.3",
+				"mirrorHostNodes":  "false",
+				"kubeletPort":      "10250",
+				"webhookPort":      "9443",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := sharedAgentData(tt.args.cluster, tt.args.serviceName, tt.args.token, tt.args.ip)
+			config := sharedAgentData(tt.args.cluster, tt.args.serviceName, tt.args.token, tt.args.ip, tt.args.kubeletPort, tt.args.webhookPort)
 
 			data := make(map[string]string)
 			err := yaml.Unmarshal([]byte(config), data)

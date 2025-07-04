@@ -615,7 +615,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 }
 
 func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	clusterRoles := []string{"k3k-node-proxy", "k3k-priorityclass"}
+	clusterRoles := []string{"k3k-kubelet-node", "k3k-priorityclass"}
 
 	var err error
 

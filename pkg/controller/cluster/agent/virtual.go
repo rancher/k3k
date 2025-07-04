@@ -52,7 +52,7 @@ func (v *VirtualAgent) EnsureResources(ctx context.Context) error {
 }
 
 func (v *VirtualAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Object) error {
-	return ensureObject(ctx, v.Config, obj, true)
+	return ensureObject(ctx, v.Config, obj)
 }
 
 func (v *VirtualAgent) config(ctx context.Context) error {

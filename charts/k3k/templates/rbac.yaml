@@ -16,7 +16,7 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: k3k-node-proxy
+  name: k3k-kubelet-node
 rules:
 - apiGroups:
   - ""
@@ -30,10 +30,10 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: k3k-node-proxy
+  name: k3k-kubelet-node
 roleRef:
   kind: ClusterRole
-  name: k3k-node-proxy
+  name: k3k-kubelet-node
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1

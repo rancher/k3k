@@ -68,24 +68,11 @@ func (s *SharedAgent) EnsureResources(ctx context.Context) error {
 		return fmt.Errorf("failed to ensure some resources: %w", err)
 	}
 
-	if s.cluster.Spec.MirrorHostNodes {
-		if err := errors.Join(
-			s.clusterRole(ctx),
-			s.clusterRoleBinding(ctx),
-		); err != nil {
-			return fmt.Errorf("failed to ensure some resources: %w", err)
-		}
-	}
-
 	return nil
 }
 
 func (s *SharedAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Object) error {
-	return ensureObject(ctx, s.Config, obj, true)
-}
-
-func (s *SharedAgent) ensureObjectWithoutOwner(ctx context.Context, obj ctrlruntimeclient.Object) error {
-	return ensureObject(ctx, s.Config, obj, false)
+	return ensureObject(ctx, s.Config, obj)
 }
 
 func (s *SharedAgent) config(ctx context.Context) error {
@@ -515,51 +502,4 @@ func newWebhookCerts(commonName string, subAltNames []string, caPrivateKey, caCe
 
 func WebhookSecretName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "webhook")
-}
-
-func (s *SharedAgent) clusterRole(ctx context.Context) error {
-	role := &rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ClusterRole",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: s.Name(),
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{"nodes"},
-				Verbs:     []string{"get", "watch", "list"},
-			},
-		},
-	}
-
-	return s.ensureObjectWithoutOwner(ctx, role)
-}
-
-func (s *SharedAgent) clusterRoleBinding(ctx context.Context) error {
-	roleBinding := &rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ClusterRoleBinding",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: s.Name(),
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     s.Name(),
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      s.Name(),
-				Namespace: s.cluster.Namespace,
-			},
-		},
-	}
-
-	return s.ensureObjectWithoutOwner(ctx, roleBinding)
 }

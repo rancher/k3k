@@ -113,7 +113,7 @@ func (w *webhookHandler) configuration(ctx context.Context, hostClient ctrlrunti
 		return nil, errors.New("webhook CABundle does not exist in secret")
 	}
 
-	webhookURL := "https://" + w.serviceName + ":" + strconv.Itoa(w.webhookPort) + webhookPath
+	webhookURL := fmt.Sprintf("https://%s:%d%s", w.serviceName, w.webhookPort, webhookPath)
 
 	return &admissionregistrationv1.MutatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{

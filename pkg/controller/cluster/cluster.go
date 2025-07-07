@@ -96,7 +96,7 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		PortAllocator:              portAllocator,
 	}
 
-	if err := mgr.Add(portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient())); err != nil {
+	if err := mgr.Add(portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient(), kubeletPortRange, webhookPortRange)); err != nil {
 		return err
 	}
 

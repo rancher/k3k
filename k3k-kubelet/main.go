@@ -139,7 +139,7 @@ func run(clx *cli.Context) error {
 		logger.Fatalw("failed to create new virtual kubelet instance", zap.Error(err))
 	}
 
-	if err := k.registerNode(ctx, k.agentIP, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, cfg.ServerIP, k.dnsIP, cfg.Version, cfg.MirrorHostNodes); err != nil {
+	if err := k.registerNode(ctx, k.agentIP, cfg); err != nil {
 		logger.Fatalw("failed to register new node", zap.Error(err))
 	}
 

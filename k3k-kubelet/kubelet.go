@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/go-logr/zapr"
@@ -231,9 +230,9 @@ func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostCl
 	return service.Spec.ClusterIP, nil
 }
 
-func (k *kubelet) registerNode(ctx context.Context, agentIP string, srvPort int, namespace, name, hostname, serverIP, dnsIP, version string, mirrorHostNodes bool) error {
-	providerFunc := k.newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP, version, mirrorHostNodes)
-	nodeOpts := k.nodeOpts(ctx, srvPort, namespace, name, hostname, agentIP)
+func (k *kubelet) registerNode(ctx context.Context, agentIP string, cfg config) error {
+	providerFunc := k.newProviderFunc(cfg)
+	nodeOpts := k.nodeOpts(ctx, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, agentIP)
 
 	var err error
 
@@ -284,14 +283,14 @@ func (k *kubelet) start(ctx context.Context) {
 	k.logger.Info("node exited successfully")
 }
 
-func (k *kubelet) newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP, version string, mirrorHostNodes bool) nodeutil.NewProviderFunc {
+func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
-		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, namespace, name, serverIP, dnsIP)
+		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, cfg.ClusterNamespace, cfg.ClusterName, cfg.ServerIP, k.dnsIP)
 		if err != nil {
 			return nil, nil, errors.New("unable to make nodeutil provider: " + err.Error())
 		}
 
-		provider.ConfigureNode(k.logger, pc.Node, hostname, k.port, agentIP, utilProvider.CoreClient, utilProvider.VirtualClient, k.virtualCluster, version, mirrorHostNodes)
+		provider.ConfigureNode(k.logger, pc.Node, cfg.AgentHostname, k.port, k.agentIP, utilProvider.CoreClient, utilProvider.VirtualClient, k.virtualCluster, cfg.Version, cfg.MirrorHostNodes)
 
 		return utilProvider, &provider.Node{}, nil
 	}
@@ -299,7 +298,7 @@ func (k *kubelet) newProviderFunc(namespace, name, hostname, agentIP, serverIP, 
 
 func (k *kubelet) nodeOpts(ctx context.Context, srvPort int, namespace, name, hostname, agentIP string) nodeutil.NodeOpt {
 	return func(c *nodeutil.NodeConfig) error {
-		c.HTTPListenAddr = fmt.Sprintf(":%s", strconv.Itoa(srvPort))
+		c.HTTPListenAddr = fmt.Sprintf(":%d", srvPort)
 		// set up the routes
 		mux := http.NewServeMux()
 		if err := nodeutil.AttachProviderRoutes(mux)(c); err != nil {

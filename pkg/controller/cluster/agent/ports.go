@@ -24,10 +24,8 @@ const (
 )
 
 type PortAllocator struct {
-	KubeletCM        *v1.ConfigMap
-	WebhookCM        *v1.ConfigMap
-	KubeletPortRange string
-	WebhookPortRange string
+	KubeletCM *v1.ConfigMap
+	WebhookCM *v1.ConfigMap
 }
 
 func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client, kubeletPortRange, webhookPortRange string) (*PortAllocator, error) {
@@ -48,20 +46,18 @@ func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client, kube
 	webhookPortRangeCM.Namespace = portRangeConfigMapNamespace
 
 	return &PortAllocator{
-		KubeletCM:        &kubeletPortRangeCM,
-		WebhookCM:        &webhookPortRangeCM,
-		KubeletPortRange: kubeletPortRange,
-		WebhookPortRange: webhookPortRange,
+		KubeletCM: &kubeletPortRangeCM,
+		WebhookCM: &webhookPortRangeCM,
 	}, nil
 }
 
-func (a *PortAllocator) InitPortAllocatorConfig(ctx context.Context, client ctrlruntimeclient.Client) manager.Runnable {
+func (a *PortAllocator) InitPortAllocatorConfig(ctx context.Context, client ctrlruntimeclient.Client, kubeletPortRange, webhookPortRange string) manager.Runnable {
 	return manager.RunnableFunc(func(ctx context.Context) error {
-		if err := a.getOrCreate(ctx, client, a.KubeletCM, a.KubeletPortRange); err != nil {
+		if err := a.getOrCreate(ctx, client, a.KubeletCM, kubeletPortRange); err != nil {
 			return err
 		}
 
-		if err := a.getOrCreate(ctx, client, a.WebhookCM, a.WebhookPortRange); err != nil {
+		if err := a.getOrCreate(ctx, client, a.WebhookCM, webhookPortRange); err != nil {
 			return err
 		}
 
@@ -95,14 +91,14 @@ func (a *PortAllocator) getOrCreate(ctx context.Context, client ctrlruntimeclien
 		Namespace: configmap.Namespace,
 	}
 	if err := client.Get(ctx, nn, configmap); err != nil {
-		if apierrors.IsNotFound(err) {
-			// creating the configMap for the first time
-			configmap = a.cm(configmap.Name, configmap.Namespace, portRange)
-			if err := client.Create(ctx, configmap); err != nil {
-				return fmt.Errorf("failed to create port range configmap: %v", err)
-			}
-		} else {
+		if !apierrors.IsNotFound(err) {
 			return err
+		}
+
+		// creating the configMap for the first time
+		configmap = a.cm(configmap.Name, configmap.Namespace, portRange)
+		if err := client.Create(ctx, configmap); err != nil {
+			return fmt.Errorf("failed to create port range configmap: %w", err)
 		}
 	}
 
@@ -110,23 +106,27 @@ func (a *PortAllocator) getOrCreate(ctx context.Context, client ctrlruntimeclien
 }
 
 func (a *PortAllocator) AllocateWebhookPort(ctx context.Context, cfg *Config) (*int, error) {
-	return a.allocatePort(ctx, cfg, a.WebhookCM, a.WebhookPortRange)
+	return a.allocatePort(ctx, cfg, a.WebhookCM)
 }
 
 func (a *PortAllocator) DeallocateWebhookPort(ctx context.Context, client ctrlruntimeclient.Client, clusterName, clusterNamespace string, webhookPort int) error {
-	return a.deallocatePort(ctx, client, clusterName, clusterNamespace, a.WebhookCM, webhookPort, a.WebhookPortRange)
+	return a.deallocatePort(ctx, client, clusterName, clusterNamespace, a.WebhookCM, webhookPort)
 }
 
 func (a *PortAllocator) AllocateKubeletPort(ctx context.Context, cfg *Config) (*int, error) {
-	return a.allocatePort(ctx, cfg, a.KubeletCM, a.KubeletPortRange)
+	return a.allocatePort(ctx, cfg, a.KubeletCM)
 }
 
 func (a *PortAllocator) DeallocateKubeletPort(ctx context.Context, client ctrlruntimeclient.Client, clusterName, clusterNamespace string, kubeletPort int) error {
-	return a.deallocatePort(ctx, client, clusterName, clusterNamespace, a.KubeletCM, kubeletPort, a.KubeletPortRange)
+	return a.deallocatePort(ctx, client, clusterName, clusterNamespace, a.KubeletCM, kubeletPort)
 }
 
 // allocatePort will assign port to the cluster from a port Range configured for k3k
-func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap *v1.ConfigMap, portRange string) (*int, error) {
+func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap *v1.ConfigMap) (*int, error) {
+	portRange, ok := configMap.Data["range"]
+	if !ok {
+		return nil, fmt.Errorf("port range is not initialized")
+	}
 	// get configMap first to avoid conflicts
 	if err := a.getOrCreate(ctx, cfg.client, configMap, portRange); err != nil {
 		return nil, err
@@ -172,7 +172,11 @@ func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap
 }
 
 // deallocatePort will remove the port used by the cluster from the port range
-func (a *PortAllocator) deallocatePort(ctx context.Context, client ctrlruntimeclient.Client, clusterName, clusterNamespace string, configMap *v1.ConfigMap, port int, portRange string) error {
+func (a *PortAllocator) deallocatePort(ctx context.Context, client ctrlruntimeclient.Client, clusterName, clusterNamespace string, configMap *v1.ConfigMap, port int) error {
+	portRange, ok := configMap.Data["range"]
+	if !ok {
+		return fmt.Errorf("port range is not initialized")
+	}
 	if err := a.getOrCreate(ctx, client, configMap, portRange); err != nil {
 		return err
 	}

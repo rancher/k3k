@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"reflect"
+
 	"slices"
 	"strings"
 	"time"
@@ -22,12 +22,16 @@ import (
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,7 +47,7 @@ import (
 const (
 	namePrefix           = "k3k"
 	clusterController    = "k3k-cluster-controller"
-	clusterFinalizerName = "cluster.k3k.io/finalizer"
+	ClusterFinalizerName = "cluster.k3k.io/finalizer"
 	etcdPodFinalizerName = "etcdpod.k3k.io/finalizer"
 	ClusterInvalidName   = "system"
 
@@ -54,10 +58,13 @@ const (
 	memberRemovalTimeout      = time.Minute * 1
 )
 
+var ErrClusterValidation = errors.New("cluster validation error")
+
 type ClusterReconciler struct {
-	DiscoveryClient            *discovery.DiscoveryClient
-	Client                     ctrlruntimeclient.Client
-	Scheme                     *runtime.Scheme
+	DiscoveryClient *discovery.DiscoveryClient
+	Client          ctrlruntimeclient.Client
+	Scheme          *runtime.Scheme
+	record.EventRecorder
 	SharedAgentImage           string
 	SharedAgentImagePullPolicy string
 	K3SImage                   string
@@ -86,6 +93,7 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		DiscoveryClient:            discoveryClient,
 		Client:                     mgr.GetClient(),
 		Scheme:                     mgr.GetScheme(),
+		EventRecorder:              mgr.GetEventRecorderFor(clusterController),
 		SharedAgentImage:           sharedAgentImage,
 		SharedAgentImagePullPolicy: sharedAgentImagePullPolicy,
 		K3SImage:                   k3SImage,
@@ -149,32 +157,43 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	var cluster v1alpha1.Cluster
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
 	// if DeletionTimestamp is not Zero -> finalize the object
 	if !cluster.DeletionTimestamp.IsZero() {
-		return c.finalizeCluster(ctx, cluster)
+		return c.finalizeCluster(ctx, &cluster)
 	}
 
-	// add finalizers
-	if controllerutil.AddFinalizer(&cluster, clusterFinalizerName) {
+	// Set initial status if not already set
+	if cluster.Status.OverallStatus == "" {
+		cluster.Status.OverallStatus = v1alpha1.ClusterProvisioning
+		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
+			Type:    ConditionReady,
+			Status:  metav1.ConditionFalse,
+			Reason:  ReasonProvisioning,
+			Message: "Cluster is being provisioned",
+		})
+	}
+
+	// add finalizer
+	if controllerutil.AddFinalizer(&cluster, ClusterFinalizerName) {
 		if err := c.Client.Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
+
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	orig := cluster.DeepCopy()
 
 	reconcilerErr := c.reconcileCluster(ctx, &cluster)
 
-	// update Status if needed
-	if !reflect.DeepEqual(orig.Status, cluster.Status) {
+	if !equality.Semantic.DeepEqual(orig.Status, cluster.Status) {
 		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
-			return reconcile.Result{}, err
+			log.Error(err, "failed to update cluster status")
 		}
 	}
-
 	// if there was an error during the reconciliation, return
 	if reconcilerErr != nil {
 		if errors.Is(reconcilerErr, bootstrap.ErrServerNotReady) {
@@ -186,7 +205,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// update Cluster if needed
-	if !reflect.DeepEqual(orig.Spec, cluster.Spec) {
+	if !equality.Semantic.DeepEqual(orig.Spec, cluster.Spec) {
 		if err := c.Client.Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -196,7 +215,32 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 }
 
 func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
+	err := c.reconcile(ctx, cluster)
+	c.updateStatus(cluster, err)
+
+	return err
+}
+
+func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
+
+	var ns v1.Namespace
+	if err := c.Client.Get(ctx, client.ObjectKey{Name: cluster.Namespace}, &ns); err != nil {
+		return err
+	}
+
+	policyName := ns.Labels[policy.PolicyNameLabelKey]
+
+	var policy v1alpha1.VirtualClusterPolicy
+	if err := c.Client.Get(ctx, client.ObjectKey{Name: policyName}, &policy); err != nil {
+		return err
+	}
+
+	if err := c.validate(cluster, policy); err != nil {
+		return err
+	}
+
+	cluster.Status.PolicyName = policyName
 
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
 	// This version is stored in the Status object, and it will not be updated if already set.
@@ -211,12 +255,6 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 		// update Status HostVersion
 		k8sVersion := strings.Split(hostVersion.GitVersion, "+")[0]
 		cluster.Status.HostVersion = k8sVersion + "-k3s1"
-	}
-
-	// TODO: update status?
-	if err := c.validate(cluster); err != nil {
-		log.Error(err, "invalid change")
-		return nil
 	}
 
 	token, err := c.token(ctx, cluster)
@@ -256,14 +294,6 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 			cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
 		}
 	}
-
-	var ns v1.Namespace
-	if err := c.Client.Get(ctx, client.ObjectKey{Name: cluster.Namespace}, &ns); err != nil {
-		return err
-	}
-
-	policyName := ns.Labels[policy.PolicyNameLabelKey]
-	cluster.Status.PolicyName = policyName
 
 	if err := c.ensureNetworkPolicy(ctx, cluster); err != nil {
 		return err
@@ -671,9 +701,13 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 	return agentEnsurer.EnsureResources(ctx)
 }
 
-func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster, policy v1alpha1.VirtualClusterPolicy) error {
 	if cluster.Name == ClusterInvalidName {
-		return errors.New("invalid cluster name " + cluster.Name + " no action will be taken")
+		return fmt.Errorf("%w: invalid cluster name %q", ErrClusterValidation, cluster.Name)
+	}
+
+	if cluster.Spec.Mode != policy.Spec.AllowedMode {
+		return fmt.Errorf("%w: mode %q is not allowed by the policy %q", ErrClusterValidation, cluster.Spec.Mode, policy.Name)
 	}
 
 	return nil

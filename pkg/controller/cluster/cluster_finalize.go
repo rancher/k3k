@@ -10,44 +10,34 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
-	v1 "k8s.io/api/core/v1"
+
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster v1alpha1.Cluster) (reconcile.Result, error) {
+func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1alpha1.Cluster) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("finalizing Cluster")
 
-	// remove finalizer from the server pods and update them.
-	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
-	listOpts := &ctrlruntimeclient.ListOptions{Namespace: cluster.Namespace}
-	matchingLabels.ApplyToList(listOpts)
+	// Set the Terminating phase and condition
+	cluster.Status.OverallStatus = v1alpha1.ClusterTerminating
+	meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
+		Type:    ConditionReady,
+		Status:  metav1.ConditionFalse,
+		Reason:  ReasonTerminating,
+		Message: "Cluster is being terminated",
+	})
 
-	var podList v1.PodList
-	if err := c.Client.List(ctx, &podList, listOpts); err != nil {
-		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
-	}
-
-	for _, pod := range podList.Items {
-		if controllerutil.ContainsFinalizer(&pod, etcdPodFinalizerName) {
-			controllerutil.RemoveFinalizer(&pod, etcdPodFinalizerName)
-
-			if err := c.Client.Update(ctx, &pod); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-	}
-
-	if err := c.unbindClusterRoles(ctx, &cluster); err != nil {
+	if err := c.unbindClusterRoles(ctx, cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Dellaocate ports for kubelet and webhook if used
+	// Deallocate ports for kubelet and webhook if used
 	if cluster.Spec.Mode == v1alpha1.SharedClusterMode && cluster.Spec.MirrorHostNodes {
 		log.Info("dellocating ports for kubelet and webhook")
 
@@ -60,11 +50,9 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster v1alpha
 		}
 	}
 
-	if controllerutil.ContainsFinalizer(&cluster, clusterFinalizerName) {
-		// remove finalizer from the cluster and update it.
-		controllerutil.RemoveFinalizer(&cluster, clusterFinalizerName)
-
-		if err := c.Client.Update(ctx, &cluster); err != nil {
+	// Remove finalizer from the cluster and update it only when all resources are cleaned up
+	if controllerutil.RemoveFinalizer(cluster, ClusterFinalizerName) {
+		if err := c.Client.Update(ctx, cluster); err != nil {
 			return reconcile.Result{}, err
 		}
 	}

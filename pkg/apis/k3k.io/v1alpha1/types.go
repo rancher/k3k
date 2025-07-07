@@ -11,6 +11,7 @@ import (
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:JSONPath=".spec.mode",name=Mode,type=string
+// +kubebuilder:printcolumn:JSONPath=".status.overallStatus",name="Status",type="string"
 // +kubebuilder:printcolumn:JSONPath=".status.policyName",name=Policy,type=string
 
 // Cluster defines a virtual Kubernetes cluster managed by k3k.
@@ -334,7 +335,28 @@ type ClusterStatus struct {
 	//
 	// +optional
 	WebhookPort int `json:"webhookPort,omitempty"`
+
+	// Conditions are the individual conditions for the cluster set.
+	//
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// OverallStatus is a high-level summary of the cluster's current lifecycle state.
+	//
+	// +optional
+	OverallStatus ClusterOverallStatus `json:"overallStatus,omitempty"`
 }
+
+type ClusterOverallStatus string
+
+const (
+	ClusterPending      ClusterOverallStatus = "Pending"
+	ClusterProvisioning ClusterOverallStatus = "Provisioning"
+	ClusterReady        ClusterOverallStatus = "Ready"
+	ClusterFailed       ClusterOverallStatus = "Failed"
+	ClusterTerminating  ClusterOverallStatus = "Terminating"
+	ClusterUnknown      ClusterOverallStatus = "Unknown"
+)
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true

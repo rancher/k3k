@@ -177,6 +177,7 @@ func (a *PortAllocator) deallocatePort(ctx context.Context, client ctrlruntimecl
 	if !ok {
 		return fmt.Errorf("port range is not initialized")
 	}
+
 	if err := a.getOrCreate(ctx, client, configMap, portRange); err != nil {
 		return err
 	}

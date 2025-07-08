@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/registry/core/service/portallocator"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -105,7 +104,7 @@ func (a *PortAllocator) getOrCreate(ctx context.Context, client ctrlruntimeclien
 	return nil
 }
 
-func (a *PortAllocator) AllocateWebhookPort(ctx context.Context, cfg *Config) (*int, error) {
+func (a *PortAllocator) AllocateWebhookPort(ctx context.Context, cfg *Config) (int, error) {
 	return a.allocatePort(ctx, cfg, a.WebhookCM)
 }
 
@@ -113,7 +112,7 @@ func (a *PortAllocator) DeallocateWebhookPort(ctx context.Context, client ctrlru
 	return a.deallocatePort(ctx, client, clusterName, clusterNamespace, a.WebhookCM, webhookPort)
 }
 
-func (a *PortAllocator) AllocateKubeletPort(ctx context.Context, cfg *Config) (*int, error) {
+func (a *PortAllocator) AllocateKubeletPort(ctx context.Context, cfg *Config) (int, error) {
 	return a.allocatePort(ctx, cfg, a.KubeletCM)
 }
 
@@ -122,25 +121,25 @@ func (a *PortAllocator) DeallocateKubeletPort(ctx context.Context, client ctrlru
 }
 
 // allocatePort will assign port to the cluster from a port Range configured for k3k
-func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap *v1.ConfigMap) (*int, error) {
+func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap *v1.ConfigMap) (int, error) {
 	portRange, ok := configMap.Data["range"]
 	if !ok {
-		return nil, fmt.Errorf("port range is not initialized")
+		return 0, fmt.Errorf("port range is not initialized")
 	}
 	// get configMap first to avoid conflicts
 	if err := a.getOrCreate(ctx, cfg.client, configMap, portRange); err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	clusterNameNamespace := cfg.cluster.Name + "-" + cfg.cluster.Namespace
 
 	portsMap, err := parsePortMap(configMap.Data["allocatedPorts"])
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	if _, ok := portsMap[clusterNameNamespace]; ok {
-		return ptr.To(portsMap[clusterNameNamespace]), nil
+		return portsMap[clusterNameNamespace], nil
 	}
 	// allocate a new port and save the snapshot
 	snapshot := core.RangeAllocation{
@@ -150,25 +149,25 @@ func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap
 
 	pa, err := portallocator.NewFromSnapshot(&snapshot)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	next, err := pa.AllocateNext()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	portsMap[clusterNameNamespace] = next
 
 	if err := saveSnapshot(pa, &snapshot, configMap, portsMap); err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	if err := cfg.client.Update(ctx, configMap); err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	return ptr.To(next), nil
+	return next, nil
 }
 
 // deallocatePort will remove the port used by the cluster from the port range

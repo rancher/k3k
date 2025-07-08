@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -652,8 +651,8 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.K3SImage, c.K3SImagePullPolicy)
 	} else {
 		// Assign port from pool if shared agent enabled mirroring of host nodes
-		kubeletPort := ptr.To(10250)
-		webhookPort := ptr.To(9443)
+		kubeletPort := 10250
+		webhookPort := 9443
 
 		if cluster.Spec.MirrorHostNodes {
 			var err error
@@ -663,14 +662,14 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 				return err
 			}
 
-			cluster.Status.KubeletPort = *kubeletPort
+			cluster.Status.KubeletPort = kubeletPort
 
 			webhookPort, err = c.PortAllocator.AllocateWebhookPort(ctx, config)
 			if err != nil {
 				return err
 			}
 
-			cluster.Status.WebhookPort = *webhookPort
+			cluster.Status.WebhookPort = webhookPort
 		}
 
 		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token, kubeletPort, webhookPort)

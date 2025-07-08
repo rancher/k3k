@@ -34,11 +34,11 @@ type SharedAgent struct {
 	image           string
 	imagePullPolicy string
 	token           string
-	kubeletPort     *int
-	webhookPort     *int
+	kubeletPort     int
+	webhookPort     int
 }
 
-func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort, webhookPort *int) *SharedAgent {
+func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort, webhookPort int) *SharedAgent {
 	return &SharedAgent{
 		Config:          config,
 		serviceIP:       serviceIP,
@@ -76,7 +76,7 @@ func (s *SharedAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Ob
 }
 
 func (s *SharedAgent) config(ctx context.Context) error {
-	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP, *s.kubeletPort, *s.webhookPort)
+	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP, s.kubeletPort, s.webhookPort)
 
 	configSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -246,12 +246,12 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 					{
 						Name:          "kubelet-port",
 						Protocol:      v1.ProtocolTCP,
-						ContainerPort: int32(*s.kubeletPort),
+						ContainerPort: int32(s.kubeletPort),
 					},
 					{
 						Name:          "webhook-port",
 						Protocol:      v1.ProtocolTCP,
-						ContainerPort: int32(*s.webhookPort),
+						ContainerPort: int32(s.webhookPort),
 					},
 				},
 			},
@@ -280,13 +280,13 @@ func (s *SharedAgent) service(ctx context.Context) error {
 				{
 					Name:     "k3s-kubelet-port",
 					Protocol: v1.ProtocolTCP,
-					Port:     int32(*s.kubeletPort),
+					Port:     int32(s.kubeletPort),
 				},
 				{
 					Name:       "webhook-server",
 					Protocol:   v1.ProtocolTCP,
-					Port:       int32(*s.webhookPort),
-					TargetPort: intstr.FromInt32(int32(*s.webhookPort)),
+					Port:       int32(s.webhookPort),
+					TargetPort: intstr.FromInt32(int32(s.webhookPort)),
 				},
 			},
 		},

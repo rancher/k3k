@@ -131,15 +131,15 @@ func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap
 		return 0, err
 	}
 
-	clusterNameNamespace := cfg.cluster.Name + "-" + cfg.cluster.Namespace
+	clusterNamespaceName := cfg.cluster.Namespace + "/" + cfg.cluster.Name
 
 	portsMap, err := parsePortMap(configMap.Data["allocatedPorts"])
 	if err != nil {
 		return 0, err
 	}
 
-	if _, ok := portsMap[clusterNameNamespace]; ok {
-		return portsMap[clusterNameNamespace], nil
+	if _, ok := portsMap[clusterNamespaceName]; ok {
+		return portsMap[clusterNamespaceName], nil
 	}
 	// allocate a new port and save the snapshot
 	snapshot := core.RangeAllocation{
@@ -157,7 +157,7 @@ func (a *PortAllocator) allocatePort(ctx context.Context, cfg *Config, configMap
 		return 0, err
 	}
 
-	portsMap[clusterNameNamespace] = next
+	portsMap[clusterNamespaceName] = next
 
 	if err := saveSnapshot(pa, &snapshot, configMap, portsMap); err != nil {
 		return 0, err
@@ -181,14 +181,14 @@ func (a *PortAllocator) deallocatePort(ctx context.Context, client ctrlruntimecl
 		return err
 	}
 
-	clusterNameNamespace := clusterName + "-" + clusterNamespace
+	clusterNamespaceName := clusterNamespace + "/" + clusterName
 
 	portsMap, err := parsePortMap(configMap.Data["allocatedPorts"])
 	if err != nil {
 		return err
 	}
 	// check if the cluster already exists in the configMap
-	if usedPort, ok := portsMap[clusterNameNamespace]; ok {
+	if usedPort, ok := portsMap[clusterNamespaceName]; ok {
 		if usedPort != port {
 			return fmt.Errorf("port %d does not match used port %d for the cluster", port, usedPort)
 		}
@@ -207,7 +207,7 @@ func (a *PortAllocator) deallocatePort(ctx context.Context, client ctrlruntimecl
 			return err
 		}
 
-		delete(portsMap, clusterNameNamespace)
+		delete(portsMap, clusterNamespaceName)
 
 		if err := saveSnapshot(pa, &snapshot, configMap, portsMap); err != nil {
 			return err

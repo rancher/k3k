@@ -24,7 +24,6 @@ import (
 const (
 	webhookName    = "podmutator.k3k.io"
 	webhookTimeout = int32(10)
-	webhookPort    = "9443"
 	webhookPath    = "/mutate--v1-pod"
 	FieldpathField = "k3k.io/fieldpath"
 )
@@ -36,12 +35,13 @@ type webhookHandler struct {
 	clusterName      string
 	clusterNamespace string
 	logger           *log.Logger
+	webhookPort      int
 }
 
 // AddPodMutatorWebhook will add a mutator webhook to the virtual cluster to
 // modify the nodeName of the created pods with the name of the virtual kubelet node name
 // as well as remove any status fields of the downward apis env fields
-func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, serviceName string, logger *log.Logger) error {
+func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, serviceName string, logger *log.Logger, webhookPort int) error {
 	handler := webhookHandler{
 		client:           mgr.GetClient(),
 		scheme:           mgr.GetScheme(),
@@ -49,6 +49,7 @@ func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient c
 		serviceName:      serviceName,
 		clusterName:      clusterName,
 		clusterNamespace: clusterNamespace,
+		webhookPort:      webhookPort,
 	}
 
 	// create mutator webhook configuration to the cluster
@@ -112,7 +113,7 @@ func (w *webhookHandler) configuration(ctx context.Context, hostClient ctrlrunti
 		return nil, errors.New("webhook CABundle does not exist in secret")
 	}
 
-	webhookURL := "https://" + w.serviceName + ":" + webhookPort + webhookPath
+	webhookURL := fmt.Sprintf("https://%s:%d%s", w.serviceName, w.webhookPort, webhookPath)
 
 	return &admissionregistrationv1.MutatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{

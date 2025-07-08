@@ -54,12 +54,17 @@ func main() {
 			Destination: &cfg.VirtualConfigPath,
 			EnvVars:     []string{"CLUSTER_NAME"},
 		},
-		&cli.StringFlag{
+		&cli.IntFlag{
 			Name:        "kubelet-port",
 			Usage:       "kubelet API port number",
 			Destination: &cfg.KubeletPort,
 			EnvVars:     []string{"SERVER_PORT"},
-			Value:       "10250",
+		},
+		&cli.IntFlag{
+			Name:        "webhook-port",
+			Usage:       "Webhook port number",
+			Destination: &cfg.WebhookPort,
+			EnvVars:     []string{"WEBHOOK_PORT"},
 		},
 		&cli.StringFlag{
 			Name:        "service-name",
@@ -98,6 +103,12 @@ func main() {
 			Destination: &debug,
 			EnvVars:     []string{"DEBUG"},
 		},
+		&cli.BoolFlag{
+			Name:        "mirror-host-nodes",
+			Usage:       "Mirror real node objects from host cluster",
+			Destination: &cfg.MirrorHostNodes,
+			EnvVars:     []string{"MIRROR_HOST_NODES"},
+		},
 	}
 	app.Before = func(clx *cli.Context) error {
 		logger = log.New(debug)
@@ -128,7 +139,7 @@ func run(clx *cli.Context) error {
 		logger.Fatalw("failed to create new virtual kubelet instance", zap.Error(err))
 	}
 
-	if err := k.registerNode(ctx, k.agentIP, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, cfg.ServerIP, k.dnsIP, cfg.Version); err != nil {
+	if err := k.registerNode(ctx, k.agentIP, cfg); err != nil {
 		logger.Fatalw("failed to register new node", zap.Error(err))
 	}
 

@@ -64,10 +64,11 @@ type ClusterReconciler struct {
 	SharedAgentImagePullPolicy string
 	K3SImage                   string
 	K3SImagePullPolicy         string
+	PortAllocator              *agent.PortAllocator
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy string, k3SImage string, k3SImagePullPolicy string) error {
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage string, k3SImagePullPolicy string, kubeletPortRange, webhookPortRange string) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
@@ -75,6 +76,11 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 
 	if sharedAgentImage == "" {
 		return errors.New("missing shared agent image")
+	}
+
+	portAllocator, err := agent.NewPortAllocator(ctx, mgr.GetClient(), kubeletPortRange, webhookPortRange)
+	if err != nil {
+		return err
 	}
 
 	// initialize a new Reconciler
@@ -86,6 +92,11 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		SharedAgentImagePullPolicy: sharedAgentImagePullPolicy,
 		K3SImage:                   k3SImage,
 		K3SImagePullPolicy:         k3SImagePullPolicy,
+		PortAllocator:              portAllocator,
+	}
+
+	if err := mgr.Add(portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient(), kubeletPortRange, webhookPortRange)); err != nil {
+		return err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -148,7 +159,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// add finalizers
-	if !controllerutil.AddFinalizer(&cluster, clusterFinalizerName) {
+	if controllerutil.AddFinalizer(&cluster, clusterFinalizerName) {
 		if err := c.Client.Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -603,7 +614,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 }
 
 func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	clusterRoles := []string{"k3k-node-proxy", "k3k-priorityclass"}
+	clusterRoles := []string{"k3k-kubelet-node", "k3k-priorityclass"}
 
 	var err error
 
@@ -639,7 +650,29 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 	if cluster.Spec.Mode == agent.VirtualNodeMode {
 		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.K3SImage, c.K3SImagePullPolicy)
 	} else {
-		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token)
+		// Assign port from pool if shared agent enabled mirroring of host nodes
+		kubeletPort := 10250
+		webhookPort := 9443
+
+		if cluster.Spec.MirrorHostNodes {
+			var err error
+
+			kubeletPort, err = c.PortAllocator.AllocateKubeletPort(ctx, config)
+			if err != nil {
+				return err
+			}
+
+			cluster.Status.KubeletPort = kubeletPort
+
+			webhookPort, err = c.PortAllocator.AllocateWebhookPort(ctx, config)
+			if err != nil {
+				return err
+			}
+
+			cluster.Status.WebhookPort = webhookPort
+		}
+
+		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token, kubeletPort, webhookPort)
 	}
 
 	return agentEnsurer.EnsureResources(ctx)

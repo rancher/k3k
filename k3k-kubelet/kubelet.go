@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-logr/zapr"
@@ -96,13 +97,21 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 
 	ctrl.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
 
+	hostMetricsBindAddress := ":8083"
+	virtualMetricsBindAddress := ":8084"
+
+	if c.MirrorHostNodes {
+		hostMetricsBindAddress = "0"
+		virtualMetricsBindAddress = "0"
+	}
+
 	hostMgr, err := ctrl.NewManager(hostConfig, manager.Options{
 		Scheme:                  baseScheme,
 		LeaderElection:          true,
 		LeaderElectionNamespace: c.ClusterNamespace,
 		LeaderElectionID:        c.ClusterName,
 		Metrics: ctrlserver.Options{
-			BindAddress: ":8083",
+			BindAddress: hostMetricsBindAddress,
 		},
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{
@@ -122,6 +131,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 
 	webhookServer := webhook.NewServer(webhook.Options{
 		CertDir: "/opt/rancher/k3k-webhook",
+		Port:    c.WebhookPort,
 	})
 
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
@@ -131,7 +141,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		LeaderElectionNamespace: "kube-system",
 		LeaderElectionID:        c.ClusterName,
 		Metrics: ctrlserver.Options{
-			BindAddress: ":8084",
+			BindAddress: virtualMetricsBindAddress,
 		},
 	})
 
@@ -141,7 +151,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 
 	logger.Info("adding pod mutator webhook")
 
-	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.ServiceName, logger); err != nil {
+	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.ServiceName, logger, c.WebhookPort); err != nil {
 		return nil, errors.New("unable to add pod mutator webhook for virtual cluster: " + err.Error())
 	}
 
@@ -201,6 +211,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		logger:     logger.Named(k3kKubeletName),
 		token:      c.Token,
 		dnsIP:      dnsService.Spec.ClusterIP,
+		port:       c.KubeletPort,
 	}, nil
 }
 
@@ -219,9 +230,9 @@ func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostCl
 	return service.Spec.ClusterIP, nil
 }
 
-func (k *kubelet) registerNode(ctx context.Context, agentIP, srvPort, namespace, name, hostname, serverIP, dnsIP, version string) error {
-	providerFunc := k.newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP, version)
-	nodeOpts := k.nodeOpts(ctx, srvPort, namespace, name, hostname, agentIP)
+func (k *kubelet) registerNode(ctx context.Context, agentIP string, cfg config) error {
+	providerFunc := k.newProviderFunc(cfg)
+	nodeOpts := k.nodeOpts(ctx, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, agentIP)
 
 	var err error
 
@@ -272,22 +283,22 @@ func (k *kubelet) start(ctx context.Context) {
 	k.logger.Info("node exited successfully")
 }
 
-func (k *kubelet) newProviderFunc(namespace, name, hostname, agentIP, serverIP, dnsIP, version string) nodeutil.NewProviderFunc {
+func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
-		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, namespace, name, serverIP, dnsIP)
+		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, cfg.ClusterNamespace, cfg.ClusterName, cfg.ServerIP, k.dnsIP)
 		if err != nil {
 			return nil, nil, errors.New("unable to make nodeutil provider: " + err.Error())
 		}
 
-		provider.ConfigureNode(k.logger, pc.Node, hostname, k.port, agentIP, utilProvider.CoreClient, utilProvider.VirtualClient, k.virtualCluster, version)
+		provider.ConfigureNode(k.logger, pc.Node, cfg.AgentHostname, k.port, k.agentIP, utilProvider.CoreClient, utilProvider.VirtualClient, k.virtualCluster, cfg.Version, cfg.MirrorHostNodes)
 
 		return utilProvider, &provider.Node{}, nil
 	}
 }
 
-func (k *kubelet) nodeOpts(ctx context.Context, srvPort, namespace, name, hostname, agentIP string) nodeutil.NodeOpt {
+func (k *kubelet) nodeOpts(ctx context.Context, srvPort int, namespace, name, hostname, agentIP string) nodeutil.NodeOpt {
 	return func(c *nodeutil.NodeConfig) error {
-		c.HTTPListenAddr = fmt.Sprintf(":%s", srvPort)
+		c.HTTPListenAddr = fmt.Sprintf(":%d", srvPort)
 		// set up the routes
 		mux := http.NewServeMux()
 		if err := nodeutil.AttachProviderRoutes(mux)(c); err != nil {
@@ -399,12 +410,13 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 	}); err != nil {
 		return nil, errors.New("unable to decode bootstrap: " + err.Error())
 	}
-
+	// POD IP
+	podIP := net.ParseIP(os.Getenv("POD_IP"))
 	ip := net.ParseIP(agentIP)
 
 	altNames := certutil.AltNames{
 		DNSNames: []string{hostname},
-		IPs:      []net.IP{ip},
+		IPs:      []net.IP{ip, podIP},
 	}
 
 	cert, key, err := certs.CreateClientCertKey(nodeName, nil, &altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, 0, b.ServerCA.Content, b.ServerCAKey.Content)

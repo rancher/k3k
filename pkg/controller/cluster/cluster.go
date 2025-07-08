@@ -42,6 +42,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	. "github.com/onsi/ginkgo/v2"
 )
 
 const (
@@ -73,7 +75,7 @@ type ClusterReconciler struct {
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage string, k3SImagePullPolicy string, kubeletPortRange, webhookPortRange string, maxConcurrentReconciles int) error {
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage string, k3SImagePullPolicy string, maxConcurrentReconciles int, portAllocator *agent.PortAllocator, eventRecorder record.EventRecorder) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
@@ -83,9 +85,8 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		return errors.New("missing shared agent image")
 	}
 
-	portAllocator, err := agent.NewPortAllocator(ctx, mgr.GetClient(), kubeletPortRange, webhookPortRange)
-	if err != nil {
-		return err
+	if eventRecorder == nil {
+		eventRecorder = mgr.GetEventRecorderFor(clusterController)
 	}
 
 	// initialize a new Reconciler
@@ -93,16 +94,12 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		DiscoveryClient:            discoveryClient,
 		Client:                     mgr.GetClient(),
 		Scheme:                     mgr.GetScheme(),
-		EventRecorder:              mgr.GetEventRecorderFor(clusterController),
+		EventRecorder:              eventRecorder,
 		SharedAgentImage:           sharedAgentImage,
 		SharedAgentImagePullPolicy: sharedAgentImagePullPolicy,
 		K3SImage:                   k3SImage,
 		K3SImagePullPolicy:         k3SImagePullPolicy,
 		PortAllocator:              portAllocator,
-	}
-
-	if err := mgr.Add(portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient(), kubeletPortRange, webhookPortRange)); err != nil {
-		return err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -166,14 +163,20 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// Set initial status if not already set
-	if cluster.Status.OverallStatus == "" {
-		cluster.Status.OverallStatus = v1alpha1.ClusterProvisioning
+	if cluster.Status.Phase == "" || cluster.Status.Phase == v1alpha1.ClusterUnknown {
+		cluster.Status.Phase = v1alpha1.ClusterProvisioning
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 			Type:    ConditionReady,
 			Status:  metav1.ConditionFalse,
 			Reason:  ReasonProvisioning,
 			Message: "Cluster is being provisioned",
 		})
+
+		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// add finalizer
@@ -191,9 +194,10 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	if !equality.Semantic.DeepEqual(orig.Status, cluster.Status) {
 		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
-			log.Error(err, "failed to update cluster status")
+			return reconcile.Result{}, err
 		}
 	}
+
 	// if there was an error during the reconciliation, return
 	if reconcilerErr != nil {
 		if errors.Is(reconcilerErr, bootstrap.ErrServerNotReady) {
@@ -229,18 +233,18 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 		return err
 	}
 
-	policyName := ns.Labels[policy.PolicyNameLabelKey]
+	if policyName, found := ns.Labels[policy.PolicyNameLabelKey]; found {
+		cluster.Status.PolicyName = policyName
 
-	var policy v1alpha1.VirtualClusterPolicy
-	if err := c.Client.Get(ctx, client.ObjectKey{Name: policyName}, &policy); err != nil {
-		return err
+		var policy v1alpha1.VirtualClusterPolicy
+		if err := c.Client.Get(ctx, client.ObjectKey{Name: policyName}, &policy); err != nil {
+			return err
+		}
+
+		if err := c.validate(cluster, policy); err != nil {
+			return err
+		}
 	}
-
-	if err := c.validate(cluster, policy); err != nil {
-		return err
-	}
-
-	cluster.Status.PolicyName = policyName
 
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
 	// This version is stored in the Status object, and it will not be updated if already set.
@@ -538,6 +542,9 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 
 	expectedService := server.Service(cluster)
 
+	fmt.Fprintf(GinkgoWriter, "cluster\n%#v\n", cluster)
+	fmt.Fprintf(GinkgoWriter, "ENSURING SERVICE\n%#v\n", expectedService)
+
 	currentService := expectedService.DeepCopy()
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentService, func() error {
 		if err := controllerutil.SetControllerReference(cluster, currentService, c.Scheme); err != nil {
@@ -548,6 +555,8 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 
 		return nil
 	})
+
+	fmt.Fprintf(GinkgoWriter, "CURRENT SERVICE\n%v - %#v\n", err, currentService)
 
 	if err != nil {
 		return nil, err

@@ -11,7 +11,7 @@ import (
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:JSONPath=".spec.mode",name=Mode,type=string
-// +kubebuilder:printcolumn:JSONPath=".status.overallStatus",name="Status",type="string"
+// +kubebuilder:printcolumn:JSONPath=".status.phase",name="Status",type="string"
 // +kubebuilder:printcolumn:JSONPath=".status.policyName",name=Policy,type=string
 
 // Cluster defines a virtual Kubernetes cluster managed by k3k.
@@ -29,6 +29,7 @@ type Cluster struct {
 
 	// Status reflects the observed state of the Cluster.
 	//
+	// +kubebuilder:default={}
 	// +optional
 	Status ClusterStatus `json:"status,omitempty"`
 }
@@ -341,21 +342,24 @@ type ClusterStatus struct {
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// OverallStatus is a high-level summary of the cluster's current lifecycle state.
+	// Phase is a high-level summary of the cluster's current lifecycle state.
 	//
+	// +kubebuilder:default="Unknown"
+	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Failed;Terminating;Unknown
 	// +optional
-	OverallStatus ClusterOverallStatus `json:"overallStatus,omitempty"`
+	Phase ClusterPhase `json:"phase,omitempty"`
 }
 
-type ClusterOverallStatus string
+// ClusterPhase is a high-level summary of the cluster's current lifecycle state.
+type ClusterPhase string
 
 const (
-	ClusterPending      ClusterOverallStatus = "Pending"
-	ClusterProvisioning ClusterOverallStatus = "Provisioning"
-	ClusterReady        ClusterOverallStatus = "Ready"
-	ClusterFailed       ClusterOverallStatus = "Failed"
-	ClusterTerminating  ClusterOverallStatus = "Terminating"
-	ClusterUnknown      ClusterOverallStatus = "Unknown"
+	ClusterPending      = ClusterPhase("Pending")
+	ClusterProvisioning = ClusterPhase("Provisioning")
+	ClusterReady        = ClusterPhase("Ready")
+	ClusterFailed       = ClusterPhase("Failed")
+	ClusterTerminating  = ClusterPhase("Terminating")
+	ClusterUnknown      = ClusterPhase("Unknown")
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

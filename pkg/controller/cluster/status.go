@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,9 +23,8 @@ const (
 )
 
 func (c *ClusterReconciler) updateStatus(cluster *v1alpha1.Cluster, reconcileErr error) {
-	// If the cluster is being deleted, set the phase to Terminating.
 	if !cluster.DeletionTimestamp.IsZero() {
-		cluster.Status.OverallStatus = v1alpha1.ClusterTerminating
+		cluster.Status.Phase = v1alpha1.ClusterTerminating
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 			Type:    ConditionReady,
 			Status:  metav1.ConditionFalse,
@@ -37,7 +37,7 @@ func (c *ClusterReconciler) updateStatus(cluster *v1alpha1.Cluster, reconcileErr
 
 	// Handle validation errors specifically to set the Pending phase.
 	if errors.Is(reconcileErr, ErrClusterValidation) {
-		cluster.Status.OverallStatus = v1alpha1.ClusterPending
+		cluster.Status.Phase = v1alpha1.ClusterPending
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 			Type:    ConditionReady,
 			Status:  metav1.ConditionFalse,
@@ -50,9 +50,21 @@ func (c *ClusterReconciler) updateStatus(cluster *v1alpha1.Cluster, reconcileErr
 		return
 	}
 
+	if errors.Is(reconcileErr, bootstrap.ErrServerNotReady) {
+		cluster.Status.Phase = v1alpha1.ClusterProvisioning
+		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
+			Type:    ConditionReady,
+			Status:  metav1.ConditionFalse,
+			Reason:  ReasonProvisioning,
+			Message: reconcileErr.Error(),
+		})
+
+		return
+	}
+
 	// If there's an error, but it's not a validation error, the cluster is in a failed state.
 	if reconcileErr != nil {
-		cluster.Status.OverallStatus = v1alpha1.ClusterFailed
+		cluster.Status.Phase = v1alpha1.ClusterFailed
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 			Type:    ConditionReady,
 			Status:  metav1.ConditionFalse,
@@ -66,7 +78,7 @@ func (c *ClusterReconciler) updateStatus(cluster *v1alpha1.Cluster, reconcileErr
 	}
 
 	// If we reach here, everything is successful.
-	cluster.Status.OverallStatus = v1alpha1.ClusterReady
+	cluster.Status.Phase = v1alpha1.ClusterReady
 	newCondition := metav1.Condition{
 		Type:    ConditionReady,
 		Status:  metav1.ConditionTrue,

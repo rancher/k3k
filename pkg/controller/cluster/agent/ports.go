@@ -27,7 +27,7 @@ type PortAllocator struct {
 	WebhookCM *v1.ConfigMap
 }
 
-func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client, kubeletPortRange, webhookPortRange string) (*PortAllocator, error) {
+func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client) (*PortAllocator, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("starting port allocator")
 

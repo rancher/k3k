@@ -25,7 +25,7 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1alph
 	log.Info("finalizing Cluster")
 
 	// Set the Terminating phase and condition
-	cluster.Status.OverallStatus = v1alpha1.ClusterTerminating
+	cluster.Status.Phase = v1alpha1.ClusterTerminating
 	meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 		Type:    ConditionReady,
 		Status:  metav1.ConditionFalse,

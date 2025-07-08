@@ -28,6 +28,7 @@ jobs:
 
   validate:
     runs-on: ubuntu-latest
+    needs: lint
 
     steps:
     - name: Checkout code
@@ -36,9 +37,6 @@ jobs:
     - uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
-    
-    - name: Validate
-      run: make validate
 
   tests:
     runs-on: ubuntu-latest

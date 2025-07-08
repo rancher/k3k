@@ -18,7 +18,7 @@ spec:
     - jsonPath: .spec.mode
       name: Mode
       type: string
-    - jsonPath: .status.overallStatus
+    - jsonPath: .status.phase
       name: Status
       type: string
     - jsonPath: .status.policyName
@@ -529,6 +529,7 @@ spec:
                 type: object
             type: object
           status:
+            default: {}
             description: Status reflects the observed state of the Cluster.
             properties:
               clusterCIDR:
@@ -602,9 +603,17 @@ spec:
                 description: KubeletPort specefies the port used by k3k-kubelet in
                   shared mode.
                 type: integer
-              overallStatus:
-                description: OverallStatus is a high-level summary of the cluster's
-                  current lifecycle state.
+              phase:
+                default: Unknown
+                description: Phase is a high-level summary of the cluster's current
+                  lifecycle state.
+                enum:
+                - Pending
+                - Provisioning
+                - Ready
+                - Failed
+                - Terminating
+                - Unknown
                 type: string
               policyName:
                 description: PolicyName specifies the virtual cluster policy name

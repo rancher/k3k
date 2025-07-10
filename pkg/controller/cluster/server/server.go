@@ -323,6 +323,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 	if s.cluster.Spec.CustomCertificates.Enabled {
 		var certSecret v1.Secret
+
 		key := types.NamespacedName{
 			Name:      controller.SafeConcatNameWithPrefix(s.cluster.Name, "custom", "certs"),
 			Namespace: s.cluster.Namespace,
@@ -334,6 +335,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 		// adding volume and volume mounts for certs
 		name := "cert-volume"
+
 		secretName := s.cluster.Spec.CustomCertificates.SecretName
 		if secretName == "" {
 			secretName = key.Name
@@ -363,10 +365,12 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		// Sort the keys before iterating over them to ensure predictable order
 		// otherwise the volume mount order with each reconcile causing the pod to restart.
 		sort.Strings(keys)
+
 		for _, certName := range keys {
 			var etcdPrefix string
 
 			certFile := certName
+
 			if strings.Contains(certName, "etcd-") {
 				etcdPrefix = "/etcd"
 				certFile = certName[5:] // "etcd-"

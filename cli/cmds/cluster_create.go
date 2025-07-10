@@ -243,6 +243,7 @@ func CreateCustomCertsSecret(ctx context.Context, name, namespace, customCertsPa
 		},
 		Data: map[string][]byte{},
 	}
+
 	err := filepath.Walk(customCertsPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -261,12 +262,15 @@ func CreateCustomCertsSecret(ctx context.Context, name, namespace, customCertsPa
 		if err != nil {
 			return err
 		}
+
 		customCertSecret.Data[prefix+info.Name()] = fileContent
 
 		return nil
 	})
+
 	if err != nil {
 		return err
 	}
+
 	return client.Create(ctx, &customCertSecret)
 }

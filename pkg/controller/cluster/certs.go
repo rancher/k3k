@@ -44,8 +44,8 @@ func validateCustomCerts(customCerts v1alpha1.CustomCertificatesContent) error {
 				return fmt.Errorf("%s crt or key is empty", crtPair.Name)
 			}
 		}
-
 	}
+
 	return nil
 }
 

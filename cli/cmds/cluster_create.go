@@ -278,18 +278,22 @@ func CreateCustomCertsSecret(ctx context.Context, name, namespace, customCertsPa
 		if err != nil {
 			return err
 		}
+
 		if info.IsDir() {
 			return nil
 		}
+
 		prefix := ""
 		if strings.Contains(path, "etcd") {
 			prefix = "etcd-"
 		}
+
 		fileContent, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
 		customCertSecret.Data[prefix+info.Name()] = fileContent
+
 		return nil
 	})
 	if err != nil {

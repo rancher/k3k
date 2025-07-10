@@ -308,8 +308,6 @@ spec:
                   In "shared" mode, this also applies to workloads.
                 type: object
               persistence:
-                default:
-                  type: dynamic
                 description: |-
                   Persistence specifies options for persisting etcd data.
                   Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.
@@ -321,6 +319,7 @@ spec:
                       This field is only relevant in "dynamic" mode.
                     type: string
                   storageRequestSize:
+                    default: 1G
                     description: |-
                       StorageRequestSize is the requested size for the PVC.
                       This field is only relevant in "dynamic" mode.
@@ -329,8 +328,6 @@ spec:
                     default: dynamic
                     description: Type specifies the persistence mode.
                     type: string
-                required:
-                - type
                 type: object
               priorityClass:
                 description: |-
@@ -544,26 +541,6 @@ spec:
                 description: KubeletPort specefies the port used by k3k-kubelet in
                   shared mode.
                 type: integer
-              persistence:
-                description: Persistence specifies options for persisting etcd data.
-                properties:
-                  storageClassName:
-                    description: |-
-                      StorageClassName is the name of the StorageClass to use for the PVC.
-                      This field is only relevant in "dynamic" mode.
-                    type: string
-                  storageRequestSize:
-                    description: |-
-                      StorageRequestSize is the requested size for the PVC.
-                      This field is only relevant in "dynamic" mode.
-                    type: string
-                  type:
-                    default: dynamic
-                    description: Type specifies the persistence mode.
-                    type: string
-                required:
-                - type
-                type: object
               policyName:
                 description: PolicyName specifies the virtual cluster policy name
                   bound to the virtual cluster.

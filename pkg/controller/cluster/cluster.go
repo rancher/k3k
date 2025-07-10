@@ -32,6 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -46,14 +47,11 @@ const (
 	etcdPodFinalizerName = "etcdpod.k3k.io/finalizer"
 	ClusterInvalidName   = "system"
 
-	maxConcurrentReconciles = 1
-
-	defaultVirtualClusterCIDR    = "10.52.0.0/16"
-	defaultVirtualServiceCIDR    = "10.53.0.0/16"
-	defaultSharedClusterCIDR     = "10.42.0.0/16"
-	defaultSharedServiceCIDR     = "10.43.0.0/16"
-	defaultStoragePersistentSize = "1G"
-	memberRemovalTimeout         = time.Minute * 1
+	defaultVirtualClusterCIDR = "10.52.0.0/16"
+	defaultVirtualServiceCIDR = "10.53.0.0/16"
+	defaultSharedClusterCIDR  = "10.42.0.0/16"
+	defaultSharedServiceCIDR  = "10.43.0.0/16"
+	memberRemovalTimeout      = time.Minute * 1
 )
 
 type ClusterReconciler struct {
@@ -68,7 +66,7 @@ type ClusterReconciler struct {
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage string, k3SImagePullPolicy string, kubeletPortRange, webhookPortRange string) error {
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage string, k3SImagePullPolicy string, kubeletPortRange, webhookPortRange string, maxConcurrentReconciles int) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
@@ -104,6 +102,7 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		Watches(&v1.Namespace{}, namespaceEventHandler(&reconciler)).
 		Owns(&apps.StatefulSet{}).
 		Owns(&v1.Service{}).
+		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
 
@@ -226,12 +225,6 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alp
 	}
 
 	s := server.New(cluster, c.Client, token, string(cluster.Spec.Mode), c.K3SImage, c.K3SImagePullPolicy)
-
-	cluster.Status.Persistence = cluster.Spec.Persistence
-	if cluster.Spec.Persistence.StorageRequestSize == "" {
-		// default to 1G of request size
-		cluster.Status.Persistence.StorageRequestSize = defaultStoragePersistentSize
-	}
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	if cluster.Status.ClusterCIDR == "" {

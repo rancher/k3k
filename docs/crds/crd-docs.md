@@ -106,7 +106,7 @@ _Appears in:_
 | `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for pod IPs.<br />Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.<br />This field is immutable. |  |  |
 | `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for service IPs.<br />Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.<br />This field is immutable. |  |  |
 | `clusterDNS` _string_ | ClusterDNS is the IP address for the CoreDNS service.<br />Must be within the ServiceCIDR range. Defaults to 10.43.0.10.<br />This field is immutable. |  |  |
-| `persistence` _[PersistenceConfig](#persistenceconfig)_ | Persistence specifies options for persisting etcd data.<br />Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.<br />A default StorageClass is required for dynamic persistence. | \{ type:dynamic \} |  |
+| `persistence` _[PersistenceConfig](#persistenceconfig)_ | Persistence specifies options for persisting etcd data.<br />Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.<br />A default StorageClass is required for dynamic persistence. |  |  |
 | `expose` _[ExposeConfig](#exposeconfig)_ | Expose specifies options for exposing the API server.<br />By default, it's only exposed as a ClusterIP. |  |  |
 | `nodeSelector` _object (keys:string, values:string)_ | NodeSelector specifies node labels to constrain where server/agent pods are scheduled.<br />In "shared" mode, this also applies to workloads. |  |  |
 | `priorityClass` _string_ | PriorityClass specifies the priorityClassName for server/agent pods.<br />In "shared" mode, this also applies to workloads. |  |  |
@@ -203,13 +203,12 @@ PersistenceConfig specifies options for persisting etcd data.
 
 _Appears in:_
 - [ClusterSpec](#clusterspec)
-- [ClusterStatus](#clusterstatus)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `type` _[PersistenceMode](#persistencemode)_ | Type specifies the persistence mode. | dynamic |  |
 | `storageClassName` _string_ | StorageClassName is the name of the StorageClass to use for the PVC.<br />This field is only relevant in "dynamic" mode. |  |  |
-| `storageRequestSize` _string_ | StorageRequestSize is the requested size for the PVC.<br />This field is only relevant in "dynamic" mode. |  |  |
+| `storageRequestSize` _string_ | StorageRequestSize is the requested size for the PVC.<br />This field is only relevant in "dynamic" mode. | 1G |  |
 
 
 #### PersistenceMode

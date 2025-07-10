@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -35,7 +36,7 @@ type VirtualClusterPolicyReconciler struct {
 }
 
 // Add the controller to manage the Virtual Cluster policies
-func Add(mgr manager.Manager, clusterCIDR string) error {
+func Add(mgr manager.Manager, clusterCIDR string, maxConcurrentReconciles int) error {
 	reconciler := VirtualClusterPolicyReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
@@ -50,6 +51,7 @@ func Add(mgr manager.Manager, clusterCIDR string) error {
 		Owns(&networkingv1.NetworkPolicy{}).
 		Owns(&v1.ResourceQuota{}).
 		Owns(&v1.LimitRange{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
 

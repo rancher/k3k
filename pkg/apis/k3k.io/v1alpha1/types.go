@@ -39,7 +39,7 @@ type ClusterSpec struct {
 	// If not specified, the Kubernetes version of the host node will be used.
 	//
 	// +optional
-	Version string `json:"version"`
+	Version string `json:"version,omitempty"`
 
 	// Mode specifies the cluster provisioning mode: "shared" or "virtual".
 	// Defaults to "shared". This field is immutable.
@@ -95,8 +95,8 @@ type ClusterSpec struct {
 	// Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.
 	// A default StorageClass is required for dynamic persistence.
 	//
-	// +kubebuilder:default={type: "dynamic"}
-	Persistence PersistenceConfig `json:"persistence,omitempty"`
+	// +optional
+	Persistence PersistenceConfig `json:"persistence"`
 
 	// Expose specifies options for exposing the API server.
 	// By default, it's only exposed as a ClusterIP.
@@ -120,7 +120,7 @@ type ClusterSpec struct {
 	// The Secret must have a "token" field in its data.
 	//
 	// +optional
-	TokenSecretRef *v1.SecretReference `json:"tokenSecretRef"`
+	TokenSecretRef *v1.SecretReference `json:"tokenSecretRef,omitempty"`
 
 	// TLSSANs specifies subject alternative names for the K3s server certificate.
 	//
@@ -212,7 +212,7 @@ type PersistenceConfig struct {
 	// Type specifies the persistence mode.
 	//
 	// +kubebuilder:default="dynamic"
-	Type PersistenceMode `json:"type"`
+	Type PersistenceMode `json:"type,omitempty"`
 
 	// StorageClassName is the name of the StorageClass to use for the PVC.
 	// This field is only relevant in "dynamic" mode.
@@ -223,6 +223,7 @@ type PersistenceConfig struct {
 	// StorageRequestSize is the requested size for the PVC.
 	// This field is only relevant in "dynamic" mode.
 	//
+	// +kubebuilder:default="1G"
 	// +optional
 	StorageRequestSize string `json:"storageRequestSize,omitempty"`
 }
@@ -318,11 +319,6 @@ type ClusterStatus struct {
 	//
 	// +optional
 	TLSSANs []string `json:"tlsSANs,omitempty"`
-
-	// Persistence specifies options for persisting etcd data.
-	//
-	// +optional
-	Persistence PersistenceConfig `json:"persistence,omitempty"`
 
 	// PolicyName specifies the virtual cluster policy name bound to the virtual cluster.
 	//

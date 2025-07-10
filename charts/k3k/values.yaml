@@ -9,6 +9,19 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+# extraEnv allows you to specify additional environment variables for the k3k controller deployment.
+# This is useful for passing custom configuration or secrets to the controller.
+# For example:
+# extraEnv:
+#   - name: MY_CUSTOM_VAR
+#     value: "my_custom_value"
+#   - name: ANOTHER_VAR
+#     valueFrom:
+#       secretKeyRef:
+#         name: my-secret
+#         key: my-key
+extraEnv: []
+
 host:
   # clusterCIDR specifies the clusterCIDR that will be added to the default networkpolicy, if not set
   # the controller will collect the PodCIDRs of all the nodes on the system.

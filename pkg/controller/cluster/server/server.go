@@ -379,7 +379,7 @@ func (s *Server) setupDynamicPersistence() v1.PersistentVolumeClaim {
 			StorageClassName: s.cluster.Spec.Persistence.StorageClassName,
 			Resources: v1.VolumeResourceRequirements{
 				Requests: v1.ResourceList{
-					"storage": resource.MustParse(s.cluster.Status.Persistence.StorageRequestSize),
+					"storage": resource.MustParse(s.cluster.Spec.Persistence.StorageRequestSize),
 				},
 			},
 		},

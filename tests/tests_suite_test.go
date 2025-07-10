@@ -212,11 +212,13 @@ func exec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Con
 		Namespace(namespace).
 		SubResource("exec")
 	scheme := runtime.NewScheme()
+
 	if err := v1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("error adding to scheme: %v", err)
 	}
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
+
 	req.VersionedParams(&v1.PodExecOptions{
 		Command: command,
 		Stdin:   stdin != nil,
@@ -231,12 +233,14 @@ func exec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Con
 	}
 
 	var stderr bytes.Buffer
+
 	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: &stderr,
 		Tty:    false,
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("error in Stream: %v", err)
 	}

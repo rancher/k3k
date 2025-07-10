@@ -133,8 +133,65 @@ _Appears in:_
 | `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit specifies resource limits for server nodes. |  |  |
 | `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  |  |
 | `mirrorHostNodes` _boolean_ | MirrorHostNodes controls whether node objects from the host cluster<br />are mirrored into the virtual cluster. |  |  |
+| `customCertificates` _[CustomCertificates](#customcertificates)_ | CustomCertificates specifies the cert/key pairs for custom CA certificates. |  |  |
 
 
+
+
+#### CrtKey
+
+
+
+CrtKey specifies the certificate and key of given CA.
+
+
+
+_Appears in:_
+- [CustomCertificatesContent](#customcertificatescontent)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `certificate` _string_ | Certificate specifies the PEM certificate content. |  |  |
+| `key` _string_ | Key specifies the PEM key content. |  |  |
+
+
+#### CustomCertificates
+
+
+
+CustomCertificates specifies the cert/key pairs for custom CA certificates.
+
+
+
+_Appears in:_
+- [ClusterSpec](#clusterspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled specifies if the cluster should use customCertificates or not. |  |  |
+| `content` _[CustomCertificatesContent](#customcertificatescontent)_ | Content specifies the conetnt of the custom CA certificates and keys. |  |  |
+| `secretName` _string_ | SecretName specifies a secret reference for the custom CA certificates and keys<br />if provided then Content value will be ignored. |  |  |
+
+
+#### CustomCertificatesContent
+
+
+
+
+
+
+
+_Appears in:_
+- [CustomCertificates](#customcertificates)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `serverCA` _[CrtKey](#crtkey)_ | ServerCA specifies the server-ca cert/key pair. |  |  |
+| `clientCA` _[CrtKey](#crtkey)_ | ClientCA specifies the client-ca cert/key pair. |  |  |
+| `requestHeaderCA` _[CrtKey](#crtkey)_ | RequestHeaderCA specifies the request-header-ca cert/key pair. |  |  |
+| `etcdServerCA` _[CrtKey](#crtkey)_ | ETCDServerCA specifies the etcd-server-ca cert/key pair. |  |  |
+| `etcdPeerCA` _[CrtKey](#crtkey)_ | ETCDPeerCA specifies the etcd-peer-ca cert/key pair. |  |  |
+| `serviceAccountToken` _[CrtKey](#crtkey)_ | ServiceAccountToken specifies the service-account-token key. |  |  |
 
 
 #### ExposeConfig

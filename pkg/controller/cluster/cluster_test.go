@@ -37,10 +37,8 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 		When("creating a Cluster", func() {
 
-			var cluster *v1alpha1.Cluster
-
-			BeforeEach(func() {
-				cluster = &v1alpha1.Cluster{
+			It("will be created with some defaults", func() {
+				cluster := &v1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
 						Namespace:    namespace,
@@ -49,9 +47,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 				err := k8sClient.Create(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
-			})
 
-			It("will be created with some defaults", func() {
 				Expect(cluster.Spec.Mode).To(Equal(v1alpha1.SharedClusterMode))
 				Expect(cluster.Spec.Agents).To(Equal(ptr.To[int32](0)))
 				Expect(cluster.Spec.Servers).To(Equal(ptr.To[int32](1)))
@@ -95,12 +91,19 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 			When("exposing the cluster with nodePort", func() {
 				It("will have a NodePort service", func() {
-					cluster.Spec.Expose = &v1alpha1.ExposeConfig{
-						NodePort: &v1alpha1.NodePortConfig{},
+					cluster := &v1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1alpha1.ClusterSpec{
+							Expose: &v1alpha1.ExposeConfig{
+								NodePort: &v1alpha1.NodePortConfig{},
+							},
+						},
 					}
 
-					err := k8sClient.Update(ctx, cluster)
-					Expect(err).To(Not(HaveOccurred()))
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
 					var service v1.Service
 
@@ -120,15 +123,22 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				})
 
 				It("will have the specified ports exposed when specified", func() {
-					cluster.Spec.Expose = &v1alpha1.ExposeConfig{
-						NodePort: &v1alpha1.NodePortConfig{
-							ServerPort: ptr.To[int32](30010),
-							ETCDPort:   ptr.To[int32](30011),
+					cluster := &v1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1alpha1.ClusterSpec{
+							Expose: &v1alpha1.ExposeConfig{
+								NodePort: &v1alpha1.NodePortConfig{
+									ServerPort: ptr.To[int32](30010),
+									ETCDPort:   ptr.To[int32](30011),
+								},
+							},
 						},
 					}
 
-					err := k8sClient.Update(ctx, cluster)
-					Expect(err).To(Not(HaveOccurred()))
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
 					var service v1.Service
 
@@ -162,14 +172,21 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				})
 
 				It("will not expose the port when out of range", func() {
-					cluster.Spec.Expose = &v1alpha1.ExposeConfig{
-						NodePort: &v1alpha1.NodePortConfig{
-							ETCDPort: ptr.To[int32](2222),
+					cluster := &v1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1alpha1.ClusterSpec{
+							Expose: &v1alpha1.ExposeConfig{
+								NodePort: &v1alpha1.NodePortConfig{
+									ETCDPort: ptr.To[int32](2222),
+								},
+							},
 						},
 					}
 
-					err := k8sClient.Update(ctx, cluster)
-					Expect(err).To(Not(HaveOccurred()))
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
 					var service v1.Service
 
@@ -201,12 +218,19 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 			When("exposing the cluster with loadbalancer", func() {
 				It("will have a LoadBalancer service with the default ports exposed", func() {
-					cluster.Spec.Expose = &v1alpha1.ExposeConfig{
-						LoadBalancer: &v1alpha1.LoadBalancerConfig{},
+					cluster := &v1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1alpha1.ClusterSpec{
+							Expose: &v1alpha1.ExposeConfig{
+								LoadBalancer: &v1alpha1.LoadBalancerConfig{},
+							},
+						},
 					}
 
-					err := k8sClient.Update(ctx, cluster)
-					Expect(err).To(Not(HaveOccurred()))
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
 					var service v1.Service
 

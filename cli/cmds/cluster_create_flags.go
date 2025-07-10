@@ -126,5 +126,10 @@ func newCreateFlags(config *CreateConfig) []cli.Flag {
 			Usage:       "The policy to create the cluster in",
 			Destination: &config.policy,
 		},
+		&cli.StringFlag{
+			Name:        "custom-certs",
+			Usage:       "The path for custom certificate directory",
+			Destination: &config.customCertsPath,
+		},
 	}
 }

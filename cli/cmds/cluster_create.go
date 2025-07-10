@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/sirupsen/logrus"
@@ -19,6 +22,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type CreateConfig struct {
@@ -39,6 +43,7 @@ type CreateConfig struct {
 	kubeconfigServerHost string
 	policy               string
 	mirrorHostNodes      bool
+	customCertsPath      string
 }
 
 func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
@@ -94,6 +99,12 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 			obj := k3kcluster.TokenSecretObj(config.token, name, namespace)
 
 			if err := client.Create(ctx, &obj); err != nil {
+				return err
+			}
+		}
+
+		if config.customCertsPath != "" {
+			if err := CreateCustomCertsSecret(ctx, name, namespace, config.customCertsPath, client); err != nil {
 				return err
 			}
 		}
@@ -193,6 +204,13 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 		}
 	}
 
+	if config.customCertsPath != "" {
+		cluster.Spec.CustomCertificates = v1alpha1.CustomCertificates{
+			Enabled:    true,
+			SecretName: controller.SafeConcatNameWithPrefix(name, "custom", "certs"),
+		}
+	}
+
 	return cluster
 }
 
@@ -212,4 +230,48 @@ func env(envSlice []string) []v1.EnvVar {
 	}
 
 	return envVars
+}
+
+func CreateCustomCertsSecret(ctx context.Context, name, namespace, customCertsPath string, client client.Client) error {
+	var customCertSecret = v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      controller.SafeConcatNameWithPrefix(name, "custom", "certs"),
+			Namespace: namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		Data: map[string][]byte{},
+	}
+
+	err := filepath.Walk(customCertsPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		prefix := ""
+		if strings.Contains(path, "etcd") {
+			prefix = "etcd-"
+		}
+
+		fileContent, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		customCertSecret.Data[prefix+info.Name()] = fileContent
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return client.Create(ctx, &customCertSecret)
 }

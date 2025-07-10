@@ -5,11 +5,14 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -180,5 +183,51 @@ var _ = When("a dynamic cluster is installed", func() {
 			WithTimeout(2 * time.Minute).
 			WithPolling(time.Second * 5).
 			Should(BeNil())
+	})
+})
+
+var _ = When("a cluster with custom certificates is installed", func() {
+	ctx := context.Background()
+	var virtualCluster *VirtualCluster
+	BeforeEach(func() {
+		namespace := NewNamespace()
+		// create custom cert secret
+		err := cmds.CreateCustomCertsSecret(ctx, "test", namespace.Name, "testdata/customcerts", k8sClient)
+		Expect(err).To(Not(HaveOccurred()))
+
+		cluster := NewCluster(namespace.Name)
+		cluster.Spec.CustomCertificates = v1alpha1.CustomCertificates{
+			Enabled:    true,
+			SecretName: controller.SafeConcatNameWithPrefix("test", "custom", "certs"),
+		}
+		CreateCluster(cluster)
+		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     client,
+		}
+	})
+	It("can create a nginx pod", func() {
+		_, _ = virtualCluster.NewNginxPod("")
+	})
+	It("will load the custom certs in the server pod", func() {
+		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
+		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
+		Expect(err).To(Not(HaveOccurred()))
+
+		Expect(len(serverPods.Items)).To(Equal(1))
+		serverPod := serverPods.Items[0]
+
+		// check server-ca.crt
+		serverCACrtPath := "/var/lib/rancher/k3s/server/tls/server-ca.crt"
+		serverCACrt, err := readFileWithinPod(ctx, k8s, serverPod.Name, serverPod.Namespace, serverCACrtPath)
+		Expect(err).To(Not(HaveOccurred()))
+
+		serverCACrtTestFile, err := os.ReadFile("testdata/customcerts/server-ca.crt")
+		Expect(err).To(Not(HaveOccurred()))
+
+		Expect(serverCACrt).To(Equal(serverCACrtTestFile))
 	})
 })

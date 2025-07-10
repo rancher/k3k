@@ -259,12 +259,19 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 		cluster.Status.HostVersion = k8sVersion + "-k3s1"
 	}
 
+	// handle custom certificates
+	if cluster.Spec.CustomCertificates.Enabled {
+		if err := c.customCerts(ctx, cluster); err != nil {
+			return err
+		}
+	}
+
 	token, err := c.token(ctx, cluster)
 	if err != nil {
 		return err
 	}
 
-	s := server.New(cluster, c.Client, token, string(cluster.Spec.Mode), c.K3SImage, c.K3SImagePullPolicy)
+	s := server.New(cluster, c.Client, token, c.K3SImage, c.K3SImagePullPolicy)
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	if cluster.Status.ClusterCIDR == "" {

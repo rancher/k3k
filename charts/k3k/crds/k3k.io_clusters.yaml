@@ -223,6 +223,95 @@ spec:
                 x-kubernetes-validations:
                 - message: clusterDNS is immutable
                   rule: self == oldSelf
+              customCertificates:
+                description: CustomCertificates specifies the cert/key pairs for custom
+                  CA certificates.
+                properties:
+                  content:
+                    description: Content specifies the conetnt of the custom CA certificates
+                      and keys.
+                    properties:
+                      clientCA:
+                        description: ClientCA specifies the client-ca cert/key pair.
+                        properties:
+                          certificate:
+                            description: Certificate specifies the PEM certificate
+                              content.
+                            type: string
+                          key:
+                            description: Key specifies the PEM key content.
+                            type: string
+                        type: object
+                      etcdPeerCA:
+                        description: ETCDPeerCA specifies the etcd-peer-ca cert/key
+                          pair.
+                        properties:
+                          certificate:
+                            description: Certificate specifies the PEM certificate
+                              content.
+                            type: string
+                          key:
+                            description: Key specifies the PEM key content.
+                            type: string
+                        type: object
+                      etcdServerCA:
+                        description: ETCDServerCA specifies the etcd-server-ca cert/key
+                          pair.
+                        properties:
+                          certificate:
+                            description: Certificate specifies the PEM certificate
+                              content.
+                            type: string
+                          key:
+                            description: Key specifies the PEM key content.
+                            type: string
+                        type: object
+                      requestHeaderCA:
+                        description: RequestHeaderCA specifies the request-header-ca
+                          cert/key pair.
+                        properties:
+                          certificate:
+                            description: Certificate specifies the PEM certificate
+                              content.
+                            type: string
+                          key:
+                            description: Key specifies the PEM key content.
+                            type: string
+                        type: object
+                      serverCA:
+                        description: ServerCA specifies the server-ca cert/key pair.
+                        properties:
+                          certificate:
+                            description: Certificate specifies the PEM certificate
+                              content.
+                            type: string
+                          key:
+                            description: Key specifies the PEM key content.
+                            type: string
+                        type: object
+                      serviceAccountToken:
+                        description: ServiceAccountToken specifies the service-account-token
+                          key.
+                        properties:
+                          certificate:
+                            description: Certificate specifies the PEM certificate
+                              content.
+                            type: string
+                          key:
+                            description: Key specifies the PEM key content.
+                            type: string
+                        type: object
+                    type: object
+                  enabled:
+                    description: Enabled specifies if the cluster should use customCertificates
+                      or not.
+                    type: boolean
+                  secretName:
+                    description: |-
+                      SecretName specifies a secret reference for the custom CA certificates and keys
+                      if provided then Content value will be ignored.
+                    type: string
+                type: object
               expose:
                 description: |-
                   Expose specifies options for exposing the API server.

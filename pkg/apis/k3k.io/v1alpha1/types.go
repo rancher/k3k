@@ -171,6 +171,11 @@ type ClusterSpec struct {
 	//
 	// +optional
 	MirrorHostNodes bool `json:"mirrorHostNodes,omitempty"`
+
+	// CustomCertificates specifies the cert/key pairs for custom CA certificates.
+	//
+	// +optional
+	CustomCertificates CustomCertificates `json:"customCertificates,omitempty"`
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.
@@ -293,6 +298,47 @@ type NodePortConfig struct {
 	//
 	// +optional
 	ETCDPort *int32 `json:"etcdPort,omitempty"`
+}
+
+// CustomCertificates specifies the cert/key pairs for custom CA certificates.
+type CustomCertificates struct {
+	// Enabled specifies if the cluster should use customCertificates or not.
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Content specifies the conetnt of the custom CA certificates and keys.
+	Content CustomCertificatesContent `json:"content,omitempty"`
+
+	// SecretName specifies a secret reference for the custom CA certificates and keys
+	// if provided then Content value will be ignored.
+	SecretName string `json:"secretName,omitempty"`
+}
+
+type CustomCertificatesContent struct {
+	// ServerCA specifies the server-ca cert/key pair.
+	ServerCA CrtKey `json:"serverCA,omitempty"`
+
+	// ClientCA specifies the client-ca cert/key pair.
+	ClientCA CrtKey `json:"clientCA,omitempty"`
+
+	// RequestHeaderCA specifies the request-header-ca cert/key pair.
+	RequestHeaderCA CrtKey `json:"requestHeaderCA,omitempty"`
+
+	// ETCDServerCA specifies the etcd-server-ca cert/key pair.
+	ETCDServerCA CrtKey `json:"etcdServerCA,omitempty"`
+
+	// ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
+	ETCDPeerCA CrtKey `json:"etcdPeerCA,omitempty"`
+
+	// ServiceAccountToken specifies the service-account-token key.
+	ServiceAccountToken CrtKey `json:"serviceAccountToken,omitempty"`
+}
+
+// CrtKey specifies the certificate and key of given CA.
+type CrtKey struct {
+	// Certificate specifies the PEM certificate content.
+	Certificate string `json:"certificate,omitempty"`
+	// Key specifies the PEM key content.
+	Key string `json:"key,omitempty"`
 }
 
 // ClusterStatus reflects the observed state of a Cluster.

@@ -3,6 +3,8 @@ package server
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -36,12 +38,12 @@ type Server struct {
 	k3SImagePullPolicy string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string, k3SImage string, k3SImagePullPolicy string) *Server {
+func New(cluster *v1alpha1.Cluster, client client.Client, token string, k3SImage string, k3SImagePullPolicy string) *Server {
 	return &Server{
 		cluster:            cluster,
 		client:             client,
 		token:              token,
-		mode:               mode,
+		mode:               string(cluster.Spec.Mode),
 		k3SImage:           k3SImage,
 		k3SImagePullPolicy: k3SImagePullPolicy,
 	}
@@ -317,6 +319,58 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 			ReadOnly: true,
 		}
 		volumeMounts = append(volumeMounts, volumeMount)
+	}
+
+	if s.cluster.Spec.CustomCertificates.Enabled {
+		var certSecret v1.Secret
+		key := types.NamespacedName{
+			Name:      controller.SafeConcatNameWithPrefix(s.cluster.Name, "custom", "certs"),
+			Namespace: s.cluster.Namespace,
+		}
+		if err := s.client.Get(ctx, key, &certSecret); err != nil {
+			return nil, err
+		}
+		// adding volume and volume mounts for certs
+		name := "cert-volume"
+		secretName := s.cluster.Spec.CustomCertificates.SecretName
+		if secretName == "" {
+			secretName = key.Name
+		}
+		certVolume := v1.Volume{
+			Name: name,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: secretName,
+				},
+			},
+		}
+		volumes = append(volumes, certVolume)
+		if len(certSecret.Data) <= 0 {
+			return nil, fmt.Errorf("No certificate files found in the secret.")
+		}
+		// adding volume mounts
+		var keys []string
+		for key := range certSecret.Data {
+			keys = append(keys, key)
+		}
+		// Sort the keys before iterating over them to ensure predictable order
+		// otherwise the volume mount order with each reconcile causing the pod to restart.
+		sort.Strings(keys)
+		for _, certName := range keys {
+			var etcdPrefix string
+			certFile := certName
+			if strings.Contains(certName, "etcd-") {
+				etcdPrefix = "/etcd"
+				certFile = certName[5:] // "etcd-"
+			}
+			certVolumeMount := v1.VolumeMount{
+				Name:      name,
+				MountPath: "/var/lib/rancher/k3s/server/tls" + etcdPrefix + "/" + certFile,
+				SubPath:   certName,
+			}
+			volumeMounts = append(volumeMounts, certVolumeMount)
+		}
+
 	}
 
 	selector := metav1.LabelSelector{

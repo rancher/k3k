@@ -327,15 +327,18 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 			Name:      controller.SafeConcatNameWithPrefix(s.cluster.Name, "custom", "certs"),
 			Namespace: s.cluster.Namespace,
 		}
+
 		if err := s.client.Get(ctx, key, &certSecret); err != nil {
 			return nil, err
 		}
+
 		// adding volume and volume mounts for certs
 		name := "cert-volume"
 		secretName := s.cluster.Spec.CustomCertificates.SecretName
 		if secretName == "" {
 			secretName = key.Name
 		}
+
 		certVolume := v1.Volume{
 			Name: name,
 			VolumeSource: v1.VolumeSource{
@@ -344,33 +347,39 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 				},
 			},
 		}
+
 		volumes = append(volumes, certVolume)
+
 		if len(certSecret.Data) <= 0 {
 			return nil, fmt.Errorf("No certificate files found in the secret.")
 		}
+
 		// adding volume mounts
 		var keys []string
 		for key := range certSecret.Data {
 			keys = append(keys, key)
 		}
+
 		// Sort the keys before iterating over them to ensure predictable order
 		// otherwise the volume mount order with each reconcile causing the pod to restart.
 		sort.Strings(keys)
 		for _, certName := range keys {
 			var etcdPrefix string
+
 			certFile := certName
 			if strings.Contains(certName, "etcd-") {
 				etcdPrefix = "/etcd"
 				certFile = certName[5:] // "etcd-"
 			}
+
 			certVolumeMount := v1.VolumeMount{
 				Name:      name,
 				MountPath: "/var/lib/rancher/k3s/server/tls" + etcdPrefix + "/" + certFile,
 				SubPath:   certName,
 			}
+
 			volumeMounts = append(volumeMounts, certVolumeMount)
 		}
-
 	}
 
 	selector := metav1.LabelSelector{

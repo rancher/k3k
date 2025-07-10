@@ -20,10 +20,12 @@ func (c *ClusterReconciler) customCerts(ctx context.Context, cluster *v1alpha1.C
 	if err := validateCustomCerts(cluster.Spec.CustomCertificates.Content); err != nil {
 		return err
 	}
+
 	customCertsSecret, err := secret(cluster, cluster.Spec.CustomCertificates.Content)
 	if err != nil {
 		return err
 	}
+
 	return c.Client.Create(ctx, customCertsSecret)
 }
 

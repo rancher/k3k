@@ -197,11 +197,14 @@ func writeLogs(filename string, logs io.ReadCloser) {
 
 func readFileWithinPod(ctx context.Context, client *kubernetes.Clientset, config *rest.Config, name, namespace, path string) ([]byte, error) {
 	command := []string{"cat", path}
+
 	output := new(bytes.Buffer)
+
 	stderr, err := exec(ctx, client, config, namespace, name, command, nil, output)
 	if err != nil || len(stderr) > 0 {
 		return nil, fmt.Errorf("faile to read the following file %s: %v", path, err)
 	}
+
 	return []byte(output.String()), nil
 }
 

@@ -34,10 +34,9 @@ func Service(cluster *v1alpha1.Cluster) *v1.Service {
 	}
 
 	etcdPort := v1.ServicePort{
-		Name:       "k3s-etcd-port",
-		Protocol:   v1.ProtocolTCP,
-		Port:       etcdPort,
-		TargetPort: intstr.FromInt(etcdPort),
+		Name:     "k3s-etcd-port",
+		Protocol: v1.ProtocolTCP,
+		Port:     etcdPort,
 	}
 
 	// If no expose is specified, default to ClusterIP

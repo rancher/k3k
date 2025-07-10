@@ -51,7 +51,7 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1alph
 	}
 
 	// Remove finalizer from the cluster and update it only when all resources are cleaned up
-	if controllerutil.RemoveFinalizer(cluster, ClusterFinalizerName) {
+	if controllerutil.RemoveFinalizer(cluster, clusterFinalizerName) {
 		if err := c.Client.Update(ctx, cluster); err != nil {
 			return reconcile.Result{}, err
 		}

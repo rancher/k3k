@@ -42,14 +42,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	. "github.com/onsi/ginkgo/v2"
 )
 
 const (
 	namePrefix           = "k3k"
 	clusterController    = "k3k-cluster-controller"
-	ClusterFinalizerName = "cluster.k3k.io/finalizer"
+	clusterFinalizerName = "cluster.k3k.io/finalizer"
 	etcdPodFinalizerName = "etcdpod.k3k.io/finalizer"
 	ClusterInvalidName   = "system"
 
@@ -180,7 +178,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// add finalizer
-	if controllerutil.AddFinalizer(&cluster, ClusterFinalizerName) {
+	if controllerutil.AddFinalizer(&cluster, clusterFinalizerName) {
 		if err := c.Client.Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -541,11 +539,8 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 	log.Info("ensuring cluster service")
 
 	expectedService := server.Service(cluster)
-
-	fmt.Fprintf(GinkgoWriter, "cluster\n%#v\n", cluster)
-	fmt.Fprintf(GinkgoWriter, "ENSURING SERVICE\n%#v\n", expectedService)
-
 	currentService := expectedService.DeepCopy()
+
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentService, func() error {
 		if err := controllerutil.SetControllerReference(cluster, currentService, c.Scheme); err != nil {
 			return err
@@ -555,9 +550,6 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 
 		return nil
 	})
-
-	fmt.Fprintf(GinkgoWriter, "CURRENT SERVICE\n%v - %#v\n", err, currentService)
-
 	if err != nil {
 		return nil, err
 	}

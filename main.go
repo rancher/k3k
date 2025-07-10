@@ -35,6 +35,7 @@ var (
 	k3SImagePullPolicy         string
 	kubeletPortRange           string
 	webhookPortRange           string
+	maxConcurrentReconciles    int
 	debug                      bool
 	logger                     *log.Logger
 	flags                      = []cli.Flag{
@@ -96,6 +97,13 @@ var (
 			Usage:       "K3K server image pull policy",
 			Destination: &k3SImagePullPolicy,
 		},
+		&cli.IntFlag{
+			Name:        "max-concurrent-reconciles",
+			EnvVars:     []string{"MAX_CONCURRENT_RECONCILES"},
+			Usage:       "maximum number of concurrent reconciles",
+			Destination: &maxConcurrentReconciles,
+			Value:       50,
+		},
 	}
 )
 
@@ -146,19 +154,19 @@ func run(clx *cli.Context) error {
 
 	logger.Info("adding cluster controller")
 
-	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage, k3SImagePullPolicy, kubeletPortRange, webhookPortRange); err != nil {
+	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage, k3SImagePullPolicy, kubeletPortRange, webhookPortRange, maxConcurrentReconciles); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 
 	logger.Info("adding etcd pod controller")
 
-	if err := cluster.AddPodController(ctx, mgr); err != nil {
+	if err := cluster.AddPodController(ctx, mgr, maxConcurrentReconciles); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 
 	logger.Info("adding clusterpolicy controller")
 
-	if err := policy.Add(mgr, clusterCIDR); err != nil {
+	if err := policy.Add(mgr, clusterCIDR, maxConcurrentReconciles); err != nil {
 		return fmt.Errorf("failed to add the clusterpolicy controller: %v", err)
 	}
 

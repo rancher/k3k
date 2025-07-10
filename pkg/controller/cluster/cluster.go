@@ -32,6 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -45,8 +46,6 @@ const (
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
 	etcdPodFinalizerName = "etcdpod.k3k.io/finalizer"
 	ClusterInvalidName   = "system"
-
-	maxConcurrentReconciles = 1
 
 	defaultVirtualClusterCIDR = "10.52.0.0/16"
 	defaultVirtualServiceCIDR = "10.53.0.0/16"
@@ -67,7 +66,7 @@ type ClusterReconciler struct {
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage string, k3SImagePullPolicy string, kubeletPortRange, webhookPortRange string) error {
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage string, k3SImagePullPolicy string, kubeletPortRange, webhookPortRange string, maxConcurrentReconciles int) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
@@ -103,6 +102,7 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		Watches(&v1.Namespace{}, namespaceEventHandler(&reconciler)).
 		Owns(&apps.StatefulSet{}).
 		Owns(&v1.Service{}).
+		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
 

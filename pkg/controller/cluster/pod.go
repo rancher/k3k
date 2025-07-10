@@ -42,7 +42,7 @@ type PodReconciler struct {
 }
 
 // Add adds a new controller to the manager
-func AddPodController(ctx context.Context, mgr manager.Manager) error {
+func AddPodController(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) error {
 	// initialize a new Reconciler
 	reconciler := PodReconciler{
 		Client: mgr.GetClient(),
@@ -52,9 +52,7 @@ func AddPodController(ctx context.Context, mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Watches(&v1.Pod{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &apps.StatefulSet{}, handler.OnlyControllerOwner())).
 		Named(podController).
-		WithOptions(controller.Options{
-			MaxConcurrentReconciles: maxConcurrentReconciles,
-		}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
 

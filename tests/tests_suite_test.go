@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -188,4 +189,23 @@ func writeLogs(filename string, logs io.ReadCloser) {
 	Expect(err).To(Not(HaveOccurred()))
 
 	fmt.Fprintln(GinkgoWriter, "logs written to: "+filename)
+}
+
+func readFileWithinPod(ctx context.Context, client *kubernetes.Clientset, name, namespace, path string) ([]byte, error) {
+	execRequest := client.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(name).
+		Namespace(namespace).
+		SubResource("exec")
+
+	// Add query parameters to the request. This includes setting command and argument for `cat`
+	// (the command used here to read a file) along with other necessary options for exec.
+	execRequest.VersionedParams(&corev1.PodExecOptions{
+		Command: []string{"cat", path},
+	}, scheme.ParameterCodec)
+
+	// Execute the request and get a `RemoteError` which contains stderr if the command was not successful.
+	execResult := execRequest.Do(ctx)
+
+	return execResult.Raw()
 }

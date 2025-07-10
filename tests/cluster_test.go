@@ -186,7 +186,7 @@ var _ = When("a dynamic cluster is installed", func() {
 	})
 })
 
-var _ = When("a cluster with custom certificates is installed", func() {
+var _ = When("a cluster with custom certificates is installed", Label("e2e"), func() {
 	ctx := context.Background()
 	var virtualCluster *VirtualCluster
 	BeforeEach(func() {

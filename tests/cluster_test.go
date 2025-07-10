@@ -222,7 +222,7 @@ var _ = When("a cluster with custom certificates is installed", Label("e2e"), fu
 
 		// check server-ca.crt
 		serverCACrtPath := "/var/lib/rancher/k3s/server/tls/server-ca.crt"
-		serverCACrt, err := readFileWithinPod(ctx, k8s, serverPod.Name, serverPod.Namespace, serverCACrtPath)
+		serverCACrt, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, serverCACrtPath)
 		Expect(err).To(Not(HaveOccurred()))
 
 		serverCACrtTestFile, err := os.ReadFile("testdata/customcerts/server-ca.crt")

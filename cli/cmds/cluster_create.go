@@ -216,6 +216,7 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 			SecretName: controller.SafeConcatNameWithPrefix(name, "custom", "certs"),
 		}
 	}
+
 	return cluster
 }
 

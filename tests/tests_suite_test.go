@@ -205,7 +205,7 @@ func readFileWithinPod(ctx context.Context, client *kubernetes.Clientset, config
 		return nil, fmt.Errorf("faile to read the following file %s: %v", path, err)
 	}
 
-	return []byte(output.String()), nil
+	return output.Bytes(), nil
 }
 
 func exec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Config, namespace, name string, command []string, stdin io.Reader, stdout io.Writer) ([]byte, error) {

@@ -56,8 +56,9 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				Expect(cluster.Spec.Agents).To(Equal(ptr.To[int32](0)))
 				Expect(cluster.Spec.Servers).To(Equal(ptr.To[int32](1)))
 				Expect(cluster.Spec.Version).To(BeEmpty())
-				// TOFIX
-				// Expect(cluster.Spec.Persistence.Type).To(Equal(v1alpha1.DynamicPersistenceMode))
+
+				Expect(cluster.Spec.Persistence.Type).To(Equal(v1alpha1.DynamicPersistenceMode))
+				Expect(cluster.Spec.Persistence.StorageRequestSize).To(Equal("1G"))
 
 				serverVersion, err := k8s.DiscoveryClient.ServerVersion()
 				Expect(err).To(Not(HaveOccurred()))

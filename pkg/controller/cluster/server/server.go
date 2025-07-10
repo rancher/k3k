@@ -324,8 +324,13 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	if s.cluster.Spec.CustomCertificates.Enabled {
 		var certSecret v1.Secret
 
+		secretName := s.cluster.Spec.CustomCertificates.SecretName
+		if secretName == "" {
+			secretName = controller.SafeConcatNameWithPrefix(s.cluster.Name, "custom", "certs")
+		}
+
 		key := types.NamespacedName{
-			Name:      controller.SafeConcatNameWithPrefix(s.cluster.Name, "custom", "certs"),
+			Name:      secretName,
 			Namespace: s.cluster.Namespace,
 		}
 
@@ -335,11 +340,6 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 		// adding volume and volume mounts for certs
 		name := "cert-volume"
-
-		secretName := s.cluster.Spec.CustomCertificates.SecretName
-		if secretName == "" {
-			secretName = key.Name
-		}
 
 		certVolume := v1.Volume{
 			Name: name,

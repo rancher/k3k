@@ -1,6 +1,7 @@
 package k3k_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -23,8 +24,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -37,6 +39,7 @@ func TestTests(t *testing.T) {
 var (
 	k3sContainer *k3s.K3sContainer
 	hostIP       string
+	restcfg      *rest.Config
 	k8s          *kubernetes.Clientset
 	k8sClient    client.Client
 )
@@ -60,7 +63,8 @@ var _ = BeforeSuite(func() {
 })
 
 func initKubernetesClient(kubeconfig []byte) {
-	restcfg, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
+	var err error
+	restcfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	Expect(err).To(Not(HaveOccurred()))
 
 	k8s, err = kubernetes.NewForConfig(restcfg)
@@ -191,21 +195,51 @@ func writeLogs(filename string, logs io.ReadCloser) {
 	fmt.Fprintln(GinkgoWriter, "logs written to: "+filename)
 }
 
-func readFileWithinPod(ctx context.Context, client *kubernetes.Clientset, name, namespace, path string) ([]byte, error) {
-	execRequest := client.CoreV1().RESTClient().Post().
+func readFileWithinPod(ctx context.Context, client *kubernetes.Clientset, config *rest.Config, name, namespace, path string) ([]byte, error) {
+	command := []string{"cat", path}
+	output := new(bytes.Buffer)
+	stderr, err := exec(ctx, client, config, namespace, name, command, nil, output)
+	if err != nil || len(stderr) > 0 {
+		return nil, fmt.Errorf("faile to read the following file %s: %v", path, err)
+	}
+	return []byte(output.String()), nil
+}
+
+func exec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Config, namespace, name string, command []string, stdin io.Reader, stdout io.Writer) ([]byte, error) {
+	req := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(name).
 		Namespace(namespace).
 		SubResource("exec")
+	scheme := runtime.NewScheme()
+	if err := v1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("error adding to scheme: %v", err)
+	}
 
-	// Add query parameters to the request. This includes setting command and argument for `cat`
-	// (the command used here to read a file) along with other necessary options for exec.
-	execRequest.VersionedParams(&corev1.PodExecOptions{
-		Command: []string{"cat", path},
-	}, scheme.ParameterCodec)
+	parameterCodec := runtime.NewParameterCodec(scheme)
+	req.VersionedParams(&v1.PodExecOptions{
+		Command: command,
+		Stdin:   stdin != nil,
+		Stdout:  stdout != nil,
+		Stderr:  true,
+		TTY:     false,
+	}, parameterCodec)
 
-	// Execute the request and get a `RemoteError` which contains stderr if the command was not successful.
-	execResult := execRequest.Do(ctx)
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	if err != nil {
+		return nil, fmt.Errorf("error while creating Executor: %v", err)
+	}
 
-	return execResult.Raw()
+	var stderr bytes.Buffer
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: &stderr,
+		Tty:    false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error in Stream: %v", err)
+	}
+
+	return stderr.Bytes(), nil
 }

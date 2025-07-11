@@ -1,1 +1,3 @@
 release-name-template: chart-{{ .Version }}
+make-release-latest: false
+skip-existing: true

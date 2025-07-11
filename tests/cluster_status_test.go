@@ -32,16 +32,12 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 				GenerateName: "policy-",
 			},
 		}
-
-		err := k8sClient.Create(ctx, vcp)
-		Expect(err).To(Not(HaveOccurred()))
+		Expect(k8sClient.Create(ctx, vcp)).To(Succeed())
 
 		namespace.Labels = map[string]string{
 			policy.PolicyNameLabelKey: vcp.Name,
 		}
-
-		err = k8sClient.Update(ctx, namespace)
-		Expect(err).To(Not(HaveOccurred()))
+		Expect(k8sClient.Update(ctx, namespace)).To(Succeed())
 	})
 
 	AfterEach(func() {
@@ -52,23 +48,16 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 	})
 
 	Context("and the cluster is created with a valid configuration", func() {
-
-		var (
-			clusterObj *v1alpha1.Cluster
-		)
-
 		It("should start with Provisioning status and transition to Ready", func() {
 			ctx := context.Background()
 
-			clusterObj = &v1alpha1.Cluster{
+			clusterObj := &v1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "status-cluster-",
 					Namespace:    namespace.Name,
 				},
 			}
-
-			err := k8sClient.Create(ctx, clusterObj)
-			Expect(err).To(Succeed())
+			Expect(k8sClient.Create(ctx, clusterObj)).To(Succeed())
 
 			clusterKey := client.ObjectKeyFromObject(clusterObj)
 
@@ -119,9 +108,7 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 					Mode: v1alpha1.VirtualClusterMode,
 				},
 			}
-
-			err := k8sClient.Create(ctx, clusterObj)
-			Expect(err).To(Succeed())
+			Expect(k8sClient.Create(ctx, clusterObj)).To(Succeed())
 
 			clusterKey := client.ObjectKeyFromObject(clusterObj)
 

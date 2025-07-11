@@ -247,7 +247,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 						return k8sClient.Get(ctx, serviceKey, &service)
 					}).
-						WithTimeout(time.Second * 180).
+						WithTimeout(time.Second * 30).
 						WithPolling(time.Second).
 						Should(Succeed())
 

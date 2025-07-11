@@ -9,14 +9,13 @@ import (
 	"github.com/go-logr/zapr"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller/cluster"
+	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 
 	"go.uber.org/zap"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -64,8 +63,15 @@ var _ = BeforeSuite(func() {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 
+	portAllocator, err := agent.NewPortAllocator(ctx, mgr.GetClient())
+	Expect(err).NotTo(HaveOccurred())
+
+	err = mgr.Add(portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient(), "50000-51000", "51001-52000"))
+	Expect(err).NotTo(HaveOccurred())
+
 	ctx, cancel = context.WithCancel(context.Background())
-	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "", "rancher/k3s", "", "50000-51000", "51001-52000", 50)
+
+	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "", "rancher/k3s", "", 50, portAllocator, &record.FakeRecorder{})
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {
@@ -86,13 +92,7 @@ var _ = AfterSuite(func() {
 func buildScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 
-	err := corev1.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-	err = rbacv1.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-	err = appsv1.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-	err = networkingv1.AddToScheme(scheme)
+	err := clientgoscheme.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = v1alpha1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())

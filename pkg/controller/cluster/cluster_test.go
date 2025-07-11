@@ -26,9 +26,12 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 		var (
 			namespace string
+			ctx       context.Context
 		)
 
 		BeforeEach(func() {
+			ctx = context.Background()
+
 			createdNS := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "ns-"}}
 			err := k8sClient.Create(context.Background(), createdNS)
 			Expect(err).To(Not(HaveOccurred()))
@@ -55,6 +58,8 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 				Expect(cluster.Spec.Persistence.Type).To(Equal(v1alpha1.DynamicPersistenceMode))
 				Expect(cluster.Spec.Persistence.StorageRequestSize).To(Equal("1G"))
+
+				Expect(cluster.Status.Phase).To(Equal(v1alpha1.ClusterUnknown))
 
 				serverVersion, err := k8s.DiscoveryClient.ServerVersion()
 				Expect(err).To(Not(HaveOccurred()))
@@ -234,19 +239,19 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 					var service v1.Service
 
-					Eventually(func() v1.ServiceType {
+					Eventually(func() error {
 						serviceKey := client.ObjectKey{
 							Name:      server.ServiceName(cluster.Name),
 							Namespace: cluster.Namespace,
 						}
 
-						err := k8sClient.Get(ctx, serviceKey, &service)
-						Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
-						return service.Spec.Type
+						return k8sClient.Get(ctx, serviceKey, &service)
 					}).
 						WithTimeout(time.Second * 30).
 						WithPolling(time.Second).
-						Should(Equal(v1.ServiceTypeLoadBalancer))
+						Should(Succeed())
+
+					Expect(service.Spec.Type).To(Equal(v1.ServiceTypeLoadBalancer))
 
 					servicePorts := service.Spec.Ports
 					Expect(servicePorts).NotTo(BeEmpty())

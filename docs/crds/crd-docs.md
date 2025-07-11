@@ -86,6 +86,19 @@ _Appears in:_
 
 
 
+#### ClusterPhase
+
+_Underlying type:_ _string_
+
+ClusterPhase is a high-level summary of the cluster's current lifecycle state.
+
+
+
+_Appears in:_
+- [ClusterStatus](#clusterstatus)
+
+
+
 #### ClusterSpec
 
 

@@ -8,15 +8,20 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
 	name := configSecretName(s.cluster.Name, init)
-	s.cluster.Status.TLSSANs = append(s.cluster.Spec.TLSSANs,
+
+	sans := sets.NewString(s.cluster.Spec.TLSSANs...)
+	sans.Insert(
 		serviceIP,
 		ServiceName(s.cluster.Name),
 		fmt.Sprintf("%s.%s", ServiceName(s.cluster.Name), s.cluster.Namespace),
 	)
+
+	s.cluster.Status.TLSSANs = sans.List()
 
 	config := serverConfigData(serviceIP, s.cluster, s.token)
 	if init {

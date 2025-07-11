@@ -12,6 +12,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/buildinfo"
 	"github.com/rancher/k3k/pkg/controller/cluster"
+	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/policy"
 	"github.com/rancher/k3k/pkg/log"
 	"github.com/urfave/cli/v2"
@@ -154,7 +155,17 @@ func run(clx *cli.Context) error {
 
 	logger.Info("adding cluster controller")
 
-	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage, k3SImagePullPolicy, kubeletPortRange, webhookPortRange, maxConcurrentReconciles); err != nil {
+	portAllocator, err := agent.NewPortAllocator(ctx, mgr.GetClient())
+	if err != nil {
+		return err
+	}
+
+	runnable := portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient(), kubeletPortRange, webhookPortRange)
+	if err := mgr.Add(runnable); err != nil {
+		return err
+	}
+
+	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage, k3SImagePullPolicy, maxConcurrentReconciles, portAllocator, nil); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 

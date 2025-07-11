@@ -3,6 +3,7 @@ package cmds
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -19,6 +20,8 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrl "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type CreateConfig struct {
@@ -127,9 +130,13 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 			}
 		}
 
-		logrus.Infof("Extracting Kubeconfig for [%s] cluster", name)
+		logrus.Infof("Waiting for cluster to be available..")
 
-		logrus.Infof("waiting for cluster to be available..")
+		if err := waitForCluster(ctx, client, cluster); err != nil {
+			return fmt.Errorf("failed to wait for cluster to become ready (status: %s): %w", cluster.Status.Phase, err)
+		}
+
+		logrus.Infof("Extracting Kubeconfig for [%s] cluster", name)
 
 		// retry every 5s for at most 2m, or 25 times
 		availableBackoff := wait.Backoff{
@@ -212,4 +219,29 @@ func env(envSlice []string) []v1.EnvVar {
 	}
 
 	return envVars
+}
+
+func waitForCluster(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster) error {
+	interval := 5 * time.Second
+	timeout := 2 * time.Minute
+
+	return wait.PollUntilContextTimeout(ctx, interval, timeout, true, func(ctx context.Context) (bool, error) {
+		key := ctrl.ObjectKeyFromObject(cluster)
+		if err := client.Get(ctx, key, cluster); err != nil {
+			return false, fmt.Errorf("failed to get resource: %w", err)
+		}
+
+		// If resource ready -> stop polling
+		if cluster.Status.Phase == v1alpha1.ClusterReady {
+			return true, nil
+		}
+
+		// If resource failed -> stop polling with an error
+		if cluster.Status.Phase == v1alpha1.ClusterFailed {
+			return true, fmt.Errorf("cluster creation failed: %s", cluster.Status.Phase)
+		}
+
+		// Condition not met, continue polling.
+		return false, nil
+	})
 }

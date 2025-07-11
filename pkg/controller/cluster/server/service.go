@@ -49,22 +49,17 @@ func Service(cluster *v1alpha1.Cluster) *v1.Service {
 	if cluster.Spec.Expose != nil {
 		expose := cluster.Spec.Expose
 
-		// ingress
-		if expose.Ingress != nil {
-			service.Spec.Type = v1.ServiceTypeClusterIP
-			service.Spec.Ports = append(service.Spec.Ports, k3sServerPort, etcdPort)
-		}
-
-		// loadbalancer
-		if expose.LoadBalancer != nil {
+		switch {
+		case expose.LoadBalancer != nil:
 			service.Spec.Type = v1.ServiceTypeLoadBalancer
 			addLoadBalancerPorts(service, *expose.LoadBalancer, k3sServerPort, etcdPort)
-		}
-
-		// nodeport
-		if expose.NodePort != nil {
+		case expose.NodePort != nil:
 			service.Spec.Type = v1.ServiceTypeNodePort
 			addNodePortPorts(service, *expose.NodePort, k3sServerPort, etcdPort)
+		default:
+			// default to clusterIP for ingress or empty expose config
+			service.Spec.Type = v1.ServiceTypeClusterIP
+			service.Spec.Ports = append(service.Spec.Ports, k3sServerPort, etcdPort)
 		}
 	}
 

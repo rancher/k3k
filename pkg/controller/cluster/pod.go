@@ -150,17 +150,14 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 		}
 
 		// remove our finalizer from the list and update it.
-		if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
-			controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
-
+		if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
 			if err := p.Client.Update(ctx, pod); err != nil {
 				return err
 			}
 		}
 	}
 
-	if !controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
-		controllerutil.AddFinalizer(pod, etcdPodFinalizerName)
+	if controllerutil.AddFinalizer(pod, etcdPodFinalizerName) {
 		return p.Client.Update(ctx, pod)
 	}
 

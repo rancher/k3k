@@ -339,6 +339,9 @@ type CrtKey struct {
 	Certificate string `json:"certificate,omitempty"`
 	// Key specifies the PEM key content.
 	Key string `json:"key,omitempty"`
+	// SecretName specifies a secret reference for the custom CA certificate and key
+	// the content of the secret should have the keys ca.crt and ca.key
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // ClusterStatus reflects the observed state of a Cluster.

@@ -241,6 +241,11 @@ spec:
                           key:
                             description: Key specifies the PEM key content.
                             type: string
+                          secretName:
+                            description: |-
+                              SecretName specifies a secret reference for the custom CA certificate and key
+                              the content of the secret should have the keys ca.crt and ca.key
+                            type: string
                         type: object
                       etcdPeerCA:
                         description: ETCDPeerCA specifies the etcd-peer-ca cert/key
@@ -252,6 +257,11 @@ spec:
                             type: string
                           key:
                             description: Key specifies the PEM key content.
+                            type: string
+                          secretName:
+                            description: |-
+                              SecretName specifies a secret reference for the custom CA certificate and key
+                              the content of the secret should have the keys ca.crt and ca.key
                             type: string
                         type: object
                       etcdServerCA:
@@ -265,6 +275,11 @@ spec:
                           key:
                             description: Key specifies the PEM key content.
                             type: string
+                          secretName:
+                            description: |-
+                              SecretName specifies a secret reference for the custom CA certificate and key
+                              the content of the secret should have the keys ca.crt and ca.key
+                            type: string
                         type: object
                       requestHeaderCA:
                         description: RequestHeaderCA specifies the request-header-ca
@@ -277,6 +292,11 @@ spec:
                           key:
                             description: Key specifies the PEM key content.
                             type: string
+                          secretName:
+                            description: |-
+                              SecretName specifies a secret reference for the custom CA certificate and key
+                              the content of the secret should have the keys ca.crt and ca.key
+                            type: string
                         type: object
                       serverCA:
                         description: ServerCA specifies the server-ca cert/key pair.
@@ -287,6 +307,11 @@ spec:
                             type: string
                           key:
                             description: Key specifies the PEM key content.
+                            type: string
+                          secretName:
+                            description: |-
+                              SecretName specifies a secret reference for the custom CA certificate and key
+                              the content of the secret should have the keys ca.crt and ca.key
                             type: string
                         type: object
                       serviceAccountToken:
@@ -299,6 +324,11 @@ spec:
                             type: string
                           key:
                             description: Key specifies the PEM key content.
+                            type: string
+                          secretName:
+                            description: |-
+                              SecretName specifies a secret reference for the custom CA certificate and key
+                              the content of the secret should have the keys ca.crt and ca.key
                             type: string
                         type: object
                     type: object

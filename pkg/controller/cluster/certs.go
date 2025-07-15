@@ -12,7 +12,7 @@ import (
 )
 
 func (c *ClusterReconciler) customCerts(ctx context.Context, cluster *v1alpha1.Cluster) error {
-	if cluster.Spec.CustomCertificates.SecretName != "" {
+	if isSecretNameSet(cluster.Spec.CustomCertificates) {
 		return nil
 	}
 
@@ -73,4 +73,17 @@ func secret(cluster *v1alpha1.Cluster, customCerts v1alpha1.CustomCertificatesCo
 			"service.key":           []byte(customCerts.ServiceAccountToken.Key),
 		},
 	}, nil
+}
+
+func isSecretNameSet(customCertificates v1alpha1.CustomCertificates) bool {
+	if customCertificates.SecretName != "" ||
+		customCertificates.Content.ClientCA.SecretName != "" ||
+		customCertificates.Content.ServerCA.SecretName != "" ||
+		customCertificates.Content.ETCDPeerCA.SecretName != "" ||
+		customCertificates.Content.ETCDServerCA.SecretName != "" ||
+		customCertificates.Content.RequestHeaderCA.SecretName != "" ||
+		customCertificates.Content.ServiceAccountToken.SecretName != "" {
+		return true
+	}
+	return false
 }

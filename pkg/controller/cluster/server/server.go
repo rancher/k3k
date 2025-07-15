@@ -13,6 +13,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -322,67 +323,8 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	}
 
 	if s.cluster.Spec.CustomCertificates.Enabled {
-		var certSecret v1.Secret
-
-		secretName := s.cluster.Spec.CustomCertificates.SecretName
-		if secretName == "" {
-			secretName = controller.SafeConcatNameWithPrefix(s.cluster.Name, "custom", "certs")
-		}
-
-		key := types.NamespacedName{
-			Name:      secretName,
-			Namespace: s.cluster.Namespace,
-		}
-
-		if err := s.client.Get(ctx, key, &certSecret); err != nil {
+		if err := s.loadCACertBundle(ctx, &volumes, &volumeMounts); err != nil {
 			return nil, err
-		}
-
-		// adding volume and volume mounts for certs
-		name := "cert-volume"
-
-		certVolume := v1.Volume{
-			Name: name,
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: secretName,
-				},
-			},
-		}
-
-		volumes = append(volumes, certVolume)
-
-		if len(certSecret.Data) <= 0 {
-			return nil, fmt.Errorf("No certificate files found in the secret.")
-		}
-
-		// adding volume mounts
-		var keys []string
-		for key := range certSecret.Data {
-			keys = append(keys, key)
-		}
-
-		// Sort the keys before iterating over them to ensure predictable order
-		// otherwise the volume mount order with each reconcile causing the pod to restart.
-		sort.Strings(keys)
-
-		for _, certName := range keys {
-			var etcdPrefix string
-
-			certFile := certName
-
-			if strings.Contains(certName, "etcd-") {
-				etcdPrefix = "/etcd"
-				certFile = certName[5:] // "etcd-"
-			}
-
-			certVolumeMount := v1.VolumeMount{
-				Name:      name,
-				MountPath: "/var/lib/rancher/k3s/server/tls" + etcdPrefix + "/" + certFile,
-				SubPath:   certName,
-			}
-
-			volumeMounts = append(volumeMounts, certVolumeMount)
 		}
 	}
 
@@ -476,4 +418,139 @@ func (s *Server) setupStartCommand() (string, error) {
 	}
 
 	return output.String(), nil
+}
+
+func (s *Server) loadCACertBundle(ctx context.Context, volumes *[]v1.Volume, volumeMounts *[]v1.VolumeMount) error {
+	var certSecret v1.Secret
+
+	secretName := s.cluster.Spec.CustomCertificates.SecretName
+	if secretName == "" {
+		secretName = controller.SafeConcatNameWithPrefix(s.cluster.Name, "custom", "certs")
+	}
+
+	key := types.NamespacedName{
+		Name:      secretName,
+		Namespace: s.cluster.Namespace,
+	}
+
+	if err := s.client.Get(ctx, key, &certSecret); err != nil {
+		if apierrors.IsNotFound(err) {
+			// if combined secret does not exist then we will use individual secrets for each ca cert
+			return s.loadCustomCACerts(ctx, volumes, volumeMounts)
+		}
+		return err
+	}
+
+	// adding volume and volume mounts for certs
+	name := "cert-volume"
+
+	certVolume := v1.Volume{
+		Name: name,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: secretName,
+			},
+		},
+	}
+
+	*volumes = append(*volumes, certVolume)
+
+	if len(certSecret.Data) <= 0 {
+		return fmt.Errorf("No certificate files found in the secret.")
+	}
+
+	// adding volume mounts
+	var keys []string
+	for key := range certSecret.Data {
+		keys = append(keys, key)
+	}
+
+	// Sort the keys before iterating over them to ensure predictable order
+	// otherwise the volume mount order with each reconcile causing the pod to restart.
+	sort.Strings(keys)
+
+	for _, certName := range keys {
+		var etcdPrefix string
+
+		certFile := certName
+
+		if strings.Contains(certName, "etcd-") {
+			etcdPrefix = "/etcd"
+			certFile = certName[5:] // "etcd-"
+		}
+
+		certVolumeMount := v1.VolumeMount{
+			Name:      name,
+			MountPath: "/var/lib/rancher/k3s/server/tls" + etcdPrefix + "/" + certFile,
+			SubPath:   certName,
+		}
+
+		*volumeMounts = append(*volumeMounts, certVolumeMount)
+	}
+
+	return nil
+}
+
+func (s *Server) loadCustomCACerts(ctx context.Context, volumes *[]v1.Volume, volumeMounts *[]v1.VolumeMount) error {
+	// load each custom CA cert individually
+	customCerts := s.cluster.Spec.CustomCertificates.Content
+	caCrts := map[string]string{
+		"server-ca":         customCerts.ServerCA.SecretName,
+		"client-ca":         customCerts.ClientCA.SecretName,
+		"request-header-ca": customCerts.RequestHeaderCA.SecretName,
+		"etcd-peer-ca":      customCerts.ETCDPeerCA.SecretName,
+		"etcd-server-ca":    customCerts.ETCDServerCA.SecretName,
+		"service":           customCerts.ServiceAccountToken.SecretName,
+	}
+	for certName, secretName := range caCrts {
+		if err := s.mountCACert(ctx, certName, secretName, volumes, volumeMounts); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) mountCACert(ctx context.Context, certName, secretName string, volumes *[]v1.Volume, volumeMounts *[]v1.VolumeMount) error {
+	// get the secret for the cert
+	var certSecret v1.Secret
+	certKey := types.NamespacedName{
+		Name:      secretName,
+		Namespace: s.cluster.Namespace,
+	}
+	if err := s.client.Get(ctx, certKey, &certSecret); err != nil {
+		return err
+	}
+	caCrt := string(certSecret.Data["tls.crt"])
+	caKey := string(certSecret.Data["tls.key"])
+	if caCrt == "" || caKey == "" {
+		// add exception for serviceaccount token
+		if certName != "service" {
+			return fmt.Errorf("certificate or key content is empty for %s", secretName)
+		}
+	}
+	*volumes = append(*volumes, v1.Volume{
+		Name: certName + "-cert",
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: secretName,
+			},
+		},
+	})
+	etcdPrefix := ""
+	if strings.Contains(certName, "etcd") {
+		etcdPrefix = "etcd/"
+	}
+	// add the mount for the cert
+	*volumeMounts = append(*volumeMounts, v1.VolumeMount{
+		Name:      certName + "-cert",
+		MountPath: "/var/lib/rancher/k3s/server/tls/" + etcdPrefix + certName + ".crt",
+		SubPath:   "tls.crt",
+	})
+	// add the mount for the key
+	*volumeMounts = append(*volumeMounts, v1.VolumeMount{
+		Name:      certName + "-cert",
+		MountPath: "/var/lib/rancher/k3s/server/tls/" + etcdPrefix + certName + ".key",
+		SubPath:   "tls.key",
+	})
+	return nil
 }

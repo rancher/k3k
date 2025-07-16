@@ -22,6 +22,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -249,4 +250,21 @@ func exec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Con
 	}
 
 	return stderr.Bytes(), nil
+}
+
+func caCertSecret(name, namespace string, crt, key []byte) *v1.Secret {
+	return &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		Data: map[string][]byte{
+			"tls.crt": crt,
+			"tls.key": key,
+		},
+	}
 }

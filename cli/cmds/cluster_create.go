@@ -304,5 +304,5 @@ func CreateCustomCertsSecret(ctx context.Context, name, namespace, customCertsPa
 		return err
 	}
 
-	return client.Create(ctx, &customCertSecret)
+	return ctrl.IgnoreAlreadyExists(client.Create(ctx, &customCertSecret))
 }

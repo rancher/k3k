@@ -14,7 +14,7 @@ import (
 )
 
 func NewClusterListCmd(appCtx *AppContext) *cli.Command {
-	flags := CommonFlags(appCtx)
+	flags := []cli.Flag{}
 	flags = append(flags, FlagNamespace(appCtx))
 
 	return &cli.Command{

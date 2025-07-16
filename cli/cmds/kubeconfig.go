@@ -88,7 +88,7 @@ func NewKubeconfigCmd(appCtx *AppContext) *cli.Command {
 }
 
 func NewKubeconfigGenerateCmd(appCtx *AppContext) *cli.Command {
-	flags := CommonFlags(appCtx)
+	flags := []cli.Flag{}
 	flags = append(flags, FlagNamespace(appCtx))
 	flags = append(flags, newGenerateKubeconfigFlags(appCtx)...)
 

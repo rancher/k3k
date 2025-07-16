@@ -17,7 +17,6 @@ func NewPolicyDeleteCmd(appCtx *AppContext) *cli.Command {
 		Usage:           "Delete an existing policy",
 		UsageText:       "k3kcli policy delete [command options] NAME",
 		Action:          policyDeleteAction(appCtx),
-		Flags:           CommonFlags(appCtx),
 		HideHelpCommand: true,
 	}
 }

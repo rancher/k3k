@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-
 	"github.com/sirupsen/logrus"
 
 	"github.com/rancher/k3k/cli/cmds"
@@ -10,7 +8,7 @@ import (
 
 func main() {
 	app := cmds.NewApp()
-	if err := app.Run(os.Args); err != nil {
+	if err := app.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
 }

@@ -18,7 +18,6 @@ func NewPolicyListCmd(appCtx *AppContext) *cli.Command {
 		Usage:           "List all the existing policies",
 		UsageText:       "k3kcli policy list [command options]",
 		Action:          policyList(appCtx),
-		Flags:           CommonFlags(appCtx),
 		HideHelpCommand: true,
 	}
 }

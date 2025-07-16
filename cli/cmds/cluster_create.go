@@ -51,7 +51,7 @@ type CreateConfig struct {
 func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
 	createConfig := &CreateConfig{}
 
-	flags := CommonFlags(appCtx)
+	flags := []cli.Flag{}
 	flags = append(flags, FlagNamespace(appCtx))
 	flags = append(flags, newCreateFlags(createConfig)...)
 

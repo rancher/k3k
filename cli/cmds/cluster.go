@@ -1,17 +1,20 @@
 package cmds
 
 import (
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-func NewClusterCmd(appCtx *AppContext) *cli.Command {
-	return &cli.Command{
-		Name:  "cluster",
-		Usage: "cluster command",
-		Subcommands: []*cli.Command{
-			NewClusterCreateCmd(appCtx),
-			NewClusterDeleteCmd(appCtx),
-			NewClusterListCmd(appCtx),
-		},
+func NewClusterCmd(appCtx *AppContext) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "cluster",
+		Short: "cluster command",
 	}
+
+	cmd.AddCommand(
+		NewClusterCreateCmd(appCtx),
+		// NewClusterDeleteCmd(appCtx),
+		// NewClusterListCmd(appCtx),
+	)
+
+	return cmd
 }

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
@@ -48,33 +50,35 @@ type CreateConfig struct {
 	customCertsPath      string
 }
 
-func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
+func NewClusterCreateCmd(appCtx *AppContext) *cobra.Command {
 	createConfig := &CreateConfig{}
 
 	flags := []cli.Flag{}
 	flags = append(flags, FlagNamespace(appCtx))
 	flags = append(flags, newCreateFlags(createConfig)...)
 
-	return &cli.Command{
-		Name:            "create",
-		Usage:           "Create new cluster",
-		UsageText:       "k3kcli cluster create [command options] NAME",
-		Action:          createAction(appCtx, createConfig),
-		Flags:           flags,
-		HideHelpCommand: true,
+	cmd := &cobra.Command{
+		Use:     "create",
+		Short:   "Create new cluster",
+		Example: "k3kcli cluster create [command options] NAME",
+		RunE:    createAction(appCtx, createConfig),
+		Args:    cobra.ExactArgs(1),
 	}
+
+	CobraFlagNamespace(appCtx, cmd.Flags())
+
+	return cmd
 }
 
-func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
-	return func(clx *cli.Context) error {
+func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+
+		fmt.Println("viper.GetString", viper.GetString("kubeconfig"))
+
 		ctx := context.Background()
 		client := appCtx.Client
+		name := args[0]
 
-		if clx.NArg() != 1 {
-			return cli.ShowSubcommandHelp(clx)
-		}
-
-		name := clx.Args().First()
 		if name == k3kcluster.ClusterInvalidName {
 			return errors.New("invalid cluster name")
 		}

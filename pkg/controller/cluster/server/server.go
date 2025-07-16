@@ -331,7 +331,9 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		if err != nil {
 			return nil, err
 		}
+
 		volumes = append(volumes, vols...)
+
 		volumeMounts = append(volumeMounts, mounts...)
 	}
 
@@ -434,6 +436,7 @@ func (s *Server) loadCombinedCACertBundle(ctx context.Context) ([]v1.Volume, []v
 	}
 
 	var certSecret v1.Secret
+
 	key := types.NamespacedName{
 		Name:      secretName,
 		Namespace: s.cluster.Namespace,
@@ -444,6 +447,7 @@ func (s *Server) loadCombinedCACertBundle(ctx context.Context) ([]v1.Volume, []v
 			// fallback to loading individual certs
 			return s.loadIndividualCACerts(ctx)
 		}
+
 		return nil, nil, err
 	}
 
@@ -464,6 +468,7 @@ func (s *Server) loadCombinedCACertBundle(ctx context.Context) ([]v1.Volume, []v
 		if strings.HasSuffix(certName, ".crt") || strings.HasSuffix(certName, ".yml") || strings.HasSuffix(certName, ".pem") {
 			continue
 		}
+
 		certName = strings.TrimSuffix(certName, ".key")
 
 		vol, certMounts := s.mountCACert(volumeName, certName, secretName, certName, volumesAdded)
@@ -488,6 +493,7 @@ func (s *Server) loadIndividualCACerts(ctx context.Context) ([]v1.Volume, []v1.V
 		"etcd-server-ca":    []byte(customCerts.ETCDServerCA.SecretName),
 		"service":           []byte(customCerts.ServiceAccountToken.SecretName),
 	}
+
 	var (
 		volumes       []v1.Volume
 		mounts        []v1.VolumeMount
@@ -496,8 +502,9 @@ func (s *Server) loadIndividualCACerts(ctx context.Context) ([]v1.Volume, []v1.V
 	)
 
 	for _, certName := range sortedCertIDs {
-		secretName := string(caCertMap[certName])
 		var certSecret v1.Secret
+
+		secretName := string(caCertMap[certName])
 		key := types.NamespacedName{Name: secretName, Namespace: s.cluster.Namespace}
 
 		if err := s.client.Get(ctx, key, &certSecret); err != nil {
@@ -542,6 +549,7 @@ func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMou
 	etcdPrefix := ""
 
 	mountFile := certName
+
 	if strings.HasPrefix(certName, "etcd-") {
 		etcdPrefix = "/etcd"
 		mountFile = strings.TrimPrefix(certName, "etcd-")
@@ -572,6 +580,7 @@ func sortedKeys(keyMap map[string][]byte) []string {
 	for k := range keyMap {
 		keys = append(keys, k)
 	}
+
 	sort.Strings(keys)
 
 	return keys

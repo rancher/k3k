@@ -85,5 +85,6 @@ func isSecretNameSet(customCertificates v1alpha1.CustomCertificates) bool {
 		customCertificates.Content.ServiceAccountToken.SecretName != "" {
 		return true
 	}
+
 	return false
 }

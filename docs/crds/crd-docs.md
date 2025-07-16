@@ -153,6 +153,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `certificate` _string_ | Certificate specifies the PEM certificate content. |  |  |
 | `key` _string_ | Key specifies the PEM key content. |  |  |
+| `secretName` _string_ | SecretName specifies a secret reference for the custom CA certificate and key<br />the content of the secret should have the keys ca.crt and ca.key |  |  |
 
 
 #### CustomCertificates

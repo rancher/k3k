@@ -231,9 +231,10 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 		return err
 	}
 
-	if policyName, found := ns.Labels[policy.PolicyNameLabelKey]; found {
-		cluster.Status.PolicyName = policyName
+	policyName, found := ns.Labels[policy.PolicyNameLabelKey]
+	cluster.Status.PolicyName = policyName
 
+	if found && policyName != "" {
 		var policy v1alpha1.VirtualClusterPolicy
 		if err := c.Client.Get(ctx, client.ObjectKey{Name: policyName}, &policy); err != nil {
 			return err

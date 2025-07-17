@@ -5,9 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/go-logr/zapr"
+	"github.com/spf13/cobra"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,73 +41,7 @@ var (
 	maxConcurrentReconciles    int
 	debug                      bool
 	logger                     *log.Logger
-	flags                      = []cli.Flag{
-		&cli.StringFlag{
-			Name:        "kubeconfig",
-			EnvVars:     []string{"KUBECONFIG"},
-			Usage:       "Kubeconfig path",
-			Destination: &kubeconfig,
-		},
-		&cli.StringFlag{
-			Name:        "cluster-cidr",
-			EnvVars:     []string{"CLUSTER_CIDR"},
-			Usage:       "Cluster CIDR to be added to the networkpolicy",
-			Destination: &clusterCIDR,
-		},
-		&cli.StringFlag{
-			Name:        "shared-agent-image",
-			EnvVars:     []string{"SHARED_AGENT_IMAGE"},
-			Usage:       "K3K Virtual Kubelet image",
-			Value:       "rancher/k3k:latest",
-			Destination: &sharedAgentImage,
-		},
-		&cli.StringFlag{
-			Name:        "shared-agent-pull-policy",
-			EnvVars:     []string{"SHARED_AGENT_PULL_POLICY"},
-			Usage:       "K3K Virtual Kubelet image pull policy must be one of Always, IfNotPresent or Never",
-			Destination: &sharedAgentImagePullPolicy,
-		},
-		&cli.StringFlag{
-			Name:        "kubelet-port-range",
-			EnvVars:     []string{"KUBELET_PORT_RANGE"},
-			Usage:       "Port Range for k3k kubelet in shared mode",
-			Destination: &kubeletPortRange,
-			Value:       "50000-51000",
-		},
-		&cli.StringFlag{
-			Name:        "webhook-port-range",
-			EnvVars:     []string{"WEBHOOK_PORT_RANGE"},
-			Usage:       "Port Range for k3k kubelet webhook in shared mode",
-			Destination: &webhookPortRange,
-			Value:       "51001-52000",
-		},
-		&cli.BoolFlag{
-			Name:        "debug",
-			EnvVars:     []string{"DEBUG"},
-			Usage:       "Debug level logging",
-			Destination: &debug,
-		},
-		&cli.StringFlag{
-			Name:        "k3s-image",
-			EnvVars:     []string{"K3S_IMAGE"},
-			Usage:       "K3K server image",
-			Value:       "rancher/k3k",
-			Destination: &k3SImage,
-		},
-		&cli.StringFlag{
-			Name:        "k3s-image-pull-policy",
-			EnvVars:     []string{"K3S_IMAGE_PULL_POLICY"},
-			Usage:       "K3K server image pull policy",
-			Destination: &k3SImagePullPolicy,
-		},
-		&cli.IntFlag{
-			Name:        "max-concurrent-reconciles",
-			EnvVars:     []string{"MAX_CONCURRENT_RECONCILES"},
-			Usage:       "maximum number of concurrent reconciles",
-			Destination: &maxConcurrentReconciles,
-			Value:       50,
-		},
-	}
+	flags                      = []cli.Flag{}
 )
 
 func init() {
@@ -116,26 +50,37 @@ func init() {
 }
 
 func main() {
-	app := cmds.NewApp()
-	app.Flags = flags
-	app.Action = run
-	app.Version = buildinfo.Version
-	app.Before = func(clx *cli.Context) error {
-		if err := validate(); err != nil {
-			return err
-		}
-
-		logger = log.New(debug)
-
-		return nil
+	rootCmd := &cobra.Command{
+		Use:     "k3k",
+		Short:   "k3k controller",
+		Version: buildinfo.Version,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return validate()
+		},
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			cmds.InitializeConfig(cmd)
+			logger = log.New(debug)
+		},
+		RunE: run,
 	}
 
-	if err := app.Run(os.Args); err != nil {
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Debug level logging")
+	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig path")
+	rootCmd.PersistentFlags().StringVar(&clusterCIDR, "cluster-cidr", "", "Cluster CIDR to be added to the networkpolicy")
+	rootCmd.PersistentFlags().StringVar(&sharedAgentImage, "shared-agent-image", "", "K3K Virtual Kubelet image")
+	rootCmd.PersistentFlags().StringVar(&sharedAgentImagePullPolicy, "shared-agent-pull-policy", "", "K3K Virtual Kubelet image pull policy must be one of Always, IfNotPresent or Never")
+	rootCmd.PersistentFlags().StringVar(&kubeletPortRange, "kubelet-port-range", "50000-51000", "Port Range for k3k kubelet in shared mode")
+	rootCmd.PersistentFlags().StringVar(&webhookPortRange, "webhook-port-range", "51001-52000", "Port Range for k3k kubelet webhook in shared mode")
+	rootCmd.PersistentFlags().StringVar(&k3SImage, "k3s-image", "rancher/k3k", "K3K server image")
+	rootCmd.PersistentFlags().StringVar(&k3SImagePullPolicy, "k3s-image-pull-policy", "", "K3K server image pull policy")
+	rootCmd.PersistentFlags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 50, "maximum number of concurrent reconciles")
+
+	if err := rootCmd.Execute(); err != nil {
 		logger.Fatalw("failed to run k3k controller", zap.Error(err))
 	}
 }
 
-func run(clx *cli.Context) error {
+func run(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	logger.Info("Starting k3k - Version: " + buildinfo.Version)

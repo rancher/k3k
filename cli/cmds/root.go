@@ -35,10 +35,11 @@ func NewApp() *cobra.Command {
 	appCtx := &AppContext{}
 
 	rootCmd := &cobra.Command{
-		Use:   "k3kcli",
-		Short: "CLI for K3K",
+		Use:     "k3kcli",
+		Short:   "CLI for K3K",
+		Version: buildinfo.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			initializeConfig(cmd)
+			InitializeConfig(cmd)
 
 			if appCtx.Debug {
 				logrus.SetLevel(logrus.DebugLevel)
@@ -70,7 +71,6 @@ func NewApp() *cobra.Command {
 	rootCmd.PersistentFlags().BoolVar(&appCtx.Debug, "debug", false, "Turn on debug logs")
 
 	rootCmd.AddCommand(
-		versionCmd,
 		NewClusterCmd(appCtx),
 	)
 
@@ -117,15 +117,7 @@ func FlagNamespace(appCtx *AppContext) *cli.StringFlag {
 	}
 }
 
-var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Print the version",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("k3kcli version " + buildinfo.Version)
-	},
-}
-
-func initializeConfig(cmd *cobra.Command) {
+func InitializeConfig(cmd *cobra.Command) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
 

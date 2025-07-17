@@ -6,6 +6,7 @@ VERSION ?= $(shell git describe --tags --always --dirty --match="v[0-9]*")
 
 GOLANGCI_LINT_VERSION := v1.64.8
 GINKGO_VERSION ?= v2.21.0
+GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
 ENVTEST_K8S_VERSION := 1.31.0
 CRD_REF_DOCS_VER ?= v0.1.0
@@ -51,23 +52,23 @@ push-%:
 
 .PHONY: test
 test:	## Run all the tests
-	$(GINKGO) -v -r --label-filter=$(label-filter)
+	$(GINKGO) $(GINKGO_FLAGS) --label-filter=$(label-filter)
 
 .PHONY: test-unit
 test-unit:	## Run the unit tests (skips the e2e)
-	$(GINKGO) -v -r --skip-file=tests/*
+	$(GINKGO) $(GINKGO_FLAGS) --skip-file=tests/*
 
 .PHONY: test-controller
 test-controller:	## Run the controller tests (pkg/controller)
-	$(GINKGO) -v -r pkg/controller
+	$(GINKGO) $(GINKGO_FLAGS) pkg/controller
 
 .PHONY: test-kubelet-controller
 test-kubelet-controller:	## Run the controller tests (pkg/controller)
-	$(GINKGO) -v -r k3k-kubelet/controller
+	$(GINKGO) $(GINKGO_FLAGS) k3k-kubelet/controller
 
 .PHONY: test-e2e
 test-e2e:	## Run the e2e tests
-	$(GINKGO) -v -r tests
+	$(GINKGO) $(GINKGO_FLAGS) tests
 
 .PHONY: generate
 generate:	## Generate the CRDs specs

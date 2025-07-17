@@ -34,10 +34,11 @@ func TestTests(t *testing.T) {
 }
 
 var (
-	k3sContainer *k3s.K3sContainer
-	hostIP       string
-	k8s          *kubernetes.Clientset
-	k8sClient    client.Client
+	k3sContainer   *k3s.K3sContainer
+	hostIP         string
+	k8s            *kubernetes.Clientset
+	k8sClient      client.Client
+	kubeconfigPath string
 )
 
 var _ = BeforeSuite(func() {
@@ -53,6 +54,17 @@ var _ = BeforeSuite(func() {
 
 	kubeconfig, err := k3sContainer.GetKubeConfig(context.Background())
 	Expect(err).To(Not(HaveOccurred()))
+
+	tmpFile, err := os.CreateTemp("", "kubeconfig-")
+	Expect(err).To(Not(HaveOccurred()))
+	defer tmpFile.Close()
+
+	_, err = tmpFile.Write(kubeconfig)
+	Expect(err).To(Not(HaveOccurred()))
+	kubeconfigPath = tmpFile.Name()
+	os.Setenv("KUBECONFIG", kubeconfigPath)
+
+	DeferCleanup(os.Remove, kubeconfigPath)
 
 	initKubernetesClient(kubeconfig)
 	installK3kChart(kubeconfig)

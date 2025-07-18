@@ -719,8 +719,8 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster, policy v1alpha1.
 			return fmt.Errorf("%w: %w", ErrClusterValidation, err)
 		}
 	}
-	return nil
 
+	return nil
 }
 
 // lookupServiceCIDR attempts to determine the cluster's service CIDR.

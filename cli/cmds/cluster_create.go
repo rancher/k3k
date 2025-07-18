@@ -297,6 +297,7 @@ func CreateCustomCertsSecrets(ctx context.Context, name, namespace, customCertsP
 			cert, key                 []byte
 			err                       error
 		)
+
 		if certName != "service-account-token" {
 			certFilePath = customCertsPath + fileName + ".crt"
 
@@ -312,6 +313,7 @@ func CreateCustomCertsSecrets(ctx context.Context, name, namespace, customCertsP
 		if err != nil {
 			return err
 		}
+
 		certSecret := caCertSecret(certName, name, namespace, cert, key)
 
 		if err := client.Create(ctx, certSecret); err != nil {

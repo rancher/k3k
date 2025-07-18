@@ -720,6 +720,7 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster, policy v1alpha1.
 		}
 	}
 	return nil
+
 }
 
 // lookupServiceCIDR attempts to determine the cluster's service CIDR.

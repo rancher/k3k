@@ -54,7 +54,14 @@ jobs:
 
     - name: Run unit tests
       run: make test-unit
-  
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./cover.out
+        flags: unit
+
   tests-e2e:
     runs-on: ubuntu-latest
     needs: validate
@@ -86,6 +93,13 @@ jobs:
 
     - name: Run e2e tests
       run: make test-e2e
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./cover.out
+        flags: e2e
 
     - name: Archive k3s logs
       uses: actions/upload-artifact@v4

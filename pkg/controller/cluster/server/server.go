@@ -13,7 +13,6 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -27,10 +26,6 @@ const (
 	serverName         = "server"
 	configName         = "server-config"
 	initConfigName     = "init-server-config"
-)
-
-var (
-	ErrCustomCACertNotFound = fmt.Errorf("custom CA certificate not found")
 )
 
 // Server
@@ -326,8 +321,8 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
-	if s.cluster.Spec.CustomCertificates.Enabled {
-		vols, mounts, err := s.loadCombinedCACertBundle(ctx)
+	if s.cluster.Spec.CustomCAs.Enabled {
+		vols, mounts, err := s.loadCACertBundle(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -429,75 +424,70 @@ func (s *Server) setupStartCommand() (string, error) {
 	return output.String(), nil
 }
 
-func (s *Server) loadCombinedCACertBundle(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
-	secretName := s.cluster.Spec.CustomCertificates.SecretName
-	if secretName == "" {
-		secretName = controller.SafeConcatNameWithPrefix(s.cluster.Name, "custom", "certs")
-	}
+// func (s *Server) loadCACertBundle(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
 
-	var certSecret v1.Secret
+// 	var certSecret v1.Secret
 
-	key := types.NamespacedName{
-		Name:      secretName,
-		Namespace: s.cluster.Namespace,
-	}
+// 	key := types.NamespacedName{
+// 		Name:      secretName,
+// 		Namespace: s.cluster.Namespace,
+// 	}
 
-	if err := s.client.Get(ctx, key, &certSecret); err != nil {
-		if apierrors.IsNotFound(err) {
-			// fallback to loading individual certs
-			return s.loadIndividualCACerts(ctx)
-		}
+// 	if err := s.client.Get(ctx, key, &certSecret); err != nil {
+// 		if apierrors.IsNotFound(err) {
+// 			// fallback to loading individual certs
+// 			return s.loadIndividualCACerts(ctx)
+// 		}
 
-		return nil, nil, err
-	}
+// 		return nil, nil, err
+// 	}
 
-	if len(certSecret.Data) == 0 {
-		return nil, nil, ErrCustomCACertNotFound
-	}
+// 	if len(certSecret.Data) == 0 {
+// 		return nil, nil, ErrCustomCACertNotFound
+// 	}
 
-	var (
-		volumes       []v1.Volume
-		mounts        []v1.VolumeMount
-		volumeName    = "cert-volume"
-		volumesAdded  = map[string]bool{}
-		sortedCertIDs = sortedKeys(certSecret.Data)
-	)
+// 	var (
+// 		volumes       []v1.Volume
+// 		mounts        []v1.VolumeMount
+// 		volumeName    = "cert-volume"
+// 		volumesAdded  = map[string]bool{}
+// 		sortedCertIDs = sortedKeys(certSecret.Data)
+// 	)
 
-	for _, certName := range sortedCertIDs {
-		// only process the ".key" files
-		if strings.HasSuffix(certName, ".crt") || strings.HasSuffix(certName, ".yml") || strings.HasSuffix(certName, ".pem") {
-			continue
-		}
+// 	for _, certName := range sortedCertIDs {
+// 		// only process the ".key" files
+// 		if strings.HasSuffix(certName, ".crt") || strings.HasSuffix(certName, ".yml") || strings.HasSuffix(certName, ".pem") {
+// 			continue
+// 		}
 
-		certName = strings.TrimSuffix(certName, ".key")
+// 		certName = strings.TrimSuffix(certName, ".key")
 
-		vol, certMounts := s.mountCACert(volumeName, certName, secretName, certName, volumesAdded)
+// 		vol, certMounts := s.mountCACert(volumeName, certName, secretName, certName, volumesAdded)
 
-		if vol != nil {
-			volumes = append(volumes, *vol)
-		}
+// 		if vol != nil {
+// 			volumes = append(volumes, *vol)
+// 		}
 
-		mounts = append(mounts, certMounts...)
-	}
+// 		mounts = append(mounts, certMounts...)
+// 	}
 
-	return volumes, mounts, nil
-}
+// 	return volumes, mounts, nil
+// }
 
-func (s *Server) loadIndividualCACerts(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
-	customCerts := s.cluster.Spec.CustomCertificates.Content
-	caCertMap := map[string][]byte{
-		"server-ca":         []byte(customCerts.ServerCA.SecretName),
-		"client-ca":         []byte(customCerts.ClientCA.SecretName),
-		"request-header-ca": []byte(customCerts.RequestHeaderCA.SecretName),
-		"etcd-peer-ca":      []byte(customCerts.ETCDPeerCA.SecretName),
-		"etcd-server-ca":    []byte(customCerts.ETCDServerCA.SecretName),
-		"service":           []byte(customCerts.ServiceAccountToken.SecretName),
+func (s *Server) loadCACertBundle(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
+	customCerts := s.cluster.Spec.CustomCAs.Sources
+	caCertMap := map[string]string{
+		"server-ca":         customCerts.ServerCA.SecretName,
+		"client-ca":         customCerts.ClientCA.SecretName,
+		"request-header-ca": customCerts.RequestHeaderCA.SecretName,
+		"etcd-peer-ca":      customCerts.ETCDPeerCA.SecretName,
+		"etcd-server-ca":    customCerts.ETCDServerCA.SecretName,
+		"service":           customCerts.ServiceAccountToken.SecretName,
 	}
 
 	var (
 		volumes       []v1.Volume
 		mounts        []v1.VolumeMount
-		volumesAdded  = map[string]bool{}
 		sortedCertIDs = sortedKeys(caCertMap)
 	)
 
@@ -516,12 +506,12 @@ func (s *Server) loadIndividualCACerts(ctx context.Context) ([]v1.Volume, []v1.V
 
 		// Service account token secret is an exception (may not contain crt/key).
 		if certName != "service" && (len(cert) == 0 || len(keyData) == 0) {
-			return nil, nil, ErrCustomCACertNotFound
+			return nil, nil, fmt.Errorf("cert or key is not found in secret %s", certName)
 		}
 
 		volumeName := certName + "-vol"
 
-		vol, certMounts := s.mountCACert(volumeName, certName, secretName, "tls", volumesAdded)
+		vol, certMounts := s.mountCACert(volumeName, certName, secretName, "tls")
 		volumes = append(volumes, *vol)
 		mounts = append(mounts, certMounts...)
 	}
@@ -529,21 +519,19 @@ func (s *Server) loadIndividualCACerts(ctx context.Context) ([]v1.Volume, []v1.V
 	return volumes, mounts, nil
 }
 
-func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMount string, volumesAdded map[string]bool) (*v1.Volume, []v1.VolumeMount) {
+func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMount string) (*v1.Volume, []v1.VolumeMount) {
 	var (
 		volume *v1.Volume
 		mounts []v1.VolumeMount
 	)
 
 	// avoid re-adding secretName in case of combined secret
-	if !volumesAdded[secretName] {
-		volume = &v1.Volume{
-			Name: volumeName,
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{SecretName: secretName},
-			},
-		}
-		volumesAdded[secretName] = true
+
+	volume = &v1.Volume{
+		Name: volumeName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{SecretName: secretName},
+		},
 	}
 
 	etcdPrefix := ""
@@ -574,7 +562,7 @@ func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMou
 	return volume, mounts
 }
 
-func sortedKeys(keyMap map[string][]byte) []string {
+func sortedKeys(keyMap map[string]string) []string {
 	keys := make([]string, 0, len(keyMap))
 
 	for k := range keyMap {

@@ -58,7 +58,10 @@ const (
 	memberRemovalTimeout      = time.Minute * 1
 )
 
-var ErrClusterValidation = errors.New("cluster validation error")
+var (
+	ErrClusterValidation         = errors.New("cluster validation error")
+	ErrCustomCACertSecretMissing = errors.New("custom CA certificate secret is missing")
+)
 
 type ClusterReconciler struct {
 	DiscoveryClient *discovery.DiscoveryClient
@@ -257,13 +260,6 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 		// update Status HostVersion
 		k8sVersion := strings.Split(hostVersion.GitVersion, "+")[0]
 		cluster.Status.HostVersion = k8sVersion + "-k3s1"
-	}
-
-	// handle custom certificates
-	if cluster.Spec.CustomCertificates.Enabled {
-		if err := c.customCerts(ctx, cluster); err != nil {
-			return err
-		}
 	}
 
 	token, err := c.token(ctx, cluster)
@@ -718,6 +714,11 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster, policy v1alpha1.
 		return fmt.Errorf("%w: mode %q is not allowed by the policy %q", ErrClusterValidation, cluster.Spec.Mode, policy.Name)
 	}
 
+	if cluster.Spec.CustomCAs.Enabled {
+		if err := c.validateCustomCACerts(cluster); err != nil {
+			return fmt.Errorf("%w: %w", ErrClusterValidation, err)
+		}
+	}
 	return nil
 }
 
@@ -796,4 +797,19 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 	log.Info("cannot find serviceCIDR from lookup")
 
 	return "", nil
+}
+
+// validateCustomCACerts will make sure that all the cert secrets exists
+func (c *ClusterReconciler) validateCustomCACerts(cluster *v1alpha1.Cluster) error {
+	credentialSources := cluster.Spec.CustomCAs.Sources
+	if credentialSources.ClientCA.SecretName == "" ||
+		credentialSources.ServerCA.SecretName == "" ||
+		credentialSources.ETCDPeerCA.SecretName == "" ||
+		credentialSources.ETCDServerCA.SecretName == "" ||
+		credentialSources.RequestHeaderCA.SecretName == "" ||
+		credentialSources.ServiceAccountToken.SecretName == "" {
+		return ErrCustomCACertSecretMissing
+	}
+
+	return nil
 }

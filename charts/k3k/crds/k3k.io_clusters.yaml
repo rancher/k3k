@@ -223,124 +223,88 @@ spec:
                 x-kubernetes-validations:
                 - message: clusterDNS is immutable
                   rule: self == oldSelf
-              customCertificates:
-                description: CustomCertificates specifies the cert/key pairs for custom
-                  CA certificates.
+              customCAs:
+                description: CustomCAs specifies the cert/key pairs for custom CA
+                  certificates.
                 properties:
-                  content:
-                    description: Content specifies the conetnt of the custom CA certificates
-                      and keys.
+                  enabled:
+                    description: Enabled toggles this feature on or off.
+                    type: boolean
+                  sources:
+                    description: Sources defines the sources for all required custom
+                      CA certificates.
                     properties:
                       clientCA:
                         description: ClientCA specifies the client-ca cert/key pair.
                         properties:
-                          certificate:
-                            description: Certificate specifies the PEM certificate
-                              content.
-                            type: string
-                          key:
-                            description: Key specifies the PEM key content.
-                            type: string
                           secretName:
                             description: |-
-                              SecretName specifies a secret reference for the custom CA certificate and key
-                              the content of the secret should have the keys ca.crt and ca.key
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
                         type: object
                       etcdPeerCA:
                         description: ETCDPeerCA specifies the etcd-peer-ca cert/key
                           pair.
                         properties:
-                          certificate:
-                            description: Certificate specifies the PEM certificate
-                              content.
-                            type: string
-                          key:
-                            description: Key specifies the PEM key content.
-                            type: string
                           secretName:
                             description: |-
-                              SecretName specifies a secret reference for the custom CA certificate and key
-                              the content of the secret should have the keys ca.crt and ca.key
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
                         type: object
                       etcdServerCA:
                         description: ETCDServerCA specifies the etcd-server-ca cert/key
                           pair.
                         properties:
-                          certificate:
-                            description: Certificate specifies the PEM certificate
-                              content.
-                            type: string
-                          key:
-                            description: Key specifies the PEM key content.
-                            type: string
                           secretName:
                             description: |-
-                              SecretName specifies a secret reference for the custom CA certificate and key
-                              the content of the secret should have the keys ca.crt and ca.key
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
                         type: object
                       requestHeaderCA:
                         description: RequestHeaderCA specifies the request-header-ca
                           cert/key pair.
                         properties:
-                          certificate:
-                            description: Certificate specifies the PEM certificate
-                              content.
-                            type: string
-                          key:
-                            description: Key specifies the PEM key content.
-                            type: string
                           secretName:
                             description: |-
-                              SecretName specifies a secret reference for the custom CA certificate and key
-                              the content of the secret should have the keys ca.crt and ca.key
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
                         type: object
                       serverCA:
                         description: ServerCA specifies the server-ca cert/key pair.
                         properties:
-                          certificate:
-                            description: Certificate specifies the PEM certificate
-                              content.
-                            type: string
-                          key:
-                            description: Key specifies the PEM key content.
-                            type: string
                           secretName:
                             description: |-
-                              SecretName specifies a secret reference for the custom CA certificate and key
-                              the content of the secret should have the keys ca.crt and ca.key
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
                         type: object
                       serviceAccountToken:
                         description: ServiceAccountToken specifies the service-account-token
                           key.
                         properties:
-                          certificate:
-                            description: Certificate specifies the PEM certificate
-                              content.
-                            type: string
-                          key:
-                            description: Key specifies the PEM key content.
-                            type: string
                           secretName:
                             description: |-
-                              SecretName specifies a secret reference for the custom CA certificate and key
-                              the content of the secret should have the keys ca.crt and ca.key
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
                         type: object
                     type: object
-                  enabled:
-                    description: Enabled specifies if the cluster should use customCertificates
-                      or not.
-                    type: boolean
-                  secretName:
-                    description: |-
-                      SecretName specifies a secret reference for the custom CA certificates and keys
-                      if provided then Content value will be ignored.
-                    type: string
                 type: object
               expose:
                 description: |-

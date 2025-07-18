@@ -11,9 +11,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -187,51 +185,6 @@ var _ = When("a dynamic cluster is installed", func() {
 	})
 })
 
-var _ = When("a cluster with custom certificates is installed with combined cert secret", Label("e2e"), func() {
-	ctx := context.Background()
-	var virtualCluster *VirtualCluster
-	BeforeEach(func() {
-		namespace := NewNamespace()
-		// create custom cert secret
-		err := cmds.CreateCustomCertsSecret(ctx, "test", namespace.Name, "testdata/customcerts", k8sClient)
-		Expect(err).To(Not(HaveOccurred()))
-
-		cluster := NewCluster(namespace.Name)
-		cluster.Spec.CustomCertificates = v1alpha1.CustomCertificates{
-			Enabled:    true,
-			SecretName: controller.SafeConcatNameWithPrefix("test", "custom", "certs"),
-		}
-		CreateCluster(cluster)
-		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
-
-		virtualCluster = &VirtualCluster{
-			Cluster:    cluster,
-			RestConfig: restConfig,
-			Client:     client,
-		}
-	})
-	It("will load the custom certs in the server pod", func() {
-		_, _ = virtualCluster.NewNginxPod("")
-
-		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
-		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
-		Expect(err).To(Not(HaveOccurred()))
-
-		Expect(len(serverPods.Items)).To(Equal(1))
-		serverPod := serverPods.Items[0]
-
-		// check server-ca.crt
-		serverCACrtPath := "/var/lib/rancher/k3s/server/tls/server-ca.crt"
-		serverCACrt, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, serverCACrtPath)
-		Expect(err).To(Not(HaveOccurred()))
-
-		serverCACrtTestFile, err := os.ReadFile("testdata/customcerts/server-ca.crt")
-		Expect(err).To(Not(HaveOccurred()))
-
-		Expect(serverCACrt).To(Equal(serverCACrtTestFile))
-	})
-})
-
 var _ = When("a cluster with custom certificates is installed with individual cert secrets", Label("e2e"), func() {
 	ctx := context.Background()
 	var virtualCluster *VirtualCluster
@@ -269,25 +222,25 @@ var _ = When("a cluster with custom certificates is installed with individual ce
 		}
 
 		cluster := NewCluster(namespace.Name)
-		cluster.Spec.CustomCertificates = v1alpha1.CustomCertificates{
+		cluster.Spec.CustomCAs = v1alpha1.CustomCAs{
 			Enabled: true,
-			Content: v1alpha1.CustomCertificatesContent{
-				ServerCA: v1alpha1.CrtKey{
+			Sources: v1alpha1.CredentialSources{
+				ServerCA: v1alpha1.CredentialSource{
 					SecretName: "server-ca",
 				},
-				ClientCA: v1alpha1.CrtKey{
+				ClientCA: v1alpha1.CredentialSource{
 					SecretName: "client-ca",
 				},
-				ETCDServerCA: v1alpha1.CrtKey{
+				ETCDServerCA: v1alpha1.CredentialSource{
 					SecretName: "etcd-server-ca",
 				},
-				ETCDPeerCA: v1alpha1.CrtKey{
+				ETCDPeerCA: v1alpha1.CredentialSource{
 					SecretName: "etcd-peer-ca",
 				},
-				RequestHeaderCA: v1alpha1.CrtKey{
+				RequestHeaderCA: v1alpha1.CredentialSource{
 					SecretName: "request-header-ca",
 				},
-				ServiceAccountToken: v1alpha1.CrtKey{
+				ServiceAccountToken: v1alpha1.CredentialSource{
 					SecretName: "service",
 				},
 			},

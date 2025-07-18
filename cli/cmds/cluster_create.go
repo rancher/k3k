@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -106,7 +105,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 		}
 
 		if config.customCertsPath != "" {
-			if err := CreateCustomCertsSecret(ctx, name, namespace, config.customCertsPath, client); err != nil {
+			if err := CreateCustomCertsSecrets(ctx, name, namespace, config.customCertsPath, client); err != nil {
 				return err
 			}
 		}
@@ -211,9 +210,28 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 	}
 
 	if config.customCertsPath != "" {
-		cluster.Spec.CustomCertificates = v1alpha1.CustomCertificates{
-			Enabled:    true,
-			SecretName: controller.SafeConcatNameWithPrefix(name, "custom", "certs"),
+		cluster.Spec.CustomCAs = v1alpha1.CustomCAs{
+			Enabled: true,
+			Sources: v1alpha1.CredentialSources{
+				ClientCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "client-ca"),
+				},
+				ServerCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "server-ca"),
+				},
+				ETCDServerCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-server-ca"),
+				},
+				ETCDPeerCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-peer-ca"),
+				},
+				RequestHeaderCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "request-header-ca"),
+				},
+				ServiceAccountToken: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "service-account-token"),
+				},
+			},
 		}
 	}
 
@@ -263,46 +281,60 @@ func waitForCluster(ctx context.Context, client client.Client, cluster *v1alpha1
 	})
 }
 
-func CreateCustomCertsSecret(ctx context.Context, name, namespace, customCertsPath string, client client.Client) error {
-	var customCertSecret = v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      controller.SafeConcatNameWithPrefix(name, "custom", "certs"),
-			Namespace: namespace,
-		},
+func CreateCustomCertsSecrets(ctx context.Context, name, namespace, customCertsPath string, client client.Client) error {
+	customCAsMap := map[string]string{
+		"etcd-peer-ca":          "/etcd/peer-ca",
+		"etcd-server-ca":        "/etcd/server-ca",
+		"server-ca":             "/server-ca",
+		"client-ca":             "/client-ca",
+		"request-header-ca":     "/request-header-ca",
+		"service-account-token": "/service",
+	}
+
+	for certName, fileName := range customCAsMap {
+		var (
+			certFilePath, keyFilePath string
+			cert, key                 []byte
+			err                       error
+		)
+		if certName != "service-account-token" {
+			certFilePath = customCertsPath + fileName + ".crt"
+
+			cert, err = os.ReadFile(certFilePath)
+			if err != nil {
+				return err
+			}
+		}
+
+		keyFilePath = customCertsPath + fileName + ".key"
+
+		key, err = os.ReadFile(keyFilePath)
+		if err != nil {
+			return err
+		}
+		certSecret := caCertSecret(certName, name, namespace, cert, key)
+
+		if err := client.Create(ctx, certSecret); err != nil {
+			return ctrl.IgnoreAlreadyExists(err)
+		}
+	}
+
+	return nil
+}
+
+func caCertSecret(certName, clusterName, clusterNamespace string, cert, key []byte) *v1.Secret {
+	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
 		},
-		Data: map[string][]byte{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      controller.SafeConcatNameWithPrefix(clusterName, certName),
+			Namespace: clusterNamespace,
+		},
+		Data: map[string][]byte{
+			"tls.crt": cert,
+			"tls.key": key,
+		},
 	}
-
-	err := filepath.Walk(customCertsPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		prefix := ""
-		if strings.Contains(path, "etcd") {
-			prefix = "etcd-"
-		}
-
-		fileContent, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		customCertSecret.Data[prefix+info.Name()] = fileContent
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return ctrl.IgnoreAlreadyExists(client.Create(ctx, &customCertSecret))
 }

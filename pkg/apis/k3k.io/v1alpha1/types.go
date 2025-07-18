@@ -172,10 +172,10 @@ type ClusterSpec struct {
 	// +optional
 	MirrorHostNodes bool `json:"mirrorHostNodes,omitempty"`
 
-	// CustomCertificates specifies the cert/key pairs for custom CA certificates.
+	// CustomCAs specifies the cert/key pairs for custom CA certificates.
 	//
 	// +optional
-	CustomCertificates CustomCertificates `json:"customCertificates,omitempty"`
+	CustomCAs CustomCAs `json:"customCAs,omitempty"`
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.
@@ -300,47 +300,45 @@ type NodePortConfig struct {
 	ETCDPort *int32 `json:"etcdPort,omitempty"`
 }
 
-// CustomCertificates specifies the cert/key pairs for custom CA certificates.
-type CustomCertificates struct {
-	// Enabled specifies if the cluster should use customCertificates or not.
+// CustomCAs specifies the cert/key pairs for custom CA certificates.
+type CustomCAs struct {
+	// Enabled toggles this feature on or off.
 	Enabled bool `json:"enabled,omitempty"`
 
-	// Content specifies the conetnt of the custom CA certificates and keys.
-	Content CustomCertificatesContent `json:"content,omitempty"`
-
-	// SecretName specifies a secret reference for the custom CA certificates and keys
-	// if provided then Content value will be ignored.
-	SecretName string `json:"secretName,omitempty"`
+	// Sources defines the sources for all required custom CA certificates.
+	Sources CredentialSources `json:"sources,omitempty"`
 }
 
-type CustomCertificatesContent struct {
+// CredentialSources lists all the required credentials, including both
+// TLS key pairs and single signing keys.
+type CredentialSources struct {
 	// ServerCA specifies the server-ca cert/key pair.
-	ServerCA CrtKey `json:"serverCA,omitempty"`
+	ServerCA CredentialSource `json:"serverCA,omitempty"`
 
 	// ClientCA specifies the client-ca cert/key pair.
-	ClientCA CrtKey `json:"clientCA,omitempty"`
+	ClientCA CredentialSource `json:"clientCA,omitempty"`
 
 	// RequestHeaderCA specifies the request-header-ca cert/key pair.
-	RequestHeaderCA CrtKey `json:"requestHeaderCA,omitempty"`
+	RequestHeaderCA CredentialSource `json:"requestHeaderCA,omitempty"`
 
 	// ETCDServerCA specifies the etcd-server-ca cert/key pair.
-	ETCDServerCA CrtKey `json:"etcdServerCA,omitempty"`
+	ETCDServerCA CredentialSource `json:"etcdServerCA,omitempty"`
 
 	// ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
-	ETCDPeerCA CrtKey `json:"etcdPeerCA,omitempty"`
+	ETCDPeerCA CredentialSource `json:"etcdPeerCA,omitempty"`
 
 	// ServiceAccountToken specifies the service-account-token key.
-	ServiceAccountToken CrtKey `json:"serviceAccountToken,omitempty"`
+	ServiceAccountToken CredentialSource `json:"serviceAccountToken,omitempty"`
 }
 
-// CrtKey specifies the certificate and key of given CA.
-type CrtKey struct {
-	// Certificate specifies the PEM certificate content.
-	Certificate string `json:"certificate,omitempty"`
-	// Key specifies the PEM key content.
-	Key string `json:"key,omitempty"`
-	// SecretName specifies a secret reference for the custom CA certificate and key
-	// the content of the secret should have the keys ca.crt and ca.key
+// CredentialSource defines where to get a credential from.
+// It can represent either a TLS key pair or a single private key.
+type CredentialSource struct {
+	// SecretName specifies the name of an existing secret to use.
+	// The controller expects specific keys inside based on the credential type:
+	// - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+	// - For ServiceAccountTokenKey: 'tls.key'.
+	// +optional
 	SecretName string `json:"secretName,omitempty"`
 }
 

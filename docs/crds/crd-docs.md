@@ -133,34 +133,55 @@ _Appears in:_
 | `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit specifies resource limits for server nodes. |  |  |
 | `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  |  |
 | `mirrorHostNodes` _boolean_ | MirrorHostNodes controls whether node objects from the host cluster<br />are mirrored into the virtual cluster. |  |  |
-| `customCertificates` _[CustomCertificates](#customcertificates)_ | CustomCertificates specifies the cert/key pairs for custom CA certificates. |  |  |
+| `customCAs` _[CustomCAs](#customcas)_ | CustomCAs specifies the cert/key pairs for custom CA certificates. |  |  |
 
 
 
 
-#### CrtKey
+#### CredentialSource
 
 
 
-CrtKey specifies the certificate and key of given CA.
+CredentialSource defines where to get a credential from.
+It can represent either a TLS key pair or a single private key.
 
 
 
 _Appears in:_
-- [CustomCertificatesContent](#customcertificatescontent)
+- [CredentialSources](#credentialsources)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `certificate` _string_ | Certificate specifies the PEM certificate content. |  |  |
-| `key` _string_ | Key specifies the PEM key content. |  |  |
-| `secretName` _string_ | SecretName specifies a secret reference for the custom CA certificate and key<br />the content of the secret should have the keys ca.crt and ca.key |  |  |
+| `secretName` _string_ | SecretName specifies the name of an existing secret to use.<br />The controller expects specific keys inside based on the credential type:<br />- For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.<br />- For ServiceAccountTokenKey: 'tls.key'. |  |  |
 
 
-#### CustomCertificates
+#### CredentialSources
 
 
 
-CustomCertificates specifies the cert/key pairs for custom CA certificates.
+CredentialSources lists all the required credentials, including both
+TLS key pairs and single signing keys.
+
+
+
+_Appears in:_
+- [CustomCAs](#customcas)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `serverCA` _[CredentialSource](#credentialsource)_ | ServerCA specifies the server-ca cert/key pair. |  |  |
+| `clientCA` _[CredentialSource](#credentialsource)_ | ClientCA specifies the client-ca cert/key pair. |  |  |
+| `requestHeaderCA` _[CredentialSource](#credentialsource)_ | RequestHeaderCA specifies the request-header-ca cert/key pair. |  |  |
+| `etcdServerCA` _[CredentialSource](#credentialsource)_ | ETCDServerCA specifies the etcd-server-ca cert/key pair. |  |  |
+| `etcdPeerCA` _[CredentialSource](#credentialsource)_ | ETCDPeerCA specifies the etcd-peer-ca cert/key pair. |  |  |
+| `serviceAccountToken` _[CredentialSource](#credentialsource)_ | ServiceAccountToken specifies the service-account-token key. |  |  |
+
+
+#### CustomCAs
+
+
+
+CustomCAs specifies the cert/key pairs for custom CA certificates.
 
 
 
@@ -169,30 +190,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled specifies if the cluster should use customCertificates or not. |  |  |
-| `content` _[CustomCertificatesContent](#customcertificatescontent)_ | Content specifies the conetnt of the custom CA certificates and keys. |  |  |
-| `secretName` _string_ | SecretName specifies a secret reference for the custom CA certificates and keys<br />if provided then Content value will be ignored. |  |  |
-
-
-#### CustomCertificatesContent
-
-
-
-
-
-
-
-_Appears in:_
-- [CustomCertificates](#customcertificates)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `serverCA` _[CrtKey](#crtkey)_ | ServerCA specifies the server-ca cert/key pair. |  |  |
-| `clientCA` _[CrtKey](#crtkey)_ | ClientCA specifies the client-ca cert/key pair. |  |  |
-| `requestHeaderCA` _[CrtKey](#crtkey)_ | RequestHeaderCA specifies the request-header-ca cert/key pair. |  |  |
-| `etcdServerCA` _[CrtKey](#crtkey)_ | ETCDServerCA specifies the etcd-server-ca cert/key pair. |  |  |
-| `etcdPeerCA` _[CrtKey](#crtkey)_ | ETCDPeerCA specifies the etcd-peer-ca cert/key pair. |  |  |
-| `serviceAccountToken` _[CrtKey](#crtkey)_ | ServiceAccountToken specifies the service-account-token key. |  |  |
+| `enabled` _boolean_ | Enabled toggles this feature on or off. |  |  |
+| `sources` _[CredentialSources](#credentialsources)_ | Sources defines the sources for all required custom CA certificates. |  |  |
 
 
 #### ExposeConfig

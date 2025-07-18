@@ -5,6 +5,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -180,5 +182,96 @@ var _ = When("a dynamic cluster is installed", func() {
 			WithTimeout(2 * time.Minute).
 			WithPolling(time.Second * 5).
 			Should(BeNil())
+	})
+})
+
+var _ = When("a cluster with custom certificates is installed with individual cert secrets", Label("e2e"), func() {
+	ctx := context.Background()
+	var virtualCluster *VirtualCluster
+	BeforeEach(func() {
+		namespace := NewNamespace()
+		// create custom cert secret
+		customCertDir := "testdata/customcerts/"
+		certList := []string{
+			"server-ca",
+			"client-ca",
+			"request-header-ca",
+			"service",
+			"etcd-peer-ca",
+			"etcd-server-ca",
+		}
+		for _, certName := range certList {
+			var cert, key []byte
+			var err error
+			filePathPrefix := ""
+			certfile := certName
+			if strings.HasPrefix(certName, "etcd") {
+				filePathPrefix = "etcd/"
+				certfile = strings.TrimPrefix(certName, "etcd-")
+			}
+			if !strings.Contains(certName, "service") {
+				cert, err = os.ReadFile(customCertDir + filePathPrefix + certfile + ".crt")
+				Expect(err).To(Not(HaveOccurred()))
+			}
+			key, err = os.ReadFile(customCertDir + filePathPrefix + certfile + ".key")
+			Expect(err).To(Not(HaveOccurred()))
+
+			certSecret := caCertSecret(certName, namespace.Name, cert, key)
+			err = k8sClient.Create(ctx, certSecret)
+			Expect(err).To(Not(HaveOccurred()))
+		}
+
+		cluster := NewCluster(namespace.Name)
+		cluster.Spec.CustomCAs = v1alpha1.CustomCAs{
+			Enabled: true,
+			Sources: v1alpha1.CredentialSources{
+				ServerCA: v1alpha1.CredentialSource{
+					SecretName: "server-ca",
+				},
+				ClientCA: v1alpha1.CredentialSource{
+					SecretName: "client-ca",
+				},
+				ETCDServerCA: v1alpha1.CredentialSource{
+					SecretName: "etcd-server-ca",
+				},
+				ETCDPeerCA: v1alpha1.CredentialSource{
+					SecretName: "etcd-peer-ca",
+				},
+				RequestHeaderCA: v1alpha1.CredentialSource{
+					SecretName: "request-header-ca",
+				},
+				ServiceAccountToken: v1alpha1.CredentialSource{
+					SecretName: "service",
+				},
+			},
+		}
+		CreateCluster(cluster)
+		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     client,
+		}
+	})
+	It("will load the custom certs in the server pod", func() {
+		_, _ = virtualCluster.NewNginxPod("")
+
+		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
+		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
+		Expect(err).To(Not(HaveOccurred()))
+
+		Expect(len(serverPods.Items)).To(Equal(1))
+		serverPod := serverPods.Items[0]
+
+		// check server-ca.crt
+		serverCACrtPath := "/var/lib/rancher/k3s/server/tls/server-ca.crt"
+		serverCACrt, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, serverCACrtPath)
+		Expect(err).To(Not(HaveOccurred()))
+
+		serverCACrtTestFile, err := os.ReadFile("testdata/customcerts/server-ca.crt")
+		Expect(err).To(Not(HaveOccurred()))
+
+		Expect(serverCACrt).To(Equal(serverCACrtTestFile))
 	})
 })

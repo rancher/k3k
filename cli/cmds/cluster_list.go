@@ -22,6 +22,10 @@ func NewClusterListCmd(appCtx *AppContext) *cli.Command {
 		Action:          list(appCtx),
 		Flags:           flags,
 		HideHelpCommand: true,
+		Before: func(clx *cli.Context) error {
+	        appCtx.Kubeconfig = clx.String("kubeconfig")
+	        return initializeClient(appCtx)
+	    },
 	}
 }
 

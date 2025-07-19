@@ -38,24 +38,6 @@ func NewApp() *cli.App {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
 
-		restConfig, err := loadRESTConfig(appCtx.Kubeconfig)
-		if err != nil {
-			return err
-		}
-
-		scheme := runtime.NewScheme()
-		_ = clientgoscheme.AddToScheme(scheme)
-		_ = v1alpha1.AddToScheme(scheme)
-		_ = apiextensionsv1.AddToScheme(scheme)
-
-		ctrlClient, err := client.New(restConfig, client.Options{Scheme: scheme})
-		if err != nil {
-			return err
-		}
-
-		appCtx.RestConfig = restConfig
-		appCtx.Client = ctrlClient
-
 		return nil
 	}
 
@@ -71,6 +53,28 @@ func NewApp() *cli.App {
 	}
 
 	return app
+}
+
+func initializeClient(appCtx *AppContext) error {
+
+	restConfig, err := loadRESTConfig(appCtx.Kubeconfig)
+	if err != nil {
+		return err
+	}
+
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+	_ = apiextensionsv1.AddToScheme(scheme)
+
+	ctrlClient, err := client.New(restConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		return err
+	}
+
+	appCtx.RestConfig = restConfig
+	appCtx.Client = ctrlClient
+	return nil
 }
 
 func (ctx *AppContext) Namespace(name string) string {

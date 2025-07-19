@@ -12,8 +12,17 @@ import (
 )
 
 func NewClusterListCmd(appCtx *AppContext) *cli.Command {
-	flags := CommonFlags(appCtx)
-	flags = append(flags, FlagNamespace(appCtx))
+	// flags := CommonFlags(appCtx)
+	// flags = append(flags, FlagNamespace(appCtx))
+
+	flags := []cli.Flag{
+		FlagNamespace(appCtx),
+		// prevents overwriting of kubeconfig specified globally
+		&cli.StringFlag{
+			Name:  "kubeconfig",
+			Usage: "kubeconfig path",
+		},
+	}
 
 	return &cli.Command{
 		Name:            "list",
@@ -22,6 +31,13 @@ func NewClusterListCmd(appCtx *AppContext) *cli.Command {
 		Action:          list(appCtx),
 		Flags:           flags,
 		HideHelpCommand: true,
+		Before: func(clx *cli.Context) error {
+			// get command-level kubeconfig and assign to appCtx if not empty
+			if cmdKubeconfig := clx.String("kubeconfig"); cmdKubeconfig != "" {
+				appCtx.Kubeconfig = cmdKubeconfig
+			}
+	        return initializeClient(appCtx)
+	    },
 	}
 }
 

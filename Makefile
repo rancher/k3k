@@ -4,14 +4,14 @@ VERSION ?= $(shell git describe --tags --always --dirty --match="v[0-9]*")
 
 ## Dependencies
 
-GOLANGCI_LINT_VERSION := v1.64.8
+GOLANGCI_LINT_VERSION := v2.2.2
 GINKGO_VERSION ?= v2.21.0
 GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
 ENVTEST_K8S_VERSION := 1.31.0
 CRD_REF_DOCS_VER ?= v0.1.0
 
-GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GINKGO ?= go run github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
 CRD_REF_DOCS := go run github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VER)
 

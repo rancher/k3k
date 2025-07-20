@@ -1,13 +1,6 @@
+version: "2"
+
 linters:
   enable:
-  # default linters
-  - errcheck
-  - gosimple
-  - govet
-  - ineffassign
-  - staticcheck
-  - unused
-
-  # extra
-  - misspell
-  - wsl
+    - misspell
+    - wsl_v5

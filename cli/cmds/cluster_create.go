@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/sirupsen/logrus"
@@ -42,6 +44,7 @@ type CreateConfig struct {
 	kubeconfigServerHost string
 	policy               string
 	mirrorHostNodes      bool
+	customCertsPath      string
 }
 
 func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
@@ -97,6 +100,12 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 			obj := k3kcluster.TokenSecretObj(config.token, name, namespace)
 
 			if err := client.Create(ctx, &obj); err != nil {
+				return err
+			}
+		}
+
+		if config.customCertsPath != "" {
+			if err := CreateCustomCertsSecrets(ctx, name, namespace, config.customCertsPath, client); err != nil {
 				return err
 			}
 		}
@@ -200,6 +209,32 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 		}
 	}
 
+	if config.customCertsPath != "" {
+		cluster.Spec.CustomCAs = v1alpha1.CustomCAs{
+			Enabled: true,
+			Sources: v1alpha1.CredentialSources{
+				ClientCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "client-ca"),
+				},
+				ServerCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "server-ca"),
+				},
+				ETCDServerCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-server-ca"),
+				},
+				ETCDPeerCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-peer-ca"),
+				},
+				RequestHeaderCA: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "request-header-ca"),
+				},
+				ServiceAccountToken: v1alpha1.CredentialSource{
+					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "service-account-token"),
+				},
+			},
+		}
+	}
+
 	return cluster
 }
 
@@ -244,4 +279,65 @@ func waitForCluster(ctx context.Context, client client.Client, cluster *v1alpha1
 		// Condition not met, continue polling.
 		return false, nil
 	})
+}
+
+func CreateCustomCertsSecrets(ctx context.Context, name, namespace, customCertsPath string, client client.Client) error {
+	customCAsMap := map[string]string{
+		"etcd-peer-ca":          "/etcd/peer-ca",
+		"etcd-server-ca":        "/etcd/server-ca",
+		"server-ca":             "/server-ca",
+		"client-ca":             "/client-ca",
+		"request-header-ca":     "/request-header-ca",
+		"service-account-token": "/service",
+	}
+
+	for certName, fileName := range customCAsMap {
+		var (
+			certFilePath, keyFilePath string
+			cert, key                 []byte
+			err                       error
+		)
+
+		if certName != "service-account-token" {
+			certFilePath = customCertsPath + fileName + ".crt"
+
+			cert, err = os.ReadFile(certFilePath)
+			if err != nil {
+				return err
+			}
+		}
+
+		keyFilePath = customCertsPath + fileName + ".key"
+
+		key, err = os.ReadFile(keyFilePath)
+		if err != nil {
+			return err
+		}
+
+		certSecret := caCertSecret(certName, name, namespace, cert, key)
+
+		if err := client.Create(ctx, certSecret); err != nil {
+			return ctrl.IgnoreAlreadyExists(err)
+		}
+	}
+
+	return nil
+}
+
+func caCertSecret(certName, clusterName, clusterNamespace string, cert, key []byte) *v1.Secret {
+	return &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      controller.SafeConcatNameWithPrefix(clusterName, certName),
+			Namespace: clusterNamespace,
+		},
+		Type: v1.SecretTypeTLS,
+		Data: map[string][]byte{
+			v1.TLSCertKey:       cert,
+			v1.TLSPrivateKeyKey: key,
+		},
+	}
 }

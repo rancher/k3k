@@ -171,6 +171,11 @@ type ClusterSpec struct {
 	//
 	// +optional
 	MirrorHostNodes bool `json:"mirrorHostNodes,omitempty"`
+
+	// CustomCAs specifies the cert/key pairs for custom CA certificates.
+	//
+	// +optional
+	CustomCAs CustomCAs `json:"customCAs,omitempty"`
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.
@@ -293,6 +298,48 @@ type NodePortConfig struct {
 	//
 	// +optional
 	ETCDPort *int32 `json:"etcdPort,omitempty"`
+}
+
+// CustomCAs specifies the cert/key pairs for custom CA certificates.
+type CustomCAs struct {
+	// Enabled toggles this feature on or off.
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Sources defines the sources for all required custom CA certificates.
+	Sources CredentialSources `json:"sources,omitempty"`
+}
+
+// CredentialSources lists all the required credentials, including both
+// TLS key pairs and single signing keys.
+type CredentialSources struct {
+	// ServerCA specifies the server-ca cert/key pair.
+	ServerCA CredentialSource `json:"serverCA,omitempty"`
+
+	// ClientCA specifies the client-ca cert/key pair.
+	ClientCA CredentialSource `json:"clientCA,omitempty"`
+
+	// RequestHeaderCA specifies the request-header-ca cert/key pair.
+	RequestHeaderCA CredentialSource `json:"requestHeaderCA,omitempty"`
+
+	// ETCDServerCA specifies the etcd-server-ca cert/key pair.
+	ETCDServerCA CredentialSource `json:"etcdServerCA,omitempty"`
+
+	// ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
+	ETCDPeerCA CredentialSource `json:"etcdPeerCA,omitempty"`
+
+	// ServiceAccountToken specifies the service-account-token key.
+	ServiceAccountToken CredentialSource `json:"serviceAccountToken,omitempty"`
+}
+
+// CredentialSource defines where to get a credential from.
+// It can represent either a TLS key pair or a single private key.
+type CredentialSource struct {
+	// SecretName specifies the name of an existing secret to use.
+	// The controller expects specific keys inside based on the credential type:
+	// - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+	// - For ServiceAccountTokenKey: 'tls.key'.
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // ClusterStatus reflects the observed state of a Cluster.

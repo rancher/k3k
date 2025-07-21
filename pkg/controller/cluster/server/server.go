@@ -3,6 +3,8 @@ package server
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -36,12 +38,12 @@ type Server struct {
 	k3SImagePullPolicy string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client, token, mode string, k3SImage string, k3SImagePullPolicy string) *Server {
+func New(cluster *v1alpha1.Cluster, client client.Client, token string, k3SImage string, k3SImagePullPolicy string) *Server {
 	return &Server{
 		cluster:            cluster,
 		client:             client,
 		token:              token,
-		mode:               mode,
+		mode:               string(cluster.Spec.Mode),
 		k3SImage:           k3SImage,
 		k3SImagePullPolicy: k3SImagePullPolicy,
 	}
@@ -319,6 +321,17 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
+	if s.cluster.Spec.CustomCAs.Enabled {
+		vols, mounts, err := s.loadCACertBundle(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		volumes = append(volumes, vols...)
+
+		volumeMounts = append(volumeMounts, mounts...)
+	}
+
 	selector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			"cluster": s.cluster.Name,
@@ -409,4 +422,104 @@ func (s *Server) setupStartCommand() (string, error) {
 	}
 
 	return output.String(), nil
+}
+
+func (s *Server) loadCACertBundle(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
+	customCerts := s.cluster.Spec.CustomCAs.Sources
+	caCertMap := map[string]string{
+		"server-ca":         customCerts.ServerCA.SecretName,
+		"client-ca":         customCerts.ClientCA.SecretName,
+		"request-header-ca": customCerts.RequestHeaderCA.SecretName,
+		"etcd-peer-ca":      customCerts.ETCDPeerCA.SecretName,
+		"etcd-server-ca":    customCerts.ETCDServerCA.SecretName,
+		"service":           customCerts.ServiceAccountToken.SecretName,
+	}
+
+	var (
+		volumes       []v1.Volume
+		mounts        []v1.VolumeMount
+		sortedCertIDs = sortedKeys(caCertMap)
+	)
+
+	for _, certName := range sortedCertIDs {
+		var certSecret v1.Secret
+
+		secretName := string(caCertMap[certName])
+		key := types.NamespacedName{Name: secretName, Namespace: s.cluster.Namespace}
+
+		if err := s.client.Get(ctx, key, &certSecret); err != nil {
+			return nil, nil, err
+		}
+
+		cert := certSecret.Data["tls.crt"]
+		keyData := certSecret.Data["tls.key"]
+
+		// Service account token secret is an exception (may not contain crt/key).
+		if certName != "service" && (len(cert) == 0 || len(keyData) == 0) {
+			return nil, nil, fmt.Errorf("cert or key is not found in secret %s", certName)
+		}
+
+		volumeName := certName + "-vol"
+
+		vol, certMounts := s.mountCACert(volumeName, certName, secretName, "tls")
+		volumes = append(volumes, *vol)
+		mounts = append(mounts, certMounts...)
+	}
+
+	return volumes, mounts, nil
+}
+
+func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMount string) (*v1.Volume, []v1.VolumeMount) {
+	var (
+		volume *v1.Volume
+		mounts []v1.VolumeMount
+	)
+
+	// avoid re-adding secretName in case of combined secret
+
+	volume = &v1.Volume{
+		Name: volumeName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{SecretName: secretName},
+		},
+	}
+
+	etcdPrefix := ""
+
+	mountFile := certName
+
+	if strings.HasPrefix(certName, "etcd-") {
+		etcdPrefix = "/etcd"
+		mountFile = strings.TrimPrefix(certName, "etcd-")
+	}
+
+	// add the mount for the cert except for the service account token
+	if certName != "service" {
+		mounts = append(mounts, v1.VolumeMount{
+			Name:      volumeName,
+			MountPath: fmt.Sprintf("/var/lib/rancher/k3s/server/tls%s/%s.crt", etcdPrefix, mountFile),
+			SubPath:   subPathMount + ".crt",
+		})
+	}
+
+	// add the mount for the key
+	mounts = append(mounts, v1.VolumeMount{
+		Name:      volumeName,
+		MountPath: fmt.Sprintf("/var/lib/rancher/k3s/server/tls%s/%s.key", etcdPrefix, mountFile),
+		SubPath:   subPathMount + ".key",
+	})
+
+	return volume, mounts
+}
+
+func sortedKeys(keyMap map[string]string) []string {
+	keys := make([]string, 0, len(keyMap))
+
+	for k := range keyMap {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	return keys
 }

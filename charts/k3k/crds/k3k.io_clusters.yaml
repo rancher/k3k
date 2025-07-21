@@ -223,6 +223,89 @@ spec:
                 x-kubernetes-validations:
                 - message: clusterDNS is immutable
                   rule: self == oldSelf
+              customCAs:
+                description: CustomCAs specifies the cert/key pairs for custom CA
+                  certificates.
+                properties:
+                  enabled:
+                    description: Enabled toggles this feature on or off.
+                    type: boolean
+                  sources:
+                    description: Sources defines the sources for all required custom
+                      CA certificates.
+                    properties:
+                      clientCA:
+                        description: ClientCA specifies the client-ca cert/key pair.
+                        properties:
+                          secretName:
+                            description: |-
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
+                            type: string
+                        type: object
+                      etcdPeerCA:
+                        description: ETCDPeerCA specifies the etcd-peer-ca cert/key
+                          pair.
+                        properties:
+                          secretName:
+                            description: |-
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
+                            type: string
+                        type: object
+                      etcdServerCA:
+                        description: ETCDServerCA specifies the etcd-server-ca cert/key
+                          pair.
+                        properties:
+                          secretName:
+                            description: |-
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
+                            type: string
+                        type: object
+                      requestHeaderCA:
+                        description: RequestHeaderCA specifies the request-header-ca
+                          cert/key pair.
+                        properties:
+                          secretName:
+                            description: |-
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
+                            type: string
+                        type: object
+                      serverCA:
+                        description: ServerCA specifies the server-ca cert/key pair.
+                        properties:
+                          secretName:
+                            description: |-
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
+                            type: string
+                        type: object
+                      serviceAccountToken:
+                        description: ServiceAccountToken specifies the service-account-token
+                          key.
+                        properties:
+                          secretName:
+                            description: |-
+                              SecretName specifies the name of an existing secret to use.
+                              The controller expects specific keys inside based on the credential type:
+                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
+                              - For ServiceAccountTokenKey: 'tls.key'.
+                            type: string
+                        type: object
+                    type: object
+                type: object
               expose:
                 description: |-
                   Expose specifies options for exposing the API server.

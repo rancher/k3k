@@ -44,6 +44,8 @@ Create new cluster
 
 **--cluster-cidr**="": cluster CIDR
 
+**--custom-certs**="": The path for custom certificate directory
+
 **--debug**: Turn on debug logs
 
 **--kubeconfig**="": kubeconfig path (default: $HOME/.kube/config or $KUBECONFIG if set)

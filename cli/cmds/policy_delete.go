@@ -3,10 +3,12 @@ package cmds
 import (
 	"context"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 )
 
 func NewPolicyDeleteCmd(appCtx *AppContext) *cli.Command {

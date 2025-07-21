@@ -4,8 +4,9 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"github.com/rancher/k3k/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/rancher/k3k/pkg/controller"
 )
 
 const (

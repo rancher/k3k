@@ -5,11 +5,13 @@ import (
 	"os"
 
 	"github.com/go-logr/zapr"
-	"github.com/rancher/k3k/pkg/log"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
+
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/rancher/k3k/pkg/log"
 )
 
 var (

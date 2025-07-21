@@ -7,18 +7,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rancher/k3k/pkg/controller/cluster/agent"
-	"github.com/rancher/k3k/pkg/log"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/rancher/k3k/pkg/controller/cluster/agent"
+	"github.com/rancher/k3k/pkg/log"
 )
 
 const (

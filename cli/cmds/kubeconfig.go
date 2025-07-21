@@ -8,18 +8,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/retry"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apiserver/pkg/authentication/user"
-	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/client-go/util/retry"
 )
 
 var (

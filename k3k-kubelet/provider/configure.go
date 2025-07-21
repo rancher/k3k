@@ -4,14 +4,16 @@ import (
 	"context"
 	"time"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	k3klog "github.com/rancher/k3k/pkg/log"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3klog "github.com/rancher/k3k/pkg/log"
 )
 
 func ConfigureNode(logger *k3klog.Logger, node *corev1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster, version string, mirrorHostNodes bool) {

@@ -4,17 +4,19 @@ import (
 	"context"
 	"errors"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
-	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
+	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
 
 var keepData bool

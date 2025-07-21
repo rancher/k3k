@@ -5,17 +5,18 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller/policy"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
-	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/policy"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

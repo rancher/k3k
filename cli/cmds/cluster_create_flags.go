@@ -3,9 +3,10 @@ package cmds
 import (
 	"errors"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/urfave/cli/v2"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 )
 
 func newCreateFlags(config *CreateConfig) []cli.Flag {

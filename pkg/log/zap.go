@@ -6,6 +6,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
 	ctrlruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 

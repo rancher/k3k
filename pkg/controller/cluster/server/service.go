@@ -1,11 +1,13 @@
 package server
 
 import (
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/controller"
 )
 
 func Service(cluster *v1alpha1.Cluster) *v1.Service {

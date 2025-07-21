@@ -3,10 +3,11 @@ package k3k_test
 import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/discovery"
-	memory "k8s.io/client-go/discovery/cached"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+
+	memory "k8s.io/client-go/discovery/cached"
 )
 
 type RESTClientGetter struct {

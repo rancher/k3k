@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	k3kcontroller "github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/controller/cluster/server"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/cluster/server"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

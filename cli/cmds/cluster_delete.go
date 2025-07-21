@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -21,37 +21,27 @@ import (
 
 var keepData bool
 
-func NewClusterDeleteCmd(appCtx *AppContext) *cli.Command {
-	flags := []cli.Flag{}
-	flags = append(flags, FlagNamespace(appCtx))
-	flags = append(flags,
-		&cli.BoolFlag{
-			Name:        "keep-data",
-			Usage:       "keeps persistence volumes created for the cluster after deletion",
-			Destination: &keepData,
-		},
-	)
-
-	return &cli.Command{
-		Name:            "delete",
-		Usage:           "Delete an existing cluster",
-		UsageText:       "k3kcli cluster delete [command options] NAME",
-		Action:          delete(appCtx),
-		Flags:           flags,
-		HideHelpCommand: true,
+func NewClusterDeleteCmd(appCtx *AppContext) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "delete",
+		Short:   "Delete an existing cluster",
+		Example: "k3kcli cluster delete [command options] NAME",
+		RunE:    delete(appCtx),
+		Args:    cobra.ExactArgs(1),
 	}
+
+	CobraFlagNamespace(appCtx, cmd.Flags())
+	cmd.Flags().BoolVar(&keepData, "keep-data", false, "keeps persistence volumes created for the cluster after deletion")
+
+	return cmd
 }
 
-func delete(appCtx *AppContext) cli.ActionFunc {
-	return func(clx *cli.Context) error {
+func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := appCtx.Client
+		name := args[0]
 
-		if clx.NArg() != 1 {
-			return cli.ShowSubcommandHelp(clx)
-		}
-
-		name := clx.Args().First()
 		if name == k3kcluster.ClusterInvalidName {
 			return errors.New("invalid cluster name")
 		}

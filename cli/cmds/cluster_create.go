@@ -55,8 +55,11 @@ func NewClusterCreateCmd(appCtx *AppContext) *cobra.Command {
 		Use:     "create",
 		Short:   "Create new cluster",
 		Example: "k3kcli cluster create [command options] NAME",
-		RunE:    createAction(appCtx, createConfig),
-		Args:    cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return validateCreateConfig(createConfig)
+		},
+		RunE: createAction(appCtx, createConfig),
+		Args: cobra.ExactArgs(1),
 	}
 
 	CobraFlagNamespace(appCtx, cmd.Flags())

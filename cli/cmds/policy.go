@@ -1,17 +1,20 @@
 package cmds
 
 import (
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-func NewPolicyCmd(appCtx *AppContext) *cli.Command {
-	return &cli.Command{
-		Name:  "policy",
-		Usage: "policy command",
-		Subcommands: []*cli.Command{
-			NewPolicyCreateCmd(appCtx),
-			NewPolicyDeleteCmd(appCtx),
-			NewPolicyListCmd(appCtx),
-		},
+func NewPolicyCmd(appCtx *AppContext) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "cluster",
+		Short: "cluster command",
 	}
+
+	cmd.AddCommand(
+		NewPolicyCreateCmd(appCtx),
+		// NewPolicyDeleteCmd(appCtx),
+		// NewPolicyListCmd(appCtx),
+	)
+
+	return cmd
 }

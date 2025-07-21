@@ -682,14 +682,14 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 		if cluster.Spec.MirrorHostNodes {
 			var err error
 
-			kubeletPort, err = c.PortAllocator.AllocateKubeletPort(ctx, config)
+			kubeletPort, err = c.PortAllocator.AllocateKubeletPort(ctx, cluster.Name, cluster.Namespace)
 			if err != nil {
 				return err
 			}
 
 			cluster.Status.KubeletPort = kubeletPort
 
-			webhookPort, err = c.PortAllocator.AllocateWebhookPort(ctx, config)
+			webhookPort, err = c.PortAllocator.AllocateWebhookPort(ctx, cluster.Name, cluster.Namespace)
 			if err != nil {
 				return err
 			}

@@ -3,7 +3,7 @@ package cmds
 import (
 	"context"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/printers"
 
@@ -13,28 +13,24 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 )
 
-func NewClusterListCmd(appCtx *AppContext) *cli.Command {
-	flags := []cli.Flag{}
-	flags = append(flags, FlagNamespace(appCtx))
-
-	return &cli.Command{
-		Name:            "list",
-		Usage:           "List all the existing cluster",
-		UsageText:       "k3kcli cluster list [command options]",
-		Action:          list(appCtx),
-		Flags:           flags,
-		HideHelpCommand: true,
+func NewClusterListCmd(appCtx *AppContext) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Short:   "List all the existing cluster",
+		Example: "k3kcli cluster list [command options]",
+		RunE:    list(appCtx),
+		Args:    cobra.NoArgs,
 	}
+
+	CobraFlagNamespace(appCtx, cmd.Flags())
+
+	return cmd
 }
 
-func list(appCtx *AppContext) cli.ActionFunc {
-	return func(clx *cli.Context) error {
+func list(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := appCtx.Client
-
-		if clx.NArg() > 0 {
-			return cli.ShowSubcommandHelp(clx)
-		}
 
 		var clusters v1alpha1.ClusterList
 		if err := client.List(ctx, &clusters, ctrlclient.InNamespace(appCtx.namespace)); err != nil {
@@ -51,6 +47,6 @@ func list(appCtx *AppContext) cli.ActionFunc {
 
 		printer := printers.NewTablePrinter(printers.PrintOptions{WithNamespace: true})
 
-		return printer.PrintObj(table, clx.App.Writer)
+		return printer.PrintObj(table, cmd.OutOrStdout())
 	}
 }

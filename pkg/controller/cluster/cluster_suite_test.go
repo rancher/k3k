@@ -46,7 +46,7 @@ var _ = BeforeSuite(func() {
 	}
 
 	// setting controller namespace env to activate port range allocator
-	os.Setenv("CONTROLLER_NAMESPACE", "default")
+	_ = os.Setenv("CONTROLLER_NAMESPACE", "default")
 
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())

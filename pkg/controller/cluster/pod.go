@@ -237,8 +237,8 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 
 			if u.Hostname() == address {
 				log.Info("removing member from etcd", "name", member.Name, "id", member.ID, "address", address)
-				_, err := client.MemberRemove(ctx, member.ID)
 
+				_, err := client.MemberRemove(ctx, member.ID)
 				if errors.Is(err, rpctypes.ErrGRPCMemberNotFound) {
 					return nil
 				}

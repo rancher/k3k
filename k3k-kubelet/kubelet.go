@@ -144,7 +144,6 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 			BindAddress: virtualMetricsBindAddress,
 		},
 	})
-
 	if err != nil {
 		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
 	}
@@ -351,7 +350,6 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		b.ClientCA.Content,
 		b.ClientCAKey.Content,
 	)
-
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -62,7 +61,7 @@ var _ = When("a ephemeral cluster is installed", Label("e2e"), func() {
 	It("regenerates the bootstrap secret after a restart", func() {
 		ctx := context.Background()
 
-		_, err := virtualCluster.Client.DiscoveryClient.ServerVersion()
+		_, err := virtualCluster.Client.ServerVersion()
 		Expect(err).To(Not(HaveOccurred()))
 
 		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
@@ -72,7 +71,8 @@ var _ = When("a ephemeral cluster is installed", Label("e2e"), func() {
 		Expect(len(serverPods.Items)).To(Equal(1))
 		serverPod := serverPods.Items[0]
 
-		fmt.Fprintf(GinkgoWriter, "deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
+		GinkgoWriter.Printf("deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
+
 		err = k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).Delete(ctx, serverPod.Name, v1.DeleteOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 
@@ -144,7 +144,7 @@ var _ = When("a dynamic cluster is installed", func() {
 	It("use the same bootstrap secret after a restart", func() {
 		ctx := context.Background()
 
-		_, err := virtualCluster.Client.DiscoveryClient.ServerVersion()
+		_, err := virtualCluster.Client.ServerVersion()
 		Expect(err).To(Not(HaveOccurred()))
 
 		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
@@ -154,7 +154,8 @@ var _ = When("a dynamic cluster is installed", func() {
 		Expect(len(serverPods.Items)).To(Equal(1))
 		serverPod := serverPods.Items[0]
 
-		fmt.Fprintf(GinkgoWriter, "deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
+		GinkgoWriter.Printf("deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
+
 		err = k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).Delete(ctx, serverPod.Name, v1.DeleteOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 

@@ -12,7 +12,6 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
-	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
@@ -35,7 +34,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -65,7 +63,7 @@ var (
 
 type ClusterReconciler struct {
 	DiscoveryClient *discovery.DiscoveryClient
-	Client          ctrlruntimeclient.Client
+	Client          client.Client
 	Scheme          *runtime.Scheme
 	record.EventRecorder
 	SharedAgentImage           string
@@ -155,7 +153,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	var cluster v1alpha1.Cluster
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
-		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// if DeletionTimestamp is not Zero -> finalize the object
@@ -285,7 +283,6 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 			log.Info("looking up Service CIDR for shared mode")
 
 			cluster.Status.ServiceCIDR, err = c.lookupServiceCIDR(ctx)
-
 			if err != nil {
 				log.Error(err, "error while looking up Cluster Service CIDR")
 
@@ -450,7 +447,7 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring network policy")
 
-	networkPolicyName := k3kcontroller.SafeConcatNameWithPrefix(cluster.Name)
+	networkPolicyName := controller.SafeConcatNameWithPrefix(cluster.Name)
 
 	// network policies are managed by the Policy -> delete the one created as a standalone cluster
 	if cluster.Status.PolicyName != "" {
@@ -461,12 +458,12 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 			},
 		}
 
-		return ctrlruntimeclient.IgnoreNotFound(c.Client.Delete(ctx, netpol))
+		return client.IgnoreNotFound(c.Client.Delete(ctx, netpol))
 	}
 
 	expectedNetworkPolicy := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k3kcontroller.SafeConcatNameWithPrefix(cluster.Name),
+			Name:      controller.SafeConcatNameWithPrefix(cluster.Name),
 			Namespace: cluster.Namespace,
 		},
 		TypeMeta: metav1.TypeMeta{
@@ -516,6 +513,7 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 	}
 
 	currentNetworkPolicy := expectedNetworkPolicy.DeepCopy()
+
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentNetworkPolicy, func() error {
 		if err := controllerutil.SetControllerReference(cluster, currentNetworkPolicy, c.Scheme); err != nil {
 			return err
@@ -525,7 +523,6 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -579,6 +576,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1
 	}
 
 	currentServerIngress := expectedServerIngress.DeepCopy()
+
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerIngress, func() error {
 		if err := controllerutil.SetControllerReference(cluster, currentServerIngress, c.Scheme); err != nil {
 			return err
@@ -589,7 +587,6 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -761,11 +758,11 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 
 	log.Info("looking up serviceCIDR from kube-apiserver pod")
 
-	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{
+	matchingLabels := client.MatchingLabels(map[string]string{
 		"component": "kube-apiserver",
 		"tier":      "control-plane",
 	})
-	listOpts := &ctrlruntimeclient.ListOptions{Namespace: "kube-system"}
+	listOpts := &client.ListOptions{Namespace: "kube-system"}
 	matchingLabels.ApplyToList(listOpts)
 
 	var podList v1.PodList

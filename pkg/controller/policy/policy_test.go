@@ -2,7 +2,6 @@ package policy_test
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"time"
 
@@ -531,8 +530,6 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					WithTimeout(time.Minute).
 					WithPolling(time.Second).
 					Should(BeNil())
-
-				fmt.Printf("%+v\n", resourceQuota)
 
 				delete(namespace.Labels, policy.PolicyNameLabelKey)
 				err := k8sClient.Update(ctx, namespace)

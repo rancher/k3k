@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrl "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type CreateConfig struct {
@@ -90,7 +89,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 
 		if strings.Contains(config.version, "+") {
 			orig := config.version
-			config.version = strings.Replace(config.version, "+", "-", -1)
+			config.version = strings.ReplaceAll(config.version, "+", "-")
 			logrus.Warnf("Invalid K3s docker reference version: '%s'. Using '%s' instead", orig, config.version)
 		}
 
@@ -256,13 +255,13 @@ func env(envSlice []string) []v1.EnvVar {
 	return envVars
 }
 
-func waitForCluster(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster) error {
+func waitForCluster(ctx context.Context, k8sClient client.Client, cluster *v1alpha1.Cluster) error {
 	interval := 5 * time.Second
 	timeout := 2 * time.Minute
 
 	return wait.PollUntilContextTimeout(ctx, interval, timeout, true, func(ctx context.Context) (bool, error) {
-		key := ctrl.ObjectKeyFromObject(cluster)
-		if err := client.Get(ctx, key, cluster); err != nil {
+		key := client.ObjectKeyFromObject(cluster)
+		if err := k8sClient.Get(ctx, key, cluster); err != nil {
 			return false, fmt.Errorf("failed to get resource: %w", err)
 		}
 
@@ -281,7 +280,7 @@ func waitForCluster(ctx context.Context, client client.Client, cluster *v1alpha1
 	})
 }
 
-func CreateCustomCertsSecrets(ctx context.Context, name, namespace, customCertsPath string, client client.Client) error {
+func CreateCustomCertsSecrets(ctx context.Context, name, namespace, customCertsPath string, k8sclient client.Client) error {
 	customCAsMap := map[string]string{
 		"etcd-peer-ca":          "/etcd/peer-ca",
 		"etcd-server-ca":        "/etcd/server-ca",
@@ -316,8 +315,8 @@ func CreateCustomCertsSecrets(ctx context.Context, name, namespace, customCertsP
 
 		certSecret := caCertSecret(certName, name, namespace, cert, key)
 
-		if err := client.Create(ctx, certSecret); err != nil {
-			return ctrl.IgnoreAlreadyExists(err)
+		if err := k8sclient.Create(ctx, certSecret); err != nil {
+			return client.IgnoreAlreadyExists(err)
 		}
 	}
 

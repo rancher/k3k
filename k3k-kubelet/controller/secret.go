@@ -117,12 +117,15 @@ func (s *SecretSyncer) AddResource(ctx context.Context, namespace, name string) 
 		Namespace: namespace,
 		Name:      name,
 	}
+
 	// if we already sync this object, no need to writelock/add it
 	if s.isWatching(objKey) {
 		return nil
 	}
+
 	// lock in write mode since we are now adding the key
 	s.mutex.Lock()
+
 	if s.objs == nil {
 		s.objs = sets.Set[types.NamespacedName]{}
 	}
@@ -133,7 +136,6 @@ func (s *SecretSyncer) AddResource(ctx context.Context, namespace, name string) 
 	_, err := s.Reconcile(ctx, reconcile.Request{
 		NamespacedName: objKey,
 	})
-
 	if err != nil {
 		return fmt.Errorf("unable to reconcile new object %s/%s: %w", objKey.Namespace, objKey.Name, err)
 	}
@@ -162,6 +164,7 @@ func (s *SecretSyncer) RemoveResource(ctx context.Context, namespace, name strin
 	}
 
 	s.mutex.Lock()
+
 	if s.objs == nil {
 		s.objs = sets.Set[types.NamespacedName]{}
 	}
@@ -174,11 +177,11 @@ func (s *SecretSyncer) RemoveResource(ctx context.Context, namespace, name strin
 
 func (s *SecretSyncer) removeHostSecret(ctx context.Context, virtualNamespace, virtualName string) error {
 	var vSecret corev1.Secret
+
 	err := s.VirtualClient.Get(ctx, types.NamespacedName{
 		Namespace: virtualNamespace,
 		Name:      virtualName,
 	}, &vSecret)
-
 	if err != nil {
 		return fmt.Errorf("unable to get virtual secret %s/%s: %w", virtualNamespace, virtualName, err)
 	}

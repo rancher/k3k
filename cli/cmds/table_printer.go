@@ -94,7 +94,7 @@ func buildRowCells(objMap map[string]any, printerColumns []apiextensionsv1.Custo
 }
 
 func toPointerSlice[T any](v []T) []*T {
-	var vPtr = make([]*T, len(v))
+	vPtr := make([]*T, len(v))
 
 	for i := range v {
 		vPtr[i] = &v[i]

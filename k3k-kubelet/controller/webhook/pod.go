@@ -102,9 +102,7 @@ func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error 
 func (w *webhookHandler) configuration(ctx context.Context, hostClient ctrlruntimeclient.Client) (*admissionregistrationv1.MutatingWebhookConfiguration, error) {
 	w.logger.Infow("extracting webhook tls from host cluster")
 
-	var (
-		webhookTLSSecret v1.Secret
-	)
+	var webhookTLSSecret v1.Secret
 
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: agent.WebhookSecretName(w.clusterName), Namespace: w.clusterNamespace}, &webhookTLSSecret); err != nil {
 		return nil, err

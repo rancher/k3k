@@ -447,7 +447,6 @@ type VirtualClusterPolicy struct {
 
 // VirtualClusterPolicySpec defines the desired state of a VirtualClusterPolicy.
 type VirtualClusterPolicySpec struct {
-
 	// Quota specifies the resource limits for clusters within a clusterpolicy.
 	//
 	// +optional

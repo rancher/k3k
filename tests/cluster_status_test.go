@@ -19,7 +19,6 @@ import (
 )
 
 var _ = When("a cluster's status is tracked", Label("e2e"), func() {
-
 	var (
 		namespace *corev1.Namespace
 		vcp       *v1alpha1.VirtualClusterPolicy

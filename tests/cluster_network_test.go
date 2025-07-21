@@ -6,7 +6,6 @@ import (
 )
 
 var _ = When("two virtual clusters are installed", Label("e2e"), func() {
-
 	var (
 		cluster1 *VirtualCluster
 		cluster2 *VirtualCluster
@@ -23,7 +22,6 @@ var _ = When("two virtual clusters are installed", Label("e2e"), func() {
 	})
 
 	It("can create pods in each of them that are isolated", func() {
-
 		pod1Cluster1, pod1Cluster1IP := cluster1.NewNginxPod("")
 		pod2Cluster1, pod2Cluster1IP := cluster1.NewNginxPod("")
 		pod1Cluster2, pod1Cluster2IP := cluster2.NewNginxPod("")

@@ -143,7 +143,7 @@ var _ = AfterSuite(func() {
 	Expect(err).To(Not(HaveOccurred()))
 
 	logfile := path.Join(os.TempDir(), "k3s.log")
-	err = os.WriteFile(logfile, logs, 0644)
+	err = os.WriteFile(logfile, logs, 0o644)
 	Expect(err).To(Not(HaveOccurred()))
 
 	GinkgoWriter.Println("k3s logs written to: " + logfile)
@@ -192,7 +192,7 @@ func writeLogs(filename string, logs io.ReadCloser) {
 	Expect(err).To(Not(HaveOccurred()))
 
 	tempfile := path.Join(os.TempDir(), filename)
-	err = os.WriteFile(tempfile, []byte(logsStr), 0644)
+	err = os.WriteFile(tempfile, []byte(logsStr), 0o644)
 	Expect(err).To(Not(HaveOccurred()))
 
 	GinkgoWriter.Println("logs written to: " + filename)

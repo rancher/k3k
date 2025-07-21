@@ -23,9 +23,7 @@ import (
 )
 
 var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("VirtualClusterPolicy"), func() {
-
 	Context("creating a VirtualClusterPolicy", func() {
-
 		It("should have the 'shared' allowedMode", func() {
 			policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{})
 			Expect(policy.Spec.AllowedMode).To(Equal(v1alpha1.SharedClusterMode))
@@ -54,7 +52,6 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 		})
 
 		When("bound to a namespace", func() {
-
 			var namespace *v1.Namespace
 
 			BeforeEach(func() {

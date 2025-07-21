@@ -181,5 +181,5 @@ func writeKubeconfigFile(cluster *v1alpha1.Cluster, kubeconfig *clientcmdapi.Con
 		return err
 	}
 
-	return os.WriteFile(configName, kubeconfigData, 0644)
+	return os.WriteFile(configName, kubeconfigData, 0o644)
 }

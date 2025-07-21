@@ -66,9 +66,7 @@ type Provider struct {
 	logger           *k3klog.Logger
 }
 
-var (
-	ErrRetryTimeout = errors.New("provider timed out")
-)
+var ErrRetryTimeout = errors.New("provider timed out")
 
 func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3klog.Logger, namespace, name, serverIP, dnsIP string) (*Provider, error) {
 	coreClient, err := cv1.NewForConfig(&hostConfig)

@@ -98,7 +98,7 @@ func basicAuth(username, password string) string {
 }
 
 func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
-	//client-ca
+	// client-ca
 	decoded, err := base64.StdEncoding.DecodeString(bootstrap.ClientCA.Content)
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 
 	bootstrap.ClientCA.Content = string(decoded)
 
-	//client-ca-key
+	// client-ca-key
 	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ClientCAKey.Content)
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 
 	bootstrap.ClientCAKey.Content = string(decoded)
 
-	//server-ca
+	// server-ca
 	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ServerCA.Content)
 	if err != nil {
 		return err
@@ -122,7 +122,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 
 	bootstrap.ServerCA.Content = string(decoded)
 
-	//server-ca-key
+	// server-ca-key
 	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ServerCAKey.Content)
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 
 	bootstrap.ServerCAKey.Content = string(decoded)
 
-	//etcd-ca
+	// etcd-ca
 	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ETCDServerCA.Content)
 	if err != nil {
 		return err
@@ -138,7 +138,7 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 
 	bootstrap.ETCDServerCA.Content = string(decoded)
 
-	//etcd-ca-key
+	// etcd-ca-key
 	decoded, err = base64.StdEncoding.DecodeString(bootstrap.ETCDServerCAKey.Content)
 	if err != nil {
 		return err

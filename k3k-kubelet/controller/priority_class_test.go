@@ -21,7 +21,6 @@ import (
 )
 
 var PriorityClassTests = func() {
-
 	var (
 		namespace string
 		cluster   v1alpha1.Cluster

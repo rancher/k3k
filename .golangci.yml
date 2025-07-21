@@ -8,6 +8,8 @@ linters:
 formatters:
   enable:
     - gci
+    - gofmt
+    - gofumpt
   settings:
     gci:
       # The default order is `standard > default > custom > blank > dot > alias > localmodule`.

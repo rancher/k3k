@@ -21,9 +21,7 @@ import (
 )
 
 var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), func() {
-
 	Context("creating a Cluster", func() {
-
 		var (
 			namespace string
 			ctx       context.Context
@@ -39,7 +37,6 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 		})
 
 		When("creating a Cluster", func() {
-
 			It("will be created with some defaults", func() {
 				cluster := &v1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
@@ -69,7 +66,6 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)
 					Expect(err).To(Not(HaveOccurred()))
 					return cluster.Status.HostVersion
-
 				}).
 					WithTimeout(time.Second * 30).
 					WithPolling(time.Second).
@@ -218,7 +214,6 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(serverPort.Port).To(BeEquivalentTo(443))
 					Expect(serverPort.TargetPort.IntValue()).To(BeEquivalentTo(6443))
 				})
-
 			})
 
 			When("exposing the cluster with loadbalancer", func() {

@@ -78,7 +78,7 @@ func NewTestEnv() *TestEnv {
 
 	tmpKubebuilderDir := path.Join(os.TempDir(), "kubebuilder")
 
-	if err := os.Mkdir(tmpKubebuilderDir, 0755); !errors.Is(err, os.ErrExist) {
+	if err := os.Mkdir(tmpKubebuilderDir, 0o755); !errors.Is(err, os.ErrExist) {
 		Expect(err).NotTo(HaveOccurred())
 	}
 
@@ -125,7 +125,6 @@ func buildScheme() *runtime.Scheme {
 }
 
 var _ = Describe("Kubelet Controller", func() {
-
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc

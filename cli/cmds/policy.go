@@ -12,8 +12,8 @@ func NewPolicyCmd(appCtx *AppContext) *cobra.Command {
 
 	cmd.AddCommand(
 		NewPolicyCreateCmd(appCtx),
-		// NewPolicyDeleteCmd(appCtx),
-		// NewPolicyListCmd(appCtx),
+		NewPolicyDeleteCmd(appCtx),
+		NewPolicyListCmd(appCtx),
 	)
 
 	return cmd

@@ -424,56 +424,6 @@ func (s *Server) setupStartCommand() (string, error) {
 	return output.String(), nil
 }
 
-// func (s *Server) loadCACertBundle(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
-
-// 	var certSecret v1.Secret
-
-// 	key := types.NamespacedName{
-// 		Name:      secretName,
-// 		Namespace: s.cluster.Namespace,
-// 	}
-
-// 	if err := s.client.Get(ctx, key, &certSecret); err != nil {
-// 		if apierrors.IsNotFound(err) {
-// 			// fallback to loading individual certs
-// 			return s.loadIndividualCACerts(ctx)
-// 		}
-
-// 		return nil, nil, err
-// 	}
-
-// 	if len(certSecret.Data) == 0 {
-// 		return nil, nil, ErrCustomCACertNotFound
-// 	}
-
-// 	var (
-// 		volumes       []v1.Volume
-// 		mounts        []v1.VolumeMount
-// 		volumeName    = "cert-volume"
-// 		volumesAdded  = map[string]bool{}
-// 		sortedCertIDs = sortedKeys(certSecret.Data)
-// 	)
-
-// 	for _, certName := range sortedCertIDs {
-// 		// only process the ".key" files
-// 		if strings.HasSuffix(certName, ".crt") || strings.HasSuffix(certName, ".yml") || strings.HasSuffix(certName, ".pem") {
-// 			continue
-// 		}
-
-// 		certName = strings.TrimSuffix(certName, ".key")
-
-// 		vol, certMounts := s.mountCACert(volumeName, certName, secretName, certName, volumesAdded)
-
-// 		if vol != nil {
-// 			volumes = append(volumes, *vol)
-// 		}
-
-// 		mounts = append(mounts, certMounts...)
-// 	}
-
-// 	return volumes, mounts, nil
-// }
-
 func (s *Server) loadCACertBundle(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
 	customCerts := s.cluster.Spec.CustomCAs.Sources
 	caCertMap := map[string]string{

@@ -334,9 +334,10 @@ func caCertSecret(certName, clusterName, clusterNamespace string, cert, key []by
 			Name:      controller.SafeConcatNameWithPrefix(clusterName, certName),
 			Namespace: clusterNamespace,
 		},
+		Type: v1.SecretTypeTLS,
 		Data: map[string][]byte{
-			"tls.crt": cert,
-			"tls.key": key,
+			v1.TLSCertKey:       cert,
+			v1.TLSPrivateKeyKey: key,
 		},
 	}
 }

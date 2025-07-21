@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"github.com/urfave/cli/v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -102,15 +101,6 @@ func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
 
 func CobraFlagNamespace(appCtx *AppContext, flag *pflag.FlagSet) {
 	flag.StringVarP(&appCtx.namespace, "namespace", "n", "", "namespace of the k3k cluster")
-}
-
-func FlagNamespace(appCtx *AppContext) *cli.StringFlag {
-	return &cli.StringFlag{
-		Name:        "namespace",
-		Usage:       "namespace of the k3k cluster",
-		Aliases:     []string{"n"},
-		Destination: &appCtx.namespace,
-	}
 }
 
 func InitializeConfig(cmd *cobra.Command) {

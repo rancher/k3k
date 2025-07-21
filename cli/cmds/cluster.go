@@ -12,8 +12,8 @@ func NewClusterCmd(appCtx *AppContext) *cobra.Command {
 
 	cmd.AddCommand(
 		NewClusterCreateCmd(appCtx),
-		// NewClusterDeleteCmd(appCtx),
-		// NewClusterListCmd(appCtx),
+		NewClusterDeleteCmd(appCtx),
+		NewClusterListCmd(appCtx),
 	)
 
 	return cmd

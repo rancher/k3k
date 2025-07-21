@@ -99,7 +99,7 @@ func installK3kChart(kubeconfig []byte) {
 	releaseName := "k3k"
 	releaseNamespace := "k3k-system"
 
-	err = actionConfig.Init(restClientGetter, releaseNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...interface{}) {
+	err = actionConfig.Init(restClientGetter, releaseNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...any) {
 		GinkgoWriter.Printf("helm debug: "+format+"\n", v...)
 	})
 	Expect(err).To(Not(HaveOccurred()))

@@ -22,7 +22,7 @@ func (l *Logger) WithError(err error) log.Logger {
 	return l
 }
 
-func (l *Logger) WithField(string, interface{}) log.Logger {
+func (l *Logger) WithField(string, any) log.Logger {
 	return l
 }
 

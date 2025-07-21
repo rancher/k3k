@@ -21,3 +21,7 @@ formatters:
         - localmodule
         - dot
         - blank
+    gofmt:
+      rewrite-rules:
+        - pattern: 'interface{}'
+          replacement: 'any'

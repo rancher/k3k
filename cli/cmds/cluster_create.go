@@ -165,7 +165,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return err
 		}
 
-		return writeKubeconfigFile(cluster, kubeconfig)
+		return writeKubeconfigFile(cluster, kubeconfig, "")
 	}
 }
 

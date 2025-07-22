@@ -3,8 +3,8 @@ package k3k_test
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os/exec"
+	"time"
 
 	"k8s.io/apimachinery/pkg/util/rand"
 
@@ -53,7 +53,67 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			_, stderr, err = K3kcli("cluster", "delete", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stderr).To(ContainSubstring(fmt.Sprintf("Deleting [%s] cluster in namespace [%s]", clusterName, clusterNamespace)))
+			Expect(stderr).To(ContainSubstring("Deleting [%s] cluster in namespace [%s]", clusterName, clusterNamespace))
+
+			// The deletion could take a bit
+			Eventually(func() string {
+				stdout, stderr, err := K3kcli("cluster", "list", "-n", clusterNamespace)
+				Expect(err).To(Not(HaveOccurred()), string(stderr))
+				return stdout + stderr
+			}).
+				WithTimeout(time.Second * 5).
+				WithPolling(time.Second).
+				Should(BeEmpty())
+		})
+	})
+
+	When("trying the policy commands", func() {
+		It("can create, list and delete a policy", func() {
+			var (
+				stdout string
+				stderr string
+				err    error
+			)
+
+			policyName := "policy-" + rand.String(5)
+
+			_, stderr, err = K3kcli("policy", "create", policyName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring("Creating policy [%s]", policyName))
+
+			stdout, stderr, err = K3kcli("policy", "list")
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(BeEmpty())
+			Expect(stdout).To(ContainSubstring(policyName))
+
+			stdout, stderr, err = K3kcli("policy", "delete", policyName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stdout).To(BeEmpty())
+			Expect(stderr).To(BeEmpty())
+
+			stdout, stderr, err = K3kcli("policy", "list")
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stdout).To(BeEmpty())
+			Expect(stderr).To(BeEmpty())
+		})
+	})
+
+	When("trying the kubeconfig command", func() {
+		It("can generate a kubeconfig", func() {
+			var (
+				stderr string
+				err    error
+			)
+
+			clusterName := "cluster-" + rand.String(5)
+
+			_, stderr, err = K3kcli("cluster", "create", clusterName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
+
+			_, stderr, err = K3kcli("kubeconfig", "generate", "--name", clusterName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 		})
 	})
 })

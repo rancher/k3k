@@ -135,6 +135,8 @@ jobs:
     
     - name: Set coverage environment
       run: |
+        mkdir ${{ github.workspace }}/covdata
+        
         echo "COVERAGE=true" >> $GITHUB_ENV
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
     

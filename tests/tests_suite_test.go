@@ -68,10 +68,10 @@ var _ = BeforeSuite(func() {
 	tmpFile, err := os.CreateTemp("", "kubeconfig-")
 	Expect(err).To(Not(HaveOccurred()))
 
-	defer Expect(tmpFile.Close()).To(Succeed())
-
 	_, err = tmpFile.Write(kubeconfig)
 	Expect(err).To(Not(HaveOccurred()))
+	Expect(tmpFile.Close()).To(Succeed())
+
 	kubeconfigPath = tmpFile.Name()
 
 	Expect(os.Setenv("KUBECONFIG", kubeconfigPath)).To(Succeed())

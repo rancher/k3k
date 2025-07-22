@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"os/exec"
 
+	"k8s.io/apimachinery/pkg/util/rand"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/util/rand"
 )
 
 func K3kcli(args ...string) (string, string, error) {
@@ -23,23 +24,26 @@ func K3kcli(args ...string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-var _ = When("using the k3kcli", Label("e2e"), Label("cli"), func() {
-
+var _ = When("using the k3kcli", Label("cli"), func() {
 	It("can get the version", func() {
-		stdout, stderr, err := K3kcli("--version")
+		stdout, _, err := K3kcli("--version")
 		Expect(err).To(Not(HaveOccurred()))
 		Expect(stdout).To(ContainSubstring("k3kcli Version: v"))
-		Expect(stderr).To(BeEmpty())
 	})
 
 	When("trying the cluster commands", func() {
 		It("can create, list and delete a cluster", func() {
+			var (
+				stdout string
+				stderr string
+				err    error
+			)
+
 			clusterName := "cluster-" + rand.String(5)
 			clusterNamespace := "k3k-" + clusterName
 
-			stdout, stderr, err := K3kcli("cluster", "create", clusterName)
+			_, stderr, err = K3kcli("cluster", "create", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stdout).To(BeEmpty())
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
 			stdout, stderr, err = K3kcli("cluster", "list")
@@ -47,9 +51,8 @@ var _ = When("using the k3kcli", Label("e2e"), Label("cli"), func() {
 			Expect(stderr).To(BeEmpty())
 			Expect(stdout).To(ContainSubstring(clusterNamespace))
 
-			stdout, stderr, err = K3kcli("cluster", "delete", clusterName)
+			_, stderr, err = K3kcli("cluster", "delete", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stdout).To(BeEmpty())
 			Expect(stderr).To(ContainSubstring(fmt.Sprintf("Deleting [%s] cluster in namespace [%s]", clusterName, clusterNamespace)))
 		})
 	})

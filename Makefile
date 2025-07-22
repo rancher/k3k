@@ -1,5 +1,6 @@
 
 REPO ?= rancher
+COVERAGE ?= false
 VERSION ?= $(shell git describe --tags --always --dirty --match="v[0-9]*")
 
 ## Dependencies
@@ -29,7 +30,7 @@ version: ## Print the current version
 
 .PHONY: build
 build:	## Build the the K3k binaries (k3k, k3k-kubelet and k3kcli)
-	@VERSION=$(VERSION) ./scripts/build
+	@VERSION=$(VERSION) COVERAGE=$(COVERAGE) ./scripts/build
 
 .PHONY: package
 package: package-k3k package-k3k-kubelet	## Package the k3k and k3k-kubelet Docker images
@@ -68,7 +69,11 @@ test-kubelet-controller:	## Run the controller tests (pkg/controller)
 
 .PHONY: test-e2e
 test-e2e:	## Run the e2e tests
-	$(GINKGO) $(GINKGO_FLAGS) tests
+	$(GINKGO) $(GINKGO_FLAGS) --label-filter=e2e tests
+
+.PHONY: test-cli
+test-cli:	## Run the cli tests
+	$(GINKGO) $(GINKGO_FLAGS) --label-filter=cli tests
 
 .PHONY: generate
 generate:	## Generate the CRDs specs

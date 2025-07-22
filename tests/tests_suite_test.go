@@ -52,6 +52,8 @@ var _ = BeforeSuite(func() {
 	var err error
 	ctx := context.Background()
 
+	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
+
 	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:v1.32.1-k3s1")
 	Expect(err).To(Not(HaveOccurred()))
 

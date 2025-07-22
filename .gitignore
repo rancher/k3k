@@ -8,3 +8,6 @@
 __debug*
 *-kubeconfig.yaml
 .envtest
+cover.out
+covcounters.**
+covmeta.**

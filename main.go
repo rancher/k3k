@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
-	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/clientcmd"
@@ -41,7 +40,6 @@ var (
 	maxConcurrentReconciles    int
 	debug                      bool
 	logger                     *log.Logger
-	flags                      = []cli.Flag{}
 )
 
 func init() {

@@ -30,7 +30,7 @@ type AppContext struct {
 	namespace  string
 }
 
-func NewApp() *cobra.Command {
+func NewRootCmd() *cobra.Command {
 	appCtx := &AppContext{}
 
 	rootCmd := &cobra.Command{
@@ -64,6 +64,7 @@ func NewApp() *cobra.Command {
 
 			return nil
 		},
+		DisableAutoGenTag: true,
 	}
 
 	rootCmd.PersistentFlags().StringVar(&appCtx.Kubeconfig, "kubeconfig", "", "kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)")

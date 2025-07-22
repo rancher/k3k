@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	app := cmds.NewApp()
+	app := cmds.NewRootCmd()
 	if err := app.Execute(); err != nil {
 		logrus.Fatal(err)
 	}

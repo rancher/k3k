@@ -146,7 +146,6 @@ func run(clx *cli.Context) error {
 	mgr, err := ctrl.NewManager(restConfig, manager.Options{
 		Scheme: scheme,
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to create new controller runtime manager: %v", err)
 	}

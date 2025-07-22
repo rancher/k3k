@@ -90,7 +90,7 @@ var PriorityClassTests = func() {
 		Expect(hostPriorityClass.Value).To(Equal(priorityClass.Value))
 		Expect(hostPriorityClass.Labels).To(ContainElement("bar"))
 
-		fmt.Fprintf(GinkgoWriter, "labels: %v\n", hostPriorityClass.Labels)
+		GinkgoWriter.Printf("labels: %v\n", hostPriorityClass.Labels)
 	})
 
 	It("updates a priorityClass on the host cluster", func() {

@@ -51,6 +51,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 	if controllers != nil {
 		if r, ok := c.controllers[obj.GetObjectKind().GroupVersionKind()]; ok {
 			err := r.AddResource(ctx, obj.GetNamespace(), obj.GetName())
+
 			c.RUnlock()
 
 			return err
@@ -103,12 +104,12 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 		Named(r.Name()).
 		For(&v1.ConfigMap{}).
 		Complete(r)
-
 	if err != nil {
 		return fmt.Errorf("unable to start configmap controller: %w", err)
 	}
 
 	c.Lock()
+
 	if c.controllers == nil {
 		c.controllers = map[schema.GroupVersionKind]updateableReconciler{}
 	}

@@ -21,10 +21,10 @@ jobs:
         go-version-file: go.mod
 
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v8
       with:
         args: --timeout=5m
-        version: v1.64
+        version: v2.3.0
 
   validate:
     runs-on: ubuntu-latest

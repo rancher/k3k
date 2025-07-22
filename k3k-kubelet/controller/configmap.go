@@ -125,6 +125,7 @@ func (c *ConfigMapSyncer) AddResource(ctx context.Context, namespace, name strin
 
 	// lock in write mode since we are now adding the key
 	c.mutex.Lock()
+
 	if c.objs == nil {
 		c.objs = sets.Set[types.NamespacedName]{}
 	}
@@ -135,7 +136,6 @@ func (c *ConfigMapSyncer) AddResource(ctx context.Context, namespace, name strin
 	_, err := c.Reconcile(ctx, reconcile.Request{
 		NamespacedName: objKey,
 	})
-
 	if err != nil {
 		return fmt.Errorf("unable to reconcile new object %s/%s: %w", objKey.Namespace, objKey.Name, err)
 	}
@@ -164,6 +164,7 @@ func (c *ConfigMapSyncer) RemoveResource(ctx context.Context, namespace, name st
 	}
 
 	c.mutex.Lock()
+
 	if c.objs == nil {
 		c.objs = sets.Set[types.NamespacedName]{}
 	}

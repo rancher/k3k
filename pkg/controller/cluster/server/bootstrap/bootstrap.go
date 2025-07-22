@@ -77,7 +77,10 @@ func requestBootstrap(token, serverIP string) (*ControlRuntimeBootstrap, error) 
 
 		return nil, err
 	}
-	defer resp.Body.Close()
+
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	var runtimeBootstrap ControlRuntimeBootstrap
 	if err := json.NewDecoder(resp.Body).Decode(&runtimeBootstrap); err != nil {
@@ -174,6 +177,7 @@ func GetFromSecret(ctx context.Context, client client.Client, cluster *v1alpha1.
 	}
 
 	var bootstrap ControlRuntimeBootstrap
+
 	err := json.Unmarshal(bootstrapData, &bootstrap)
 
 	return &bootstrap, err

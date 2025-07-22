@@ -7,7 +7,6 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3klog "github.com/rancher/k3k/pkg/log"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -15,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster, version string, mirrorHostNodes bool) {
+func ConfigureNode(logger *k3klog.Logger, node *corev1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster, version string, mirrorHostNodes bool) {
 	ctx := context.Background()
 	if mirrorHostNodes {
 		hostNode, err := coreClient.Nodes().Get(ctx, node.Name, metav1.GetOptions{})
@@ -32,13 +31,13 @@ func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servic
 	} else {
 		node.Status.Conditions = nodeConditions()
 		node.Status.DaemonEndpoints.KubeletEndpoint.Port = int32(servicePort)
-		node.Status.Addresses = []v1.NodeAddress{
+		node.Status.Addresses = []corev1.NodeAddress{
 			{
-				Type:    v1.NodeHostName,
+				Type:    corev1.NodeHostName,
 				Address: hostname,
 			},
 			{
-				Type:    v1.NodeInternalIP,
+				Type:    corev1.NodeInternalIP,
 				Address: ip,
 			},
 		}
@@ -63,11 +62,11 @@ func ConfigureNode(logger *k3klog.Logger, node *v1.Node, hostname string, servic
 }
 
 // nodeConditions returns the basic conditions which mark the node as ready
-func nodeConditions() []v1.NodeCondition {
-	return []v1.NodeCondition{
+func nodeConditions() []corev1.NodeCondition {
+	return []corev1.NodeCondition{
 		{
 			Type:               "Ready",
-			Status:             v1.ConditionTrue,
+			Status:             corev1.ConditionTrue,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "KubeletReady",
@@ -75,7 +74,7 @@ func nodeConditions() []v1.NodeCondition {
 		},
 		{
 			Type:               "OutOfDisk",
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "KubeletHasSufficientDisk",
@@ -83,7 +82,7 @@ func nodeConditions() []v1.NodeCondition {
 		},
 		{
 			Type:               "MemoryPressure",
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "KubeletHasSufficientMemory",
@@ -91,7 +90,7 @@ func nodeConditions() []v1.NodeCondition {
 		},
 		{
 			Type:               "DiskPressure",
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "KubeletHasNoDiskPressure",
@@ -99,7 +98,7 @@ func nodeConditions() []v1.NodeCondition {
 		},
 		{
 			Type:               "NetworkUnavailable",
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "RouteCreated",
@@ -129,7 +128,7 @@ func updateNodeCapacity(ctx context.Context, coreClient typedv1.CoreV1Interface,
 
 // getResourcesFromNodes will return a sum of all the resource capacity of the host nodes, and the allocatable resources.
 // If some node labels are specified only the matching nodes will be considered.
-func getResourcesFromNodes(ctx context.Context, coreClient typedv1.CoreV1Interface, nodeLabels map[string]string) (v1.ResourceList, v1.ResourceList, error) {
+func getResourcesFromNodes(ctx context.Context, coreClient typedv1.CoreV1Interface, nodeLabels map[string]string) (corev1.ResourceList, corev1.ResourceList, error) {
 	listOpts := metav1.ListOptions{}
 
 	if nodeLabels != nil {

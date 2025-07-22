@@ -21,7 +21,6 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -54,7 +53,8 @@ var _ = BeforeSuite(func() {
 
 	hostIP, err = k3sContainer.ContainerIP(ctx)
 	Expect(err).To(Not(HaveOccurred()))
-	fmt.Fprintln(GinkgoWriter, "K3s containerIP: "+hostIP)
+
+	GinkgoWriter.Println("K3s containerIP: " + hostIP)
 
 	kubeconfig, err := k3sContainer.GetKubeConfig(context.Background())
 	Expect(err).To(Not(HaveOccurred()))
@@ -65,6 +65,7 @@ var _ = BeforeSuite(func() {
 
 func initKubernetesClient(kubeconfig []byte) {
 	var err error
+
 	restcfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -96,7 +97,7 @@ func installK3kChart(kubeconfig []byte) {
 	releaseNamespace := "k3k-system"
 
 	err = actionConfig.Init(restClientGetter, releaseNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...interface{}) {
-		fmt.Fprintf(GinkgoWriter, "helm debug: "+format+"\n", v...)
+		GinkgoWriter.Printf("helm debug: "+format+"\n", v...)
 	})
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -127,7 +128,7 @@ func installK3kChart(kubeconfig []byte) {
 	release, err := iCli.Run(k3kChart, k3kChart.Values)
 	Expect(err).To(Not(HaveOccurred()))
 
-	fmt.Fprintf(GinkgoWriter, "Release %s installed in %s namespace\n", release.Name, release.Namespace)
+	GinkgoWriter.Printf("Release %s installed in %s namespace\n", release.Name, release.Namespace)
 }
 
 var _ = AfterSuite(func() {
@@ -142,7 +143,7 @@ var _ = AfterSuite(func() {
 	err = os.WriteFile(logfile, logs, 0644)
 	Expect(err).To(Not(HaveOccurred()))
 
-	fmt.Fprintln(GinkgoWriter, "k3s logs written to: "+logfile)
+	GinkgoWriter.Println("k3s logs written to: " + logfile)
 
 	// dump k3k controller logs
 	readCloser, err = k3sContainer.Logs(context.Background())
@@ -169,7 +170,7 @@ func buildScheme() *runtime.Scheme {
 func writeK3kLogs() {
 	var (
 		err     error
-		podList v1.PodList
+		podList corev1.PodList
 	)
 
 	ctx := context.Background()
@@ -184,8 +185,6 @@ func writeK3kLogs() {
 }
 
 func writeLogs(filename string, logs io.ReadCloser) {
-	defer logs.Close()
-
 	logsStr, err := io.ReadAll(logs)
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -193,7 +192,9 @@ func writeLogs(filename string, logs io.ReadCloser) {
 	err = os.WriteFile(tempfile, []byte(logsStr), 0644)
 	Expect(err).To(Not(HaveOccurred()))
 
-	fmt.Fprintln(GinkgoWriter, "logs written to: "+filename)
+	GinkgoWriter.Println("logs written to: " + filename)
+
+	_ = logs.Close()
 }
 
 func readFileWithinPod(ctx context.Context, client *kubernetes.Clientset, config *rest.Config, name, namespace, path string) ([]byte, error) {
@@ -217,13 +218,13 @@ func exec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Con
 		SubResource("exec")
 	scheme := runtime.NewScheme()
 
-	if err := v1.AddToScheme(scheme); err != nil {
+	if err := corev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("error adding to scheme: %v", err)
 	}
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
 
-	req.VersionedParams(&v1.PodExecOptions{
+	req.VersionedParams(&corev1.PodExecOptions{
 		Command: command,
 		Stdin:   stdin != nil,
 		Stdout:  stdout != nil,
@@ -244,7 +245,6 @@ func exec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Con
 		Stderr: &stderr,
 		Tty:    false,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error in Stream: %v", err)
 	}
@@ -252,8 +252,8 @@ func exec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Con
 	return stderr.Bytes(), nil
 }
 
-func caCertSecret(name, namespace string, crt, key []byte) *v1.Secret {
-	return &v1.Secret{
+func caCertSecret(name, namespace string, crt, key []byte) *corev1.Secret {
+	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,

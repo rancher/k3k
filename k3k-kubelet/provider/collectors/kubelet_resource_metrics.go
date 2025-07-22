@@ -91,14 +91,20 @@ var _ compbasemetrics.StableCollector = &resourceMetricsCollector{}
 
 // DescribeWithStability implements compbasemetrics.StableCollector
 func (rc *resourceMetricsCollector) DescribeWithStability(ch chan<- *compbasemetrics.Desc) {
-	ch <- nodeCPUUsageDesc
-	ch <- nodeMemoryUsageDesc
-	ch <- containerStartTimeDesc
-	ch <- containerCPUUsageDesc
-	ch <- containerMemoryUsageDesc
-	ch <- podCPUUsageDesc
-	ch <- podMemoryUsageDesc
-	ch <- resourceScrapeResultDesc
+	descs := []*compbasemetrics.Desc{
+		nodeCPUUsageDesc,
+		nodeMemoryUsageDesc,
+		containerStartTimeDesc,
+		containerCPUUsageDesc,
+		containerMemoryUsageDesc,
+		podCPUUsageDesc,
+		podMemoryUsageDesc,
+		resourceScrapeResultDesc,
+	}
+
+	for _, desc := range descs {
+		ch <- desc
+	}
 }
 
 // CollectWithStability implements compbasemetrics.StableCollector

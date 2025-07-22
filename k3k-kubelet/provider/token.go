@@ -145,6 +145,7 @@ func removeKubeAccessVolume(pod *corev1.Pod) {
 
 func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
 	var tokenVolumeName = k3kcontroller.SafeConcatNameWithPrefix(kubeAPIAccessPrefix)
+
 	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
 		Name: tokenVolumeName,
 		VolumeSource: corev1.VolumeSource{

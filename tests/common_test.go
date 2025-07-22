@@ -249,7 +249,7 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {
 			if resourceName == nginxPod.Name && resourceNamespace == nginxPod.Namespace {
 				podIP = pod.Status.PodIP
 
-				fmt.Fprintf(GinkgoWriter,
+				GinkgoWriter.Printf(
 					"pod=%s resource=%s/%s status=%s podIP=%s\n",
 					pod.Name, resourceNamespace, resourceName, pod.Status.Phase, podIP,
 				)

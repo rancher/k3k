@@ -76,7 +76,7 @@ func (a *PortAllocator) getOrCreate(ctx context.Context, configmap *v1.ConfigMap
 		Namespace: configmap.Namespace,
 	}
 
-	if err := a.Client.Get(ctx, nn, configmap); err != nil {
+	if err := a.Get(ctx, nn, configmap); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}
@@ -90,7 +90,7 @@ func (a *PortAllocator) getOrCreate(ctx context.Context, configmap *v1.ConfigMap
 			snapshotDataKey: []byte(""),
 		}
 
-		if err := a.Client.Create(ctx, configmap); err != nil {
+		if err := a.Create(ctx, configmap); err != nil {
 			return fmt.Errorf("failed to create port range configmap: %w", err)
 		}
 	}
@@ -158,7 +158,7 @@ func (a *PortAllocator) allocatePort(ctx context.Context, clusterName, clusterNa
 		return 0, err
 	}
 
-	if err := a.Client.Update(ctx, configMap); err != nil {
+	if err := a.Update(ctx, configMap); err != nil {
 		return 0, err
 	}
 
@@ -209,7 +209,7 @@ func (a *PortAllocator) deallocatePort(ctx context.Context, clusterName, cluster
 		}
 	}
 
-	return a.Client.Update(ctx, configMap)
+	return a.Update(ctx, configMap)
 }
 
 // parsePortMap will convert ConfigMap Data to a portMap of string keys and values of ints

@@ -11,7 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -61,7 +60,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 				Expect(cluster.Status.Phase).To(Equal(v1alpha1.ClusterUnknown))
 
-				serverVersion, err := k8s.DiscoveryClient.ServerVersion()
+				serverVersion, err := k8s.ServerVersion()
 				Expect(err).To(Not(HaveOccurred()))
 				expectedHostVersion := fmt.Sprintf("%s-k3s1", serverVersion.GitVersion)
 
@@ -110,9 +109,9 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
-					var service v1.Service
+					var service corev1.Service
 
-					Eventually(func() v1.ServiceType {
+					Eventually(func() corev1.ServiceType {
 						serviceKey := client.ObjectKey{
 							Name:      server.ServiceName(cluster.Name),
 							Namespace: cluster.Namespace,
@@ -124,7 +123,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					}).
 						WithTimeout(time.Second * 30).
 						WithPolling(time.Second).
-						Should(Equal(v1.ServiceTypeNodePort))
+						Should(Equal(corev1.ServiceTypeNodePort))
 				})
 
 				It("will have the specified ports exposed when specified", func() {
@@ -145,9 +144,9 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
-					var service v1.Service
+					var service corev1.Service
 
-					Eventually(func() v1.ServiceType {
+					Eventually(func() corev1.ServiceType {
 						serviceKey := client.ObjectKey{
 							Name:      server.ServiceName(cluster.Name),
 							Namespace: cluster.Namespace,
@@ -159,7 +158,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					}).
 						WithTimeout(time.Second * 30).
 						WithPolling(time.Second).
-						Should(Equal(v1.ServiceTypeNodePort))
+						Should(Equal(corev1.ServiceTypeNodePort))
 
 					servicePorts := service.Spec.Ports
 					Expect(servicePorts).NotTo(BeEmpty())
@@ -193,9 +192,9 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
-					var service v1.Service
+					var service corev1.Service
 
-					Eventually(func() v1.ServiceType {
+					Eventually(func() corev1.ServiceType {
 						serviceKey := client.ObjectKey{
 							Name:      server.ServiceName(cluster.Name),
 							Namespace: cluster.Namespace,
@@ -207,7 +206,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					}).
 						WithTimeout(time.Second * 30).
 						WithPolling(time.Second).
-						Should(Equal(v1.ServiceTypeNodePort))
+						Should(Equal(corev1.ServiceTypeNodePort))
 
 					servicePorts := service.Spec.Ports
 					Expect(servicePorts).NotTo(BeEmpty())
@@ -237,7 +236,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
-					var service v1.Service
+					var service corev1.Service
 
 					Eventually(func() error {
 						serviceKey := client.ObjectKey{
@@ -251,7 +250,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 						WithPolling(time.Second).
 						Should(Succeed())
 
-					Expect(service.Spec.Type).To(Equal(v1.ServiceTypeLoadBalancer))
+					Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeLoadBalancer))
 
 					servicePorts := service.Spec.Ports
 					Expect(servicePorts).NotTo(BeEmpty())

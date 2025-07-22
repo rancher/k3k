@@ -23,7 +23,6 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -213,7 +212,7 @@ func (p *Provider) AttachToContainer(ctx context.Context, namespace, podName, co
 func (p *Provider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
 	p.logger.Debug("GetStatsSummary")
 
-	nodeList := &v1.NodeList{}
+	nodeList := &corev1.NodeList{}
 	if err := p.CoreClient.RESTClient().Get().Resource("nodes").Do(ctx).Into(nodeList); err != nil {
 		return nil, fmt.Errorf("unable to get nodes of cluster %s in namespace %s: %w", p.ClusterName, p.ClusterNamespace, err)
 	}
@@ -256,7 +255,7 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) 
 		return nil, err
 	}
 
-	podsNameMap := make(map[string]*v1.Pod)
+	podsNameMap := make(map[string]*corev1.Pod)
 
 	for _, pod := range pods {
 		hostPodName := p.Translator.TranslateName(pod.Namespace, pod.Name)
@@ -329,7 +328,6 @@ func (p *Provider) PortForward(ctx context.Context, namespace, pod string, port 
 	// should send a value on stopChannel so that the PortForward is stopped. However, we only have a ReadWriteCloser
 	// so more work is needed to detect a close and handle that appropriately.
 	fw, err := portforward.New(dialer, []string{portAsString}, stopChannel, readyChannel, stream, stream)
-
 	if err != nil {
 		return err
 	}
@@ -419,7 +417,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 }
 
 // withRetry retries passed function with interval and timeout
-func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *v1.Pod) error, pod *v1.Pod) error {
+func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *corev1.Pod) error, pod *corev1.Pod) error {
 	const (
 		interval = 2 * time.Second
 		timeout  = 10 * time.Second
@@ -577,7 +575,7 @@ func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 	return p.withRetry(ctx, p.updatePod, pod)
 }
 
-func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
+func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 	p.logger.Debugw("got a request for update pod")
 
 	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
@@ -585,7 +583,7 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 
 	// Update Pod in the virtual cluster
 
-	var currentVirtualPod v1.Pod
+	var currentVirtualPod corev1.Pod
 	if err := p.VirtualClient.Get(ctx, client.ObjectKeyFromObject(pod), &currentVirtualPod); err != nil {
 		return fmt.Errorf("unable to get pod to update from virtual cluster: %w", err)
 	}
@@ -649,7 +647,7 @@ func (p *Provider) updatePod(ctx context.Context, pod *v1.Pod) error {
 }
 
 // updateContainerImages will update the images of the original container images with the same name
-func updateContainerImages(original, updated []v1.Container) []v1.Container {
+func updateContainerImages(original, updated []corev1.Container) []corev1.Container {
 	newImages := make(map[string]string)
 
 	for _, c := range updated {
@@ -811,8 +809,8 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	selector = selector.Add(*requirement)
 
 	var podList corev1.PodList
-	err = p.HostClient.List(ctx, &podList, &client.ListOptions{LabelSelector: selector})
 
+	err = p.HostClient.List(ctx, &podList, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, fmt.Errorf("unable to list pods: %w", err)
 	}
@@ -855,7 +853,7 @@ func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP
 				"svc.cluster.local",
 				"cluster.local",
 			},
-			Options: []v1.PodDNSConfigOption{
+			Options: []corev1.PodDNSConfigOption{
 				{
 					Name:  "ndots",
 					Value: ptr.To("5"),
@@ -938,7 +936,7 @@ func getSecretsAndConfigmaps(pod *corev1.Pod) ([]string, []string) {
 // configureFieldPathEnv will retrieve all annotations created by the pod mutator webhook
 // to assign env fieldpaths to pods, it will also make sure to change the metadata.name and metadata.namespace to the
 // assigned annotations
-func (p *Provider) configureFieldPathEnv(pod, tPod *v1.Pod) error {
+func (p *Provider) configureFieldPathEnv(pod, tPod *corev1.Pod) error {
 	for _, container := range pod.Spec.EphemeralContainers {
 		addFieldPathAnnotationToEnv(container.Env)
 	}
@@ -958,10 +956,10 @@ func (p *Provider) configureFieldPathEnv(pod, tPod *v1.Pod) error {
 				return err
 			}
 			// re-adding these envs to the pod
-			tPod.Spec.Containers[containerIndex].Env = append(tPod.Spec.Containers[containerIndex].Env, v1.EnvVar{
+			tPod.Spec.Containers[containerIndex].Env = append(tPod.Spec.Containers[containerIndex].Env, corev1.EnvVar{
 				Name: envName,
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
 						FieldPath: value,
 					},
 				},
@@ -974,7 +972,7 @@ func (p *Provider) configureFieldPathEnv(pod, tPod *v1.Pod) error {
 	return nil
 }
 
-func addFieldPathAnnotationToEnv(envVars []v1.EnvVar) {
+func addFieldPathAnnotationToEnv(envVars []corev1.EnvVar) {
 	for j, envVar := range envVars {
 		if envVar.ValueFrom == nil || envVar.ValueFrom.FieldRef == nil {
 			continue

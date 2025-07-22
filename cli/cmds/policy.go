@@ -6,8 +6,8 @@ import (
 
 func NewPolicyCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "cluster",
-		Short: "cluster command",
+		Use:   "policy",
+		Short: "policy command",
 	}
 
 	cmd.AddCommand(

@@ -7,19 +7,21 @@ import (
 	"slices"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apiserver/pkg/authentication/user"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	certutil "github.com/rancher/dynamiclistener/cert"
+	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
-	"github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apiserver/pkg/authentication/user"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type KubeConfig struct {

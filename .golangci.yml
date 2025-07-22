@@ -4,3 +4,24 @@ linters:
   enable:
     - misspell
     - wsl_v5
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+  settings:
+    gci:
+      # The default order is `standard > default > custom > blank > dot > alias > localmodule`.
+      custom-order: true
+      sections:
+        - standard
+        - default
+        - alias
+        - localmodule
+        - dot
+        - blank
+    gofmt:
+      rewrite-rules:
+        - pattern: 'interface{}'
+          replacement: 'any'

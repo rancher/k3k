@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	k3kcontroller "github.com/rancher/k3k/pkg/controller"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
+
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
 
 const (
@@ -144,7 +146,7 @@ func removeKubeAccessVolume(pod *corev1.Pod) {
 }
 
 func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
-	var tokenVolumeName = k3kcontroller.SafeConcatNameWithPrefix(kubeAPIAccessPrefix)
+	tokenVolumeName := k3kcontroller.SafeConcatNameWithPrefix(kubeAPIAccessPrefix)
 
 	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
 		Name: tokenVolumeName,

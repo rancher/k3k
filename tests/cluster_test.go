@@ -8,16 +8,17 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = When("k3k is installed", Label("e2e"), func() {
 	It("is in Running status", func() {
-
 		// check that the controller is running
 		Eventually(func() bool {
 			opts := v1.ListOptions{LabelSelector: "app.kubernetes.io/name=k3k"}
@@ -43,7 +44,6 @@ var _ = When("k3k is installed", Label("e2e"), func() {
 })
 
 var _ = When("a ephemeral cluster is installed", Label("e2e"), func() {
-
 	var virtualCluster *VirtualCluster
 
 	BeforeEach(func() {
@@ -116,7 +116,6 @@ var _ = When("a ephemeral cluster is installed", Label("e2e"), func() {
 })
 
 var _ = When("a dynamic cluster is installed", func() {
-
 	var virtualCluster *VirtualCluster
 
 	BeforeEach(func() {

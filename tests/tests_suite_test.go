@@ -12,16 +12,11 @@ import (
 	"time"
 
 	"github.com/go-logr/zapr"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/k3s"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -29,6 +24,14 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 func TestTests(t *testing.T) {
@@ -96,7 +99,7 @@ func installK3kChart(kubeconfig []byte) {
 	releaseName := "k3k"
 	releaseNamespace := "k3k-system"
 
-	err = actionConfig.Init(restClientGetter, releaseNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...interface{}) {
+	err = actionConfig.Init(restClientGetter, releaseNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...any) {
 		GinkgoWriter.Printf("helm debug: "+format+"\n", v...)
 	})
 	Expect(err).To(Not(HaveOccurred()))
@@ -140,7 +143,7 @@ var _ = AfterSuite(func() {
 	Expect(err).To(Not(HaveOccurred()))
 
 	logfile := path.Join(os.TempDir(), "k3s.log")
-	err = os.WriteFile(logfile, logs, 0644)
+	err = os.WriteFile(logfile, logs, 0o644)
 	Expect(err).To(Not(HaveOccurred()))
 
 	GinkgoWriter.Println("k3s logs written to: " + logfile)
@@ -189,7 +192,7 @@ func writeLogs(filename string, logs io.ReadCloser) {
 	Expect(err).To(Not(HaveOccurred()))
 
 	tempfile := path.Join(os.TempDir(), filename)
-	err = os.WriteFile(tempfile, []byte(logsStr), 0644)
+	err = os.WriteFile(tempfile, []byte(logsStr), 0o644)
 	Expect(err).To(Not(HaveOccurred()))
 
 	GinkgoWriter.Println("logs written to: " + filename)

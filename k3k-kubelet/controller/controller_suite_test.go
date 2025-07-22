@@ -9,16 +9,17 @@ import (
 	"testing"
 
 	"github.com/go-logr/zapr"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -77,7 +78,7 @@ func NewTestEnv() *TestEnv {
 
 	tmpKubebuilderDir := path.Join(os.TempDir(), "kubebuilder")
 
-	if err := os.Mkdir(tmpKubebuilderDir, 0755); !errors.Is(err, os.ErrExist) {
+	if err := os.Mkdir(tmpKubebuilderDir, 0o755); !errors.Is(err, os.ErrExist) {
 		Expect(err).NotTo(HaveOccurred())
 	}
 
@@ -124,7 +125,6 @@ func buildScheme() *runtime.Scheme {
 }
 
 var _ = Describe("Kubelet Controller", func() {
-
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc

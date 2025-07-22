@@ -3,11 +3,13 @@ package cmds
 import (
 	"context"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/urfave/cli/v2"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/printers"
+
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 )
 
 func NewPolicyListCmd(appCtx *AppContext) *cli.Command {

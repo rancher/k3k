@@ -8,6 +8,17 @@ import (
 	"os"
 
 	"github.com/go-logr/zapr"
+	"github.com/urfave/cli/v2"
+	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	v1 "k8s.io/api/core/v1"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
+
 	"github.com/rancher/k3k/cli/cmds"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/buildinfo"
@@ -15,15 +26,6 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/policy"
 	"github.com/rancher/k3k/pkg/log"
-	"github.com/urfave/cli/v2"
-	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/clientcmd"
-	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 var (

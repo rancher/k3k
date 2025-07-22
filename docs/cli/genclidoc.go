@@ -27,7 +27,7 @@ func main() {
 
 	outputFile := path.Join(wd, "docs/cli/cli-docs.md")
 
-	err = os.WriteFile(outputFile, []byte(md), 0644)
+	err = os.WriteFile(outputFile, []byte(md), 0o644)
 	if err != nil {
 		fmt.Println("Error generating documentation:", err)
 		os.Exit(1)

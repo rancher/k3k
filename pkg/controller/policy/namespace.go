@@ -3,13 +3,15 @@ package policy
 import (
 	"context"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	v1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 )
 
 // reconcileNamespacePodSecurityLabels will update the labels of the namespace to reconcile the PSA level specified in the VirtualClusterPolicy

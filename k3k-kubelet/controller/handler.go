@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/rancher/k3k/k3k-kubelet/translate"
-	k3klog "github.com/rancher/k3k/pkg/log"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	v1 "k8s.io/api/core/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/rancher/k3k/k3k-kubelet/translate"
+	k3klog "github.com/rancher/k3k/pkg/log"
 )
 
 type ControllerHandler struct {
@@ -61,9 +63,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 	// we need to manually lock/unlock since we intned on write locking to add a new controller
 	c.RUnlock()
 
-	var (
-		r updateableReconciler
-	)
+	var r updateableReconciler
 
 	switch obj.(type) {
 	case *v1.Secret:

@@ -3,10 +3,12 @@ package agent
 import (
 	"testing"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 )
 
 func Test_sharedAgentData(t *testing.T) {

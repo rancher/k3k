@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 )
 
 const (

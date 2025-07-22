@@ -5,24 +5,23 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	k3kcontroller "github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/controller/cluster/server"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	k3kcontroller "github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/cluster/server"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), func() {
-
 	Context("creating a Cluster", func() {
-
 		var (
 			namespace string
 			ctx       context.Context
@@ -38,7 +37,6 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 		})
 
 		When("creating a Cluster", func() {
-
 			It("will be created with some defaults", func() {
 				cluster := &v1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
@@ -68,7 +66,6 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)
 					Expect(err).To(Not(HaveOccurred()))
 					return cluster.Status.HostVersion
-
 				}).
 					WithTimeout(time.Second * 30).
 					WithPolling(time.Second).
@@ -217,7 +214,6 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(serverPort.Port).To(BeEquivalentTo(443))
 					Expect(serverPort.TargetPort.IntValue()).To(BeEquivalentTo(6443))
 				})
-
 			})
 
 			When("exposing the cluster with loadbalancer", func() {

@@ -1,10 +1,12 @@
 package v1alpha1
 
 import (
-	k3k "github.com/rancher/k3k/pkg/apis/k3k.io"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	k3k "github.com/rancher/k3k/pkg/apis/k3k.io"
 )
 
 var (

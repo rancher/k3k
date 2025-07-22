@@ -86,8 +86,12 @@ docs:	## Build the CRDs and CLI docs
 lint:	## Find any linting issues in the project
 	$(GOLANGCI_LINT) run --timeout=5m
 
+.PHONY: fmt
+fmt:	## Find any linting issues in the project
+	$(GOLANGCI_LINT) fmt ./...
+
 .PHONY: validate
-validate: generate docs ## Validate the project checking for any dependency or doc mismatch
+validate: generate docs fmt ## Validate the project checking for any dependency or doc mismatch
 	$(GINKGO) unfocus
 	go mod tidy
 	git status --porcelain

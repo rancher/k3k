@@ -1,10 +1,11 @@
 package cmds
 
 import (
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/jsonpath"
+
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // createTable creates a table to print from the printerColumn defined in the CRD spec, plus the name at the beginning
@@ -93,7 +94,7 @@ func buildRowCells(objMap map[string]any, printerColumns []apiextensionsv1.Custo
 }
 
 func toPointerSlice[T any](v []T) []*T {
-	var vPtr = make([]*T, len(v))
+	vPtr := make([]*T, len(v))
 
 	for i := range v {
 		vPtr[i] = &v[i]

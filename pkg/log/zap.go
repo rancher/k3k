@@ -6,6 +6,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
 	ctrlruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -21,7 +22,7 @@ func (l *Logger) WithError(err error) log.Logger {
 	return l
 }
 
-func (l *Logger) WithField(string, interface{}) log.Logger {
+func (l *Logger) WithField(string, any) log.Logger {
 	return l
 }
 

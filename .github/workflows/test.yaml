@@ -11,7 +11,7 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -79,7 +79,7 @@ jobs:
 
     - name: Install Ginkgo
       run: go install github.com/onsi/ginkgo/v2/ginkgo
-    
+
     - name: Build and package
       run: |
         make build
@@ -105,12 +105,75 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: k3s-logs
+        name: e2e-k3s-logs
         path: /tmp/k3s.log
-    
+
     - name: Archive k3k logs
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: k3k-logs
+        name: e2e-k3k-logs
+        path: /tmp/k3k.log
+
+  tests-cli:
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Install Ginkgo
+      run: go install github.com/onsi/ginkgo/v2/ginkgo
+    
+    - name: Set coverage environment
+      run: |
+        mkdir ${{ github.workspace }}/covdata
+        
+        echo "COVERAGE=true" >> $GITHUB_ENV
+        echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
+    
+    - name: Build and package
+      run: |
+        make build
+        make package
+
+        # add k3kcli to $PATH
+        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+    - name: Check k3kcli
+      run: k3kcli -v
+
+    - name: Run cli tests
+      run: make test-cli
+
+    - name: Convert coverage data
+      run: go tool covdata textfmt -i=${{ github.workspace }}/covdata -o ${{ github.workspace }}/covdata/cover.out
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ${{ github.workspace }}/covdata/cover.out
+        flags: cli
+
+    - name: Archive k3s logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: cli-k3s-logs
+        path: /tmp/k3s.log
+
+    - name: Archive k3k logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: cli-k3k-logs
         path: /tmp/k3k.log

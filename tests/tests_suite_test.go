@@ -40,16 +40,19 @@ func TestTests(t *testing.T) {
 }
 
 var (
-	k3sContainer *k3s.K3sContainer
-	hostIP       string
-	restcfg      *rest.Config
-	k8s          *kubernetes.Clientset
-	k8sClient    client.Client
+	k3sContainer   *k3s.K3sContainer
+	hostIP         string
+	restcfg        *rest.Config
+	k8s            *kubernetes.Clientset
+	k8sClient      client.Client
+	kubeconfigPath string
 )
 
 var _ = BeforeSuite(func() {
 	var err error
 	ctx := context.Background()
+
+	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
 
 	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:v1.32.1-k3s1")
 	Expect(err).To(Not(HaveOccurred()))
@@ -61,6 +64,19 @@ var _ = BeforeSuite(func() {
 
 	kubeconfig, err := k3sContainer.GetKubeConfig(context.Background())
 	Expect(err).To(Not(HaveOccurred()))
+
+	tmpFile, err := os.CreateTemp("", "kubeconfig-")
+	Expect(err).To(Not(HaveOccurred()))
+
+	_, err = tmpFile.Write(kubeconfig)
+	Expect(err).To(Not(HaveOccurred()))
+	Expect(tmpFile.Close()).To(Succeed())
+
+	kubeconfigPath = tmpFile.Name()
+
+	Expect(os.Setenv("KUBECONFIG", kubeconfigPath)).To(Succeed())
+
+	DeferCleanup(os.Remove, kubeconfigPath)
 
 	initKubernetesClient(kubeconfig)
 	installK3kChart(kubeconfig)
@@ -205,7 +221,7 @@ func readFileWithinPod(ctx context.Context, client *kubernetes.Clientset, config
 
 	output := new(bytes.Buffer)
 
-	stderr, err := exec(ctx, client, config, namespace, name, command, nil, output)
+	stderr, err := podExec(ctx, client, config, namespace, name, command, nil, output)
 	if err != nil || len(stderr) > 0 {
 		return nil, fmt.Errorf("faile to read the following file %s: %v", path, err)
 	}
@@ -213,7 +229,7 @@ func readFileWithinPod(ctx context.Context, client *kubernetes.Clientset, config
 	return output.Bytes(), nil
 }
 
-func exec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Config, namespace, name string, command []string, stdin io.Reader, stdout io.Writer) ([]byte, error) {
+func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Config, namespace, name string, command []string, stdin io.Reader, stdout io.Writer) ([]byte, error) {
 	req := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(name).

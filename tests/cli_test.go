@@ -28,7 +28,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 	It("can get the version", func() {
 		stdout, _, err := K3kcli("--version")
 		Expect(err).To(Not(HaveOccurred()))
-		Expect(stdout).To(ContainSubstring("k3kcli Version: v"))
+		Expect(stdout).To(ContainSubstring("k3kcli version v"))
 	})
 
 	When("trying the cluster commands", func() {

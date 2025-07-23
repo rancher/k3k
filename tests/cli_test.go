@@ -106,6 +106,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
+			clusterNamespace := "k3k-" + clusterName
 
 			_, stderr, err = K3kcli("cluster", "create", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
@@ -114,6 +115,10 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			_, stderr, err = K3kcli("kubeconfig", "generate", "--name", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
+
+			_, stderr, err = K3kcli("cluster", "delete", clusterName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring("Deleting [%s] cluster in namespace [%s]", clusterName, clusterNamespace))
 		})
 	})
 })

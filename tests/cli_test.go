@@ -7,6 +7,10 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/rand"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -41,6 +45,15 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			clusterName := "cluster-" + rand.String(5)
 			clusterNamespace := "k3k-" + clusterName
+
+			DeferCleanup(func() {
+				err := k8sClient.Delete(context.Background(), &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: clusterNamespace,
+					},
+				})
+				Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
+			})
 
 			_, stderr, err = K3kcli("cluster", "create", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
@@ -107,6 +120,15 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			clusterName := "cluster-" + rand.String(5)
 			clusterNamespace := "k3k-" + clusterName
+
+			DeferCleanup(func() {
+				err := k8sClient.Delete(context.Background(), &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: clusterNamespace,
+					},
+				})
+				Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
+			})
 
 			_, stderr, err = K3kcli("cluster", "create", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))

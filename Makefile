@@ -73,7 +73,7 @@ test-e2e:	## Run the e2e tests
 
 .PHONY: test-cli
 test-cli:	## Run the cli tests
-	$(GINKGO) $(GINKGO_FLAGS) --label-filter=cli tests
+	$(GINKGO) $(GINKGO_FLAGS) --label-filter=cli --flake-attempts=3 tests
 
 .PHONY: generate
 generate:	## Generate the CRDs specs

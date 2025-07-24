@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-logr/zapr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -44,7 +43,7 @@ func main() {
 
 	rootCmd.PersistentFlags().StringVar(&cfg.ClusterName, "cluster-name", "", "Name of the k3k cluster")
 	rootCmd.PersistentFlags().StringVar(&cfg.ClusterNamespace, "cluster-namespace", "", "Namespace of the k3k cluster")
-	rootCmd.PersistentFlags().StringVar(&cfg.Token, "cluster-token", "", "K3S token of the k3k cluster")
+	rootCmd.PersistentFlags().StringVar(&cfg.Token, "token", "", "K3S token of the k3k cluster")
 	rootCmd.PersistentFlags().StringVar(&cfg.HostKubeconfig, "host-kubeconfig", "", "Path to the host kubeconfig, if empty then virtual-kubelet will use incluster config")
 	rootCmd.PersistentFlags().StringVar(&cfg.VirtKubeconfig, "virt-kubeconfig", "", "Path to the k3k cluster kubeconfig, if empty then virtual-kubelet will create its own config from k3k cluster")
 	rootCmd.PersistentFlags().IntVar(&cfg.KubeletPort, "kubelet-port", 0, "kubelet API port number")
@@ -53,7 +52,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&cfg.AgentHostname, "agent-hostname", "", "Agent Hostname used for TLS SAN for the kubelet server")
 	rootCmd.PersistentFlags().StringVar(&cfg.ServerIP, "server-ip", "", "Server IP used for registering the virtual kubelet to the cluster")
 	rootCmd.PersistentFlags().StringVar(&cfg.Version, "version", "", "Version of kubernetes server")
-	rootCmd.PersistentFlags().StringVar(&configFile, "config", "/etc/rancher/k3k/config.yaml", "Path to k3k-kubelet config file")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "/opt/rancher/k3k/config.yaml", "Path to k3k-kubelet config file")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug logging")
 	rootCmd.PersistentFlags().BoolVar(&cfg.MirrorHostNodes, "mirror-host-nodes", false, "Mirror real node objects from host cluster")
 
@@ -63,12 +62,6 @@ func main() {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	fmt.Println("configFile", configFile)
-	fmt.Println("debug", debug)
-	spew.Dump(cfg)
-
-	return nil
-
 	ctx := context.Background()
 
 	if err := cfg.validate(); err != nil {
@@ -103,39 +96,23 @@ func InitializeConfig(cmd *cobra.Command) error {
 		envName := strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
 
 		err = errors.Join(err, viper.BindPFlag(configName, f))
-
-		switch configName {
-		case "clustertoken":
-			err = errors.Join(err, viper.BindEnv("clustertoken", "CLUSTER_TOKEN"))
-			err = errors.Join(err, viper.BindPFlag("token", f))
-			err = errors.Join(err, viper.BindEnv("token", "CLUSTER_TOKEN"))
-		case "kubeletport":
-			err = errors.Join(err, viper.BindEnv("kubeletport", "SERVER_PORT"))
-		default:
-			err = errors.Join(err, viper.BindEnv(configName, envName))
-		}
+		err = errors.Join(err, viper.BindEnv(configName, envName))
 	})
 
 	if err != nil {
 		return err
 	}
 
-	// Get the config file path from viper, which respects flag/env precedence.
-	// The key is "config" because the flag is named "config".
 	configFile = viper.GetString("config")
-	if configFile != "" {
-		viper.SetConfigFile(configFile)
-	}
+	viper.SetConfigFile(configFile)
 
 	if err := viper.ReadInConfig(); err != nil {
 		var notFoundErr viper.ConfigFileNotFoundError
 		if errors.As(err, &notFoundErr) || errors.Is(err, os.ErrNotExist) {
-			fmt.Println("No config file found; using defaults")
+			return fmt.Errorf("no config file found: %w", err)
 		} else {
 			return fmt.Errorf("failed to read config file: %w", err)
 		}
-	} else {
-		fmt.Printf("Using config file: %s\n", viper.ConfigFileUsed())
 	}
 
 	// Unmarshal all configuration into the global cfg struct.

@@ -25,9 +25,8 @@ import (
 )
 
 const (
-	sharedKubeletConfigPath = "/opt/rancher/k3k/config.yaml"
-	SharedNodeAgentName     = "kubelet"
-	SharedNodeMode          = "shared"
+	SharedNodeAgentName = "kubelet"
+	SharedNodeMode      = "shared"
 )
 
 type SharedAgent struct {
@@ -207,10 +206,6 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{},
-				},
-				Args: []string{
-					"--config",
-					sharedKubeletConfigPath,
 				},
 				Env: append([]v1.EnvVar{
 					{

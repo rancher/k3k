@@ -75,7 +75,7 @@ type kubelet struct {
 }
 
 func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet, error) {
-	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostConfigPath)
+	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostKubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, err
 	}
 
-	virtConfig, err := virtRestConfig(ctx, c.VirtualConfigPath, hostClient, c.ClusterName, c.ClusterNamespace, c.Token, logger)
+	virtConfig, err := virtRestConfig(ctx, c.VirtKubeconfig, hostClient, c.ClusterName, c.ClusterNamespace, c.Token, logger)
 	if err != nil {
 		return nil, err
 	}

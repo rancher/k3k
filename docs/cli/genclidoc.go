@@ -5,19 +5,14 @@ import (
 	"os"
 	"path"
 
+	"github.com/spf13/cobra/doc"
+
 	"github.com/rancher/k3k/cli/cmds"
 )
 
 func main() {
 	// Instantiate the CLI application
-	app := cmds.NewApp()
-
-	// Generate the Markdown documentation
-	md, err := app.ToMarkdown()
-	if err != nil {
-		fmt.Println("Error generating documentation:", err)
-		os.Exit(1)
-	}
+	k3kcli := cmds.NewRootCmd()
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -25,13 +20,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	outputFile := path.Join(wd, "docs/cli/cli-docs.md")
+	outputDir := path.Join(wd, "docs/cli")
 
-	err = os.WriteFile(outputFile, []byte(md), 0o644)
-	if err != nil {
+	if err := doc.GenMarkdownTree(k3kcli, outputDir); err != nil {
 		fmt.Println("Error generating documentation:", err)
 		os.Exit(1)
 	}
 
-	fmt.Println("Documentation generated at " + outputFile)
+	fmt.Println("Documentation generated at " + outputDir)
 }

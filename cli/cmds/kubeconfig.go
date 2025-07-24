@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/client-go/tools/clientcmd"
@@ -24,91 +24,63 @@ import (
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 )
 
-var (
+type GenerateKubeconfigConfig struct {
 	name                 string
-	cn                   string
-	org                  cli.StringSlice
-	altNames             cli.StringSlice
-	expirationDays       int64
 	configName           string
+	cn                   string
+	org                  []string
+	altNames             []string
+	expirationDays       int64
 	kubeconfigServerHost string
-)
-
-func newGenerateKubeconfigFlags(appCtx *AppContext) []cli.Flag {
-	return []cli.Flag{
-		&cli.StringFlag{
-			Name:        "name",
-			Usage:       "cluster name",
-			Destination: &name,
-		},
-		&cli.StringFlag{
-			Name:        "config-name",
-			Usage:       "the name of the generated kubeconfig file",
-			Destination: &configName,
-		},
-		&cli.StringFlag{
-			Name:        "cn",
-			Usage:       "Common name (CN) of the generated certificates for the kubeconfig",
-			Destination: &cn,
-			Value:       controller.AdminCommonName,
-		},
-		&cli.StringSliceFlag{
-			Name:  "org",
-			Usage: "Organization name (ORG) of the generated certificates for the kubeconfig",
-			Value: &org,
-		},
-		&cli.StringSliceFlag{
-			Name:  "altNames",
-			Usage: "altNames of the generated certificates for the kubeconfig",
-			Value: &altNames,
-		},
-		&cli.Int64Flag{
-			Name:        "expiration-days",
-			Usage:       "Expiration date of the certificates used for the kubeconfig",
-			Destination: &expirationDays,
-			Value:       356,
-		},
-		&cli.StringFlag{
-			Name:        "kubeconfig-server",
-			Usage:       "override the kubeconfig server host",
-			Destination: &kubeconfigServerHost,
-			Value:       "",
-		},
-	}
 }
 
-func NewKubeconfigCmd(appCtx *AppContext) *cli.Command {
-	return &cli.Command{
-		Name:  "kubeconfig",
-		Usage: "Manage kubeconfig for clusters",
-		Subcommands: []*cli.Command{
-			NewKubeconfigGenerateCmd(appCtx),
-		},
+func NewKubeconfigCmd(appCtx *AppContext) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "kubeconfig",
+		Short: "Manage kubeconfig for clusters",
 	}
+
+	cmd.AddCommand(
+		NewKubeconfigGenerateCmd(appCtx),
+	)
+
+	return cmd
 }
 
-func NewKubeconfigGenerateCmd(appCtx *AppContext) *cli.Command {
-	flags := CommonFlags(appCtx)
-	flags = append(flags, FlagNamespace(appCtx))
-	flags = append(flags, newGenerateKubeconfigFlags(appCtx)...)
+func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
+	cfg := &GenerateKubeconfigConfig{}
 
-	return &cli.Command{
-		Name:            "generate",
-		Usage:           "Generate kubeconfig for clusters",
-		SkipFlagParsing: false,
-		Action:          generate(appCtx),
-		Flags:           flags,
+	cmd := &cobra.Command{
+		Use:   "generate",
+		Short: "Generate kubeconfig for clusters",
+		RunE:  generate(appCtx, cfg),
+		Args:  cobra.NoArgs,
 	}
+
+	CobraFlagNamespace(appCtx, cmd.Flags())
+	generateKubeconfigFlags(cmd, cfg)
+
+	return cmd
 }
 
-func generate(appCtx *AppContext) cli.ActionFunc {
-	return func(clx *cli.Context) error {
+func generateKubeconfigFlags(cmd *cobra.Command, cfg *GenerateKubeconfigConfig) {
+	cmd.Flags().StringVar(&cfg.name, "name", "", "cluster name")
+	cmd.Flags().StringVar(&cfg.configName, "config-name", "", "the name of the generated kubeconfig file")
+	cmd.Flags().StringVar(&cfg.cn, "cn", controller.AdminCommonName, "Common name (CN) of the generated certificates for the kubeconfig")
+	cmd.Flags().StringSliceVar(&cfg.org, "org", nil, "Organization name (ORG) of the generated certificates for the kubeconfig")
+	cmd.Flags().StringSliceVar(&cfg.altNames, "altNames", nil, "altNames of the generated certificates for the kubeconfig")
+	cmd.Flags().Int64Var(&cfg.expirationDays, "expiration-days", 365, "Expiration date of the certificates used for the kubeconfig")
+	cmd.Flags().StringVar(&cfg.kubeconfigServerHost, "kubeconfig-server", "", "override the kubeconfig server host")
+}
+
+func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := appCtx.Client
 
 		clusterKey := types.NamespacedName{
-			Name:      name,
-			Namespace: appCtx.Namespace(name),
+			Name:      cfg.name,
+			Namespace: appCtx.Namespace(cfg.name),
 		}
 
 		var cluster v1alpha1.Cluster
@@ -123,25 +95,21 @@ func generate(appCtx *AppContext) cli.ActionFunc {
 		}
 
 		host := strings.Split(url.Host, ":")
-		if kubeconfigServerHost != "" {
-			host = []string{kubeconfigServerHost}
-
-			if err := altNames.Set(kubeconfigServerHost); err != nil {
-				return err
-			}
+		if cfg.kubeconfigServerHost != "" {
+			host = []string{cfg.kubeconfigServerHost}
+			cfg.altNames = append(cfg.altNames, cfg.kubeconfigServerHost)
 		}
 
-		certAltNames := certs.AddSANs(altNames.Value())
+		certAltNames := certs.AddSANs(cfg.altNames)
 
-		orgs := org.Value()
-		if orgs == nil {
-			orgs = []string{user.SystemPrivilegedGroup}
+		if len(cfg.org) == 0 {
+			cfg.org = []string{user.SystemPrivilegedGroup}
 		}
 
-		cfg := kubeconfig.KubeConfig{
-			CN:         cn,
-			ORG:        orgs,
-			ExpiryDate: time.Hour * 24 * time.Duration(expirationDays),
+		kubeCfg := kubeconfig.KubeConfig{
+			CN:         cfg.cn,
+			ORG:        cfg.org,
+			ExpiryDate: time.Hour * 24 * time.Duration(cfg.expirationDays),
 			AltNames:   certAltNames,
 		}
 
@@ -150,17 +118,17 @@ func generate(appCtx *AppContext) cli.ActionFunc {
 		var kubeconfig *clientcmdapi.Config
 
 		if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = cfg.Generate(ctx, client, &cluster, host[0])
+			kubeconfig, err = kubeCfg.Generate(ctx, client, &cluster, host[0])
 			return err
 		}); err != nil {
 			return err
 		}
 
-		return writeKubeconfigFile(&cluster, kubeconfig)
+		return writeKubeconfigFile(&cluster, kubeconfig, cfg.configName)
 	}
 }
 
-func writeKubeconfigFile(cluster *v1alpha1.Cluster, kubeconfig *clientcmdapi.Config) error {
+func writeKubeconfigFile(cluster *v1alpha1.Cluster, kubeconfig *clientcmdapi.Config, configName string) error {
 	if configName == "" {
 		configName = cluster.Namespace + "-" + cluster.Name + "-kubeconfig.yaml"
 	}

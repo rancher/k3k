@@ -2,9 +2,12 @@ package cmds
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -27,52 +30,53 @@ type AppContext struct {
 	namespace  string
 }
 
-func NewApp() *cli.App {
+func NewRootCmd() *cobra.Command {
 	appCtx := &AppContext{}
 
-	app := cli.NewApp()
-	app.Name = "k3kcli"
-	app.Usage = "CLI for K3K"
-	app.Flags = CommonFlags(appCtx)
+	rootCmd := &cobra.Command{
+		Use:     "k3kcli",
+		Short:   "CLI for K3K",
+		Version: buildinfo.Version,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			InitializeConfig(cmd)
 
-	app.Before = func(clx *cli.Context) error {
-		if appCtx.Debug {
-			logrus.SetLevel(logrus.DebugLevel)
-		}
+			if appCtx.Debug {
+				logrus.SetLevel(logrus.DebugLevel)
+			}
 
-		restConfig, err := loadRESTConfig(appCtx.Kubeconfig)
-		if err != nil {
-			return err
-		}
+			restConfig, err := loadRESTConfig(appCtx.Kubeconfig)
+			if err != nil {
+				return err
+			}
 
-		scheme := runtime.NewScheme()
-		_ = clientgoscheme.AddToScheme(scheme)
-		_ = v1alpha1.AddToScheme(scheme)
-		_ = apiextensionsv1.AddToScheme(scheme)
+			scheme := runtime.NewScheme()
+			_ = clientgoscheme.AddToScheme(scheme)
+			_ = v1alpha1.AddToScheme(scheme)
+			_ = apiextensionsv1.AddToScheme(scheme)
 
-		ctrlClient, err := client.New(restConfig, client.Options{Scheme: scheme})
-		if err != nil {
-			return err
-		}
+			ctrlClient, err := client.New(restConfig, client.Options{Scheme: scheme})
+			if err != nil {
+				return err
+			}
 
-		appCtx.RestConfig = restConfig
-		appCtx.Client = ctrlClient
+			appCtx.RestConfig = restConfig
+			appCtx.Client = ctrlClient
 
-		return nil
+			return nil
+		},
+		DisableAutoGenTag: true,
 	}
 
-	app.Version = buildinfo.Version
-	cli.VersionPrinter = func(cCtx *cli.Context) {
-		fmt.Println("k3kcli Version: " + buildinfo.Version)
-	}
+	rootCmd.PersistentFlags().StringVar(&appCtx.Kubeconfig, "kubeconfig", "", "kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)")
+	rootCmd.PersistentFlags().BoolVar(&appCtx.Debug, "debug", false, "Turn on debug logs")
 
-	app.Commands = []*cli.Command{
+	rootCmd.AddCommand(
 		NewClusterCmd(appCtx),
 		NewPolicyCmd(appCtx),
 		NewKubeconfigCmd(appCtx),
-	}
+	)
 
-	return app
+	return rootCmd
 }
 
 func (ctx *AppContext) Namespace(name string) string {
@@ -96,36 +100,20 @@ func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
 	return kubeConfig.ClientConfig()
 }
 
-func CommonFlags(appCtx *AppContext) []cli.Flag {
-	return []cli.Flag{
-		FlagDebug(appCtx),
-		FlagKubeconfig(appCtx),
-	}
+func CobraFlagNamespace(appCtx *AppContext, flag *pflag.FlagSet) {
+	flag.StringVarP(&appCtx.namespace, "namespace", "n", "", "namespace of the k3k cluster")
 }
 
-func FlagDebug(appCtx *AppContext) *cli.BoolFlag {
-	return &cli.BoolFlag{
-		Name:        "debug",
-		Usage:       "Turn on debug logs",
-		Destination: &appCtx.Debug,
-		EnvVars:     []string{"K3K_DEBUG"},
-	}
-}
+func InitializeConfig(cmd *cobra.Command) {
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
 
-func FlagKubeconfig(appCtx *AppContext) *cli.StringFlag {
-	return &cli.StringFlag{
-		Name:        "kubeconfig",
-		Usage:       "kubeconfig path",
-		Destination: &appCtx.Kubeconfig,
-		DefaultText: "$HOME/.kube/config or $KUBECONFIG if set",
-	}
-}
-
-func FlagNamespace(appCtx *AppContext) *cli.StringFlag {
-	return &cli.StringFlag{
-		Name:        "namespace",
-		Usage:       "namespace of the k3k cluster",
-		Aliases:     []string{"n"},
-		Destination: &appCtx.namespace,
-	}
+	// Bind the current command's flags to viper
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		// Apply the viper config value to the flag when the flag is not set and viper has a value
+		if !f.Changed && viper.IsSet(f.Name) {
+			val := viper.Get(f.Name)
+			_ = cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+		}
+	})
 }

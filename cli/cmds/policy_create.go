@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -21,47 +21,35 @@ type VirtualClusterPolicyCreateConfig struct {
 	mode string
 }
 
-func NewPolicyCreateCmd(appCtx *AppContext) *cli.Command {
+func NewPolicyCreateCmd(appCtx *AppContext) *cobra.Command {
 	config := &VirtualClusterPolicyCreateConfig{}
 
-	flags := CommonFlags(appCtx)
-	flags = append(flags,
-		&cli.StringFlag{
-			Name:        "mode",
-			Usage:       "The allowed mode type of the policy",
-			Destination: &config.mode,
-			Value:       "shared",
-			Action: func(ctx *cli.Context, value string) error {
-				switch value {
-				case string(v1alpha1.VirtualClusterMode), string(v1alpha1.SharedClusterMode):
-					return nil
-				default:
-					return errors.New(`mode should be one of "shared" or "virtual"`)
-				}
-			},
+	cmd := &cobra.Command{
+		Use:     "create",
+		Short:   "Create new policy",
+		Example: "k3kcli policy create [command options] NAME",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			switch config.mode {
+			case string(v1alpha1.VirtualClusterMode), string(v1alpha1.SharedClusterMode):
+				return nil
+			default:
+				return errors.New(`mode should be one of "shared" or "virtual"`)
+			}
 		},
-	)
-
-	return &cli.Command{
-		Name:            "create",
-		Usage:           "Create new policy",
-		UsageText:       "k3kcli policy create [command options] NAME",
-		Action:          policyCreateAction(appCtx, config),
-		Flags:           flags,
-		HideHelpCommand: true,
+		RunE: policyCreateAction(appCtx, config),
+		Args: cobra.ExactArgs(1),
 	}
+
+	cmd.Flags().StringVar(&config.mode, "mode", "shared", "The allowed mode type of the policy")
+
+	return cmd
 }
 
-func policyCreateAction(appCtx *AppContext, config *VirtualClusterPolicyCreateConfig) cli.ActionFunc {
-	return func(clx *cli.Context) error {
+func policyCreateAction(appCtx *AppContext, config *VirtualClusterPolicyCreateConfig) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := appCtx.Client
-
-		if clx.NArg() != 1 {
-			return cli.ShowSubcommandHelp(clx)
-		}
-
-		policyName := clx.Args().First()
+		policyName := args[0]
 
 		_, err := createPolicy(ctx, client, v1alpha1.ClusterMode(config.mode), policyName)
 

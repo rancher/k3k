@@ -3,134 +3,58 @@ package cmds
 import (
 	"errors"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 )
 
-func newCreateFlags(config *CreateConfig) []cli.Flag {
-	return []cli.Flag{
-		&cli.IntFlag{
-			Name:        "servers",
-			Usage:       "number of servers",
-			Destination: &config.servers,
-			Value:       1,
-			Action: func(ctx *cli.Context, value int) error {
-				if value <= 0 {
-					return errors.New("invalid number of servers")
-				}
-				return nil
-			},
-		},
-		&cli.IntFlag{
-			Name:        "agents",
-			Usage:       "number of agents",
-			Destination: &config.agents,
-		},
-		&cli.StringFlag{
-			Name:        "token",
-			Usage:       "token of the cluster",
-			Destination: &config.token,
-		},
-		&cli.StringFlag{
-			Name:        "cluster-cidr",
-			Usage:       "cluster CIDR",
-			Destination: &config.clusterCIDR,
-		},
-		&cli.StringFlag{
-			Name:        "service-cidr",
-			Usage:       "service CIDR",
-			Destination: &config.serviceCIDR,
-		},
-		&cli.BoolFlag{
-			Name:        "mirror-host-nodes",
-			Usage:       "Mirror Host Cluster Nodes",
-			Destination: &config.mirrorHostNodes,
-		},
-		&cli.StringFlag{
-			Name:        "persistence-type",
-			Usage:       "persistence mode for the nodes (dynamic, ephemeral, static)",
-			Value:       string(v1alpha1.DynamicPersistenceMode),
-			Destination: &config.persistenceType,
-			Action: func(ctx *cli.Context, value string) error {
-				switch v1alpha1.PersistenceMode(value) {
-				case v1alpha1.EphemeralPersistenceMode, v1alpha1.DynamicPersistenceMode:
-					return nil
-				default:
-					return errors.New(`persistence-type should be one of "dynamic", "ephemeral" or "static"`)
-				}
-			},
-		},
-		&cli.StringFlag{
-			Name:        "storage-class-name",
-			Usage:       "storage class name for dynamic persistence type",
-			Destination: &config.storageClassName,
-		},
-		&cli.StringFlag{
-			Name:        "storage-request-size",
-			Usage:       "storage size for dynamic persistence type",
-			Destination: &config.storageRequestSize,
-			Action: func(ctx *cli.Context, value string) error {
-				if _, err := resource.ParseQuantity(value); err != nil {
-					return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
-				}
-				return nil
-			},
-		},
-		&cli.StringSliceFlag{
-			Name:        "server-args",
-			Usage:       "servers extra arguments",
-			Destination: &config.serverArgs,
-		},
-		&cli.StringSliceFlag{
-			Name:        "agent-args",
-			Usage:       "agents extra arguments",
-			Destination: &config.agentArgs,
-		},
-		&cli.StringSliceFlag{
-			Name:        "server-envs",
-			Usage:       "servers extra Envs",
-			Destination: &config.serverEnvs,
-		},
-		&cli.StringSliceFlag{
-			Name:        "agent-envs",
-			Usage:       "agents extra Envs",
-			Destination: &config.agentEnvs,
-		},
-		&cli.StringFlag{
-			Name:        "version",
-			Usage:       "k3s version",
-			Destination: &config.version,
-		},
-		&cli.StringFlag{
-			Name:        "mode",
-			Usage:       "k3k mode type (shared, virtual)",
-			Destination: &config.mode,
-			Value:       "shared",
-			Action: func(ctx *cli.Context, value string) error {
-				switch value {
-				case string(v1alpha1.VirtualClusterMode), string(v1alpha1.SharedClusterMode):
-					return nil
-				default:
-					return errors.New(`mode should be one of "shared" or "virtual"`)
-				}
-			},
-		},
-		&cli.StringFlag{
-			Name:        "kubeconfig-server",
-			Usage:       "override the kubeconfig server host",
-			Destination: &config.kubeconfigServerHost,
-		},
-		&cli.StringFlag{
-			Name:        "policy",
-			Usage:       "The policy to create the cluster in",
-			Destination: &config.policy,
-		},
-		&cli.StringFlag{
-			Name:        "custom-certs",
-			Usage:       "The path for custom certificate directory",
-			Destination: &config.customCertsPath,
-		},
+func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
+	cmd.Flags().IntVar(&cfg.servers, "servers", 1, "number of servers")
+	cmd.Flags().IntVar(&cfg.agents, "agents", 0, "number of agents")
+	cmd.Flags().StringVar(&cfg.token, "token", "", "token of the cluster")
+	cmd.Flags().StringVar(&cfg.clusterCIDR, "cluster-cidr", "", "cluster CIDR")
+	cmd.Flags().StringVar(&cfg.serviceCIDR, "service-cidr", "", "service CIDR")
+	cmd.Flags().BoolVar(&cfg.mirrorHostNodes, "mirror-host-nodes", false, "Mirror Host Cluster Nodes")
+	cmd.Flags().StringVar(&cfg.persistenceType, "persistence-type", string(v1alpha1.DynamicPersistenceMode), "persistence mode for the nodes (dynamic, ephemeral, static)")
+	cmd.Flags().StringVar(&cfg.storageClassName, "storage-class-name", "", "storage class name for dynamic persistence type")
+	cmd.Flags().StringVar(&cfg.storageRequestSize, "storage-request-size", "", "storage size for dynamic persistence type")
+	cmd.Flags().StringSliceVar(&cfg.serverArgs, "server-args", []string{}, "servers extra arguments")
+	cmd.Flags().StringSliceVar(&cfg.agentArgs, "agent-args", []string{}, "agents extra arguments")
+	cmd.Flags().StringSliceVar(&cfg.serverEnvs, "server-envs", []string{}, "servers extra Envs")
+	cmd.Flags().StringSliceVar(&cfg.agentEnvs, "agent-envs", []string{}, "agents extra Envs")
+	cmd.Flags().StringVar(&cfg.version, "version", "", "k3s version")
+	cmd.Flags().StringVar(&cfg.mode, "mode", "shared", "k3k mode type (shared, virtual)")
+	cmd.Flags().StringVar(&cfg.kubeconfigServerHost, "kubeconfig-server", "", "override the kubeconfig server host")
+	cmd.Flags().StringVar(&cfg.policy, "policy", "", "The policy to create the cluster in")
+}
+
+func validateCreateConfig(cfg *CreateConfig) error {
+	if cfg.servers <= 0 {
+		return errors.New("invalid number of servers")
 	}
+
+	if cfg.persistenceType != "" {
+		switch v1alpha1.PersistenceMode(cfg.persistenceType) {
+		case v1alpha1.EphemeralPersistenceMode, v1alpha1.DynamicPersistenceMode:
+			return nil
+		default:
+			return errors.New(`persistence-type should be one of "dynamic", "ephemeral" or "static"`)
+		}
+	}
+
+	if _, err := resource.ParseQuantity(cfg.storageRequestSize); err != nil {
+		return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
+	}
+
+	if cfg.mode != "" {
+		switch cfg.mode {
+		case string(v1alpha1.VirtualClusterMode), string(v1alpha1.SharedClusterMode):
+			return nil
+		default:
+			return errors.New(`mode should be one of "shared" or "virtual"`)
+		}
+	}
+
+	return nil
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
@@ -33,10 +33,10 @@ type CreateConfig struct {
 	serviceCIDR          string
 	servers              int
 	agents               int
-	serverArgs           cli.StringSlice
-	agentArgs            cli.StringSlice
-	serverEnvs           cli.StringSlice
-	agentEnvs            cli.StringSlice
+	serverArgs           []string
+	agentArgs            []string
+	serverEnvs           []string
+	agentEnvs            []string
 	persistenceType      string
 	storageClassName     string
 	storageRequestSize   string
@@ -48,33 +48,32 @@ type CreateConfig struct {
 	customCertsPath      string
 }
 
-func NewClusterCreateCmd(appCtx *AppContext) *cli.Command {
+func NewClusterCreateCmd(appCtx *AppContext) *cobra.Command {
 	createConfig := &CreateConfig{}
 
-	flags := CommonFlags(appCtx)
-	flags = append(flags, FlagNamespace(appCtx))
-	flags = append(flags, newCreateFlags(createConfig)...)
-
-	return &cli.Command{
-		Name:            "create",
-		Usage:           "Create new cluster",
-		UsageText:       "k3kcli cluster create [command options] NAME",
-		Action:          createAction(appCtx, createConfig),
-		Flags:           flags,
-		HideHelpCommand: true,
+	cmd := &cobra.Command{
+		Use:     "create",
+		Short:   "Create new cluster",
+		Example: "k3kcli cluster create [command options] NAME",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return validateCreateConfig(createConfig)
+		},
+		RunE: createAction(appCtx, createConfig),
+		Args: cobra.ExactArgs(1),
 	}
+
+	CobraFlagNamespace(appCtx, cmd.Flags())
+	createFlags(cmd, createConfig)
+
+	return cmd
 }
 
-func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
-	return func(clx *cli.Context) error {
+func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := appCtx.Client
+		name := args[0]
 
-		if clx.NArg() != 1 {
-			return cli.ShowSubcommandHelp(clx)
-		}
-
-		name := clx.Args().First()
 		if name == k3kcluster.ClusterInvalidName {
 			return errors.New("invalid cluster name")
 		}
@@ -166,7 +165,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) cli.ActionFunc {
 			return err
 		}
 
-		return writeKubeconfigFile(cluster, kubeconfig)
+		return writeKubeconfigFile(cluster, kubeconfig, "")
 	}
 }
 
@@ -185,10 +184,10 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 			Agents:      ptr.To(int32(config.agents)),
 			ClusterCIDR: config.clusterCIDR,
 			ServiceCIDR: config.serviceCIDR,
-			ServerArgs:  config.serverArgs.Value(),
-			AgentArgs:   config.agentArgs.Value(),
-			ServerEnvs:  env(config.serverEnvs.Value()),
-			AgentEnvs:   env(config.agentEnvs.Value()),
+			ServerArgs:  config.serverArgs,
+			AgentArgs:   config.agentArgs,
+			ServerEnvs:  env(config.serverEnvs),
+			AgentEnvs:   env(config.agentEnvs),
 			Version:     config.version,
 			Mode:        v1alpha1.ClusterMode(config.mode),
 			Persistence: v1alpha1.PersistenceConfig{

@@ -6,18 +6,18 @@ import (
 
 // config has all virtual-kubelet startup options
 type config struct {
-	ClusterName      string `mapstructure:"clustername"`
-	ClusterNamespace string `mapstructure:"clusternamespace"`
-	ServiceName      string `mapstructure:"servicename"`
+	ClusterName      string `mapstructure:"clusterName"`
+	ClusterNamespace string `mapstructure:"clusterNamespace"`
+	ServiceName      string `mapstructure:"serviceName"`
 	Token            string `mapstructure:"token"`
-	AgentHostname    string `mapstructure:"agenthostname"`
-	HostKubeconfig   string `mapstructure:"hostkubeconfig"`
-	VirtKubeconfig   string `mapstructure:"virtkubeconfig"`
-	KubeletPort      int    `mapstructure:"kubeletport"`
-	WebhookPort      int    `mapstructure:"webhookport"`
-	ServerIP         string `mapstructure:"serverip"`
+	AgentHostname    string `mapstructure:"agentHostname"`
+	HostKubeconfig   string `mapstructure:"hostKubeconfig"`
+	VirtKubeconfig   string `mapstructure:"virtKubeconfig"`
+	KubeletPort      int    `mapstructure:"kubeletPort"`
+	WebhookPort      int    `mapstructure:"webhookPort"`
+	ServerIP         string `mapstructure:"serverIP"`
 	Version          string `mapstructure:"version"`
-	MirrorHostNodes  bool   `mapstructure:"mirrorhostnodes"`
+	MirrorHostNodes  bool   `mapstructure:"mirrorHostNodes"`
 }
 
 func (c *config) validate() error {

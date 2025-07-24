@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-logr/zapr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -60,6 +63,12 @@ func main() {
 }
 
 func run(cmd *cobra.Command, args []string) error {
+	fmt.Println("configFile", configFile)
+	fmt.Println("debug", debug)
+	spew.Dump(cfg)
+
+	return nil
+
 	ctx := context.Background()
 
 	if err := cfg.validate(); err != nil {
@@ -84,62 +93,58 @@ func run(cmd *cobra.Command, args []string) error {
 // It uses a `flatcase` convention for viper keys to match the (lowercased) config file keys,
 // while flags remain in kebab-case.
 func InitializeConfig(cmd *cobra.Command) error {
-	v := viper.New()
+	var err error
 
 	// Bind every cobra flag to a viper key.
 	// The viper key will be the flag name with dashes removed (flatcase).
 	// e.g. "cluster-name" becomes "clustername"
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		configName := strings.ReplaceAll(f.Name, "-", "")
+		envName := strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
 
-		// Bind the flag to viper
-		if err := v.BindPFlag(configName, f); err != nil {
-			// This should not happen, but we handle it just in case
-			panic(fmt.Sprintf("failed to bind flag %s: %v", f.Name, err))
+		err = errors.Join(err, viper.BindPFlag(configName, f))
+
+		switch configName {
+		case "clustertoken":
+			err = errors.Join(err, viper.BindEnv("clustertoken", "CLUSTER_TOKEN"))
+			err = errors.Join(err, viper.BindPFlag("token", f))
+			err = errors.Join(err, viper.BindEnv("token", "CLUSTER_TOKEN"))
+		case "kubeletport":
+			err = errors.Join(err, viper.BindEnv("kubeletport", "SERVER_PORT"))
+		default:
+			err = errors.Join(err, viper.BindEnv(configName, envName))
 		}
 	})
 
-	// Create an alias for the token flag to match the YAML key.
-	// This allows --cluster-token to override the `token` key in the config file.
-	v.RegisterAlias("clustertoken", "token")
-
-	// Manually bind environment variables to their corresponding viper key.
-	_ = v.BindEnv("clustername", "CLUSTER_NAME")
-	_ = v.BindEnv("clusternamespace", "CLUSTER_NAMESPACE")
-	_ = v.BindEnv("token", "CLUSTER_TOKEN")
-	_ = v.BindEnv("hostkubeconfig", "HOST_KUBECONFIG")
-	_ = v.BindEnv("virtkubeconfig", "VIRT_KUBECONFIG")
-	_ = v.BindEnv("kubeletport", "SERVER_PORT")
-	_ = v.BindEnv("webhookport", "WEBHOOK_PORT")
-	_ = v.BindEnv("servicename", "SERVICE_NAME")
-	_ = v.BindEnv("agenthostname", "AGENT_HOSTNAME")
-	_ = v.BindEnv("serverip", "SERVER_IP")
-	_ = v.BindEnv("version", "VERSION")
-	_ = v.BindEnv("config", "CONFIG_FILE")
-	_ = v.BindEnv("debug", "DEBUG")
-	_ = v.BindEnv("mirrorhostnodes", "MIRROR_HOST_NODES")
+	if err != nil {
+		return err
+	}
 
 	// Get the config file path from viper, which respects flag/env precedence.
 	// The key is "config" because the flag is named "config".
-	configFile = v.GetString("config")
+	configFile = viper.GetString("config")
 	if configFile != "" {
-		v.SetConfigFile(configFile)
+		viper.SetConfigFile(configFile)
+	}
 
-		if err := v.ReadInConfig(); err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-				return fmt.Errorf("failed to read config file: %w", err)
-			}
+	if err := viper.ReadInConfig(); err != nil {
+		var notFoundErr viper.ConfigFileNotFoundError
+		if errors.As(err, &notFoundErr) || errors.Is(err, os.ErrNotExist) {
+			fmt.Println("No config file found; using defaults")
+		} else {
+			return fmt.Errorf("failed to read config file: %w", err)
 		}
+	} else {
+		fmt.Printf("Using config file: %s\n", viper.ConfigFileUsed())
 	}
 
 	// Unmarshal all configuration into the global cfg struct.
 	// Viper correctly handles the precedence of flags > env > config.
-	if err := v.Unmarshal(&cfg); err != nil {
+	if err := viper.Unmarshal(&cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-
 	// Separately get the debug flag, as it's not part of the main config struct.
-	debug = v.GetBool("debug")
+	debug = viper.GetBool("debug")
 
 	return nil
 }

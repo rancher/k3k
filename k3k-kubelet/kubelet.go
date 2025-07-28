@@ -430,6 +430,7 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 
 func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c *config, hostClient ctrlruntimeclient.Client) error {
 	var cluster v1alpha1.Cluster
+
 	objKey := types.NamespacedName{
 		Namespace: c.ClusterNamespace,
 		Name:      c.ClusterName,
@@ -438,7 +439,9 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	if err := hostClient.Get(ctx, objKey, &cluster); err != nil {
 		return err
 	}
+
 	syncConfig := cluster.Spec.Sync
+
 	if syncConfig.ConfigMaps.IsEnabled() && !syncConfig.ConfigMaps.HasActiveResources() {
 		// if configmap sync is enabled and applied to all resources then we will switch on the global configmap syncer
 		if err := k3kkubeletcontroller.AddConfigMapSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.ConfigMaps); err != nil {
@@ -489,5 +492,6 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 			return errors.New("failed to add priorityclass controller: " + err.Error())
 		}
 	}
+
 	return nil
 }

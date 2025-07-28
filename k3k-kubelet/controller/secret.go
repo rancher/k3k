@@ -16,10 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -67,7 +65,7 @@ func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clus
 		HostClient:    hostMgr.GetClient(),
 		Scheme:        virtMgr.GetScheme(),
 		HostScheme:    hostMgr.GetScheme(),
-		TranslateFunc: func(cm *v1.Secret) (*v1.Secret, error) {
+		TranslateFunc: func(cm *corev1.Secret) (*corev1.Secret, error) {
 			translator.TranslateTo(cm)
 			return cm, nil
 		},
@@ -81,7 +79,7 @@ func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clus
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(SecretSyncerName).
-		For(&v1.Secret{}).WithEventFilter(predicate.NewPredicateFuncs(func(object ctrlruntimeclient.Object) bool {
+		For(&corev1.Secret{}).WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 		return labelSelector.Matches(labels.Set(object.GetLabels()))
 	})).
 		Complete(&reconciler)

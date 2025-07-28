@@ -455,11 +455,13 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 			if volume.ConfigMap.Optional != nil {
 				optional = *volume.ConfigMap.Optional
 			}
+
 			if syncConfig.ConfigMaps.IsEnabled() && syncConfig.ConfigMaps.HasActiveResources() {
 				if err := p.syncConfigmap(ctx, podNamespace, volume.ConfigMap.Name, optional); err != nil {
 					return fmt.Errorf("unable to sync configmap volume %s: %w", volume.Name, err)
 				}
 			}
+
 			volume.ConfigMap.Name = p.Translator.TranslateName(podNamespace, volume.ConfigMap.Name)
 		} else if volume.Secret != nil {
 			if volume.Secret.Optional != nil {
@@ -471,6 +473,7 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 					return fmt.Errorf("unable to sync secret volume %s: %w", volume.Name, err)
 				}
 			}
+
 			volume.Secret.SecretName = p.Translator.TranslateName(podNamespace, volume.Secret.SecretName)
 		} else if volume.Projected != nil {
 			for _, source := range volume.Projected.Sources {
@@ -480,6 +483,7 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 					}
 
 					configMapName := source.ConfigMap.Name
+
 					if syncConfig.ConfigMaps.IsEnabled() && syncConfig.ConfigMaps.HasActiveResources() {
 						if err := p.syncConfigmap(ctx, podNamespace, configMapName, optional); err != nil {
 							return fmt.Errorf("unable to sync projected configmap %s: %w", configMapName, err)

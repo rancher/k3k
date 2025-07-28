@@ -61,7 +61,9 @@ func AddIngressSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.clusterName, "clusterNamespace", r.clusterNamespace, "name", req.Name, "namespace", req.Namespace)
 	ctx = ctrl.LoggerInto(ctx, log)
+
 	log.Info("reconciling ingress object")
+
 	var (
 		virtIngress networkingv1.Ingress
 		cluster     v1alpha1.Cluster
@@ -127,6 +129,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 func (s *IngressReconciler) ingress(obj *networkingv1.Ingress) *networkingv1.Ingress {
 	hostIngress := obj.DeepCopy()
 	s.Translator.TranslateTo(hostIngress)
+
 	for _, rule := range hostIngress.Spec.Rules {
 		// modify services in rules to point to the synced services
 		if rule.HTTP != nil {

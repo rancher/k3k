@@ -16,10 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -67,7 +65,7 @@ func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, c
 		HostClient:    hostMgr.GetClient(),
 		Scheme:        virtMgr.GetScheme(),
 		HostScheme:    hostMgr.GetScheme(),
-		TranslateFunc: func(cm *v1.ConfigMap) (*v1.ConfigMap, error) {
+		TranslateFunc: func(cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
 			translator.TranslateTo(cm)
 			return cm, nil
 		},
@@ -81,7 +79,7 @@ func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, c
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(ConfigMapSyncerName).
-		For(&v1.ConfigMap{}).WithEventFilter(predicate.NewPredicateFuncs(func(object ctrlruntimeclient.Object) bool {
+		For(&corev1.ConfigMap{}).WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 		return labelSelector.Matches(labels.Set(object.GetLabels()))
 	})).
 		Complete(&reconciler)

@@ -463,6 +463,7 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 			return errors.New("failed to add service syncer controller: " + err.Error())
 		}
 	}
+
 	if syncConfig.Ingresses.IsEnabled() {
 		logger.Info("adding ingress syncer controller")
 

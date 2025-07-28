@@ -390,7 +390,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 	// volumes will often refer to resources in the virtual cluster, but instead need to refer to the sync'd
 	// host cluster version
-	if err := p.transformVolumes(ctx, pod.Namespace, tPod.Spec.Volumes); err != nil {
+	if err := p.transformVolumes(ctx, pod.Namespace, tPod.Spec.Volumes, cluster.Spec.Sync); err != nil {
 		return fmt.Errorf("unable to sync volumes for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 	// sync serviceaccount token to a the host cluster
@@ -443,7 +443,7 @@ func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *corev
 
 // transformVolumes changes the volumes to the representation in the host cluster. Will return an error
 // if one/more volumes couldn't be transformed
-func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, volumes []corev1.Volume) error {
+func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, volumes []corev1.Volume, syncConfig v1alpha1.SyncConfig) error {
 	for _, volume := range volumes {
 		var optional bool
 
@@ -455,21 +455,22 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 			if volume.ConfigMap.Optional != nil {
 				optional = *volume.ConfigMap.Optional
 			}
-
-			if err := p.syncConfigmap(ctx, podNamespace, volume.ConfigMap.Name, optional); err != nil {
-				return fmt.Errorf("unable to sync configmap volume %s: %w", volume.Name, err)
+			if syncConfig.ConfigMaps.IsEnabled() && syncConfig.ConfigMaps.HasActiveResources() {
+				if err := p.syncConfigmap(ctx, podNamespace, volume.ConfigMap.Name, optional); err != nil {
+					return fmt.Errorf("unable to sync configmap volume %s: %w", volume.Name, err)
+				}
 			}
-
 			volume.ConfigMap.Name = p.Translator.TranslateName(podNamespace, volume.ConfigMap.Name)
 		} else if volume.Secret != nil {
 			if volume.Secret.Optional != nil {
 				optional = *volume.Secret.Optional
 			}
 
-			if err := p.syncSecret(ctx, podNamespace, volume.Secret.SecretName, optional); err != nil {
-				return fmt.Errorf("unable to sync secret volume %s: %w", volume.Name, err)
+			if syncConfig.Secrets.IsEnabled() && syncConfig.Secrets.HasActiveResources() {
+				if err := p.syncSecret(ctx, podNamespace, volume.Secret.SecretName, optional); err != nil {
+					return fmt.Errorf("unable to sync secret volume %s: %w", volume.Name, err)
+				}
 			}
-
 			volume.Secret.SecretName = p.Translator.TranslateName(podNamespace, volume.Secret.SecretName)
 		} else if volume.Projected != nil {
 			for _, source := range volume.Projected.Sources {
@@ -479,8 +480,10 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 					}
 
 					configMapName := source.ConfigMap.Name
-					if err := p.syncConfigmap(ctx, podNamespace, configMapName, optional); err != nil {
-						return fmt.Errorf("unable to sync projected configmap %s: %w", configMapName, err)
+					if syncConfig.ConfigMaps.IsEnabled() && syncConfig.ConfigMaps.HasActiveResources() {
+						if err := p.syncConfigmap(ctx, podNamespace, configMapName, optional); err != nil {
+							return fmt.Errorf("unable to sync projected configmap %s: %w", configMapName, err)
+						}
 					}
 
 					source.ConfigMap.Name = p.Translator.TranslateName(podNamespace, configMapName)
@@ -490,8 +493,10 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 					}
 
 					secretName := source.Secret.Name
-					if err := p.syncSecret(ctx, podNamespace, secretName, optional); err != nil {
-						return fmt.Errorf("unable to sync projected secret %s: %w", secretName, err)
+					if syncConfig.Secrets.IsEnabled() && syncConfig.Secrets.HasActiveResources() {
+						if err := p.syncSecret(ctx, podNamespace, secretName, optional); err != nil {
+							return fmt.Errorf("unable to sync projected secret %s: %w", secretName, err)
+						}
 					}
 
 					source.Secret.Name = p.Translator.TranslateName(podNamespace, secretName)

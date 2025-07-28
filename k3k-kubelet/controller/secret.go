@@ -5,15 +5,24 @@ import (
 	"fmt"
 	"sync"
 
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	k3klog "github.com/rancher/k3k/pkg/log"
 )
@@ -26,6 +35,10 @@ type SecretSyncer struct {
 	VirtualClient client.Client
 	// CoreClient is the client for the host cluster
 	HostClient client.Client
+	// Scheme is the scheme of the virtual manager
+	Scheme *runtime.Scheme
+	// Scheme is the scheme of the host manager
+	HostScheme *runtime.Scheme
 	// TranslateFunc is the function that translates a given resource from it's virtual representation to the host
 	// representation
 	TranslateFunc func(*corev1.Secret) (*corev1.Secret, error)
@@ -34,15 +47,49 @@ type SecretSyncer struct {
 	// objs are the objects that the syncer should watch/syncronize. Should only be manipulated
 	// through add/remove
 	objs sets.Set[types.NamespacedName]
+	// Global determines if the syncer is only working with active resources or not
+	Global bool
 }
 
 func (s *SecretSyncer) Name() string {
 	return SecretSyncerName
 }
 
+// AddConfigMapSyncer adds configmap syncer controller to the manager of the virtual cluster
+func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, secretSyncConfig v1alpha1.SecretSyncConfig) error {
+	translator := translate.ToHostTranslator{
+		ClusterName:      clusterName,
+		ClusterNamespace: clusterNamespace,
+	}
+
+	reconciler := SecretSyncer{
+		VirtualClient: virtMgr.GetClient(),
+		HostClient:    hostMgr.GetClient(),
+		Scheme:        virtMgr.GetScheme(),
+		HostScheme:    hostMgr.GetScheme(),
+		TranslateFunc: func(cm *v1.Secret) (*v1.Secret, error) {
+			translator.TranslateTo(cm)
+			return cm, nil
+		},
+		Global: true,
+	}
+
+	labelSelector := labels.SelectorFromSet(secretSyncConfig.Selector)
+	if labelSelector.Empty() {
+		labelSelector = labels.Everything()
+	}
+
+	return ctrl.NewControllerManagedBy(virtMgr).
+		Named(SecretSyncerName).
+		For(&v1.Secret{}).WithEventFilter(predicate.NewPredicateFuncs(func(object ctrlruntimeclient.Object) bool {
+		return labelSelector.Matches(labels.Set(object.GetLabels()))
+	})).
+		Complete(&reconciler)
+}
+
 // Reconcile implements reconcile.Reconciler and synchronizes the objects in objs to the host cluster
 func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	if !s.isWatching(req.NamespacedName) {
+	if !s.isWatching(req.NamespacedName) && !s.Global {
 		// return immediately without re-enqueueing. We aren't watching this resource
 		return reconcile.Result{}, nil
 	}

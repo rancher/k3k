@@ -5,15 +5,24 @@ import (
 	"fmt"
 	"sync"
 
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 	k3klog "github.com/rancher/k3k/pkg/log"
 )
@@ -31,18 +40,56 @@ type ConfigMapSyncer struct {
 	TranslateFunc func(*corev1.ConfigMap) (*corev1.ConfigMap, error)
 	// Logger is the logger that the controller will use
 	Logger *k3klog.Logger
+	// Scheme is the scheme of the virtual manager
+	Scheme *runtime.Scheme
+	// Scheme is the scheme of the host manager
+	HostScheme *runtime.Scheme
 	// objs are the objects that the syncer should watch/syncronize. Should only be manipulated
 	// through add/remove
 	objs sets.Set[types.NamespacedName]
+	// Global determines if the syncer is only working with active resources or not
+	Global bool
 }
 
 func (c *ConfigMapSyncer) Name() string {
 	return ConfigMapSyncerName
 }
 
+// AddConfigMapSyncer adds configmap syncer controller to the manager of the virtual cluster
+func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, configMapSyncConfig v1alpha1.ConfigMapSyncConfig) error {
+	translator := translate.ToHostTranslator{
+		ClusterName:      clusterName,
+		ClusterNamespace: clusterNamespace,
+	}
+
+	reconciler := ConfigMapSyncer{
+		VirtualClient: virtMgr.GetClient(),
+		HostClient:    hostMgr.GetClient(),
+		Scheme:        virtMgr.GetScheme(),
+		HostScheme:    hostMgr.GetScheme(),
+		TranslateFunc: func(cm *v1.ConfigMap) (*v1.ConfigMap, error) {
+			translator.TranslateTo(cm)
+			return cm, nil
+		},
+		Global: true,
+	}
+
+	labelSelector := labels.SelectorFromSet(configMapSyncConfig.Selector)
+	if labelSelector.Empty() {
+		labelSelector = labels.Everything()
+	}
+
+	return ctrl.NewControllerManagedBy(virtMgr).
+		Named(ConfigMapSyncerName).
+		For(&v1.ConfigMap{}).WithEventFilter(predicate.NewPredicateFuncs(func(object ctrlruntimeclient.Object) bool {
+		return labelSelector.Matches(labels.Set(object.GetLabels()))
+	})).
+		Complete(&reconciler)
+}
+
 // Reconcile implements reconcile.Reconciler and synchronizes the objects in objs to the host cluster
 func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	if !c.isWatching(req.NamespacedName) {
+	if !c.isWatching(req.NamespacedName) && !c.Global {
 		// return immediately without re-enqueueing. We aren't watching this resource
 		return reconcile.Result{}, nil
 	}

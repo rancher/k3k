@@ -3,10 +3,12 @@ package controller
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "k8s.io/api/core/v1"
@@ -35,7 +37,7 @@ type ServiceReconciler struct {
 }
 
 // AddServiceSyncer adds service syncer controller to the manager of the virtual cluster
-func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
+func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, serviceSyncConfig v1alpha1.ServiceSyncConfig) error {
 	translator := translate.ToHostTranslator{
 		ClusterName:      clusterName,
 		ClusterNamespace: clusterNamespace,
@@ -52,9 +54,16 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 		Translator:    translator,
 	}
 
+	labelSelector := labels.SelectorFromSet(serviceSyncConfig.Selector)
+	if labelSelector.Empty() {
+		labelSelector = labels.Everything()
+	}
+
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(serviceSyncerController).
-		For(&v1.Service{}).
+		For(&v1.Service{}).WithEventFilter(predicate.NewPredicateFuncs(func(object ctrlruntimeclient.Object) bool {
+		return labelSelector.Matches(labels.Set(object.GetLabels()))
+	})).
 		Complete(&reconciler)
 }
 

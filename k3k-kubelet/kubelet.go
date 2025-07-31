@@ -35,7 +35,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	k3kkubeletcontroller "github.com/rancher/k3k/k3k-kubelet/controller"
+	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
 	k3kwebhook "github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -444,14 +444,14 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 
 	if syncConfig.ConfigMaps.IsEnabled() && !syncConfig.ConfigMaps.HasActiveResources() {
 		// if configmap sync is enabled and applied to all resources then we will switch on the global configmap syncer
-		if err := k3kkubeletcontroller.AddConfigMapSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.ConfigMaps); err != nil {
+		if err := syncer.AddConfigMapSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.ConfigMaps); err != nil {
 			return errors.New("failed to add configmap global syncer: " + err.Error())
 		}
 	}
 
 	if syncConfig.Secrets.IsEnabled() && !syncConfig.Secrets.HasActiveResources() {
 		// if secret sync is enabled and applied to all resources then we will switch on the global configmap syncer
-		if err := k3kkubeletcontroller.AddSecretSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.Secrets); err != nil {
+		if err := syncer.AddSecretSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.Secrets); err != nil {
 			return errors.New("failed to add secret global syncer: " + err.Error())
 		}
 	}
@@ -459,7 +459,7 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	if syncConfig.Services.IsEnabled() {
 		logger.Info("adding service syncer controller")
 
-		if err := k3kkubeletcontroller.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.Services); err != nil {
+		if err := syncer.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.Services); err != nil {
 			return errors.New("failed to add service syncer controller: " + err.Error())
 		}
 	}
@@ -467,7 +467,7 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	if syncConfig.Ingresses.IsEnabled() {
 		logger.Info("adding ingress syncer controller")
 
-		if err := k3kkubeletcontroller.AddIngressSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		if err := syncer.AddIngressSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 			return errors.New("failed to add ingress syncer controller: " + err.Error())
 		}
 	}
@@ -475,13 +475,13 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	if syncConfig.PersistentVolumeClaims.IsEnabled() {
 		logger.Info("adding pvc syncer controller")
 
-		if err := k3kkubeletcontroller.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		if err := syncer.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 			return errors.New("failed to add pvc syncer controller: " + err.Error())
 		}
 
 		logger.Info("adding pod pvc controller")
 
-		if err := k3kkubeletcontroller.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		if err := syncer.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 			return errors.New("failed to add pod pvc controller: " + err.Error())
 		}
 	}
@@ -489,7 +489,7 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	if syncConfig.PriorityClasses.IsEnabled() {
 		logger.Info("adding priorityclass controller")
 
-		if err := k3kkubeletcontroller.AddPriorityClassReconciler(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		if err := syncer.AddPriorityClassReconciler(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 			return errors.New("failed to add priorityclass controller: " + err.Error())
 		}
 	}

@@ -38,7 +38,7 @@ import (
 	compbasemetrics "k8s.io/component-base/metrics"
 	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 
-	"github.com/rancher/k3k/k3k-kubelet/controller"
+	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
 	"github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider/collectors"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -53,7 +53,7 @@ var _ nodeutil.Provider = (*Provider)(nil)
 // Provider implements nodetuil.Provider from virtual Kubelet.
 // TODO: Implement NotifyPods and the required usage so that this can be an async provider
 type Provider struct {
-	Handler          controller.ControllerHandler
+	Handler          syncer.GenericControllerHandler
 	Translator       translate.ToHostTranslator
 	HostClient       client.Client
 	VirtualClient    client.Client
@@ -80,13 +80,23 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 	}
 
 	p := Provider{
-		Handler: controller.ControllerHandler{
-			Mgr:           virtualMgr,
-			Scheme:        *virtualMgr.GetScheme(),
-			HostClient:    hostMgr.GetClient(),
-			VirtualClient: virtualMgr.GetClient(),
-			Translator:    translator,
-			Logger:        logger,
+		Handler: syncer.GenericControllerHandler{
+			SyncerContext: &syncer.SyncerContext{
+				Virtual: &syncer.ClusterClient{
+					Manager: virtualMgr,
+					Client:  virtualMgr.GetClient(),
+					Scheme:  virtualMgr.GetScheme(),
+				},
+				Host: &syncer.ClusterClient{
+					Manager: hostMgr,
+					Client:  hostMgr.GetClient(),
+					Scheme:  hostMgr.GetScheme(),
+				},
+				Translator:       translator,
+				ClusterName:      name,
+				ClusterNamespace: namespace,
+			},
+			Logger: logger,
 		},
 		HostClient:       hostMgr.GetClient(),
 		VirtualClient:    virtualMgr.GetClient(),

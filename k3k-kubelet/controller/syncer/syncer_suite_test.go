@@ -1,4 +1,4 @@
-package controller_test
+package syncer_test
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -91,7 +92,7 @@ func NewTestEnv() *TestEnv {
 	By("bootstrapping test environment")
 
 	testEnv := &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "charts", "k3k", "crds")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "charts", "k3k", "crds")},
 		ErrorIfCRDPathMissing: true,
 		BinaryAssetsDirectory: tempDir,
 		Scheme:                buildScheme(),
@@ -165,5 +166,19 @@ var _ = Describe("Kubelet Controller", func() {
 		cancel()
 	})
 
-	Describe("PriorityClass", PriorityClassTests)
+	// Describe("PriorityClass Syncer", PriorityClassTests)
+	// Describe("ConfigMap Syncer", ConfigMapTests)
+	Describe("Secret Syncer", SecretTests)
+	// Describe("Service Syncer", ServiceTests)
+	// Describe("Ingress Syncer", IngressTests)
+	// Describe("PersistentVolumeClaim Syncer", PVCTests)
 })
+
+func translateName(cluster v1alpha1.Cluster, namespace, name string) string {
+	translator := translate.ToHostTranslator{
+		ClusterName:      cluster.Name,
+		ClusterNamespace: cluster.Namespace,
+	}
+
+	return translator.TranslateName(namespace, name)
+}

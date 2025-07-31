@@ -631,6 +631,11 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +optional
 	PodSecurityAdmissionLevel *PodSecurityAdmissionLevel `json:"podSecurityAdmissionLevel,omitempty"`
+
+	// Sync specifies the synchronization configuration for resources that can be applied to clusters
+	//
+	// +optional
+	Sync SyncConfig `json:"sync,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

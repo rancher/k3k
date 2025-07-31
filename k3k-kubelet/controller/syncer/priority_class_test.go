@@ -1,4 +1,4 @@
-package controller_test
+package syncer_test
 
 import (
 	"context"
@@ -12,8 +12,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/k3k-kubelet/controller"
-	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -46,7 +45,7 @@ var PriorityClassTests = func() {
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = controller.AddPriorityClassReconciler(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
+		err = syncer.AddPriorityClassReconciler(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -215,15 +214,6 @@ var PriorityClassTests = func() {
 
 		Expect(hostPriorityClass.Value).To(Equal(priorityClass.Value))
 		Expect(hostPriorityClass.GlobalDefault).To(BeFalse())
-		Expect(hostPriorityClass.Annotations[controller.PriorityClassGlobalDefaultAnnotation]).To(Equal("true"))
+		Expect(hostPriorityClass.Annotations[syncer.PriorityClassGlobalDefaultAnnotation]).To(Equal("true"))
 	})
-}
-
-func translateName(cluster v1alpha1.Cluster, namespace, name string) string {
-	translator := translate.ToHostTranslator{
-		ClusterName:      cluster.Name,
-		ClusterNamespace: cluster.Namespace,
-	}
-
-	return translator.TranslateName(namespace, name)
 }

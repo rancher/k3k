@@ -1,4 +1,4 @@
-package controller
+package syncer
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "k8s.io/api/core/v1"
@@ -18,23 +17,28 @@ import (
 	k3klog "github.com/rancher/k3k/pkg/log"
 )
 
-type ControllerHandler struct {
+type SyncerContext struct {
+	ClusterName      string
+	ClusterNamespace string
+	Virtual          *ClusterClient
+	Host             *ClusterClient
+	Translator       translate.ToHostTranslator
+}
+
+type ClusterClient struct {
+	Manager ctrl.Manager
+	Client  client.Client
+	Scheme  *runtime.Scheme
+}
+
+type GenericControllerHandler struct {
 	sync.RWMutex
-	// Mgr is the manager used to run new controllers - from the virtual cluster
-	Mgr manager.Manager
-	// Scheme is the scheme used to run new controllers - from the virtual cluster
-	Scheme runtime.Scheme
-	// HostClient is the client used to communicate with the host cluster
-	HostClient client.Client
-	// VirtualClient is the client used to communicate with the virtual cluster
-	VirtualClient client.Client
-	// Translator is the translator that will be used to adjust objects before they
-	// are made on the host cluster
-	Translator translate.ToHostTranslator
 	// Logger is the logger that the controller will use to log errors
 	Logger *k3klog.Logger
 	// controllers are the controllers which are currently running
 	controllers map[schema.GroupVersionKind]updateableReconciler
+
+	*SyncerContext
 }
 
 // updateableReconciler is a reconciler that only syncs specific resources (by name/namespace). This list can
@@ -46,7 +50,7 @@ type updateableReconciler interface {
 	RemoveResource(ctx context.Context, namespace string, name string) error
 }
 
-func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) error {
+func (c *GenericControllerHandler) AddResource(ctx context.Context, obj client.Object) error {
 	c.RLock()
 
 	controllers := c.controllers
@@ -68,31 +72,11 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 	switch obj.(type) {
 	case *v1.Secret:
 		r = &SecretSyncer{
-			HostClient:    c.HostClient,
-			VirtualClient: c.VirtualClient,
-			// TODO: Need actual function
-			TranslateFunc: func(s *v1.Secret) (*v1.Secret, error) {
-				// note that this doesn't do any type safety - fix this
-				// when generics work
-				c.Translator.TranslateTo(s)
-				// Remove service-account-token types when synced to the host
-				if s.Type == v1.SecretTypeServiceAccountToken {
-					s.Type = v1.SecretTypeOpaque
-				}
-				return s, nil
-			},
-			Logger: c.Logger,
+			SyncerContext: c.SyncerContext,
 		}
 	case *v1.ConfigMap:
 		r = &ConfigMapSyncer{
-			HostClient:    c.HostClient,
-			VirtualClient: c.VirtualClient,
-			// TODO: Need actual function
-			TranslateFunc: func(s *v1.ConfigMap) (*v1.ConfigMap, error) {
-				c.Translator.TranslateTo(s)
-				return s, nil
-			},
-			Logger: c.Logger,
+			SyncerContext: c.SyncerContext,
 		}
 	default:
 		// TODO: Technically, the configmap/secret syncers are relatively generic, and this
@@ -100,7 +84,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 		return fmt.Errorf("unrecognized type: %T", obj)
 	}
 
-	err := ctrl.NewControllerManagedBy(c.Mgr).
+	err := ctrl.NewControllerManagedBy(c.Virtual.Manager).
 		Named(r.Name()).
 		For(&v1.ConfigMap{}).
 		Complete(r)
@@ -121,7 +105,7 @@ func (c *ControllerHandler) AddResource(ctx context.Context, obj client.Object) 
 	return r.AddResource(ctx, obj.GetNamespace(), obj.GetName())
 }
 
-func (c *ControllerHandler) RemoveResource(ctx context.Context, obj client.Object) error {
+func (c *GenericControllerHandler) RemoveResource(ctx context.Context, obj client.Object) error {
 	// since we aren't adding a new controller, we don't need to lock
 	c.RLock()
 	ctrl, ok := c.controllers[obj.GetObjectKind().GroupVersionKind()]

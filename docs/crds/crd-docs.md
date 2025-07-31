@@ -423,6 +423,7 @@ SyncConfig will contain the resources that should be synced from virtual cluster
 
 _Appears in:_
 - [ClusterSpec](#clusterspec)
+- [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -492,6 +493,7 @@ _Appears in:_
 | `allowedMode` _[ClusterMode](#clustermode)_ | AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared". | shared | Enum: [shared virtual] <br /> |
 | `disableNetworkPolicy` _boolean_ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. |  |  |
 | `podSecurityAdmissionLevel` _[PodSecurityAdmissionLevel](#podsecurityadmissionlevel)_ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. |  | Enum: [privileged baseline restricted] <br /> |
+| `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the synchronization configuration for resources that can be applied to clusters |  |  |
 
 
 

@@ -1,9 +1,8 @@
-package controller
+package syncer
 
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -19,48 +18,40 @@ import (
 )
 
 const (
-	pvcController    = "pvc-syncer-controller"
-	pvcFinalizerName = "pvc.k3k.io/finalizer"
+	pvcControllerName = "pvc-syncer-controller"
+	pvcFinalizerName  = "pvc.k3k.io/finalizer"
 )
 
 type PVCReconciler struct {
-	clusterName      string
-	clusterNamespace string
-
-	virtualClient ctrlruntimeclient.Client
-	hostClient    ctrlruntimeclient.Client
-	Scheme        *runtime.Scheme
-	HostScheme    *runtime.Scheme
-	Translator    translate.ToHostTranslator
+	*SyncerContext
 }
 
 // AddPVCSyncer adds persistentvolumeclaims syncer controller to k3k-kubelet
 func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
-	translator := translate.ToHostTranslator{
-		ClusterName:      clusterName,
-		ClusterNamespace: clusterNamespace,
-	}
-
-	// initialize a new Reconciler
-	reconciler := PVCReconciler{
+	reconciler := IngressReconciler{
 		clusterName:      clusterName,
 		clusterNamespace: clusterNamespace,
 
 		virtualClient: virtMgr.GetClient(),
-		hostClient:    hostMgr.GetClient(),
-		Scheme:        virtMgr.GetScheme(),
+		HostClient:    hostMgr.GetClient(),
+		VirtualScheme: virtMgr.GetScheme(),
 		HostScheme:    hostMgr.GetScheme(),
-		Translator:    translator,
+		Translator: translate.ToHostTranslator{
+			ClusterName:      clusterName,
+			ClusterNamespace: clusterNamespace,
+		},
 	}
 
+	name := reconciler.Translator.TranslateName("", pvcControllerName)
+
 	return ctrl.NewControllerManagedBy(virtMgr).
-		Named(pvcController).
+		Named(name).
 		For(&v1.PersistentVolumeClaim{}).
 		Complete(&reconciler)
 }
 
 func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.clusterName, "clusterNamespace", r.clusterNamespace)
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
 
 	var (
@@ -68,28 +59,28 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		cluster v1alpha1.Cluster
 	)
 
-	if err := r.hostClient.Get(ctx, types.NamespacedName{Name: r.clusterName, Namespace: r.clusterNamespace}, &cluster); err != nil {
+	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := r.virtualClient.Get(ctx, req.NamespacedName, &virtPVC); err != nil {
+	if err := r.Virtual.Client.Get(ctx, req.NamespacedName, &virtPVC); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
 	syncedPVC := r.pvc(&virtPVC)
-	if err := controllerutil.SetControllerReference(&cluster, syncedPVC, r.HostScheme); err != nil {
+	if err := controllerutil.SetControllerReference(&cluster, syncedPVC, r.Host.Scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// handle deletion
 	if !virtPVC.DeletionTimestamp.IsZero() {
 		// deleting the synced service if exists
-		if err := r.hostClient.Delete(ctx, syncedPVC); !apierrors.IsNotFound(err) {
+		if err := r.Host.Client.Delete(ctx, syncedPVC); !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 		// remove the finalizer after cleaning up the synced service
 		if controllerutil.RemoveFinalizer(&virtPVC, pvcFinalizerName) {
-			if err := r.virtualClient.Update(ctx, &virtPVC); err != nil {
+			if err := r.Virtual.Client.Update(ctx, &virtPVC); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -99,7 +90,7 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 
 	// Add finalizer if it does not exist
 	if controllerutil.AddFinalizer(&virtPVC, pvcFinalizerName) {
-		if err := r.virtualClient.Update(ctx, &virtPVC); err != nil {
+		if err := r.Virtual.Client.Update(ctx, &virtPVC); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -109,7 +100,7 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 
 	// note that we dont need to update the PVC on the host cluster, only syncing the PVC to allow being
 	// handled by the host cluster.
-	return reconcile.Result{}, ctrlruntimeclient.IgnoreAlreadyExists(r.hostClient.Create(ctx, syncedPVC))
+	return reconcile.Result{}, ctrlruntimeclient.IgnoreAlreadyExists(r.Host.Client.Create(ctx, syncedPVC))
 }
 
 func (r *PVCReconciler) pvc(obj *v1.PersistentVolumeClaim) *v1.PersistentVolumeClaim {

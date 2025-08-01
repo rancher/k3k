@@ -489,7 +489,7 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	if syncConfig.PriorityClasses.IsEnabled() {
 		logger.Info("adding priorityclass controller")
 
-		if err := syncer.AddPriorityClassReconciler(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		if err := syncer.AddPriorityClassSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 			return errors.New("failed to add priorityclass controller: " + err.Error())
 		}
 	}

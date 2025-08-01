@@ -45,7 +45,7 @@ var PriorityClassTests = func() {
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = syncer.AddPriorityClassReconciler(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
+		err = syncer.AddPriorityClassSyncer(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 

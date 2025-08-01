@@ -27,14 +27,14 @@ const (
 	priorityClassFinalizerName  = "priorityclass.k3k.io/finalizer"
 )
 
-type PriorityClassReconciler struct {
+type PriorityClassSyncer struct {
 	*SyncerContext
 }
 
-// AddPriorityClassReconciler adds a PriorityClass reconciler to k3k-kubelet
-func AddPriorityClassReconciler(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
+// AddPriorityClassSyncer adds a PriorityClass reconciler to k3k-kubelet
+func AddPriorityClassSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	// initialize a new Reconciler
-	reconciler := PriorityClassReconciler{
+	reconciler := PriorityClassSyncer{
 		SyncerContext: &SyncerContext{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
@@ -80,7 +80,7 @@ var ignoreSystemPrefixPredicate = predicate.Funcs{
 	},
 }
 
-func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
 
@@ -139,7 +139,7 @@ func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.R
 	return reconcile.Result{}, nil
 }
 
-func (r *PriorityClassReconciler) translatePriorityClass(priorityClass schedulingv1.PriorityClass) *schedulingv1.PriorityClass {
+func (r *PriorityClassSyncer) translatePriorityClass(priorityClass schedulingv1.PriorityClass) *schedulingv1.PriorityClass {
 	hostPriorityClass := priorityClass.DeepCopy()
 	r.Translator.TranslateTo(hostPriorityClass)
 

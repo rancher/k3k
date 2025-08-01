@@ -15,7 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -77,7 +76,7 @@ func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clus
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
-		For(&corev1.Secret{}).WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+		For(&v1.Secret{}).WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 		return labelSelector.Matches(labels.Set(object.GetLabels()))
 	})).
 		Complete(&reconciler)
@@ -93,7 +92,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 		return reconcile.Result{}, nil
 	}
 
-	var virtualSecret corev1.Secret
+	var virtualSecret v1.Secret
 
 	if err := s.Virtual.Client.Get(ctx, req.NamespacedName, &virtualSecret); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
@@ -125,17 +124,19 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 		}
 	}
 
-	var hostSecret corev1.Secret
+	var hostSecret v1.Secret
 	if err := s.Host.Client.Get(ctx, types.NamespacedName{Name: syncedSecret.Name, Namespace: syncedSecret.Namespace}, &hostSecret); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the Secret for the first time on the host cluster")
 			return reconcile.Result{}, s.Host.Client.Create(ctx, syncedSecret)
 		}
+
 		return reconcile.Result{}, err
 	}
 
 	// TODO: Add option to keep labels/annotation set by the host cluster
 	log.Info("updating Secret on the host cluster")
+
 	return reconcile.Result{}, s.Host.Client.Update(ctx, syncedSecret)
 }
 
@@ -214,7 +215,7 @@ func (s *SecretSyncer) RemoveResource(ctx context.Context, namespace, name strin
 }
 
 func (s *SecretSyncer) removeHostSecret(ctx context.Context, virtualNamespace, virtualName string) error {
-	var vSecret corev1.Secret
+	var vSecret v1.Secret
 
 	err := s.Virtual.Client.Get(ctx, types.NamespacedName{
 		Namespace: virtualNamespace,
@@ -233,7 +234,7 @@ func (s *SecretSyncer) removeHostSecret(ctx context.Context, virtualNamespace, v
 
 // translateSecret will translate a given secret created in the virtual cluster and
 // translates it to host cluster object
-func (s *SecretSyncer) translateSecret(secret *corev1.Secret) *corev1.Secret {
+func (s *SecretSyncer) translateSecret(secret *v1.Secret) *v1.Secret {
 	hostSecret := secret.DeepCopy()
 
 	if hostSecret.Type == v1.SecretTypeServiceAccountToken {

@@ -58,7 +58,7 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 		labelSelector = labels.Everything()
 	}
 
-	name := reconciler.Translator.TranslateName("", serviceControllerName)
+	name := reconciler.Translator.TranslateName(clusterNamespace, serviceControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
@@ -69,7 +69,7 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 }
 
 func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterName)
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
 
 	if req.Name == "kubernetes" || req.Name == "kube-dns" {
@@ -81,7 +81,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		cluster     v1alpha1.Cluster
 	)
 
-	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterName}, &cluster); err != nil {
+	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -102,9 +102,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 
 		// remove the finalizer after cleaning up the synced service
-		if controllerutil.ContainsFinalizer(&virtService, serviceFinalizerName) {
-			controllerutil.RemoveFinalizer(&virtService, serviceFinalizerName)
-
+		if controllerutil.RemoveFinalizer(&virtService, serviceFinalizerName) {
 			if err := r.Virtual.Client.Update(ctx, &virtService); err != nil {
 				return reconcile.Result{}, err
 			}
@@ -122,7 +120,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	// create or update the service on host
 	var hostService v1.Service
-	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: syncedService.Name, Namespace: r.ClusterName}, &hostService); err != nil {
+	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: syncedService.Name, Namespace: r.ClusterNamespace}, &hostService); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the service for the first time on the host cluster")
 			return reconcile.Result{}, r.Host.Client.Create(ctx, syncedService)

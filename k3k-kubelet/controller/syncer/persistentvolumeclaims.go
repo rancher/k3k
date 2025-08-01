@@ -28,21 +28,28 @@ type PVCReconciler struct {
 
 // AddPVCSyncer adds persistentvolumeclaims syncer controller to k3k-kubelet
 func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
-	reconciler := IngressReconciler{
-		clusterName:      clusterName,
-		clusterNamespace: clusterNamespace,
-
-		virtualClient: virtMgr.GetClient(),
-		HostClient:    hostMgr.GetClient(),
-		VirtualScheme: virtMgr.GetScheme(),
-		HostScheme:    hostMgr.GetScheme(),
-		Translator: translate.ToHostTranslator{
+	reconciler := PVCReconciler{
+		SyncerContext: &SyncerContext{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
+			Host: &ClusterClient{
+				Manager: hostMgr,
+				Client:  hostMgr.GetClient(),
+				Scheme:  hostMgr.GetScheme(),
+			},
+			Virtual: &ClusterClient{
+				Manager: virtMgr,
+				Client:  virtMgr.GetClient(),
+				Scheme:  virtMgr.GetScheme(),
+			},
+			Translator: translate.ToHostTranslator{
+				ClusterName:      clusterName,
+				ClusterNamespace: clusterNamespace,
+			},
 		},
 	}
 
-	name := reconciler.Translator.TranslateName("", pvcControllerName)
+	name := reconciler.Translator.TranslateName(clusterNamespace, pvcControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
@@ -74,11 +81,11 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 
 	// handle deletion
 	if !virtPVC.DeletionTimestamp.IsZero() {
-		// deleting the synced service if exists
+		// deleting the synced pvc if exists
 		if err := r.Host.Client.Delete(ctx, syncedPVC); !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
-		// remove the finalizer after cleaning up the synced service
+		// remove the finalizer after cleaning up the synced pvc
 		if controllerutil.RemoveFinalizer(&virtPVC, pvcFinalizerName) {
 			if err := r.Virtual.Client.Update(ctx, &virtPVC); err != nil {
 				return reconcile.Result{}, err
@@ -96,7 +103,7 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	}
 
 	// create the pvc on host
-	log.Info("creating the persistent volume for the first time on the host cluster")
+	log.Info("creating the persistent volume claim for the first time on the host cluster")
 
 	// note that we dont need to update the PVC on the host cluster, only syncing the PVC to allow being
 	// handled by the host cluster.

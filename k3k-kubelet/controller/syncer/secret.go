@@ -72,7 +72,7 @@ func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clus
 		labelSelector = labels.Everything()
 	}
 
-	name := reconciler.Translator.TranslateName("", SecretControllerName)
+	name := reconciler.Translator.TranslateName(clusterNamespace, SecretControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).

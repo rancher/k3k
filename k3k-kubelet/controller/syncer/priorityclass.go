@@ -55,7 +55,7 @@ func AddPriorityClassReconciler(ctx context.Context, virtMgr, hostMgr manager.Ma
 		},
 	}
 
-	name := reconciler.Translator.TranslateName("", priorityClassControllerName)
+	name := reconciler.Translator.TranslateName(clusterNamespace, priorityClassControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).

@@ -101,7 +101,7 @@ var ServiceTests = func() {
 
 		Expect(hostService.Spec.Type).To(Equal(v1.ServiceTypeNodePort))
 		Expect(hostService.Spec.Ports[0].Name).To(Equal("test-port"))
-		Expect(hostService.Spec.Ports[0].Port).To(Equal(8888))
+		Expect(hostService.Spec.Ports[0].Port).To(Equal(int32(8888)))
 
 		GinkgoWriter.Printf("labels: %v\n", hostService.Labels)
 	})
@@ -149,7 +149,7 @@ var ServiceTests = func() {
 
 		Expect(hostService.Spec.Type).To(Equal(v1.ServiceTypeNodePort))
 		Expect(hostService.Spec.Ports[0].Name).To(Equal("test-port"))
-		Expect(hostService.Spec.Ports[0].Port).To(Equal(8888))
+		Expect(hostService.Spec.Ports[0].Port).To(Equal(int32(8888)))
 
 		key := client.ObjectKeyFromObject(service)
 		err = virtTestEnv.k8sClient.Get(ctx, key, service)
@@ -213,7 +213,7 @@ var ServiceTests = func() {
 
 		Expect(hostService.Spec.Type).To(Equal(v1.ServiceTypeNodePort))
 		Expect(hostService.Spec.Ports[0].Name).To(Equal("test-port"))
-		Expect(hostService.Spec.Ports[0].Port).To(Equal(8888))
+		Expect(hostService.Spec.Ports[0].Port).To(Equal(int32(8888)))
 
 		err = virtTestEnv.k8sClient.Delete(ctx, service)
 		Expect(err).NotTo(HaveOccurred())

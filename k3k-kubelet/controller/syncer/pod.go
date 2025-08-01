@@ -47,7 +47,7 @@ func AddPodPVCController(ctx context.Context, virtMgr, hostMgr manager.Manager, 
 		},
 	}
 
-	name := reconciler.Translator.TranslateName("", podControllerName)
+	name := reconciler.Translator.TranslateName(clusterNamespace, podControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).

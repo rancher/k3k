@@ -74,7 +74,7 @@ func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, c
 		labelSelector = labels.Everything()
 	}
 
-	name := reconciler.Translator.TranslateName("", configMapControllerName)
+	name := reconciler.Translator.TranslateName(clusterNamespace, configMapControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).

@@ -39,7 +39,7 @@ func New() *KubeConfig {
 	}
 }
 
-func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string) (*clientcmdapi.Config, error) {
+func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string, port int) (*clientcmdapi.Config, error) {
 	bootstrapData, err := bootstrap.GetFromSecret(ctx, client, cluster)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster
 		return nil, err
 	}
 
-	url, err := getURLFromService(ctx, client, cluster, hostServerIP)
+	url, err := getURLFromService(ctx, client, cluster, hostServerIP, port)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func NewConfig(url string, serverCA, clientCert, clientKey []byte) *clientcmdapi
 	return config
 }
 
-func getURLFromService(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string) (string, error) {
+func getURLFromService(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string, serverPort int) (string, error) {
 	// get the server service to extract the right IP
 	key := types.NamespacedName{
 		Name:      server.ServiceName(cluster.Name),
@@ -115,6 +115,10 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1alp
 	case v1.ServiceTypeLoadBalancer:
 		ip = k3kService.Status.LoadBalancer.Ingress[0].IP
 		port = k3kService.Spec.Ports[0].Port
+	}
+
+	if serverPort != 0 {
+		port = int32(serverPort)
 	}
 
 	if !slices.Contains(cluster.Status.TLSSANs, ip) {

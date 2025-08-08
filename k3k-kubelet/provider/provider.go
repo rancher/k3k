@@ -57,6 +57,7 @@ type Provider struct {
 	Translator       translate.ToHostTranslator
 	HostClient       client.Client
 	VirtualClient    client.Client
+	VirtualManager   manager.Manager
 	ClientConfig     rest.Config
 	CoreClient       cv1.CoreV1Interface
 	ClusterNamespace string
@@ -83,14 +84,10 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 		Handler: syncer.GenericControllerHandler{
 			SyncerContext: &syncer.SyncerContext{
 				Virtual: &syncer.ClusterClient{
-					Manager: virtualMgr,
-					Client:  virtualMgr.GetClient(),
-					Scheme:  virtualMgr.GetScheme(),
+					Client: virtualMgr.GetClient(),
 				},
 				Host: &syncer.ClusterClient{
-					Manager: hostMgr,
-					Client:  hostMgr.GetClient(),
-					Scheme:  hostMgr.GetScheme(),
+					Client: hostMgr.GetClient(),
 				},
 				Translator:       translator,
 				ClusterName:      name,
@@ -100,6 +97,7 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 		},
 		HostClient:       hostMgr.GetClient(),
 		VirtualClient:    virtualMgr.GetClient(),
+		VirtualManager:   virtualMgr,
 		Translator:       translator,
 		ClientConfig:     hostConfig,
 		CoreClient:       coreClient,
@@ -554,7 +552,7 @@ func (p *Provider) syncConfigmap(ctx context.Context, podNamespace string, confi
 		return fmt.Errorf("unable to get configmap to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
 	}
 
-	if err := p.Handler.AddResource(ctx, &configMap); err != nil {
+	if err := p.Handler.AddResource(ctx, &configMap, p.VirtualManager); err != nil {
 		return fmt.Errorf("unable to add configmap to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
 	}
 
@@ -580,7 +578,7 @@ func (p *Provider) syncSecret(ctx context.Context, podNamespace string, secretNa
 		return fmt.Errorf("unable to get secret to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
 	}
 
-	if err := p.Handler.AddResource(ctx, &secret); err != nil {
+	if err := p.Handler.AddResource(ctx, &secret, p.VirtualManager); err != nil {
 		return fmt.Errorf("unable to add secret to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
 	}
 

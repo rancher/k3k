@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "k8s.io/api/core/v1"
@@ -26,9 +26,7 @@ type SyncerContext struct {
 }
 
 type ClusterClient struct {
-	Manager ctrl.Manager
-	Client  client.Client
-	Scheme  *runtime.Scheme
+	Client client.Client
 }
 
 type GenericControllerHandler struct {
@@ -50,7 +48,7 @@ type updateableReconciler interface {
 	RemoveResource(ctx context.Context, namespace string, name string) error
 }
 
-func (c *GenericControllerHandler) AddResource(ctx context.Context, obj client.Object) error {
+func (c *GenericControllerHandler) AddResource(ctx context.Context, obj client.Object, virtualManager manager.Manager) error {
 	c.RLock()
 
 	controllers := c.controllers
@@ -84,7 +82,7 @@ func (c *GenericControllerHandler) AddResource(ctx context.Context, obj client.O
 		return fmt.Errorf("unrecognized type: %T", obj)
 	}
 
-	err := ctrl.NewControllerManagedBy(c.Virtual.Manager).
+	err := ctrl.NewControllerManagedBy(virtualManager).
 		Named(r.Name()).
 		For(&v1.ConfigMap{}).
 		Complete(r)

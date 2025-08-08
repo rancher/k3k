@@ -33,14 +33,10 @@ func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, cluster
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 			Host: &ClusterClient{
-				Manager: hostMgr,
-				Client:  hostMgr.GetClient(),
-				Scheme:  hostMgr.GetScheme(),
+				Client: hostMgr.GetClient(),
 			},
 			Virtual: &ClusterClient{
-				Manager: virtMgr,
-				Client:  virtMgr.GetClient(),
-				Scheme:  virtMgr.GetScheme(),
+				Client: virtMgr.GetClient(),
 			},
 			Translator: translate.ToHostTranslator{
 				ClusterName:      clusterName,
@@ -75,7 +71,7 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	}
 
 	syncedPVC := r.pvc(&virtPVC)
-	if err := controllerutil.SetControllerReference(&cluster, syncedPVC, r.Host.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(&cluster, syncedPVC, r.Host.Client.Scheme()); err != nil {
 		return reconcile.Result{}, err
 	}
 

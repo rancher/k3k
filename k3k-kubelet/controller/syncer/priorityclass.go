@@ -39,14 +39,10 @@ func AddPriorityClassSyncer(ctx context.Context, virtMgr, hostMgr manager.Manage
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 			Virtual: &ClusterClient{
-				Manager: virtMgr,
-				Client:  virtMgr.GetClient(),
-				Scheme:  virtMgr.GetScheme(),
+				Client: virtMgr.GetClient(),
 			},
 			Host: &ClusterClient{
-				Manager: hostMgr,
-				Client:  hostMgr.GetClient(),
-				Scheme:  hostMgr.GetScheme(),
+				Client: hostMgr.GetClient(),
 			},
 			Translator: translate.ToHostTranslator{
 				ClusterName:      clusterName,

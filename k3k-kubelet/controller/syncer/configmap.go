@@ -55,14 +55,10 @@ func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, c
 	reconciler := ConfigMapSyncer{
 		SyncerContext: &SyncerContext{
 			Virtual: &ClusterClient{
-				Manager: virtMgr,
-				Client:  virtMgr.GetClient(),
-				Scheme:  virtMgr.GetScheme(),
+				Client: virtMgr.GetClient(),
 			},
 			Host: &ClusterClient{
-				Manager: hostMgr,
-				Client:  hostMgr.GetClient(),
-				Scheme:  hostMgr.GetScheme(),
+				Client: hostMgr.GetClient(),
 			},
 			Translator: translator,
 		},

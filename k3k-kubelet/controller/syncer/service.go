@@ -40,14 +40,10 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 			Virtual: &ClusterClient{
-				Manager: virtMgr,
-				Client:  virtMgr.GetClient(),
-				Scheme:  virtMgr.GetScheme(),
+				Client: virtMgr.GetClient(),
 			},
 			Host: &ClusterClient{
-				Manager: hostMgr,
-				Client:  hostMgr.GetClient(),
-				Scheme:  hostMgr.GetScheme(),
+				Client: hostMgr.GetClient(),
 			},
 			Translator: translator,
 		},
@@ -90,7 +86,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	syncedService := r.service(&virtService)
-	if err := controllerutil.SetControllerReference(&cluster, syncedService, r.Host.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(&cluster, syncedService, r.Host.Client.Scheme()); err != nil {
 		return reconcile.Result{}, err
 	}
 

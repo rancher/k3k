@@ -33,13 +33,9 @@ func AddPodPVCController(ctx context.Context, virtMgr, hostMgr manager.Manager, 
 		SyncerContext: &SyncerContext{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
-			Virtual: &ClusterClient{
-				Client: virtMgr.GetClient(),
-			},
-			Host: &ClusterClient{
-				Client: hostMgr.GetClient(),
-			},
-			Translator: translate.ToHostTranslator{},
+			VirtualClient:    virtMgr.GetClient(),
+			HostClient:       hostMgr.GetClient(),
+			Translator:       translate.ToHostTranslator{},
 		},
 	}
 
@@ -60,11 +56,11 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		cluster v1alpha1.Cluster
 	)
 
-	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterName}, &cluster); err != nil {
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterName}, &cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := r.Virtual.Client.Get(ctx, req.NamespacedName, &virtPod); err != nil {
+	if err := r.VirtualClient.Get(ctx, req.NamespacedName, &virtPod); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
@@ -95,14 +91,14 @@ func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pv
 		Namespace: pod.Namespace,
 	}
 
-	if err := r.Virtual.Client.Get(ctx, key, &pvc); err != nil {
+	if err := r.VirtualClient.Get(ctx, key, &pvc); err != nil {
 		return ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
 	log.Info("Creating pseudo Persistent Volume")
 
 	pv := r.pseudoPV(&pvc)
-	if err := r.Virtual.Client.Create(ctx, pv); err != nil {
+	if err := r.VirtualClient.Create(ctx, pv); err != nil {
 		return ctrlruntimeclient.IgnoreAlreadyExists(err)
 	}
 
@@ -111,7 +107,7 @@ func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pv
 		Phase: v1.VolumeBound,
 	}
 
-	if err := r.Virtual.Client.Status().Patch(ctx, pv, ctrlruntimeclient.MergeFrom(orig)); err != nil {
+	if err := r.VirtualClient.Status().Patch(ctx, pv, ctrlruntimeclient.MergeFrom(orig)); err != nil {
 		return err
 	}
 
@@ -127,7 +123,7 @@ func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pv
 	pvcPatch.Status.Phase = v1.ClaimBound
 	pvcPatch.Status.AccessModes = pvcPatch.Spec.AccessModes
 
-	return r.Virtual.Client.Status().Update(ctx, pvcPatch)
+	return r.VirtualClient.Status().Update(ctx, pvcPatch)
 }
 
 func (r *PodReconciler) pseudoPV(obj *v1.PersistentVolumeClaim) *v1.PersistentVolume {

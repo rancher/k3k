@@ -54,13 +54,9 @@ func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, c
 
 	reconciler := ConfigMapSyncer{
 		SyncerContext: &SyncerContext{
-			Virtual: &ClusterClient{
-				Client: virtMgr.GetClient(),
-			},
-			Host: &ClusterClient{
-				Client: hostMgr.GetClient(),
-			},
-			Translator: translator,
+			VirtualClient: virtMgr.GetClient(),
+			HostClient:    hostMgr.GetClient(),
+			Translator:    translator,
 		},
 		Global: true,
 	}
@@ -93,7 +89,7 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	var virtualConfigMap corev1.ConfigMap
 
-	if err := c.Virtual.Client.Get(ctx, req.NamespacedName, &virtualConfigMap); err != nil {
+	if err := c.VirtualClient.Get(ctx, req.NamespacedName, &virtualConfigMap); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -102,13 +98,13 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 	// handle deletion
 	if !virtualConfigMap.DeletionTimestamp.IsZero() {
 		// deleting the synced configMap if exist
-		if err := c.Host.Client.Delete(ctx, syncedConfigMap); err != nil && !apierrors.IsNotFound(err) {
+		if err := c.HostClient.Delete(ctx, syncedConfigMap); err != nil && !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 
 		// remove the finalizer after cleaning up the synced configMap
 		if controllerutil.RemoveFinalizer(&virtualConfigMap, configMapFinalizerName) {
-			if err := c.Virtual.Client.Update(ctx, &virtualConfigMap); err != nil {
+			if err := c.VirtualClient.Update(ctx, &virtualConfigMap); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -118,16 +114,16 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	// Add finalizer if it does not exist
 	if controllerutil.AddFinalizer(&virtualConfigMap, configMapFinalizerName) {
-		if err := c.Virtual.Client.Update(ctx, &virtualConfigMap); err != nil {
+		if err := c.VirtualClient.Update(ctx, &virtualConfigMap); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
 	var hostConfigMap corev1.ConfigMap
-	if err := c.Host.Client.Get(ctx, types.NamespacedName{Name: syncedConfigMap.Name, Namespace: syncedConfigMap.Namespace}, &hostConfigMap); err != nil {
+	if err := c.HostClient.Get(ctx, types.NamespacedName{Name: syncedConfigMap.Name, Namespace: syncedConfigMap.Namespace}, &hostConfigMap); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the ConfigMap for the first time on the host cluster")
-			return reconcile.Result{}, c.Host.Client.Create(ctx, syncedConfigMap)
+			return reconcile.Result{}, c.HostClient.Create(ctx, syncedConfigMap)
 		}
 
 		return reconcile.Result{}, err
@@ -136,7 +132,7 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 	// TODO: Add option to keep labels/annotation set by the host cluster
 	log.Info("updating ConfigMap on the host cluster")
 
-	return reconcile.Result{}, c.Host.Client.Update(ctx, syncedConfigMap)
+	return reconcile.Result{}, c.HostClient.Update(ctx, syncedConfigMap)
 }
 
 // isWatching is a utility method to determine if a key is in objs without the caller needing
@@ -221,7 +217,7 @@ func (c *ConfigMapSyncer) removeHostConfigMap(ctx context.Context, virtualNamesp
 		Name:      virtualName,
 	}
 
-	if err := c.Virtual.Client.Get(ctx, key, &vConfigMap); err != nil {
+	if err := c.VirtualClient.Get(ctx, key, &vConfigMap); err != nil {
 		return fmt.Errorf("unable to get virtual configmap %s/%s: %w", virtualNamespace, virtualName, err)
 	}
 
@@ -229,7 +225,7 @@ func (c *ConfigMapSyncer) removeHostConfigMap(ctx context.Context, virtualNamesp
 
 	c.Translator.TranslateTo(translated)
 
-	return c.Host.Client.Delete(ctx, translated)
+	return c.HostClient.Delete(ctx, translated)
 }
 
 // translateConfigMap will translate a given configMap created in the virtual cluster and

@@ -39,13 +39,9 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 		SyncerContext: &SyncerContext{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
-			Virtual: &ClusterClient{
-				Client: virtMgr.GetClient(),
-			},
-			Host: &ClusterClient{
-				Client: hostMgr.GetClient(),
-			},
-			Translator: translator,
+			VirtualClient:    virtMgr.GetClient(),
+			HostClient:       hostMgr.GetClient(),
+			Translator:       translator,
 		},
 	}
 
@@ -77,29 +73,29 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		cluster     v1alpha1.Cluster
 	)
 
-	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := r.Virtual.Client.Get(ctx, req.NamespacedName, &virtService); err != nil {
+	if err := r.VirtualClient.Get(ctx, req.NamespacedName, &virtService); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
 	syncedService := r.service(&virtService)
-	if err := controllerutil.SetControllerReference(&cluster, syncedService, r.Host.Client.Scheme()); err != nil {
+	if err := controllerutil.SetControllerReference(&cluster, syncedService, r.HostClient.Scheme()); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// handle deletion
 	if !virtService.DeletionTimestamp.IsZero() {
 		// deleting the synced service if exists
-		if err := r.Host.Client.Delete(ctx, syncedService); err != nil {
+		if err := r.HostClient.Delete(ctx, syncedService); err != nil {
 			return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 		}
 
 		// remove the finalizer after cleaning up the synced service
 		if controllerutil.RemoveFinalizer(&virtService, serviceFinalizerName) {
-			if err := r.Virtual.Client.Update(ctx, &virtService); err != nil {
+			if err := r.VirtualClient.Update(ctx, &virtService); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -109,17 +105,17 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	// Add finalizer if it does not exist
 	if controllerutil.AddFinalizer(&virtService, serviceFinalizerName) {
-		if err := r.Virtual.Client.Update(ctx, &virtService); err != nil {
+		if err := r.VirtualClient.Update(ctx, &virtService); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
 	// create or update the service on host
 	var hostService v1.Service
-	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: syncedService.Name, Namespace: r.ClusterNamespace}, &hostService); err != nil {
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: syncedService.Name, Namespace: r.ClusterNamespace}, &hostService); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the service for the first time on the host cluster")
-			return reconcile.Result{}, r.Host.Client.Create(ctx, syncedService)
+			return reconcile.Result{}, r.HostClient.Create(ctx, syncedService)
 		}
 
 		return reconcile.Result{}, err
@@ -127,7 +123,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	log.Info("updating service on the host cluster")
 
-	return reconcile.Result{}, r.Host.Client.Update(ctx, syncedService)
+	return reconcile.Result{}, r.HostClient.Update(ctx, syncedService)
 }
 
 func (s *ServiceReconciler) service(obj *v1.Service) *v1.Service {

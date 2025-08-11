@@ -83,12 +83,8 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 	p := Provider{
 		Handler: syncer.GenericControllerHandler{
 			SyncerContext: &syncer.SyncerContext{
-				Virtual: &syncer.ClusterClient{
-					Client: virtualMgr.GetClient(),
-				},
-				Host: &syncer.ClusterClient{
-					Client: hostMgr.GetClient(),
-				},
+				VirtualClient:    virtualMgr.GetClient(),
+				HostClient:       hostMgr.GetClient(),
 				Translator:       translator,
 				ClusterName:      name,
 				ClusterNamespace: namespace,

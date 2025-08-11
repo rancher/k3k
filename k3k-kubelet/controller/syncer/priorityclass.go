@@ -38,12 +38,8 @@ func AddPriorityClassSyncer(ctx context.Context, virtMgr, hostMgr manager.Manage
 		SyncerContext: &SyncerContext{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
-			Virtual: &ClusterClient{
-				Client: virtMgr.GetClient(),
-			},
-			Host: &ClusterClient{
-				Client: hostMgr.GetClient(),
-			},
+			VirtualClient:    virtMgr.GetClient(),
+			HostClient:       hostMgr.GetClient(),
 			Translator: translate.ToHostTranslator{
 				ClusterName:      clusterName,
 				ClusterNamespace: clusterNamespace,
@@ -85,11 +81,11 @@ func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Reque
 		cluster       v1alpha1.Cluster
 	)
 
-	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := r.Virtual.Client.Get(ctx, req.NamespacedName, &priorityClass); err != nil {
+	if err := r.VirtualClient.Get(ctx, req.NamespacedName, &priorityClass); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
@@ -99,13 +95,13 @@ func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Reque
 	if !priorityClass.DeletionTimestamp.IsZero() {
 		// deleting the synced service if exists
 		// TODO add test for previous implementation without err != nil check, and also check the other controllers
-		if err := r.Host.Client.Delete(ctx, hostPriorityClass); err != nil && !apierrors.IsNotFound(err) {
+		if err := r.HostClient.Delete(ctx, hostPriorityClass); err != nil && !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 
 		// remove the finalizer after cleaning up the synced service
 		if controllerutil.RemoveFinalizer(&priorityClass, priorityClassFinalizerName) {
-			if err := r.Virtual.Client.Update(ctx, &priorityClass); err != nil {
+			if err := r.VirtualClient.Update(ctx, &priorityClass); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -115,7 +111,7 @@ func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Reque
 
 	// Add finalizer if it does not exist
 	if controllerutil.AddFinalizer(&priorityClass, priorityClassFinalizerName) {
-		if err := r.Virtual.Client.Update(ctx, &priorityClass); err != nil {
+		if err := r.VirtualClient.Update(ctx, &priorityClass); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -123,13 +119,13 @@ func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Reque
 	// create the priorityClass on the host
 	log.Info("creating the priorityClass for the first time on the host cluster")
 
-	err := r.Host.Client.Create(ctx, hostPriorityClass)
+	err := r.HostClient.Create(ctx, hostPriorityClass)
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{}, r.Host.Client.Update(ctx, hostPriorityClass)
+		return reconcile.Result{}, r.HostClient.Update(ctx, hostPriorityClass)
 	}
 
 	return reconcile.Result{}, nil

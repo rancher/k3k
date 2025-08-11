@@ -20,13 +20,9 @@ import (
 type SyncerContext struct {
 	ClusterName      string
 	ClusterNamespace string
-	Virtual          *ClusterClient
-	Host             *ClusterClient
+	VirtualClient    client.Client
+	HostClient       client.Client
 	Translator       translate.ToHostTranslator
-}
-
-type ClusterClient struct {
-	Client client.Client
 }
 
 type GenericControllerHandler struct {

@@ -32,12 +32,8 @@ func AddIngressSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 		SyncerContext: &SyncerContext{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
-			Host: &ClusterClient{
-				Client: hostMgr.GetClient(),
-			},
-			Virtual: &ClusterClient{
-				Client: virtMgr.GetClient(),
-			},
+			VirtualClient:    virtMgr.GetClient(),
+			HostClient:       hostMgr.GetClient(),
 			Translator: translate.ToHostTranslator{
 				ClusterName:      clusterName,
 				ClusterNamespace: clusterNamespace,
@@ -64,29 +60,29 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		cluster     v1alpha1.Cluster
 	)
 
-	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := r.Virtual.Client.Get(ctx, req.NamespacedName, &virtIngress); err != nil {
+	if err := r.VirtualClient.Get(ctx, req.NamespacedName, &virtIngress); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
 	syncedIngress := r.ingress(&virtIngress)
-	if err := controllerutil.SetControllerReference(&cluster, syncedIngress, r.Host.Client.Scheme()); err != nil {
+	if err := controllerutil.SetControllerReference(&cluster, syncedIngress, r.HostClient.Scheme()); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// handle deletion
 	if !virtIngress.DeletionTimestamp.IsZero() {
 		// deleting the synced service if exists
-		if err := r.Host.Client.Delete(ctx, syncedIngress); err != nil {
+		if err := r.HostClient.Delete(ctx, syncedIngress); err != nil {
 			return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 		}
 
 		// remove the finalizer after cleaning up the synced service
 		if controllerutil.RemoveFinalizer(&virtIngress, ingressFinalizerName) {
-			if err := r.Virtual.Client.Update(ctx, &virtIngress); err != nil {
+			if err := r.VirtualClient.Update(ctx, &virtIngress); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -97,17 +93,17 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	// Add finalizer if it does not exist
 
 	if controllerutil.AddFinalizer(&virtIngress, ingressFinalizerName) {
-		if err := r.Virtual.Client.Update(ctx, &virtIngress); err != nil {
+		if err := r.VirtualClient.Update(ctx, &virtIngress); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
 	// create or update the ingress on host
 	var hostIngress networkingv1.Ingress
-	if err := r.Host.Client.Get(ctx, types.NamespacedName{Name: syncedIngress.Name, Namespace: r.ClusterNamespace}, &hostIngress); err != nil {
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: syncedIngress.Name, Namespace: r.ClusterNamespace}, &hostIngress); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the ingress for the first time on the host cluster")
-			return reconcile.Result{}, r.Host.Client.Create(ctx, syncedIngress)
+			return reconcile.Result{}, r.HostClient.Create(ctx, syncedIngress)
 		}
 
 		return reconcile.Result{}, err
@@ -115,7 +111,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	log.Info("updating ingress on the host cluster")
 
-	return reconcile.Result{}, r.Host.Client.Update(ctx, syncedIngress)
+	return reconcile.Result{}, r.HostClient.Update(ctx, syncedIngress)
 }
 
 func (s *IngressReconciler) ingress(obj *networkingv1.Ingress) *networkingv1.Ingress {

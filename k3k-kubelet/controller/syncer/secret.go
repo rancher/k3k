@@ -49,12 +49,8 @@ func (s *SecretSyncer) Name() string {
 func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, secretSyncConfig v1alpha1.SecretSyncConfig) error {
 	reconciler := SecretSyncer{
 		SyncerContext: &SyncerContext{
-			Virtual: &ClusterClient{
-				Client: virtMgr.GetClient(),
-			},
-			Host: &ClusterClient{
-				Client: hostMgr.GetClient(),
-			},
+			VirtualClient: virtMgr.GetClient(),
+			HostClient:    hostMgr.GetClient(),
 			Translator: translate.ToHostTranslator{
 				ClusterName:      clusterName,
 				ClusterNamespace: clusterNamespace,
@@ -90,7 +86,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 
 	var virtualSecret v1.Secret
 
-	if err := s.Virtual.Client.Get(ctx, req.NamespacedName, &virtualSecret); err != nil {
+	if err := s.VirtualClient.Get(ctx, req.NamespacedName, &virtualSecret); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -99,13 +95,13 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 	// handle deletion
 	if !virtualSecret.DeletionTimestamp.IsZero() {
 		// deleting the synced secret if exist
-		if err := s.Host.Client.Delete(ctx, syncedSecret); err != nil && !apierrors.IsNotFound(err) {
+		if err := s.HostClient.Delete(ctx, syncedSecret); err != nil && !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 
 		// remove the finalizer after cleaning up the synced configMap
 		if controllerutil.RemoveFinalizer(&virtualSecret, secretFinalizerName) {
-			if err := s.Virtual.Client.Update(ctx, &virtualSecret); err != nil {
+			if err := s.VirtualClient.Update(ctx, &virtualSecret); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -115,16 +111,16 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 
 	// Add finalizer if it does not exist
 	if controllerutil.AddFinalizer(&virtualSecret, secretFinalizerName) {
-		if err := s.Virtual.Client.Update(ctx, &virtualSecret); err != nil {
+		if err := s.VirtualClient.Update(ctx, &virtualSecret); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
 	var hostSecret v1.Secret
-	if err := s.Host.Client.Get(ctx, types.NamespacedName{Name: syncedSecret.Name, Namespace: syncedSecret.Namespace}, &hostSecret); err != nil {
+	if err := s.HostClient.Get(ctx, types.NamespacedName{Name: syncedSecret.Name, Namespace: syncedSecret.Namespace}, &hostSecret); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the Secret for the first time on the host cluster")
-			return reconcile.Result{}, s.Host.Client.Create(ctx, syncedSecret)
+			return reconcile.Result{}, s.HostClient.Create(ctx, syncedSecret)
 		}
 
 		return reconcile.Result{}, err
@@ -133,7 +129,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 	// TODO: Add option to keep labels/annotation set by the host cluster
 	log.Info("updating Secret on the host cluster")
 
-	return reconcile.Result{}, s.Host.Client.Update(ctx, syncedSecret)
+	return reconcile.Result{}, s.HostClient.Update(ctx, syncedSecret)
 }
 
 // isWatching is a utility method to determine if a key is in objs without the caller needing
@@ -213,7 +209,7 @@ func (s *SecretSyncer) RemoveResource(ctx context.Context, namespace, name strin
 func (s *SecretSyncer) removeHostSecret(ctx context.Context, virtualNamespace, virtualName string) error {
 	var vSecret v1.Secret
 
-	err := s.Virtual.Client.Get(ctx, types.NamespacedName{
+	err := s.VirtualClient.Get(ctx, types.NamespacedName{
 		Namespace: virtualNamespace,
 		Name:      virtualName,
 	}, &vSecret)
@@ -225,7 +221,7 @@ func (s *SecretSyncer) removeHostSecret(ctx context.Context, virtualNamespace, v
 
 	s.Translator.TranslateTo(translated)
 
-	return s.Host.Client.Delete(ctx, translated)
+	return s.HostClient.Delete(ctx, translated)
 }
 
 // translateSecret will translate a given secret created in the virtual cluster and

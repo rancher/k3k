@@ -18,7 +18,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -71,7 +70,7 @@ func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, c
 		Complete(&reconciler)
 }
 
-func (c *ConfigMapSyncer) filterResources(object ctrlruntimeclient.Object) bool {
+func (c *ConfigMapSyncer) filterResources(object client.Object) bool {
 	var cluster v1alpha1.Cluster
 
 	ctx := context.Background()

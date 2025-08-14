@@ -3,9 +3,11 @@ package syncer
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "k8s.io/api/core/v1"
@@ -46,7 +48,32 @@ func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, cluster
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
 		For(&v1.PersistentVolumeClaim{}).
+		WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
 		Complete(&reconciler)
+}
+
+func (r *PVCReconciler) filterResources(object ctrlruntimeclient.Object) bool {
+	var cluster v1alpha1.Cluster
+
+	ctx := context.Background()
+
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+		return false
+	}
+
+	// check for pvc config
+	syncConfig := cluster.Spec.Sync.PersistentVolumeClaims
+
+	if syncConfig.Enabled == nil || !*syncConfig.Enabled {
+		return false
+	}
+
+	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
+	if labelSelector.Empty() {
+		labelSelector = labels.Everything()
+	}
+
+	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
 func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

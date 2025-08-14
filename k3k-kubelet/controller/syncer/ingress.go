@@ -3,9 +3,11 @@ package syncer
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1 "k8s.io/api/networking/v1"
@@ -46,7 +48,32 @@ func AddIngressSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
 		For(&networkingv1.Ingress{}).
+		WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
 		Complete(&reconciler)
+}
+
+func (r *IngressReconciler) filterResources(object ctrlruntimeclient.Object) bool {
+	var cluster v1alpha1.Cluster
+
+	ctx := context.Background()
+
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+		return false
+	}
+
+	// check for ingressConfig
+	syncConfig := cluster.Spec.Sync.Ingresses
+
+	if syncConfig.Enabled == nil || !*syncConfig.Enabled {
+		return false
+	}
+
+	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
+	if labelSelector.Empty() {
+		labelSelector = labels.Everything()
+	}
+
+	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
 func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

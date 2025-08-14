@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/component-helpers/storage/volume"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "k8s.io/api/core/v1"
@@ -44,7 +45,27 @@ func AddPodPVCController(ctx context.Context, virtMgr, hostMgr manager.Manager, 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
 		For(&v1.Pod{}).
+		WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
 		Complete(&reconciler)
+}
+
+func (r *PodReconciler) filterResources(object ctrlruntimeclient.Object) bool {
+	var cluster v1alpha1.Cluster
+
+	ctx := context.Background()
+
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+		return false
+	}
+
+	// check for pvc config
+	syncConfig := cluster.Spec.Sync.PersistentVolumeClaims
+
+	if syncConfig.Enabled == nil || !*syncConfig.Enabled {
+		return false
+	}
+
+	return true
 }
 
 func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

@@ -440,58 +440,42 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 		return err
 	}
 
-	syncConfig := cluster.Spec.Sync
-
-	if syncConfig.ConfigMaps.IsEnabled() && !syncConfig.ConfigMaps.HasActiveResources() {
-		// if configmap sync is enabled and applied to all resources then we will switch on the global configmap syncer
-		if err := syncer.AddConfigMapSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.ConfigMaps); err != nil {
-			return errors.New("failed to add configmap global syncer: " + err.Error())
-		}
+	if err := syncer.AddConfigMapSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add configmap global syncer: " + err.Error())
 	}
 
-	if syncConfig.Secrets.IsEnabled() && !syncConfig.Secrets.HasActiveResources() {
-		// if secret sync is enabled and applied to all resources then we will switch on the global configmap syncer
-		if err := syncer.AddSecretSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.Secrets); err != nil {
-			return errors.New("failed to add secret global syncer: " + err.Error())
-		}
+	if err := syncer.AddSecretSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add secret global syncer: " + err.Error())
 	}
 
-	if syncConfig.Services.IsEnabled() {
-		logger.Info("adding service syncer controller")
+	logger.Info("adding service syncer controller")
 
-		if err := syncer.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, cluster.Spec.Sync.Services); err != nil {
-			return errors.New("failed to add service syncer controller: " + err.Error())
-		}
+	if err := syncer.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add service syncer controller: " + err.Error())
 	}
 
-	if syncConfig.Ingresses.IsEnabled() {
-		logger.Info("adding ingress syncer controller")
+	logger.Info("adding ingress syncer controller")
 
-		if err := syncer.AddIngressSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-			return errors.New("failed to add ingress syncer controller: " + err.Error())
-		}
+	if err := syncer.AddIngressSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add ingress syncer controller: " + err.Error())
 	}
 
-	if syncConfig.PersistentVolumeClaims.IsEnabled() {
-		logger.Info("adding pvc syncer controller")
+	logger.Info("adding pvc syncer controller")
 
-		if err := syncer.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-			return errors.New("failed to add pvc syncer controller: " + err.Error())
-		}
-
-		logger.Info("adding pod pvc controller")
-
-		if err := syncer.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-			return errors.New("failed to add pod pvc controller: " + err.Error())
-		}
+	if err := syncer.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add pvc syncer controller: " + err.Error())
 	}
 
-	if syncConfig.PriorityClasses.IsEnabled() {
-		logger.Info("adding priorityclass controller")
+	logger.Info("adding pod pvc controller")
 
-		if err := syncer.AddPriorityClassSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-			return errors.New("failed to add priorityclass controller: " + err.Error())
-		}
+	if err := syncer.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add pod pvc controller: " + err.Error())
+	}
+
+	logger.Info("adding priorityclass controller")
+
+	if err := syncer.AddPriorityClassSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add priorityclass controller: " + err.Error())
 	}
 
 	return nil

@@ -18,6 +18,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -25,8 +26,9 @@ import (
 )
 
 const (
-	SecretControllerName = "secret-syncer"
-	secretFinalizerName  = "secret.k3k.io/finalizer"
+	secretControllerName       = "secret-syncer"
+	globalSecretControllerName = "global-secret-syncer"
+	secretFinalizerName        = "secret.k3k.io/finalizer"
 )
 
 type SecretSyncer struct {
@@ -34,19 +36,17 @@ type SecretSyncer struct {
 	// objs are the objects that the syncer should watch/syncronize. Should only be manipulated
 	// through add/remove
 	objs sets.Set[types.NamespacedName]
-	// Global determines if the syncer is only working with active resources or not
-	Global bool
 
 	// SyncerContext contains all client information for host and virtual cluster
 	*SyncerContext
 }
 
 func (s *SecretSyncer) Name() string {
-	return SecretControllerName
+	return secretControllerName
 }
 
-// AddConfigMapSyncer adds configmap syncer controller to the manager of the virtual cluster
-func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, secretSyncConfig v1alpha1.SecretSyncConfig) error {
+// AddSecretSyncer adds secret syncer controller to the manager of the virtual cluster
+func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	reconciler := SecretSyncer{
 		SyncerContext: &SyncerContext{
 			VirtualClient: virtMgr.GetClient(),
@@ -55,23 +55,41 @@ func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clus
 				ClusterName:      clusterName,
 				ClusterNamespace: clusterNamespace,
 			},
+			ClusterName:      clusterName,
+			ClusterNamespace: clusterNamespace,
 		},
-		Global: true,
 	}
 
-	labelSelector := labels.SelectorFromSet(secretSyncConfig.Selector)
+	name := reconciler.Translator.TranslateName(clusterNamespace, globalSecretControllerName)
+
+	return ctrl.NewControllerManagedBy(virtMgr).
+		Named(name).
+		For(&v1.Secret{}).WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
+		Complete(&reconciler)
+}
+
+func (r *SecretSyncer) filterResources(object ctrlruntimeclient.Object) bool {
+	var cluster v1alpha1.Cluster
+
+	ctx := context.Background()
+
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+		return false
+	}
+
+	// check for Secrets Sync Config
+	syncConfig := cluster.Spec.Sync.Secrets
+
+	if !syncConfig.IsEnabled() || syncConfig.HasActiveResources() {
+		return false
+	}
+
+	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
 	if labelSelector.Empty() {
 		labelSelector = labels.Everything()
 	}
 
-	name := reconciler.Translator.TranslateName(clusterNamespace, SecretControllerName)
-
-	return ctrl.NewControllerManagedBy(virtMgr).
-		Named(name).
-		For(&v1.Secret{}).WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-		return labelSelector.Matches(labels.Set(object.GetLabels()))
-	})).
-		Complete(&reconciler)
+	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
 // Reconcile implements reconcile.Reconciler and synchronizes the objects in objs to the host cluster
@@ -79,7 +97,14 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", s.ClusterName, "clusterNamespace", s.ClusterName)
 	ctx = ctrl.LoggerInto(ctx, log)
 
-	if !s.isWatching(req.NamespacedName) && !s.Global {
+	var cluster v1alpha1.Cluster
+
+	if err := s.HostClient.Get(ctx, types.NamespacedName{Name: s.ClusterName, Namespace: s.ClusterNamespace}, &cluster); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	syncConfig := cluster.Spec.Sync.Secrets
+	if !syncConfig.IsEnabled() || (syncConfig.HasActiveResources() && !s.isWatching(req.NamespacedName)) {
 		// return immediately without re-enqueueing. We aren't watching this resource
 		return reconcile.Result{}, nil
 	}
@@ -99,7 +124,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 			return reconcile.Result{}, err
 		}
 
-		// remove the finalizer after cleaning up the synced configMap
+		// remove the finalizer after cleaning up the synced secret
 		if controllerutil.RemoveFinalizer(&virtualSecret, secretFinalizerName) {
 			if err := s.VirtualClient.Update(ctx, &virtualSecret); err != nil {
 				return reconcile.Result{}, err

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
@@ -40,6 +41,13 @@ var PriorityClassTests = func() {
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "cluster-",
 				Namespace:    namespace,
+			},
+			Spec: v1alpha1.ClusterSpec{
+				Sync: v1alpha1.SyncConfig{
+					PriorityClasses: v1alpha1.PriorityClassSyncConfig{
+						Enabled: ptr.To(true),
+					},
+				},
 			},
 		}
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
@@ -215,5 +223,35 @@ var PriorityClassTests = func() {
 		Expect(hostPriorityClass.Value).To(Equal(priorityClass.Value))
 		Expect(hostPriorityClass.GlobalDefault).To(BeFalse())
 		Expect(hostPriorityClass.Annotations[syncer.PriorityClassGlobalDefaultAnnotation]).To(Equal("true"))
+	})
+
+	It("will not create a priorityClass on the host cluster if disabled", func() {
+		ctx := context.Background()
+
+		cluster.Spec.Sync.PriorityClasses.Enabled = ptr.To(false)
+		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		priorityClass := &schedulingv1.PriorityClass{
+			ObjectMeta: metav1.ObjectMeta{GenerateName: "pc-"},
+			Value:      1001,
+		}
+
+		err = virtTestEnv.k8sClient.Create(ctx, priorityClass)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Created priorityClass %s in virtual cluster", priorityClass.Name))
+
+		var hostPriorityClass schedulingv1.PriorityClass
+		hostPriorityClassName := translateName(cluster, priorityClass.Namespace, priorityClass.Name)
+
+		Eventually(func() bool {
+			key := client.ObjectKey{Name: hostPriorityClassName}
+			err = hostTestEnv.k8sClient.Get(ctx, key, &hostPriorityClass)
+			return apierrors.IsNotFound(err)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeTrue())
 	})
 }

@@ -41,14 +41,19 @@ var ConfigMapTests = func() {
 				GenerateName: "cluster-",
 				Namespace:    namespace,
 			},
+			Spec: v1alpha1.ClusterSpec{
+				Sync: v1alpha1.SyncConfig{
+					ConfigMaps: v1alpha1.ConfigMapSyncConfig{
+						Enabled:         ptr.To(true),
+						ActiveResources: ptr.To(false),
+					},
+				},
+			},
 		}
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = syncer.AddConfigMapSyncer(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace, v1alpha1.ConfigMapSyncConfig{
-			Enabled:         ptr.To(true),
-			ActiveResources: ptr.To(false),
-		})
+		err = syncer.AddConfigMapSyncer(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -196,6 +201,41 @@ var ConfigMapTests = func() {
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostConfigMapName, Namespace: namespace}
 			err := hostTestEnv.k8sClient.Get(ctx, key, &hostConfigMap)
+			return apierrors.IsNotFound(err)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeTrue())
+	})
+	It("will not sync a configMap if disabled", func() {
+		ctx := context.Background()
+
+		cluster.Spec.Sync.ConfigMaps.Enabled = ptr.To(false)
+		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		configMap := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "cm-",
+				Namespace:    "default",
+			},
+			Data: map[string]string{
+				"foo": "bar",
+			},
+		}
+
+		err = virtTestEnv.k8sClient.Create(ctx, configMap)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Created configmap %s in virtual cluster", configMap.Name))
+
+		var hostConfigMap v1.ConfigMap
+		hostConfigMapName := translateName(cluster, configMap.Namespace, configMap.Name)
+
+		Eventually(func() bool {
+			key := client.ObjectKey{Name: hostConfigMapName, Namespace: namespace}
+			err := hostTestEnv.k8sClient.Get(ctx, key, &hostConfigMap)
+			GinkgoWriter.Printf("error: %v", err)
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).

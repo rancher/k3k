@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -51,8 +52,8 @@ func AddPriorityClassSyncer(ctx context.Context, virtMgr, hostMgr manager.Manage
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
-		For(&schedulingv1.PriorityClass{}).
-		WithEventFilter(ignoreSystemPrefixPredicate).
+		For(&schedulingv1.PriorityClass{}).WithEventFilter(ignoreSystemPrefixPredicate).
+		WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
 		Complete(&reconciler)
 }
 
@@ -70,6 +71,30 @@ var ignoreSystemPrefixPredicate = predicate.Funcs{
 	GenericFunc: func(e event.GenericEvent) bool {
 		return !strings.HasPrefix(e.Object.GetName(), "system-")
 	},
+}
+
+func (r *PriorityClassSyncer) filterResources(object ctrlruntimeclient.Object) bool {
+	var cluster v1alpha1.Cluster
+
+	ctx := context.Background()
+
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+		return false
+	}
+
+	// check for priorityClassConfig
+	syncConfig := cluster.Spec.Sync.PriorityClasses
+
+	if syncConfig.Enabled == nil || !*syncConfig.Enabled {
+		return false
+	}
+
+	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
+	if labelSelector.Empty() {
+		labelSelector = labels.Everything()
+	}
+
+	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
 func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

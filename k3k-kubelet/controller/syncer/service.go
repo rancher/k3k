@@ -29,7 +29,7 @@ type ServiceReconciler struct {
 }
 
 // AddServiceSyncer adds service syncer controller to the manager of the virtual cluster
-func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, serviceSyncConfig v1alpha1.ServiceSyncConfig) error {
+func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	translator := translate.ToHostTranslator{
 		ClusterName:      clusterName,
 		ClusterNamespace: clusterNamespace,
@@ -45,18 +45,11 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 		},
 	}
 
-	labelSelector := labels.SelectorFromSet(serviceSyncConfig.Selector)
-	if labelSelector.Empty() {
-		labelSelector = labels.Everything()
-	}
-
 	name := reconciler.Translator.TranslateName(clusterNamespace, serviceControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
-		For(&v1.Service{}).WithEventFilter(predicate.NewPredicateFuncs(func(object ctrlruntimeclient.Object) bool {
-		return labelSelector.Matches(labels.Set(object.GetLabels()))
-	})).
+		For(&v1.Service{}).WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
 		Complete(&reconciler)
 }
 
@@ -124,6 +117,30 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	log.Info("updating service on the host cluster")
 
 	return reconcile.Result{}, r.HostClient.Update(ctx, syncedService)
+}
+
+func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) bool {
+	var cluster v1alpha1.Cluster
+
+	ctx := context.Background()
+
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+		return false
+	}
+
+	// check for serviceSyncConfig
+	syncConfig := cluster.Spec.Sync.Services
+
+	if syncConfig.Enabled == nil || !*syncConfig.Enabled {
+		return false
+	}
+
+	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
+	if labelSelector.Empty() {
+		labelSelector = labels.Everything()
+	}
+
+	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
 func (s *ServiceReconciler) service(obj *v1.Service) *v1.Service {

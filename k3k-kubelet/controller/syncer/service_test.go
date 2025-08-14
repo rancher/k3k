@@ -42,13 +42,18 @@ var ServiceTests = func() {
 				GenerateName: "cluster-",
 				Namespace:    namespace,
 			},
+			Spec: v1alpha1.ClusterSpec{
+				Sync: v1alpha1.SyncConfig{
+					Services: v1alpha1.ServiceSyncConfig{
+						Enabled: ptr.To(true),
+					},
+				},
+			},
 		}
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = syncer.AddServiceSyncer(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace, v1alpha1.ServiceSyncConfig{
-			Enabled: ptr.To(true),
-		})
+		err = syncer.AddServiceSyncer(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -221,6 +226,48 @@ var ServiceTests = func() {
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostServiceName, Namespace: namespace}
 			err := hostTestEnv.k8sClient.Get(ctx, key, &hostService)
+			return apierrors.IsNotFound(err)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeTrue())
+	})
+
+	It("will not create a service on the host cluster if disabled", func() {
+		ctx := context.Background()
+
+		cluster.Spec.Sync.Services.Enabled = ptr.To(false)
+		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		service := &v1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "service-",
+				Namespace:    "default",
+			},
+			Spec: v1.ServiceSpec{
+				Type: v1.ServiceTypeNodePort,
+				Ports: []v1.ServicePort{
+					{
+						Name:       "test-port",
+						Port:       8888,
+						TargetPort: intstr.FromInt32(8888),
+					},
+				},
+			},
+		}
+
+		err = virtTestEnv.k8sClient.Create(ctx, service)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Created service %s in virtual cluster", service.Name))
+
+		var hostService v1.Service
+		hostServiceName := translateName(cluster, service.Namespace, service.Name)
+
+		Eventually(func() bool {
+			key := client.ObjectKey{Name: hostServiceName, Namespace: namespace}
+			err = hostTestEnv.k8sClient.Get(ctx, key, &hostService)
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).

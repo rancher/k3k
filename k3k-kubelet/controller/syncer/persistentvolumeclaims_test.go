@@ -41,6 +41,13 @@ var PVCTests = func() {
 				GenerateName: "cluster-",
 				Namespace:    namespace,
 			},
+			Spec: v1alpha1.ClusterSpec{
+				Sync: v1alpha1.SyncConfig{
+					PersistentVolumeClaims: v1alpha1.PersistentVolumeClaimSyncConfig{
+						Enabled: ptr.To(true),
+					},
+				},
+			},
 		}
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())

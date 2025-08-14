@@ -42,6 +42,13 @@ var IngressTests = func() {
 				GenerateName: "cluster-",
 				Namespace:    namespace,
 			},
+			Spec: v1alpha1.ClusterSpec{
+				Sync: v1alpha1.SyncConfig{
+					Ingresses: v1alpha1.IngressSyncConfig{
+						Enabled: ptr.To(true),
+					},
+				},
+			},
 		}
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -269,6 +276,66 @@ var IngressTests = func() {
 
 		err = virtTestEnv.k8sClient.Delete(ctx, ingress)
 		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func() bool {
+			key := client.ObjectKey{Name: hostIngressName, Namespace: namespace}
+			err := hostTestEnv.k8sClient.Get(ctx, key, &hostIngress)
+			return apierrors.IsNotFound(err)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeTrue())
+	})
+
+	It("will not sync an Ingress if disabled", func() {
+		ctx := context.Background()
+
+		cluster.Spec.Sync.Ingresses.Enabled = ptr.To(false)
+		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		ingress := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "ingress-",
+				Namespace:    "default",
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{
+					{
+						Host: "test.com",
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
+									{
+										Path:     "/",
+										PathType: ptr.To(networkingv1.PathTypePrefix),
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "test-service",
+												Port: networkingv1.ServiceBackendPort{
+													Name: "test-port",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err = virtTestEnv.k8sClient.Create(ctx, ingress)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Created Ingress %s in virtual cluster", ingress.Name))
+
+		var hostIngress networkingv1.Ingress
+		hostIngressName := translateName(cluster, ingress.Namespace, ingress.Name)
 
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostIngressName, Namespace: namespace}

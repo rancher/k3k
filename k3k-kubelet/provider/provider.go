@@ -340,7 +340,14 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 
 // createPod takes a Kubernetes Pod and deploys it within the provider.
 func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
-	tPod := pod.DeepCopy()
+	// fieldPath envs are not being translated correctly using the virtual kubelet pod controller
+	// as a workaround we will try to fetch the pod from the virtual cluster and copy over the envSource
+	var sourcePod corev1.Pod
+	if err := p.VirtualClient.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, &sourcePod); err != nil {
+		return err
+	}
+
+	tPod := sourcePod.DeepCopy()
 	p.Translator.TranslateTo(tPod)
 
 	// get Cluster definition
@@ -385,7 +392,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	// fieldpath annotations
-	if err := p.configureFieldPathEnv(pod, tPod); err != nil {
+	if err := p.configureFieldPathEnv(&sourcePod, tPod); err != nil {
 		return fmt.Errorf("unable to fetch fieldpath annotations for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 	// volumes will often refer to resources in the virtual cluster, but instead need to refer to the sync'd
@@ -609,6 +616,11 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 		}
 
 		return nil
+	}
+
+	// fieldpath annotations
+	if err := p.configureFieldPathEnv(&currentVirtualPod, &currentHostPod); err != nil {
+		return fmt.Errorf("unable to fetch fieldpath annotations for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 
 	currentVirtualPod.Spec.Containers = updateContainerImages(currentVirtualPod.Spec.Containers, pod.Spec.Containers)

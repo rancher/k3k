@@ -881,24 +881,39 @@ func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP
 
 	// inject networking information to the pod's environment variables
 	for i := range pod.Spec.Containers {
-		pod.Spec.Containers[i].Env = overrideEnvVars(pod.Spec.Containers[i].Env, updatedEnvVars)
+		pod.Spec.Containers[i].Env = mergeEnvVars(pod.Spec.Containers[i].Env, updatedEnvVars)
 	}
 
 	// handle init containers as well
 	for i := range pod.Spec.InitContainers {
-		pod.Spec.InitContainers[i].Env = overrideEnvVars(pod.Spec.InitContainers[i].Env, updatedEnvVars)
+		pod.Spec.InitContainers[i].Env = mergeEnvVars(pod.Spec.InitContainers[i].Env, updatedEnvVars)
 	}
 
 	// handle ephemeral containers as well
 	for i := range pod.Spec.EphemeralContainers {
-		pod.Spec.EphemeralContainers[i].Env = overrideEnvVars(pod.Spec.EphemeralContainers[i].Env, updatedEnvVars)
+		pod.Spec.EphemeralContainers[i].Env = mergeEnvVars(pod.Spec.EphemeralContainers[i].Env, updatedEnvVars)
 	}
 }
 
-// overrideEnvVars will override the orig environment variables if found in the updated list
-func overrideEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
+// mergeEnvVars will override the orig environment variables if found in the updated list and will add them to the list if not found
+func mergeEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 	if len(updated) == 0 {
 		return orig
+	}
+
+	// add env vars if not found
+	var found bool
+	// first make sure to add the envs if not found
+	for _, newEnv := range updated {
+		for _, env := range orig {
+			if newEnv.Name == env.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			orig = append(orig, newEnv)
+		}
 	}
 
 	// create map for single lookup

@@ -7,7 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func Test_overrideEnvVars(t *testing.T) {
+func Test_mergeEnvVars(t *testing.T) {
 	type args struct {
 		orig []corev1.EnvVar
 		new  []corev1.EnvVar
@@ -32,7 +32,7 @@ func Test_overrideEnvVars(t *testing.T) {
 				orig: []corev1.EnvVar{},
 				new:  []corev1.EnvVar{{Name: "FOO", Value: "new_val"}},
 			},
-			want: []corev1.EnvVar{},
+			want: []corev1.EnvVar{{Name: "FOO", Value: "new_val"}},
 		},
 		{
 			name: "orig has a matching element",

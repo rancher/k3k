@@ -903,6 +903,7 @@ func mergeEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 
 	// add env vars if not found
 	var found bool
+
 	for _, newEnv := range updated {
 		for _, env := range orig {
 			if newEnv.Name == env.Name {
@@ -910,6 +911,7 @@ func mergeEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 				break
 			}
 		}
+
 		if !found {
 			orig = append(orig, newEnv)
 		}

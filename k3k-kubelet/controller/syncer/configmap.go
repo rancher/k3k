@@ -2,13 +2,9 @@ package syncer
 
 import (
 	"context"
-	"fmt"
-	"sync"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -21,21 +17,14 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller"
 )
 
 const (
-	configMapControllerName       = "configmap-syncer"
-	globalConfigMapCongrollerName = "global-configmap-syncer"
-	configMapFinalizerName        = "configmap.k3k.io/finalizer"
+	configMapControllerName = "configmap-syncer"
+	configMapFinalizerName  = "configmap.k3k.io/finalizer"
 )
 
 type ConfigMapSyncer struct {
-	mutex sync.RWMutex
-	// objs are the objects that the syncer should watch/syncronize. Should only be manipulated
-	// through add/remove
-	objs sets.Set[types.NamespacedName]
-
 	// SyncerContext contains all client information for host and virtual cluster
 	*SyncerContext
 }
@@ -59,7 +48,7 @@ func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, c
 		},
 	}
 
-	name := reconciler.Translator.TranslateName(clusterNamespace, globalConfigMapCongrollerName)
+	name := reconciler.Translator.TranslateName(clusterNamespace, configMapControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
@@ -148,99 +137,6 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 	log.Info("updating ConfigMap on the host cluster")
 
 	return reconcile.Result{}, c.HostClient.Update(ctx, syncedConfigMap)
-}
-
-// isWatching is a utility method to determine if a key is in objs without the caller needing
-// to handle mutex lock/unlock.
-func (c *ConfigMapSyncer) isWatching(key types.NamespacedName) bool {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-
-	return c.objs.Has(key)
-}
-
-// AddResource adds a given resource to the list of resources that will be synced. Safe to call multiple times for the
-// same resource.
-func (c *ConfigMapSyncer) AddResource(ctx context.Context, namespace, name string) error {
-	objKey := types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
-	}
-
-	// if we already sync this object, no need to writelock/add it
-	if c.isWatching(objKey) {
-		return nil
-	}
-
-	// lock in write mode since we are now adding the key
-	c.mutex.Lock()
-
-	if c.objs == nil {
-		c.objs = sets.Set[types.NamespacedName]{}
-	}
-
-	c.objs = c.objs.Insert(objKey)
-	c.mutex.Unlock()
-
-	_, err := c.Reconcile(ctx, reconcile.Request{
-		NamespacedName: objKey,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to reconcile new object %s/%s: %w", objKey.Namespace, objKey.Name, err)
-	}
-
-	return nil
-}
-
-// RemoveResource removes a given resource from the list of resources that will be synced. Safe to call for an already
-// removed resource.
-func (c *ConfigMapSyncer) RemoveResource(ctx context.Context, namespace, name string) error {
-	objKey := types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
-	}
-	// if we don't sync this object, no need to writelock/add it
-	if !c.isWatching(objKey) {
-		return nil
-	}
-
-	if err := retry.OnError(controller.Backoff, func(err error) bool {
-		return err != nil
-	}, func() error {
-		return c.removeHostConfigMap(ctx, namespace, name)
-	}); err != nil {
-		return fmt.Errorf("unable to remove configmap: %w", err)
-	}
-
-	c.mutex.Lock()
-
-	if c.objs == nil {
-		c.objs = sets.Set[types.NamespacedName]{}
-	}
-
-	c.objs = c.objs.Delete(objKey)
-	c.mutex.Unlock()
-
-	return nil
-}
-
-func (c *ConfigMapSyncer) removeHostConfigMap(ctx context.Context, virtualNamespace, virtualName string) error {
-	var vConfigMap corev1.ConfigMap
-
-	key := types.NamespacedName{
-		Namespace: virtualNamespace,
-		Name:      virtualName,
-	}
-
-	if err := c.VirtualClient.Get(ctx, key, &vConfigMap); err != nil {
-		return fmt.Errorf("unable to get virtual configmap %s/%s: %w", virtualNamespace, virtualName, err)
-	}
-
-	translated := vConfigMap.DeepCopy()
-
-	c.Translator.TranslateTo(translated)
-
-	return c.HostClient.Delete(ctx, translated)
 }
 
 // translateConfigMap will translate a given configMap created in the virtual cluster and

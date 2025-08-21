@@ -2,11 +2,9 @@ package syncer
 
 import (
 	"context"
-	"sync"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -22,17 +20,11 @@ import (
 )
 
 const (
-	secretControllerName       = "secret-syncer"
-	globalSecretControllerName = "global-secret-syncer"
-	secretFinalizerName        = "secret.k3k.io/finalizer"
+	secretControllerName = "secret-syncer"
+	secretFinalizerName  = "secret.k3k.io/finalizer"
 )
 
 type SecretSyncer struct {
-	mutex sync.RWMutex
-	// objs are the objects that the syncer should watch/syncronize. Should only be manipulated
-	// through add/remove
-	objs sets.Set[types.NamespacedName]
-
 	// SyncerContext contains all client information for host and virtual cluster
 	*SyncerContext
 }
@@ -56,7 +48,7 @@ func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clus
 		},
 	}
 
-	name := reconciler.Translator.TranslateName(clusterNamespace, globalSecretControllerName)
+	name := reconciler.Translator.TranslateName(clusterNamespace, secretControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).

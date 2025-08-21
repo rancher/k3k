@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
@@ -43,9 +42,8 @@ var ConfigMapTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					ConfigMaps: v1alpha1.ConfigMapSyncConfig{
-						Enabled:         ptr.To(true),
-						ActiveResources: ptr.To(false),
+					ConfigMaps: v1alpha1.SyncConfigOptions{
+						Enabled: true,
 					},
 				},
 			},
@@ -210,7 +208,7 @@ var ConfigMapTests = func() {
 	It("will not sync a configMap if disabled", func() {
 		ctx := context.Background()
 
-		cluster.Spec.Sync.ConfigMaps.Enabled = ptr.To(false)
+		cluster.Spec.Sync.ConfigMaps.Enabled = false
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 

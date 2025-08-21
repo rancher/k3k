@@ -44,8 +44,8 @@ var IngressTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					Ingresses: v1alpha1.IngressSyncConfig{
-						Enabled: ptr.To(true),
+					Ingresses: v1alpha1.SyncConfigOptions{
+						Enabled: true,
 					},
 				},
 			},
@@ -290,7 +290,7 @@ var IngressTests = func() {
 	It("will not sync an Ingress if disabled", func() {
 		ctx := context.Background()
 
-		cluster.Spec.Sync.Ingresses.Enabled = ptr.To(false)
+		cluster.Spec.Sync.Ingresses.Enabled = false
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 

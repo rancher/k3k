@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -32,13 +31,11 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	compbasemetrics "k8s.io/component-base/metrics"
 	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 
-	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
 	"github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider/collectors"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -53,7 +50,6 @@ var _ nodeutil.Provider = (*Provider)(nil)
 // Provider implements nodetuil.Provider from virtual Kubelet.
 // TODO: Implement NotifyPods and the required usage so that this can be an async provider
 type Provider struct {
-	Handler          syncer.GenericControllerHandler
 	Translator       translate.ToHostTranslator
 	HostClient       client.Client
 	VirtualClient    client.Client
@@ -81,16 +77,6 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3
 	}
 
 	p := Provider{
-		Handler: syncer.GenericControllerHandler{
-			SyncerContext: &syncer.SyncerContext{
-				VirtualClient:    virtualMgr.GetClient(),
-				HostClient:       hostMgr.GetClient(),
-				Translator:       translator,
-				ClusterName:      name,
-				ClusterNamespace: namespace,
-			},
-			Logger: logger,
-		},
 		HostClient:       hostMgr.GetClient(),
 		VirtualClient:    virtualMgr.GetClient(),
 		VirtualManager:   virtualMgr,
@@ -394,7 +380,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 	// volumes will often refer to resources in the virtual cluster, but instead need to refer to the sync'd
 	// host cluster version
-	if err := p.transformVolumes(ctx, pod.Namespace, tPod.Spec.Volumes, cluster.Spec.Sync); err != nil {
+	if err := p.transformVolumes(pod.Namespace, tPod.Spec.Volumes); err != nil {
 		return fmt.Errorf("unable to sync volumes for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 	// sync serviceaccount token to a the host cluster
@@ -447,67 +433,22 @@ func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *corev
 
 // transformVolumes changes the volumes to the representation in the host cluster. Will return an error
 // if one/more volumes couldn't be transformed
-func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, volumes []corev1.Volume, syncConfig v1alpha1.SyncConfig) error {
+func (p *Provider) transformVolumes(podNamespace string, volumes []corev1.Volume) error {
 	for _, volume := range volumes {
-		var optional bool
-
 		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
 			continue
 		}
 		// note: this needs to handle downward api volumes as well, but more thought is needed on how to do that
 		if volume.ConfigMap != nil {
-			if volume.ConfigMap.Optional != nil {
-				optional = *volume.ConfigMap.Optional
-			}
-
-			if syncConfig.ConfigMaps.IsEnabled() && syncConfig.ConfigMaps.HasActiveResources() {
-				if err := p.syncConfigmap(ctx, podNamespace, volume.ConfigMap.Name, optional); err != nil {
-					return fmt.Errorf("unable to sync configmap volume %s: %w", volume.Name, err)
-				}
-			}
-
 			volume.ConfigMap.Name = p.Translator.TranslateName(podNamespace, volume.ConfigMap.Name)
 		} else if volume.Secret != nil {
-			if volume.Secret.Optional != nil {
-				optional = *volume.Secret.Optional
-			}
-
-			if syncConfig.Secrets.IsEnabled() && syncConfig.Secrets.HasActiveResources() {
-				if err := p.syncSecret(ctx, podNamespace, volume.Secret.SecretName, optional); err != nil {
-					return fmt.Errorf("unable to sync secret volume %s: %w", volume.Name, err)
-				}
-			}
-
 			volume.Secret.SecretName = p.Translator.TranslateName(podNamespace, volume.Secret.SecretName)
 		} else if volume.Projected != nil {
 			for _, source := range volume.Projected.Sources {
 				if source.ConfigMap != nil {
-					if source.ConfigMap.Optional != nil {
-						optional = *source.ConfigMap.Optional
-					}
-
-					configMapName := source.ConfigMap.Name
-
-					if syncConfig.ConfigMaps.IsEnabled() && syncConfig.ConfigMaps.HasActiveResources() {
-						if err := p.syncConfigmap(ctx, podNamespace, configMapName, optional); err != nil {
-							return fmt.Errorf("unable to sync projected configmap %s: %w", configMapName, err)
-						}
-					}
-
-					source.ConfigMap.Name = p.Translator.TranslateName(podNamespace, configMapName)
+					source.ConfigMap.Name = p.Translator.TranslateName(podNamespace, source.ConfigMap.Name)
 				} else if source.Secret != nil {
-					if source.Secret.Optional != nil {
-						optional = *source.Secret.Optional
-					}
-
-					secretName := source.Secret.Name
-					if syncConfig.Secrets.IsEnabled() && syncConfig.Secrets.HasActiveResources() {
-						if err := p.syncSecret(ctx, podNamespace, secretName, optional); err != nil {
-							return fmt.Errorf("unable to sync projected secret %s: %w", secretName, err)
-						}
-					}
-
-					source.Secret.Name = p.Translator.TranslateName(podNamespace, secretName)
+					source.Secret.Name = p.Translator.TranslateName(podNamespace, source.Secret.Name)
 				}
 			}
 		} else if volume.PersistentVolumeClaim != nil {
@@ -525,57 +466,6 @@ func (p *Provider) transformVolumes(ctx context.Context, podNamespace string, vo
 				}
 			}
 		}
-	}
-
-	return nil
-}
-
-// syncConfigmap will add the configmap object to the queue of the syncer controller to be synced to the host cluster
-func (p *Provider) syncConfigmap(ctx context.Context, podNamespace string, configMapName string, optional bool) error {
-	var configMap corev1.ConfigMap
-
-	nsName := types.NamespacedName{
-		Namespace: podNamespace,
-		Name:      configMapName,
-	}
-
-	if err := p.VirtualClient.Get(ctx, nsName, &configMap); err != nil {
-		// check if its optional configmap
-		if apierrors.IsNotFound(err) && optional {
-			return nil
-		}
-
-		return fmt.Errorf("unable to get configmap to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
-	}
-
-	if err := p.Handler.AddResource(ctx, &configMap, p.VirtualManager); err != nil {
-		return fmt.Errorf("unable to add configmap to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
-	}
-
-	return nil
-}
-
-// syncSecret will add the secret object to the queue of the syncer controller to be synced to the host cluster
-func (p *Provider) syncSecret(ctx context.Context, podNamespace string, secretName string, optional bool) error {
-	p.logger.Infow("Syncing secret", "Name", secretName, "Namespace", podNamespace, "optional", optional)
-
-	var secret corev1.Secret
-
-	nsName := types.NamespacedName{
-		Namespace: podNamespace,
-		Name:      secretName,
-	}
-
-	if err := p.VirtualClient.Get(ctx, nsName, &secret); err != nil {
-		if apierrors.IsNotFound(err) && optional {
-			return nil
-		}
-
-		return fmt.Errorf("unable to get secret to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
-	}
-
-	if err := p.Handler.AddResource(ctx, &secret, p.VirtualManager); err != nil {
-		return fmt.Errorf("unable to add secret to sync %s/%s: %w", nsName.Namespace, nsName.Name, err)
 	}
 
 	return nil
@@ -691,77 +581,7 @@ func (p *Provider) deletePod(ctx context.Context, pod *corev1.Pod) error {
 		return fmt.Errorf("unable to delete pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 
-	if err = p.pruneUnusedVolumes(ctx, pod); err != nil {
-		// note that we don't return an error here. The pod was successfully deleted, another process
-		// should clean this without affecting the user
-		p.logger.Errorf("failed to prune leftover volumes for %s/%s: %w, resources may be left", pod.Namespace, pod.Name, err)
-	}
-
 	p.logger.Infof("Deleted pod %s", pod.Name)
-
-	return nil
-}
-
-// pruneUnusedVolumes removes volumes in use by pod that aren't used by any other pods
-func (p *Provider) pruneUnusedVolumes(ctx context.Context, pod *corev1.Pod) error {
-	rawSecrets, rawConfigMaps := getSecretsAndConfigmaps(pod)
-	// since this pod was removed, originally mark all of the secrets/configmaps it uses as eligible
-	// for pruning
-	pruneSecrets := sets.Set[string]{}.Insert(rawSecrets...)
-	pruneConfigMap := sets.Set[string]{}.Insert(rawConfigMaps...)
-
-	var pods corev1.PodList
-	// only pods in the same namespace could be using secrets/configmaps that this pod is using
-	err := p.VirtualClient.List(ctx, &pods, &client.ListOptions{
-		Namespace: pod.Namespace,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to list pods: %w", err)
-	}
-
-	for _, vPod := range pods.Items {
-		if vPod.Name == pod.Name {
-			continue
-		}
-
-		secrets, configMaps := getSecretsAndConfigmaps(&vPod)
-		pruneSecrets.Delete(secrets...)
-		pruneConfigMap.Delete(configMaps...)
-	}
-
-	for _, secretName := range pruneSecrets.UnsortedList() {
-		var secret corev1.Secret
-
-		key := types.NamespacedName{
-			Name:      secretName,
-			Namespace: pod.Namespace,
-		}
-
-		if err := p.VirtualClient.Get(ctx, key, &secret); err != nil {
-			return fmt.Errorf("unable to get secret %s/%s for pod volume: %w", pod.Namespace, secretName, err)
-		}
-
-		if err = p.Handler.RemoveResource(ctx, &secret); err != nil {
-			return fmt.Errorf("unable to remove secret %s/%s for pod volume: %w", pod.Namespace, secretName, err)
-		}
-	}
-
-	for _, configMapName := range pruneConfigMap.UnsortedList() {
-		var configMap corev1.ConfigMap
-
-		key := types.NamespacedName{
-			Name:      configMapName,
-			Namespace: pod.Namespace,
-		}
-
-		if err := p.VirtualClient.Get(ctx, key, &configMap); err != nil {
-			return fmt.Errorf("unable to get configMap %s/%s for pod volume: %w", pod.Namespace, configMapName, err)
-		}
-
-		if err = p.Handler.RemoveResource(ctx, &configMap); err != nil {
-			return fmt.Errorf("unable to remove configMap %s/%s for pod volume: %w", pod.Namespace, configMapName, err)
-		}
-	}
 
 	return nil
 }
@@ -915,33 +735,6 @@ func overrideEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 	}
 
 	return orig
-}
-
-// getSecretsAndConfigmaps retrieves a list of all secrets/configmaps that are in use by a given pod. Useful
-// for removing/seeing which virtual cluster resources need to be in the host cluster.
-func getSecretsAndConfigmaps(pod *corev1.Pod) ([]string, []string) {
-	var (
-		secrets    []string
-		configMaps []string
-	)
-
-	for _, volume := range pod.Spec.Volumes {
-		if volume.Secret != nil {
-			secrets = append(secrets, volume.Secret.SecretName)
-		} else if volume.ConfigMap != nil {
-			configMaps = append(configMaps, volume.ConfigMap.Name)
-		} else if volume.Projected != nil {
-			for _, source := range volume.Projected.Sources {
-				if source.ConfigMap != nil {
-					configMaps = append(configMaps, source.ConfigMap.Name)
-				} else if source.Secret != nil {
-					secrets = append(secrets, source.Secret.Name)
-				}
-			}
-		}
-	}
-
-	return secrets, configMaps
 }
 
 // configureFieldPathEnv will retrieve all annotations created by the pod mutator webhook

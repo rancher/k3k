@@ -43,8 +43,8 @@ var PVCTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					PersistentVolumeClaims: v1alpha1.PersistentVolumeClaimSyncConfig{
-						Enabled: ptr.To(true),
+					PersistentVolumeClaims: v1alpha1.SyncConfigOptions{
+						Enabled: true,
 					},
 				},
 			},

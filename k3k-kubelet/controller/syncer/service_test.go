@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
@@ -44,8 +43,8 @@ var ServiceTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					Services: v1alpha1.ServiceSyncConfig{
-						Enabled: ptr.To(true),
+					Services: v1alpha1.SyncConfigOptions{
+						Enabled: true,
 					},
 				},
 			},
@@ -236,7 +235,7 @@ var ServiceTests = func() {
 	It("will not create a service on the host cluster if disabled", func() {
 		ctx := context.Background()
 
-		cluster.Spec.Sync.Services.Enabled = ptr.To(false)
+		cluster.Spec.Sync.Services.Enabled = false
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 

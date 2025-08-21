@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
@@ -43,9 +42,8 @@ var SecretTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					Secrets: v1alpha1.SecretSyncConfig{
-						Enabled:         ptr.To(true),
-						ActiveResources: ptr.To(false),
+					Secrets: v1alpha1.SyncConfigOptions{
+						Enabled: true,
 					},
 				},
 			},
@@ -208,7 +206,7 @@ var SecretTests = func() {
 	It("will not create a secret on the host cluster if disabled", func() {
 		ctx := context.Background()
 
-		cluster.Spec.Sync.Secrets.Enabled = ptr.To(false)
+		cluster.Spec.Sync.Secrets.Enabled = false
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 

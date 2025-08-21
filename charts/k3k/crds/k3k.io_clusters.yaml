@@ -575,20 +575,16 @@ spec:
                 - message: serviceCIDR is immutable
                   rule: self == oldSelf
               sync:
+                default: {}
                 description: Sync specifies the resources types that will be synced
                   from virtual cluster to host cluster.
                 properties:
                   configmaps:
-                    description: ConfigMapSyncConfig specifies the options for synchronization
-                      of configmaps.
+                    default:
+                      enabled: true
+                    description: ConfigMaps resources sync configuration.
                     properties:
-                      activeResources:
-                        default: true
-                        description: ActiveResources will only sync configmaps that
-                          only mounted by pods.
-                        type: boolean
                       enabled:
-                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -600,8 +596,9 @@ spec:
                         type: object
                     type: object
                   ingresses:
-                    description: IngressSyncConfig specifies the options for synchronization
-                      of ingresses.
+                    default:
+                      enabled: false
+                    description: Ingresses resources sync configuration.
                     properties:
                       enabled:
                         description: Enabled is an on/off switch for syncing resources.
@@ -615,11 +612,11 @@ spec:
                         type: object
                     type: object
                   persistentVolumeClaims:
-                    description: PersistentVolumeClaimSyncConfig specifies the options
-                      for synchronization of persistentVolumeClaims.
+                    default:
+                      enabled: false
+                    description: PersistentVolumeClaims resources sync configuration.
                     properties:
                       enabled:
-                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -631,8 +628,9 @@ spec:
                         type: object
                     type: object
                   priorityClasses:
-                    description: PriorityClassSyncConfig specifies the options for
-                      synchronization of priorityClasses.
+                    default:
+                      enabled: false
+                    description: PriorityClasses resources sync configuration.
                     properties:
                       enabled:
                         description: Enabled is an on/off switch for syncing resources.
@@ -646,16 +644,11 @@ spec:
                         type: object
                     type: object
                   secrets:
-                    description: SecretSyncConfig specifies the options for synchronization
-                      of secrets.
+                    default:
+                      enabled: true
+                    description: Secrets resources sync configuration.
                     properties:
-                      activeResources:
-                        default: true
-                        description: ActiveResources will only sync secrets that only
-                          mounted by pods.
-                        type: boolean
                       enabled:
-                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -667,11 +660,11 @@ spec:
                         type: object
                     type: object
                   services:
-                    description: ServiceSyncConfig specifies the options for synchronization
-                      of services.
+                    default:
+                      enabled: true
+                    description: Services resources sync configuration.
                     properties:
                       enabled:
-                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:

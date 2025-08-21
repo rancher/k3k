@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
@@ -44,8 +43,8 @@ var PriorityClassTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					PriorityClasses: v1alpha1.PriorityClassSyncConfig{
-						Enabled: ptr.To(true),
+					PriorityClasses: v1alpha1.SyncConfigOptions{
+						Enabled: true,
 					},
 				},
 			},
@@ -228,7 +227,7 @@ var PriorityClassTests = func() {
 	It("will not create a priorityClass on the host cluster if disabled", func() {
 		ctx := context.Background()
 
-		cluster.Spec.Sync.PriorityClasses.Enabled = ptr.To(false)
+		cluster.Spec.Sync.PriorityClasses.Enabled = false
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 

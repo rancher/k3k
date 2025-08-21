@@ -2,13 +2,11 @@ package syncer
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -21,7 +19,6 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	"github.com/rancher/k3k/pkg/controller"
 )
 
 const (
@@ -79,7 +76,7 @@ func (r *SecretSyncer) filterResources(object client.Object) bool {
 	// check for Secrets Sync Config
 	syncConfig := cluster.Spec.Sync.Secrets
 
-	if !syncConfig.IsEnabled() || syncConfig.HasActiveResources() {
+	if !syncConfig.IsEnabled() {
 		return false
 	}
 
@@ -100,12 +97,6 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 
 	if err := s.HostClient.Get(ctx, types.NamespacedName{Name: s.ClusterName, Namespace: s.ClusterNamespace}, &cluster); err != nil {
 		return reconcile.Result{}, err
-	}
-
-	syncConfig := cluster.Spec.Sync.Secrets
-	if !syncConfig.IsEnabled() || (syncConfig.HasActiveResources() && !s.isWatching(req.NamespacedName)) {
-		// return immediately without re-enqueueing. We aren't watching this resource
-		return reconcile.Result{}, nil
 	}
 
 	var virtualSecret v1.Secret
@@ -154,98 +145,6 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 	log.Info("updating Secret on the host cluster")
 
 	return reconcile.Result{}, s.HostClient.Update(ctx, syncedSecret)
-}
-
-// isWatching is a utility method to determine if a key is in objs without the caller needing
-// to handle mutex lock/unlock.
-func (s *SecretSyncer) isWatching(key types.NamespacedName) bool {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	return s.objs.Has(key)
-}
-
-// AddResource adds a given resource to the list of resources that will be synced. Safe to call multiple times for the
-// same resource.
-func (s *SecretSyncer) AddResource(ctx context.Context, namespace, name string) error {
-	objKey := types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
-	}
-
-	// if we already sync this object, no need to writelock/add it
-	if s.isWatching(objKey) {
-		return nil
-	}
-
-	// lock in write mode since we are now adding the key
-	s.mutex.Lock()
-
-	if s.objs == nil {
-		s.objs = sets.Set[types.NamespacedName]{}
-	}
-
-	s.objs = s.objs.Insert(objKey)
-	s.mutex.Unlock()
-
-	_, err := s.Reconcile(ctx, reconcile.Request{
-		NamespacedName: objKey,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to reconcile new object %s/%s: %w", objKey.Namespace, objKey.Name, err)
-	}
-
-	return nil
-}
-
-// RemoveResource removes a given resource from the list of resources that will be synced. Safe to call for an already
-// removed resource.
-func (s *SecretSyncer) RemoveResource(ctx context.Context, namespace, name string) error {
-	objKey := types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
-	}
-	// if we don't sync this object, no need to writelock/add it
-	if !s.isWatching(objKey) {
-		return nil
-	}
-	// lock in write mode since we are now adding the key
-	if err := retry.OnError(controller.Backoff, func(err error) bool {
-		return err != nil
-	}, func() error {
-		return s.removeHostSecret(ctx, namespace, name)
-	}); err != nil {
-		return fmt.Errorf("unable to remove secret: %w", err)
-	}
-
-	s.mutex.Lock()
-
-	if s.objs == nil {
-		s.objs = sets.Set[types.NamespacedName]{}
-	}
-
-	s.objs = s.objs.Delete(objKey)
-	s.mutex.Unlock()
-
-	return nil
-}
-
-func (s *SecretSyncer) removeHostSecret(ctx context.Context, virtualNamespace, virtualName string) error {
-	var vSecret v1.Secret
-
-	err := s.VirtualClient.Get(ctx, types.NamespacedName{
-		Namespace: virtualNamespace,
-		Name:      virtualName,
-	}, &vSecret)
-	if err != nil {
-		return fmt.Errorf("unable to get virtual secret %s/%s: %w", virtualNamespace, virtualName, err)
-	}
-
-	translated := vSecret.DeepCopy()
-
-	s.Translator.TranslateTo(translated)
-
-	return s.HostClient.Delete(ctx, translated)
 }
 
 // translateSecret will translate a given secret created in the virtual cluster and

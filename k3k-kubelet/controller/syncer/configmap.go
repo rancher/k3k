@@ -46,16 +46,14 @@ func (c *ConfigMapSyncer) Name() string {
 
 // AddConfigMapSyncer adds configmap syncer controller to the manager of the virtual cluster
 func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
-	translator := translate.ToHostTranslator{
-		ClusterName:      clusterName,
-		ClusterNamespace: clusterNamespace,
-	}
-
 	reconciler := ConfigMapSyncer{
 		SyncerContext: &SyncerContext{
-			VirtualClient:    virtMgr.GetClient(),
-			HostClient:       hostMgr.GetClient(),
-			Translator:       translator,
+			VirtualClient: virtMgr.GetClient(),
+			HostClient:    hostMgr.GetClient(),
+			Translator: translate.ToHostTranslator{
+				ClusterName:      clusterName,
+				ClusterNamespace: clusterNamespace,
+			},
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 		},
@@ -65,8 +63,7 @@ func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, c
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
-		For(&corev1.ConfigMap{}).
-		WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
+		For(&corev1.ConfigMap{}).WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
 		Complete(&reconciler)
 }
 
@@ -82,7 +79,7 @@ func (c *ConfigMapSyncer) filterResources(object client.Object) bool {
 	// check for configMap Sync Config
 	syncConfig := cluster.Spec.Sync.ConfigMaps
 
-	if !syncConfig.IsEnabled() || syncConfig.HasActiveResources() {
+	if !syncConfig.IsEnabled() {
 		return false
 	}
 
@@ -103,12 +100,6 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	if err := c.HostClient.Get(ctx, types.NamespacedName{Name: c.ClusterName, Namespace: c.ClusterNamespace}, &cluster); err != nil {
 		return reconcile.Result{}, err
-	}
-
-	syncConfig := cluster.Spec.Sync.ConfigMaps
-	if !syncConfig.IsEnabled() || (syncConfig.HasActiveResources() && !c.isWatching(req.NamespacedName)) {
-		// return immediately without re-enqueueing. We aren't watching this resource
-		return reconcile.Result{}, nil
 	}
 
 	var virtualConfigMap corev1.ConfigMap

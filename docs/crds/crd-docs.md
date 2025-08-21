@@ -134,27 +134,9 @@ _Appears in:_
 | `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  |  |
 | `mirrorHostNodes` _boolean_ | MirrorHostNodes controls whether node objects from the host cluster<br />are mirrored into the virtual cluster. |  |  |
 | `customCAs` _[CustomCAs](#customcas)_ | CustomCAs specifies the cert/key pairs for custom CA certificates. |  |  |
-| `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. |  |  |
+| `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |
 
 
-
-
-#### ConfigMapSyncConfig
-
-
-
-ConfigMapSyncConfig specifies the options for synchronization of configmaps.
-
-
-
-_Appears in:_
-- [SyncConfig](#syncconfig)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
-| `activeResources` _boolean_ | ActiveResources will only sync configmaps that only mounted by pods. | true |  |
 
 
 #### CredentialSource
@@ -248,23 +230,6 @@ _Appears in:_
 | `ingressClassName` _string_ | IngressClassName specifies the IngressClass to use for the Ingress. |  |  |
 
 
-#### IngressSyncConfig
-
-
-
-IngressSyncConfig specifies the options for synchronization of ingresses.
-
-
-
-_Appears in:_
-- [SyncConfig](#syncconfig)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
-
-
 #### LoadBalancerConfig
 
 
@@ -330,23 +295,6 @@ _Appears in:_
 
 
 
-#### PersistentVolumeClaimSyncConfig
-
-
-
-PersistentVolumeClaimSyncConfig specifies the options for synchronization of persistentVolumeClaims.
-
-
-
-_Appears in:_
-- [SyncConfig](#syncconfig)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
-
-
 #### PodSecurityAdmissionLevel
 
 _Underlying type:_ _string_
@@ -359,58 +307,6 @@ _Validation:_
 _Appears in:_
 - [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
 
-
-
-#### PriorityClassSyncConfig
-
-
-
-PriorityClassSyncConfig specifies the options for synchronization of priorityClasses.
-
-
-
-_Appears in:_
-- [SyncConfig](#syncconfig)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
-
-
-#### SecretSyncConfig
-
-
-
-SecretSyncConfig specifies the options for synchronization of secrets.
-
-
-
-_Appears in:_
-- [SyncConfig](#syncconfig)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
-| `activeResources` _boolean_ | ActiveResources will only sync secrets that only mounted by pods. | true |  |
-
-
-#### ServiceSyncConfig
-
-
-
-ServiceSyncConfig specifies the options for synchronization of services.
-
-
-
-_Appears in:_
-- [SyncConfig](#syncconfig)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
 #### SyncConfig
@@ -427,12 +323,29 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `services` _[ServiceSyncConfig](#servicesyncconfig)_ |  |  |  |
-| `configmaps` _[ConfigMapSyncConfig](#configmapsyncconfig)_ |  |  |  |
-| `secrets` _[SecretSyncConfig](#secretsyncconfig)_ |  |  |  |
-| `ingresses` _[IngressSyncConfig](#ingresssyncconfig)_ |  |  |  |
-| `persistentVolumeClaims` _[PersistentVolumeClaimSyncConfig](#persistentvolumeclaimsyncconfig)_ |  |  |  |
-| `priorityClasses` _[PriorityClassSyncConfig](#priorityclasssyncconfig)_ |  |  |  |
+| `services` _[SyncConfigOptions](#syncconfigoptions)_ | Services resources sync configuration. | \{ enabled:true \} |  |
+| `configmaps` _[SyncConfigOptions](#syncconfigoptions)_ | ConfigMaps resources sync configuration. | \{ enabled:true \} |  |
+| `secrets` _[SyncConfigOptions](#syncconfigoptions)_ | Secrets resources sync configuration. | \{ enabled:true \} |  |
+| `ingresses` _[SyncConfigOptions](#syncconfigoptions)_ | Ingresses resources sync configuration. | \{ enabled:false \} |  |
+| `persistentVolumeClaims` _[SyncConfigOptions](#syncconfigoptions)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:false \} |  |
+| `priorityClasses` _[SyncConfigOptions](#syncconfigoptions)_ | PriorityClasses resources sync configuration. | \{ enabled:false \} |  |
+
+
+#### SyncConfigOptions
+
+
+
+SyncConfigOptions specifies the options for synchronization of resources.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
 #### VirtualClusterPolicy

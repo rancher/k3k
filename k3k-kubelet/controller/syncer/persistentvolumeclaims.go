@@ -65,6 +65,9 @@ func (r *PVCReconciler) filterResources(object ctrlruntimeclient.Object) bool {
 	syncConfig := cluster.Spec.Sync.PersistentVolumeClaims
 
 	if !syncConfig.Enabled {
+		if object.GetDeletionTimestamp() != nil {
+			return true
+		}
 		return false
 	}
 

@@ -65,6 +65,9 @@ func (r *IngressReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	syncConfig := cluster.Spec.Sync.Ingresses
 
 	if !syncConfig.Enabled {
+		if object.GetDeletionTimestamp() != nil {
+			return true
+		}
 		return false
 	}
 

@@ -132,6 +132,9 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	syncConfig := cluster.Spec.Sync.Services
 
 	if !syncConfig.Enabled {
+		if object.GetDeletionTimestamp() != nil {
+			return true
+		}
 		return false
 	}
 

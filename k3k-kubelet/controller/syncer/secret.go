@@ -69,6 +69,9 @@ func (r *SecretSyncer) filterResources(object client.Object) bool {
 	syncConfig := cluster.Spec.Sync.Secrets
 
 	if !syncConfig.Enabled {
+		if object.GetDeletionTimestamp() != nil {
+			return true
+		}
 		return false
 	}
 

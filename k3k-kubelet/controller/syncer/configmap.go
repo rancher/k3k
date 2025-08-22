@@ -69,6 +69,9 @@ func (c *ConfigMapSyncer) filterResources(object client.Object) bool {
 	syncConfig := cluster.Spec.Sync.ConfigMaps
 
 	if !syncConfig.Enabled {
+		if object.GetDeletionTimestamp() != nil {
+			return true
+		}
 		return false
 	}
 

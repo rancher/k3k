@@ -86,6 +86,9 @@ func (r *PriorityClassSyncer) filterResources(object ctrlruntimeclient.Object) b
 	syncConfig := cluster.Spec.Sync.PriorityClasses
 
 	if !syncConfig.Enabled {
+		if object.GetDeletionTimestamp() != nil {
+			return true
+		}
 		return false
 	}
 

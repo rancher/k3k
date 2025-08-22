@@ -42,7 +42,7 @@ var SecretTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					Secrets: v1alpha1.SyncConfigOptions{
+					Secrets: v1alpha1.SecretSyncConfig{
 						Enabled: true,
 					},
 				},

@@ -64,7 +64,7 @@ func (r *PVCReconciler) filterResources(object ctrlruntimeclient.Object) bool {
 	// check for pvc config
 	syncConfig := cluster.Spec.Sync.PersistentVolumeClaims
 
-	if !syncConfig.IsEnabled() {
+	if !syncConfig.Enabled {
 		return false
 	}
 

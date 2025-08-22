@@ -131,7 +131,7 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	// check for serviceSyncConfig
 	syncConfig := cluster.Spec.Sync.Services
 
-	if !syncConfig.IsEnabled() {
+	if !syncConfig.Enabled {
 		return false
 	}
 

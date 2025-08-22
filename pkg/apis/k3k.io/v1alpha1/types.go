@@ -189,31 +189,49 @@ type SyncConfig struct {
 	// Services resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
-	Services SyncConfigOptions `json:"services,omitempty"`
+	Services ServiceSyncConfig `json:"services,omitempty"`
 	// ConfigMaps resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
-	ConfigMaps SyncConfigOptions `json:"configmaps,omitempty"`
+	ConfigMaps ConfigMapSyncConfig `json:"configmaps,omitempty"`
 	// Secrets resources sync configuration.
 	//
-	// +kubebuilder:default={"enabled": true}
-	Secrets SyncConfigOptions `json:"secrets,omitempty"`
+	// +kubebuilder:default={"enabled": true, "imagePullSecretTranslate": true}
+	Secrets SecretSyncConfig `json:"secrets,omitempty"`
 	// Ingresses resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": false}
-	Ingresses SyncConfigOptions `json:"ingresses,omitempty"`
+	Ingresses IngressSyncConfig `json:"ingresses,omitempty"`
 	// PersistentVolumeClaims resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": false}
-	PersistentVolumeClaims SyncConfigOptions `json:"persistentVolumeClaims,omitempty"`
+	PersistentVolumeClaims PersistentVolumeClaimSyncConfig `json:"persistentVolumeClaims,omitempty"`
 	// PriorityClasses resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": false}
-	PriorityClasses SyncConfigOptions `json:"priorityClasses,omitempty"`
+	PriorityClasses PriorityClassSyncConfig `json:"priorityClasses,omitempty"`
 }
 
-// SyncConfigOptions specifies the options for synchronization of resources.
-type SyncConfigOptions struct {
+// SecretSyncConfig specifies the sync options for services.
+type SecretSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+
+	// ImagePullSecretTranslate specified the option to translate pod.Spec.ImagePullSecret
+	//
+	// +optional
+	ImagePullSecretTranslate bool `json:"imagePullSecretTranslate,omitempty"`
+}
+
+// ServiceSyncConfig specifies the sync options for services.
+type ServiceSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
@@ -225,8 +243,56 @@ type SyncConfigOptions struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-func (s *SyncConfigOptions) IsEnabled() bool {
-	return s != nil && s.Enabled
+// ConfigMapSyncConfig specifies the sync options for services.
+type ConfigMapSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// IngressSyncConfig specifies the sync options for services.
+type IngressSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// PersistentVolumeClaimSyncConfig specifies the sync options for services.
+type PersistentVolumeClaimSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// PriorityClassSyncConfig specifies the sync options for services.
+type PriorityClassSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.

@@ -139,6 +139,23 @@ _Appears in:_
 
 
 
+#### ConfigMapSyncConfig
+
+
+
+ConfigMapSyncConfig specifies the sync options for services.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+
+
 #### CredentialSource
 
 
@@ -230,6 +247,23 @@ _Appears in:_
 | `ingressClassName` _string_ | IngressClassName specifies the IngressClass to use for the Ingress. |  |  |
 
 
+#### IngressSyncConfig
+
+
+
+IngressSyncConfig specifies the sync options for services.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+
+
 #### LoadBalancerConfig
 
 
@@ -295,6 +329,23 @@ _Appears in:_
 
 
 
+#### PersistentVolumeClaimSyncConfig
+
+
+
+PersistentVolumeClaimSyncConfig specifies the sync options for services.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+
+
 #### PodSecurityAdmissionLevel
 
 _Underlying type:_ _string_
@@ -307,6 +358,58 @@ _Validation:_
 _Appears in:_
 - [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
 
+
+
+#### PriorityClassSyncConfig
+
+
+
+PriorityClassSyncConfig specifies the sync options for services.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+
+
+#### SecretSyncConfig
+
+
+
+SecretSyncConfig specifies the sync options for services.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+| `imagePullSecretTranslate` _boolean_ | ImagePullSecretTranslate specified the option to translate pod.Spec.ImagePullSecret |  |  |
+
+
+#### ServiceSyncConfig
+
+
+
+ServiceSyncConfig specifies the sync options for services.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
 #### SyncConfig
@@ -323,29 +426,12 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `services` _[SyncConfigOptions](#syncconfigoptions)_ | Services resources sync configuration. | \{ enabled:true \} |  |
-| `configmaps` _[SyncConfigOptions](#syncconfigoptions)_ | ConfigMaps resources sync configuration. | \{ enabled:true \} |  |
-| `secrets` _[SyncConfigOptions](#syncconfigoptions)_ | Secrets resources sync configuration. | \{ enabled:true \} |  |
-| `ingresses` _[SyncConfigOptions](#syncconfigoptions)_ | Ingresses resources sync configuration. | \{ enabled:false \} |  |
-| `persistentVolumeClaims` _[SyncConfigOptions](#syncconfigoptions)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:false \} |  |
-| `priorityClasses` _[SyncConfigOptions](#syncconfigoptions)_ | PriorityClasses resources sync configuration. | \{ enabled:false \} |  |
-
-
-#### SyncConfigOptions
-
-
-
-SyncConfigOptions specifies the options for synchronization of resources.
-
-
-
-_Appears in:_
-- [SyncConfig](#syncconfig)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+| `services` _[ServiceSyncConfig](#servicesyncconfig)_ | Services resources sync configuration. | \{ enabled:true \} |  |
+| `configmaps` _[ConfigMapSyncConfig](#configmapsyncconfig)_ | ConfigMaps resources sync configuration. | \{ enabled:true \} |  |
+| `secrets` _[SecretSyncConfig](#secretsyncconfig)_ | Secrets resources sync configuration. | \{ enabled:true imagePullSecretTranslate:true \} |  |
+| `ingresses` _[IngressSyncConfig](#ingresssyncconfig)_ | Ingresses resources sync configuration. | \{ enabled:false \} |  |
+| `persistentVolumeClaims` _[PersistentVolumeClaimSyncConfig](#persistentvolumeclaimsyncconfig)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:false \} |  |
+| `priorityClasses` _[PriorityClassSyncConfig](#priorityclasssyncconfig)_ | PriorityClasses resources sync configuration. | \{ enabled:false \} |  |
 
 
 #### VirtualClusterPolicy

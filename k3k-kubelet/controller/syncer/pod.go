@@ -61,7 +61,7 @@ func (r *PodReconciler) filterResources(object ctrlruntimeclient.Object) bool {
 	// check for pvc config
 	syncConfig := cluster.Spec.Sync.PersistentVolumeClaims
 
-	return syncConfig.IsEnabled()
+	return syncConfig.Enabled
 }
 
 func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

@@ -44,7 +44,7 @@ var IngressTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					Ingresses: v1alpha1.SyncConfigOptions{
+					Ingresses: v1alpha1.IngressSyncConfig{
 						Enabled: true,
 					},
 				},

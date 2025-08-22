@@ -68,7 +68,7 @@ func (r *SecretSyncer) filterResources(object client.Object) bool {
 	// check for Secrets Sync Config
 	syncConfig := cluster.Spec.Sync.Secrets
 
-	if !syncConfig.IsEnabled() {
+	if !syncConfig.Enabled {
 		return false
 	}
 

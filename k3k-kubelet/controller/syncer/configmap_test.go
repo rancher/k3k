@@ -42,7 +42,7 @@ var ConfigMapTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					ConfigMaps: v1alpha1.SyncConfigOptions{
+					ConfigMaps: v1alpha1.ConfigMapSyncConfig{
 						Enabled: true,
 					},
 				},

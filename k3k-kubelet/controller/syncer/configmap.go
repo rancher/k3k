@@ -68,7 +68,7 @@ func (c *ConfigMapSyncer) filterResources(object client.Object) bool {
 	// check for configMap Sync Config
 	syncConfig := cluster.Spec.Sync.ConfigMaps
 
-	if !syncConfig.IsEnabled() {
+	if !syncConfig.Enabled {
 		return false
 	}
 

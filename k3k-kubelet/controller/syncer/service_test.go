@@ -43,7 +43,7 @@ var ServiceTests = func() {
 			},
 			Spec: v1alpha1.ClusterSpec{
 				Sync: v1alpha1.SyncConfig{
-					Services: v1alpha1.SyncConfigOptions{
+					Services: v1alpha1.ServiceSyncConfig{
 						Enabled: true,
 					},
 				},

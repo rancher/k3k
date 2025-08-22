@@ -646,10 +646,15 @@ spec:
                   secrets:
                     default:
                       enabled: true
+                      imagePullSecretTranslate: true
                     description: Secrets resources sync configuration.
                     properties:
                       enabled:
                         description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      imagePullSecretTranslate:
+                        description: ImagePullSecretTranslate specified the option
+                          to translate pod.Spec.ImagePullSecret
                         type: boolean
                       selector:
                         additionalProperties:

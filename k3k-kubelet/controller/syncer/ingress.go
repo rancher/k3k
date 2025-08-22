@@ -64,7 +64,7 @@ func (r *IngressReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	// check for ingressConfig
 	syncConfig := cluster.Spec.Sync.Ingresses
 
-	if !syncConfig.IsEnabled() {
+	if !syncConfig.Enabled {
 		return false
 	}
 

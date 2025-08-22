@@ -196,13 +196,14 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 				StorageRequestSize: config.storageRequestSize,
 			},
 			Sync: v1alpha1.SyncConfig{
-				ConfigMaps: v1alpha1.SyncConfigOptions{
+				ConfigMaps: v1alpha1.ConfigMapSyncConfig{
 					Enabled: true,
 				},
-				Secrets: v1alpha1.SyncConfigOptions{
-					Enabled: true,
+				Secrets: v1alpha1.SecretSyncConfig{
+					Enabled:                  true,
+					ImagePullSecretTranslate: true,
 				},
-				Services: v1alpha1.SyncConfigOptions{
+				Services: v1alpha1.ServiceSyncConfig{
 					Enabled: true,
 				},
 			},

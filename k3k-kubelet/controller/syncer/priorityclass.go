@@ -85,7 +85,7 @@ func (r *PriorityClassSyncer) filterResources(object ctrlruntimeclient.Object) b
 	// check for priorityClassConfig
 	syncConfig := cluster.Spec.Sync.PriorityClasses
 
-	if !syncConfig.IsEnabled() {
+	if !syncConfig.Enabled {
 		return false
 	}
 

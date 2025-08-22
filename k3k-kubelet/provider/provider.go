@@ -388,6 +388,13 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 		return fmt.Errorf("unable to transform tokens for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 
+	// translate ImagePullSecret Names for pod
+	if cluster.Spec.Sync.Secrets.ImagePullSecretTranslate {
+		for i, imagePullSecret := range tPod.Spec.ImagePullSecrets {
+			tPod.Spec.ImagePullSecrets[i].Name = p.Translator.TranslateName(pod.Namespace, imagePullSecret.Name)
+		}
+	}
+
 	// inject networking information to the pod including the virtual cluster controlplane endpoint
 	configureNetworking(tPod, pod.Name, pod.Namespace, p.serverIP, p.dnsIP)
 

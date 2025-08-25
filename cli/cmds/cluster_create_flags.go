@@ -27,6 +27,7 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 	cmd.Flags().StringVar(&cfg.mode, "mode", "shared", "k3k mode type (shared, virtual)")
 	cmd.Flags().StringVar(&cfg.kubeconfigServerHost, "kubeconfig-server", "", "override the kubeconfig server host")
 	cmd.Flags().StringVar(&cfg.policy, "policy", "", "The policy to create the cluster in")
+	cmd.Flags().StringVar(&cfg.customCertsPath, "custom-certs", "", "The path for custom certificate directory")
 }
 
 func validateCreateConfig(cfg *CreateConfig) error {

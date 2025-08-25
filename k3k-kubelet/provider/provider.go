@@ -901,32 +901,23 @@ func mergeEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 		return orig
 	}
 
-	// add env vars if not found
-	var found bool
-
-	for _, newEnv := range updated {
-		for _, env := range orig {
-			if newEnv.Name == env.Name {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			orig = append(orig, newEnv)
-		}
-	}
-
 	// create map for single lookup
 	updatedEnvVarMap := make(map[string]corev1.EnvVar)
 	for _, updatedEnvVar := range updated {
 		updatedEnvVarMap[updatedEnvVar.Name] = updatedEnvVar
 	}
 
-	for i, origEnvVar := range orig {
-		if updatedEnvVar, found := updatedEnvVarMap[origEnvVar.Name]; found {
-			orig[i] = updatedEnvVar
+	for i, env := range orig {
+		if updatedEnv, ok := updatedEnvVarMap[env.Name]; ok {
+			orig[i] = updatedEnv
+			// Remove the updated variable from the map
+			delete(updatedEnvVarMap, env.Name)
 		}
+	}
+
+	// Any variables remaining in the map are new and should be appended to the original slice.
+	for _, env := range updatedEnvVarMap {
+		orig = append(orig, env)
 	}
 
 	return orig

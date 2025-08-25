@@ -19,6 +19,7 @@ k3kcli cluster create [command options] NAME
       --agent-envs strings            agents extra Envs
       --agents int                    number of agents
       --cluster-cidr string           cluster CIDR
+      --custom-certs string           The path for custom certificate directory
   -h, --help                          help for create
       --kubeconfig-server string      override the kubeconfig server host
       --mirror-host-nodes             Mirror Host Cluster Nodes

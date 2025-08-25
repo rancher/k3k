@@ -131,16 +131,14 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	// check for serviceSyncConfig
 	syncConfig := cluster.Spec.Sync.Services
 
+	// If syncing is disabled, only process deletions to allow for cleanup.
 	if !syncConfig.Enabled {
-		if object.GetDeletionTimestamp() != nil {
-			return true
-		}
-		return false
+		return object.GetDeletionTimestamp() != nil
 	}
 
 	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
 	if labelSelector.Empty() {
-		labelSelector = labels.Everything()
+		return true
 	}
 
 	return labelSelector.Matches(labels.Set(object.GetLabels()))

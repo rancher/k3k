@@ -68,16 +68,14 @@ func (c *ConfigMapSyncer) filterResources(object client.Object) bool {
 	// check for configMap Sync Config
 	syncConfig := cluster.Spec.Sync.ConfigMaps
 
+	// If syncing is disabled, only process deletions to allow for cleanup.
 	if !syncConfig.Enabled {
-		if object.GetDeletionTimestamp() != nil {
-			return true
-		}
-		return false
+		return object.GetDeletionTimestamp() != nil
 	}
 
 	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
 	if labelSelector.Empty() {
-		labelSelector = labels.Everything()
+		return true
 	}
 
 	return labelSelector.Matches(labels.Set(object.GetLabels()))

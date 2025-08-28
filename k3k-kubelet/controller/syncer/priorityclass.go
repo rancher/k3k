@@ -1,10 +1,10 @@
-package controller
+package syncer
 
 import (
 	"context"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -28,42 +28,32 @@ const (
 	priorityClassFinalizerName  = "priorityclass.k3k.io/finalizer"
 )
 
-type PriorityClassReconciler struct {
-	clusterName      string
-	clusterNamespace string
-
-	virtualClient ctrlruntimeclient.Client
-	hostClient    ctrlruntimeclient.Client
-	Scheme        *runtime.Scheme
-	HostScheme    *runtime.Scheme
-	Translator    translate.ToHostTranslator
+type PriorityClassSyncer struct {
+	*SyncerContext
 }
 
-// AddPriorityClassReconciler adds a PriorityClass reconciler to k3k-kubelet
-func AddPriorityClassReconciler(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
-	translator := translate.ToHostTranslator{
-		ClusterName:      clusterName,
-		ClusterNamespace: clusterNamespace,
-	}
-
+// AddPriorityClassSyncer adds a PriorityClass reconciler to k3k-kubelet
+func AddPriorityClassSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	// initialize a new Reconciler
-	reconciler := PriorityClassReconciler{
-		clusterName:      clusterName,
-		clusterNamespace: clusterNamespace,
-
-		virtualClient: virtMgr.GetClient(),
-		hostClient:    hostMgr.GetClient(),
-		Scheme:        virtMgr.GetScheme(),
-		HostScheme:    hostMgr.GetScheme(),
-		Translator:    translator,
+	reconciler := PriorityClassSyncer{
+		SyncerContext: &SyncerContext{
+			ClusterName:      clusterName,
+			ClusterNamespace: clusterNamespace,
+			VirtualClient:    virtMgr.GetClient(),
+			HostClient:       hostMgr.GetClient(),
+			Translator: translate.ToHostTranslator{
+				ClusterName:      clusterName,
+				ClusterNamespace: clusterNamespace,
+			},
+		},
 	}
 
-	name := translator.TranslateName("", priorityClassControllerName)
+	name := reconciler.Translator.TranslateName(clusterNamespace, priorityClassControllerName)
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
-		For(&schedulingv1.PriorityClass{}).
-		WithEventFilter(ignoreSystemPrefixPredicate).
+		For(&schedulingv1.PriorityClass{}).WithEventFilter(ignoreSystemPrefixPredicate).
+		WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
 		Complete(&reconciler)
 }
 
@@ -83,8 +73,33 @@ var ignoreSystemPrefixPredicate = predicate.Funcs{
 	},
 }
 
-func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.clusterName, "clusterNamespace", r.clusterNamespace)
+func (r *PriorityClassSyncer) filterResources(object ctrlruntimeclient.Object) bool {
+	var cluster v1alpha1.Cluster
+
+	ctx := context.Background()
+
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+		return false
+	}
+
+	// check for priorityClassConfig
+	syncConfig := cluster.Spec.Sync.PriorityClasses
+
+	// If syncing is disabled, only process deletions to allow for cleanup.
+	if !syncConfig.Enabled {
+		return object.GetDeletionTimestamp() != nil
+	}
+
+	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
+	if labelSelector.Empty() {
+		return true
+	}
+
+	return labelSelector.Matches(labels.Set(object.GetLabels()))
+}
+
+func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
 
 	var (
@@ -92,11 +107,11 @@ func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.R
 		cluster       v1alpha1.Cluster
 	)
 
-	if err := r.hostClient.Get(ctx, types.NamespacedName{Name: r.clusterName, Namespace: r.clusterNamespace}, &cluster); err != nil {
+	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := r.virtualClient.Get(ctx, req.NamespacedName, &priorityClass); err != nil {
+	if err := r.VirtualClient.Get(ctx, req.NamespacedName, &priorityClass); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
@@ -106,13 +121,13 @@ func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.R
 	if !priorityClass.DeletionTimestamp.IsZero() {
 		// deleting the synced service if exists
 		// TODO add test for previous implementation without err != nil check, and also check the other controllers
-		if err := r.hostClient.Delete(ctx, hostPriorityClass); err != nil && !apierrors.IsNotFound(err) {
+		if err := r.HostClient.Delete(ctx, hostPriorityClass); err != nil && !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 
 		// remove the finalizer after cleaning up the synced service
 		if controllerutil.RemoveFinalizer(&priorityClass, priorityClassFinalizerName) {
-			if err := r.virtualClient.Update(ctx, &priorityClass); err != nil {
+			if err := r.VirtualClient.Update(ctx, &priorityClass); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -122,7 +137,7 @@ func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.R
 
 	// Add finalizer if it does not exist
 	if controllerutil.AddFinalizer(&priorityClass, priorityClassFinalizerName) {
-		if err := r.virtualClient.Update(ctx, &priorityClass); err != nil {
+		if err := r.VirtualClient.Update(ctx, &priorityClass); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -130,19 +145,19 @@ func (r *PriorityClassReconciler) Reconcile(ctx context.Context, req reconcile.R
 	// create the priorityClass on the host
 	log.Info("creating the priorityClass for the first time on the host cluster")
 
-	err := r.hostClient.Create(ctx, hostPriorityClass)
+	err := r.HostClient.Create(ctx, hostPriorityClass)
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{}, r.hostClient.Update(ctx, hostPriorityClass)
+		return reconcile.Result{}, r.HostClient.Update(ctx, hostPriorityClass)
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (r *PriorityClassReconciler) translatePriorityClass(priorityClass schedulingv1.PriorityClass) *schedulingv1.PriorityClass {
+func (r *PriorityClassSyncer) translatePriorityClass(priorityClass schedulingv1.PriorityClass) *schedulingv1.PriorityClass {
 	hostPriorityClass := priorityClass.DeepCopy()
 	r.Translator.TranslateTo(hostPriorityClass)
 

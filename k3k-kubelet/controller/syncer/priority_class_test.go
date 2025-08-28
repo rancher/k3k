@@ -1,4 +1,4 @@
-package controller_test
+package syncer_test
 
 import (
 	"context"
@@ -12,8 +12,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/k3k-kubelet/controller"
-	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -42,11 +41,18 @@ var PriorityClassTests = func() {
 				GenerateName: "cluster-",
 				Namespace:    namespace,
 			},
+			Spec: v1alpha1.ClusterSpec{
+				Sync: v1alpha1.SyncConfig{
+					PriorityClasses: v1alpha1.PriorityClassSyncConfig{
+						Enabled: true,
+					},
+				},
+			},
 		}
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = controller.AddPriorityClassReconciler(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
+		err = syncer.AddPriorityClassSyncer(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -215,15 +221,36 @@ var PriorityClassTests = func() {
 
 		Expect(hostPriorityClass.Value).To(Equal(priorityClass.Value))
 		Expect(hostPriorityClass.GlobalDefault).To(BeFalse())
-		Expect(hostPriorityClass.Annotations[controller.PriorityClassGlobalDefaultAnnotation]).To(Equal("true"))
+		Expect(hostPriorityClass.Annotations[syncer.PriorityClassGlobalDefaultAnnotation]).To(Equal("true"))
 	})
-}
 
-func translateName(cluster v1alpha1.Cluster, namespace, name string) string {
-	translator := translate.ToHostTranslator{
-		ClusterName:      cluster.Name,
-		ClusterNamespace: cluster.Namespace,
-	}
+	It("will not create a priorityClass on the host cluster if disabled", func() {
+		ctx := context.Background()
 
-	return translator.TranslateName(namespace, name)
+		cluster.Spec.Sync.PriorityClasses.Enabled = false
+		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		priorityClass := &schedulingv1.PriorityClass{
+			ObjectMeta: metav1.ObjectMeta{GenerateName: "pc-"},
+			Value:      1001,
+		}
+
+		err = virtTestEnv.k8sClient.Create(ctx, priorityClass)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Created priorityClass %s in virtual cluster", priorityClass.Name))
+
+		var hostPriorityClass schedulingv1.PriorityClass
+		hostPriorityClassName := translateName(cluster, priorityClass.Namespace, priorityClass.Name)
+
+		Eventually(func() bool {
+			key := client.ObjectKey{Name: hostPriorityClassName}
+			err = hostTestEnv.k8sClient.Get(ctx, key, &hostPriorityClass)
+			return apierrors.IsNotFound(err)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeTrue())
+	})
 }

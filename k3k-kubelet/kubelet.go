@@ -35,7 +35,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	k3kkubeletcontroller "github.com/rancher/k3k/k3k-kubelet/controller"
+	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
 	k3kwebhook "github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -156,28 +156,8 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, errors.New("unable to add pod mutator webhook for virtual cluster: " + err.Error())
 	}
 
-	logger.Info("adding service syncer controller")
-
-	if err := k3kkubeletcontroller.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return nil, errors.New("failed to add service syncer controller: " + err.Error())
-	}
-
-	logger.Info("adding pvc syncer controller")
-
-	if err := k3kkubeletcontroller.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return nil, errors.New("failed to add pvc syncer controller: " + err.Error())
-	}
-
-	logger.Info("adding pod pvc controller")
-
-	if err := k3kkubeletcontroller.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return nil, errors.New("failed to add pod pvc controller: " + err.Error())
-	}
-
-	logger.Info("adding priorityclass controller")
-
-	if err := k3kkubeletcontroller.AddPriorityClassReconciler(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return nil, errors.New("failed to add priorityclass controller: " + err.Error())
+	if err := addControllers(ctx, hostMgr, virtualMgr, c, hostClient); err != nil {
+		return nil, errors.New("failed to add controller: " + err.Error())
 	}
 
 	clusterIP, err := clusterIP(ctx, c.ServiceName, c.ClusterNamespace, hostClient)
@@ -446,4 +426,57 @@ func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clu
 		RootCAs:      pool,
 		Certificates: []tls.Certificate{clientCert},
 	}, nil
+}
+
+func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c *config, hostClient ctrlruntimeclient.Client) error {
+	var cluster v1alpha1.Cluster
+
+	objKey := types.NamespacedName{
+		Namespace: c.ClusterNamespace,
+		Name:      c.ClusterName,
+	}
+
+	if err := hostClient.Get(ctx, objKey, &cluster); err != nil {
+		return err
+	}
+
+	if err := syncer.AddConfigMapSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add configmap global syncer: " + err.Error())
+	}
+
+	if err := syncer.AddSecretSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add secret global syncer: " + err.Error())
+	}
+
+	logger.Info("adding service syncer controller")
+
+	if err := syncer.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add service syncer controller: " + err.Error())
+	}
+
+	logger.Info("adding ingress syncer controller")
+
+	if err := syncer.AddIngressSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add ingress syncer controller: " + err.Error())
+	}
+
+	logger.Info("adding pvc syncer controller")
+
+	if err := syncer.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add pvc syncer controller: " + err.Error())
+	}
+
+	logger.Info("adding pod pvc controller")
+
+	if err := syncer.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add pod pvc controller: " + err.Error())
+	}
+
+	logger.Info("adding priorityclass controller")
+
+	if err := syncer.AddPriorityClassSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add priorityclass controller: " + err.Error())
+	}
+
+	return nil
 }

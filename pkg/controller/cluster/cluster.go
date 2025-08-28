@@ -718,6 +718,11 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster, policy v1alpha1.
 		}
 	}
 
+	// validate sync policy
+	if !equality.Semantic.DeepEqual(cluster.Spec.Sync, policy.Spec.Sync) {
+		return fmt.Errorf("sync configuration %v is not allowed by the policy %q", cluster.Spec.Sync, policy.Name)
+	}
+
 	return nil
 }
 

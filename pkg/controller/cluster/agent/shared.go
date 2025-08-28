@@ -368,6 +368,11 @@ func (s *SharedAgent) role(ctx context.Context) error {
 				Verbs:     []string{"*"},
 			},
 			{
+				APIGroups: []string{"networking.k8s.io"},
+				Resources: []string{"ingresses"},
+				Verbs:     []string{"*"},
+			},
+			{
 				APIGroups: []string{"k3k.io"},
 				Resources: []string{"clusters"},
 				Verbs:     []string{"get", "watch", "list"},

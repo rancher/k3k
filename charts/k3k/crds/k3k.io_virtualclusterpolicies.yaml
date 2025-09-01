@@ -225,6 +225,107 @@ spec:
                     type: array
                     x-kubernetes-list-type: atomic
                 type: object
+              sync:
+                description: Sync specifies the synchronization configuration for
+                  resources that can be applied to clusters
+                properties:
+                  configmaps:
+                    default:
+                      enabled: true
+                    description: ConfigMaps resources sync configuration.
+                    properties:
+                      enabled:
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    type: object
+                  ingresses:
+                    default:
+                      enabled: false
+                    description: Ingresses resources sync configuration.
+                    properties:
+                      enabled:
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    type: object
+                  persistentVolumeClaims:
+                    default:
+                      enabled: false
+                    description: PersistentVolumeClaims resources sync configuration.
+                    properties:
+                      enabled:
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    type: object
+                  priorityClasses:
+                    default:
+                      enabled: false
+                    description: PriorityClasses resources sync configuration.
+                    properties:
+                      enabled:
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    type: object
+                  secrets:
+                    default:
+                      enabled: true
+                    description: Secrets resources sync configuration.
+                    properties:
+                      enabled:
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    type: object
+                  services:
+                    default:
+                      enabled: true
+                    description: Services resources sync configuration.
+                    properties:
+                      enabled:
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    type: object
+                type: object
             type: object
           status:
             description: Status reflects the observed state of the VirtualClusterPolicy.

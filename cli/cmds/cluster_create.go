@@ -195,6 +195,17 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 				StorageClassName:   ptr.To(config.storageClassName),
 				StorageRequestSize: config.storageRequestSize,
 			},
+			Sync: v1alpha1.SyncConfig{
+				ConfigMaps: v1alpha1.ConfigMapSyncConfig{
+					Enabled: true,
+				},
+				Secrets: v1alpha1.SecretSyncConfig{
+					Enabled: true,
+				},
+				Services: v1alpha1.ServiceSyncConfig{
+					Enabled: true,
+				},
+			},
 			MirrorHostNodes: config.mirrorHostNodes,
 		},
 	}

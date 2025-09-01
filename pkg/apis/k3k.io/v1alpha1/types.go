@@ -176,6 +176,118 @@ type ClusterSpec struct {
 	//
 	// +optional
 	CustomCAs CustomCAs `json:"customCAs,omitempty"`
+
+	// Sync specifies the resources types that will be synced from virtual cluster to host cluster.
+	//
+	// +kubebuilder:default={}
+	// +optional
+	Sync SyncConfig `json:"sync,omitempty"`
+}
+
+// SyncConfig will contain the resources that should be synced from virtual cluster to host cluster.
+type SyncConfig struct {
+	// Services resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": true}
+	Services ServiceSyncConfig `json:"services,omitempty"`
+	// ConfigMaps resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": true}
+	ConfigMaps ConfigMapSyncConfig `json:"configmaps,omitempty"`
+	// Secrets resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": true}
+	Secrets SecretSyncConfig `json:"secrets,omitempty"`
+	// Ingresses resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": false}
+	Ingresses IngressSyncConfig `json:"ingresses,omitempty"`
+	// PersistentVolumeClaims resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": false}
+	PersistentVolumeClaims PersistentVolumeClaimSyncConfig `json:"persistentVolumeClaims,omitempty"`
+	// PriorityClasses resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": false}
+	PriorityClasses PriorityClassSyncConfig `json:"priorityClasses,omitempty"`
+}
+
+// SecretSyncConfig specifies the sync options for services.
+type SecretSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// ServiceSyncConfig specifies the sync options for services.
+type ServiceSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// ConfigMapSyncConfig specifies the sync options for services.
+type ConfigMapSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// IngressSyncConfig specifies the sync options for services.
+type IngressSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// PersistentVolumeClaimSyncConfig specifies the sync options for services.
+type PersistentVolumeClaimSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// PriorityClassSyncConfig specifies the sync options for services.
+type PriorityClassSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.
@@ -484,6 +596,11 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +optional
 	PodSecurityAdmissionLevel *PodSecurityAdmissionLevel `json:"podSecurityAdmissionLevel,omitempty"`
+
+	// Sync specifies the synchronization configuration for resources that can be applied to clusters
+	//
+	// +optional
+	Sync SyncConfig `json:"sync,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

@@ -7,7 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func Test_overrideEnvVars(t *testing.T) {
+func Test_mergeEnvVars(t *testing.T) {
 	type args struct {
 		orig []corev1.EnvVar
 		new  []corev1.EnvVar
@@ -32,7 +32,7 @@ func Test_overrideEnvVars(t *testing.T) {
 				orig: []corev1.EnvVar{},
 				new:  []corev1.EnvVar{{Name: "FOO", Value: "new_val"}},
 			},
-			want: []corev1.EnvVar{},
+			want: []corev1.EnvVar{{Name: "FOO", Value: "new_val"}},
 		},
 		{
 			name: "orig has a matching element",
@@ -56,14 +56,14 @@ func Test_overrideEnvVars(t *testing.T) {
 				orig: []corev1.EnvVar{{Name: "FOO_0", Value: "old_val_0"}, {Name: "FOO_1", Value: "old_val_1"}},
 				new:  []corev1.EnvVar{{Name: "FOO_1", Value: "new_val_1"}, {Name: "FOO_2", Value: "val_1"}},
 			},
-			want: []corev1.EnvVar{{Name: "FOO_0", Value: "old_val_0"}, {Name: "FOO_1", Value: "new_val_1"}},
+			want: []corev1.EnvVar{{Name: "FOO_0", Value: "old_val_0"}, {Name: "FOO_1", Value: "new_val_1"}, {Name: "FOO_2", Value: "val_1"}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := overrideEnvVars(tt.args.orig, tt.args.new); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("overrideEnvVars() = %v, want %v", got, tt.want)
+			if got := mergeEnvVars(tt.args.orig, tt.args.new); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("mergeEnvVars() = %v, want %v", got, tt.want)
 			}
 		})
 	}

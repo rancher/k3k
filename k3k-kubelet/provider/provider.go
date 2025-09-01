@@ -340,7 +340,14 @@ func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 
 // createPod takes a Kubernetes Pod and deploys it within the provider.
 func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
-	tPod := pod.DeepCopy()
+	// fieldPath envs are not being translated correctly using the virtual kubelet pod controller
+	// as a workaround we will try to fetch the pod from the virtual cluster and copy over the envSource
+	var sourcePod corev1.Pod
+	if err := p.VirtualClient.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, &sourcePod); err != nil {
+		return err
+	}
+
+	tPod := sourcePod.DeepCopy()
 	p.Translator.TranslateTo(tPod)
 
 	// get Cluster definition
@@ -385,7 +392,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	// fieldpath annotations
-	if err := p.configureFieldPathEnv(pod, tPod); err != nil {
+	if err := p.configureFieldPathEnv(&sourcePod, tPod); err != nil {
 		return fmt.Errorf("unable to fetch fieldpath annotations for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 	// volumes will often refer to resources in the virtual cluster, but instead need to refer to the sync'd
@@ -609,6 +616,11 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 		}
 
 		return nil
+	}
+
+	// fieldpath annotations
+	if err := p.configureFieldPathEnv(&currentVirtualPod, &currentHostPod); err != nil {
+		return fmt.Errorf("unable to fetch fieldpath annotations for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 
 	currentVirtualPod.Spec.Containers = updateContainerImages(currentVirtualPod.Spec.Containers, pod.Spec.Containers)
@@ -869,22 +881,22 @@ func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP
 
 	// inject networking information to the pod's environment variables
 	for i := range pod.Spec.Containers {
-		pod.Spec.Containers[i].Env = overrideEnvVars(pod.Spec.Containers[i].Env, updatedEnvVars)
+		pod.Spec.Containers[i].Env = mergeEnvVars(pod.Spec.Containers[i].Env, updatedEnvVars)
 	}
 
 	// handle init containers as well
 	for i := range pod.Spec.InitContainers {
-		pod.Spec.InitContainers[i].Env = overrideEnvVars(pod.Spec.InitContainers[i].Env, updatedEnvVars)
+		pod.Spec.InitContainers[i].Env = mergeEnvVars(pod.Spec.InitContainers[i].Env, updatedEnvVars)
 	}
 
 	// handle ephemeral containers as well
 	for i := range pod.Spec.EphemeralContainers {
-		pod.Spec.EphemeralContainers[i].Env = overrideEnvVars(pod.Spec.EphemeralContainers[i].Env, updatedEnvVars)
+		pod.Spec.EphemeralContainers[i].Env = mergeEnvVars(pod.Spec.EphemeralContainers[i].Env, updatedEnvVars)
 	}
 }
 
-// overrideEnvVars will override the orig environment variables if found in the updated list
-func overrideEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
+// mergeEnvVars will override the orig environment variables if found in the updated list and will add them to the list if not found
+func mergeEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 	if len(updated) == 0 {
 		return orig
 	}
@@ -895,10 +907,17 @@ func overrideEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 		updatedEnvVarMap[updatedEnvVar.Name] = updatedEnvVar
 	}
 
-	for i, origEnvVar := range orig {
-		if updatedEnvVar, found := updatedEnvVarMap[origEnvVar.Name]; found {
-			orig[i] = updatedEnvVar
+	for i, env := range orig {
+		if updatedEnv, ok := updatedEnvVarMap[env.Name]; ok {
+			orig[i] = updatedEnv
+			// Remove the updated variable from the map
+			delete(updatedEnvVarMap, env.Name)
 		}
+	}
+
+	// Any variables remaining in the map are new and should be appended to the original slice.
+	for _, env := range updatedEnvVarMap {
+		orig = append(orig, env)
 	}
 
 	return orig

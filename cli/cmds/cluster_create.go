@@ -200,8 +200,7 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 					Enabled: true,
 				},
 				Secrets: v1alpha1.SecretSyncConfig{
-					Enabled:                  true,
-					ImagePullSecretTranslate: true,
+					Enabled: true,
 				},
 				Services: v1alpha1.ServiceSyncConfig{
 					Enabled: true,

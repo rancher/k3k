@@ -223,11 +223,6 @@ type SecretSyncConfig struct {
 	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
-
-	// ImagePullSecretTranslate specified the option to translate pod.Spec.ImagePullSecret
-	//
-	// +optional
-	ImagePullSecretTranslate bool `json:"imagePullSecretTranslate,omitempty"`
 }
 
 // ServiceSyncConfig specifies the sync options for services.

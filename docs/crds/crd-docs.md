@@ -392,7 +392,6 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
-| `imagePullSecretTranslate` _boolean_ | ImagePullSecretTranslate specified the option to translate pod.Spec.ImagePullSecret |  |  |
 
 
 #### ServiceSyncConfig

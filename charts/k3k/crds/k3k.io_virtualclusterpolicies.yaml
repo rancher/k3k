@@ -302,10 +302,6 @@ spec:
                       enabled:
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
-                      imagePullSecretTranslate:
-                        description: ImagePullSecretTranslate specified the option
-                          to translate pod.Spec.ImagePullSecret
-                        type: boolean
                       selector:
                         additionalProperties:
                           type: string

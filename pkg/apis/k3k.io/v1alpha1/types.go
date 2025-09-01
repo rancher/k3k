@@ -196,7 +196,7 @@ type SyncConfig struct {
 	ConfigMaps ConfigMapSyncConfig `json:"configmaps,omitempty"`
 	// Secrets resources sync configuration.
 	//
-	// +kubebuilder:default={"enabled": true, "imagePullSecretTranslate": true}
+	// +kubebuilder:default={"enabled": true}
 	Secrets SecretSyncConfig `json:"secrets,omitempty"`
 	// Ingresses resources sync configuration.
 	//

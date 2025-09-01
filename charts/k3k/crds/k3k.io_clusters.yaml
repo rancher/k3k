@@ -646,7 +646,6 @@ spec:
                   secrets:
                     default:
                       enabled: true
-                      imagePullSecretTranslate: true
                     description: Secrets resources sync configuration.
                     properties:
                       enabled:

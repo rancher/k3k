@@ -166,12 +166,12 @@ var _ = Describe("Kubelet Controller", func() {
 		cancel()
 	})
 
-	// Describe("PriorityClass Syncer", PriorityClassTests)
-	// Describe("ConfigMap Syncer", ConfigMapTests)
-	// Describe("Secret Syncer", SecretTests)
-	// Describe("Service Syncer", ServiceTests)
-	// Describe("Ingress Syncer", IngressTests)
-	// Describe("PersistentVolumeClaim Syncer", PVCTests)
+	Describe("PriorityClass Syncer", PriorityClassTests)
+	Describe("ConfigMap Syncer", ConfigMapTests)
+	Describe("Secret Syncer", SecretTests)
+	Describe("Service Syncer", ServiceTests)
+	Describe("Ingress Syncer", IngressTests)
+	Describe("PersistentVolumeClaim Syncer", PVCTests)
 	Describe("HostServiceStatus Syncer", HostServiceTests)
 })
 

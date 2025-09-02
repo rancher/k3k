@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"os/exec"
 	"path"
 	"testing"
 	"time"
@@ -17,7 +18,9 @@ import (
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -32,6 +35,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+)
+
+const (
+	k3kNamespace = "k3k-system"
+	k3kName      = "k3k"
 )
 
 func TestTests(t *testing.T) {
@@ -79,7 +87,9 @@ var _ = BeforeSuite(func() {
 	DeferCleanup(os.Remove, kubeconfigPath)
 
 	initKubernetesClient(kubeconfig)
-	installK3kChart(kubeconfig)
+	installK3kChart(ctx, kubeconfig)
+
+	patchPVC(ctx, k8s)
 })
 
 func initKubernetesClient(kubeconfig []byte) {
@@ -100,7 +110,18 @@ func initKubernetesClient(kubeconfig []byte) {
 	log.SetLogger(zapr.NewLogger(logger))
 }
 
-func installK3kChart(kubeconfig []byte) {
+func buildScheme() *runtime.Scheme {
+	scheme := runtime.NewScheme()
+
+	err := corev1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = v1alpha1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	return scheme
+}
+
+func installK3kChart(ctx context.Context, kubeconfig []byte) {
 	pwd, err := os.Getwd()
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -112,17 +133,14 @@ func installK3kChart(kubeconfig []byte) {
 	restClientGetter, err := NewRESTClientGetter(kubeconfig)
 	Expect(err).To(Not(HaveOccurred()))
 
-	releaseName := "k3k"
-	releaseNamespace := "k3k-system"
-
-	err = actionConfig.Init(restClientGetter, releaseNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...any) {
+	err = actionConfig.Init(restClientGetter, k3kNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...any) {
 		GinkgoWriter.Printf("helm debug: "+format+"\n", v...)
 	})
 	Expect(err).To(Not(HaveOccurred()))
 
 	iCli := action.NewInstall(actionConfig)
-	iCli.ReleaseName = releaseName
-	iCli.Namespace = releaseNamespace
+	iCli.ReleaseName = k3kName
+	iCli.Namespace = k3kNamespace
 	iCli.CreateNamespace = true
 	iCli.Timeout = time.Minute
 	iCli.Wait = true
@@ -141,7 +159,7 @@ func installK3kChart(kubeconfig []byte) {
 		"tag":        "dev",
 	})
 
-	err = k3sContainer.LoadImages(context.Background(), "rancher/k3k:dev", "rancher/k3k-kubelet:dev")
+	err = k3sContainer.LoadImages(ctx, "rancher/k3k:dev", "rancher/k3k-kubelet:dev")
 	Expect(err).To(Not(HaveOccurred()))
 
 	release, err := iCli.Run(k3kChart, k3kChart.Values)
@@ -150,57 +168,182 @@ func installK3kChart(kubeconfig []byte) {
 	GinkgoWriter.Printf("Release %s installed in %s namespace\n", release.Name, release.Namespace)
 }
 
+func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "coverage-data-pvc",
+			Namespace: k3kNamespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("100M"),
+				},
+			},
+		},
+	}
+
+	_, err := clientset.CoreV1().PersistentVolumeClaims(k3kNamespace).Create(ctx, pvc, metav1.CreateOptions{})
+	Expect(err).To(Not(HaveOccurred()))
+
+	patchData := []byte(`
+{
+    "spec": {
+        "template": {
+            "spec": {
+                "volumes": [
+                    {
+                        "name": "tmp-covdata",
+                        "persistentVolumeClaim": {
+                            "claimName": "coverage-data-pvc"
+                        }
+                    }
+                ],
+                "containers": [
+                    {
+                        "name": "k3k",
+                        "volumeMounts": [
+                            {
+                                "name": "tmp-covdata",
+                                "mountPath": "/tmp/covdata"
+                            }
+                        ],
+                        "env": [
+                            {
+                                "name": "GOCOVERDIR",
+                                "value": "/tmp/covdata"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+}`)
+
+	GinkgoWriter.Printf("Applying patch to deployment '%s' in namespace '%s'...\n", k3kName, k3kNamespace)
+
+	_, err = clientset.AppsV1().Deployments(k3kNamespace).Patch(
+		ctx,
+		k3kName,
+		types.StrategicMergePatchType,
+		patchData,
+		metav1.PatchOptions{},
+	)
+	Expect(err).To(Not(HaveOccurred()))
+
+	Eventually(func() bool {
+		GinkgoWriter.Println("Checking K3k deployment status")
+
+		dep, err := clientset.AppsV1().Deployments(k3kNamespace).Get(ctx, k3kName, metav1.GetOptions{})
+		Expect(err).To(Not(HaveOccurred()))
+
+		// 1. Check if the controller has observed the latest generation
+		if dep.Generation > dep.Status.ObservedGeneration {
+			GinkgoWriter.Printf("K3k deployment generation: %d, observed generation: %d\n", dep.Generation, dep.Status.ObservedGeneration)
+			return false
+		}
+
+		// 2. Check if all replicas have been updated
+		if dep.Spec.Replicas != nil && dep.Status.UpdatedReplicas < *dep.Spec.Replicas {
+			GinkgoWriter.Printf("K3k deployment replicas: %d, updated replicas: %d\n", *dep.Spec.Replicas, dep.Status.UpdatedReplicas)
+			return false
+		}
+
+		// 3. Check if all updated replicas are available
+		if dep.Status.AvailableReplicas < dep.Status.UpdatedReplicas {
+			GinkgoWriter.Printf("K3k deployment availabl replicas: %d, updated replicas: %d\n", dep.Status.AvailableReplicas, dep.Status.UpdatedReplicas)
+			return false
+		}
+
+		return true
+	}).
+		MustPassRepeatedly(5).
+		WithPolling(time.Second).
+		WithTimeout(time.Second * 30).
+		Should(BeTrue())
+}
+
 var _ = AfterSuite(func() {
+	ctx := context.Background()
+
+	goCoverDir := os.Getenv("GOCOVERDIR")
+	if goCoverDir == "" {
+		goCoverDir = path.Join(os.TempDir(), "covdata")
+		Expect(os.Mkdir(goCoverDir, 0o755)).To(Succeed())
+	}
+
+	dumpK3kCoverageData(ctx, goCoverDir)
+
 	// dump k3s logs
-	readCloser, err := k3sContainer.Logs(context.Background())
+	k3sLogs, err := k3sContainer.Logs(ctx)
 	Expect(err).To(Not(HaveOccurred()))
-
-	logs, err := io.ReadAll(readCloser)
-	Expect(err).To(Not(HaveOccurred()))
-
-	logfile := path.Join(os.TempDir(), "k3s.log")
-	err = os.WriteFile(logfile, logs, 0o644)
-	Expect(err).To(Not(HaveOccurred()))
-
-	GinkgoWriter.Println("k3s logs written to: " + logfile)
+	writeLogs("k3s.log", k3sLogs)
 
 	// dump k3k controller logs
-	readCloser, err = k3sContainer.Logs(context.Background())
-	Expect(err).To(Not(HaveOccurred()))
-	writeLogs("k3s.log", readCloser)
-
-	// dump k3k logs
-	writeK3kLogs()
+	k3kLogs := getK3kLogs(ctx)
+	writeLogs("k3k.log", k3kLogs)
 
 	testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
 })
 
-func buildScheme() *runtime.Scheme {
-	scheme := runtime.NewScheme()
+// dumpK3kCoverageData will kill the K3k controller container to force it to dump the coverage data.
+// It will then download the files with kubectl cp into the specified folder. If the folder doesn't exists it will be created.
+func dumpK3kCoverageData(ctx context.Context, folder string) {
+	GinkgoWriter.Println("Restarting k3k controller...")
 
-	err := corev1.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-	err = v1alpha1.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
+	var podList corev1.PodList
 
-	return scheme
-}
-
-func writeK3kLogs() {
-	var (
-		err     error
-		podList corev1.PodList
-	)
-
-	ctx := context.Background()
-	err = k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: "k3k-system"})
+	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
 	Expect(err).To(Not(HaveOccurred()))
 
 	k3kPod := podList.Items[0]
-	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &corev1.PodLogOptions{})
+
+	cmd := exec.Command("kubectl", "exec", "-n", k3kNamespace, k3kPod.Name, "-c", "k3k", "--", "kill", "1")
+	output, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred(), string(output))
+
+	Eventually(func() corev1.PodPhase {
+		var pod corev1.Pod
+
+		key := types.NamespacedName{
+			Namespace: k3kNamespace,
+			Name:      k3kPod.Name,
+		}
+		err = k8sClient.Get(ctx, key, &pod)
+		Expect(err).To(Not(HaveOccurred()))
+
+		GinkgoWriter.Printf("K3k controller status: %s\n", pod.Status.Phase)
+
+		return pod.Status.Phase
+	}).
+		MustPassRepeatedly(5).
+		WithPolling(time.Second * 2).
+		WithTimeout(time.Minute).
+		Should(Equal(corev1.PodRunning))
+
+	GinkgoWriter.Printf("Downloading covdata from k3k controller to %s\n", folder)
+
+	cmd = exec.Command("kubectl", "cp", fmt.Sprintf("%s/%s:/tmp/covdata", k3kNamespace, k3kPod.Name), folder)
+	output, err = cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred(), string(output))
+}
+
+func getK3kLogs(ctx context.Context) io.ReadCloser {
+	var podList corev1.PodList
+
+	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
+	Expect(err).To(Not(HaveOccurred()))
+
+	k3kPod := podList.Items[0]
+	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &corev1.PodLogOptions{Previous: true})
 	podLogs, err := req.Stream(ctx)
 	Expect(err).To(Not(HaveOccurred()))
-	writeLogs("k3k.log", podLogs)
+
+	return podLogs
 }
 
 func writeLogs(filename string, logs io.ReadCloser) {
@@ -223,7 +366,7 @@ func readFileWithinPod(ctx context.Context, client *kubernetes.Clientset, config
 
 	stderr, err := podExec(ctx, client, config, namespace, name, command, nil, output)
 	if err != nil || len(stderr) > 0 {
-		return nil, fmt.Errorf("faile to read the following file %s: %v", path, err)
+		return nil, fmt.Errorf("failed to read the following file %s: %v", path, err)
 	}
 
 	return output.Bytes(), nil

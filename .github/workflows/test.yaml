@@ -79,6 +79,13 @@ jobs:
 
     - name: Install Ginkgo
       run: go install github.com/onsi/ginkgo/v2/ginkgo
+    
+    - name: Set coverage environment
+      run: |
+        mkdir ${{ github.workspace }}/covdata
+        
+        echo "COVERAGE=true" >> $GITHUB_ENV
+        echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
 
     - name: Build and package
       run: |
@@ -93,6 +100,18 @@ jobs:
 
     - name: Run e2e tests
       run: make test-e2e
+
+    - name: Convert coverage data
+      run: |
+        ls -al ${GOCOVERDIR}
+        go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out
+    
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ${GOCOVERDIR}/cover.out
+        flags: controller
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5

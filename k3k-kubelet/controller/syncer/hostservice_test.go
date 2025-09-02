@@ -124,7 +124,8 @@ var HostServiceTests = func() {
 
 		Eventually(func() string {
 			var virtService v1.Service
-			virtTestEnv.k8sClient.Get(ctx, client.ObjectKeyFromObject(service), &virtService)
+			err = virtTestEnv.k8sClient.Get(ctx, client.ObjectKeyFromObject(service), &virtService)
+			Expect(err).NotTo(HaveOccurred())
 			if virtService.Status.LoadBalancer.Ingress != nil {
 				return virtService.Status.LoadBalancer.Ingress[0].IP
 			}

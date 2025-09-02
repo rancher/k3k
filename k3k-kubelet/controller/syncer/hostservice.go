@@ -108,5 +108,6 @@ func (r *HostServiceStatusReconciler) filterResources(object ctrlruntimeclient.O
 			return true
 		}
 	}
+
 	return false
 }

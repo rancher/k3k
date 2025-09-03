@@ -102,18 +102,16 @@ jobs:
       run: make test-e2e
 
     - name: Convert coverage data
-      run: |
-        ls -al ${GOCOVERDIR}
-        go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out
+      run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out
     
-    - name: Upload coverage reports to Codecov
+    - name: Upload coverage reports to Codecov (controller)
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ${GOCOVERDIR}/cover.out
         flags: controller
 
-    - name: Upload coverage reports to Codecov
+    - name: Upload coverage reports to Codecov (e2e)
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

@@ -26,15 +26,17 @@ type VirtualAgent struct {
 	token              string
 	k3SImage           string
 	k3SImagePullPolicy string
+	imagePullSecrets   []string
 }
 
-func NewVirtualAgent(config *Config, serviceIP, token string, k3SImage string, k3SImagePullPolicy string) *VirtualAgent {
+func NewVirtualAgent(config *Config, serviceIP, token string, k3SImage string, k3SImagePullPolicy string, imagePullSecrets []string) *VirtualAgent {
 	return &VirtualAgent{
 		Config:             config,
 		serviceIP:          serviceIP,
 		token:              token,
 		k3SImage:           k3SImage,
 		k3SImagePullPolicy: k3SImagePullPolicy,
+		imagePullSecrets:   imagePullSecrets,
 	}
 }
 
@@ -241,6 +243,10 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 		podSpec.Containers[0].Resources = v1.ResourceRequirements{
 			Limits: v.cluster.Spec.WorkerLimit,
 		}
+	}
+
+	for _, imagePullSecret := range v.imagePullSecrets {
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
 	}
 
 	return podSpec

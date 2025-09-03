@@ -31,23 +31,25 @@ const (
 
 type SharedAgent struct {
 	*Config
-	serviceIP       string
-	image           string
-	imagePullPolicy string
-	token           string
-	kubeletPort     int
-	webhookPort     int
+	serviceIP        string
+	image            string
+	imagePullPolicy  string
+	token            string
+	kubeletPort      int
+	webhookPort      int
+	imagePullSecrets []string
 }
 
-func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort, webhookPort int) *SharedAgent {
+func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort, webhookPort int, imagePullSecrets []string) *SharedAgent {
 	return &SharedAgent{
-		Config:          config,
-		serviceIP:       serviceIP,
-		image:           image,
-		imagePullPolicy: imagePullPolicy,
-		token:           token,
-		kubeletPort:     kubeletPort,
-		webhookPort:     webhookPort,
+		Config:           config,
+		serviceIP:        serviceIP,
+		image:            image,
+		imagePullPolicy:  imagePullPolicy,
+		token:            token,
+		kubeletPort:      kubeletPort,
+		webhookPort:      webhookPort,
+		imagePullSecrets: imagePullSecrets,
 	}
 }
 
@@ -156,7 +158,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 		dnsPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
-	return v1.PodSpec{
+	podSpec := v1.PodSpec{
 		HostNetwork:        hostNetwork,
 		DNSPolicy:          dnsPolicy,
 		ServiceAccountName: s.Name(),
@@ -254,6 +256,11 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 			},
 		},
 	}
+	for _, imagePullSecret := range s.imagePullSecrets {
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
+	}
+
+	return podSpec
 }
 
 func (s *SharedAgent) service(ctx context.Context) error {

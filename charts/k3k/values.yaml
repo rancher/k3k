@@ -1,31 +1,5 @@
-replicaCount: 1
-
-image:
-  repository: rancher/k3k
-  tag: ""
-  pullPolicy: ""
-
-imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
-
-# extraEnv allows you to specify additional environment variables for the k3k controller deployment.
-# This is useful for passing custom configuration or secrets to the controller.
-# For example:
-# extraEnv:
-#   - name: MY_CUSTOM_VAR
-#     value: "my_custom_value"
-#   - name: ANOTHER_VAR
-#     valueFrom:
-#       secretKeyRef:
-#         name: my-secret
-#         key: my-key
-extraEnv: []
-
-host:
-  # clusterCIDR specifies the clusterCIDR that will be added to the default networkpolicy, if not set
-  # the controller will collect the PodCIDRs of all the nodes on the system.
-  clusterCIDR: ""
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -34,18 +8,54 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 
-# configuration related to the shared agent mode in k3k
-sharedAgent:
+host:
+  # clusterCIDR specifies the clusterCIDR that will be added to the default networkpolicy, if not set
+  # the controller will collect the PodCIDRs of all the nodes on the system.
+  clusterCIDR: ""
+
+controller:
+  replicaCount: 1
+  image:
+    repository: rancher/k3k
+    tag: ""
+    pullPolicy: ""
+  imagePullSecrets: []
+  # extraEnv allows you to specify additional environment variables for the k3k controller deployment.
+  # This is useful for passing custom configuration or secrets to the controller.
+  # For example:
+  # extraEnv:
+  #   - name: MY_CUSTOM_VAR
+  #     value: "my_custom_value"
+  #   - name: ANOTHER_VAR
+  #     valueFrom:
+  #       secretKeyRef:
+  #         name: my-secret
+  #         key: my-key
+  extraEnv: []
+  # resources limits and requests allows you to set resources limits and requests for CPU and Memory
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "100Mi"
+    limits:
+      cpu: ""
+      memory: ""
+
+# configuration related to the agent pod in k3k
+agent:
+  imagePullSecrets: []
   # Specifies the port range that will be used for k3k-kubelet api if mirrorHostNodes is enabled
   kubeletPortRange: "50000-51000"
   # Specifies the port range that will be used for webhook if mirrorHostNodes is enabled
   webhookPortRange: "51001-52000"
-  image:
+  sharedAgentImage:
     repository: "rancher/k3k-kubelet"
     tag: ""
     pullPolicy: ""
-# image registry configuration related to the k3s server
-k3sServer:
+
+# configuration related to k3s server pod in k3k
+server:
+  imagePullSecrets: []
   image:
     repository: "rancher/k3s"
     pullPolicy: ""

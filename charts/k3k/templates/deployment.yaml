@@ -6,7 +6,7 @@ metadata:
     {{- include "k3k.labels" . | nindent 4 }}
   namespace: {{ .Release.Namespace }}
 spec:
-  replicas: {{ .Values.image.replicaCount }}
+  replicas: {{ .Values.controller.replicaCount }}
   selector:
      matchLabels:
       {{- include "k3k.selectorLabels" . | nindent 6 }}
@@ -15,25 +15,46 @@ spec:
       labels:
         {{- include "k3k.selectorLabels" . | nindent 8 }}
     spec:
+      imagePullSecrets:
+      {{ range .Values.controller.imagePullSecrets }}
+      - name: {{ .name }}
+      {{ end }}
       containers:
-        - image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - image: "{{ .Values.controller.image.repository }}:{{ default .Chart.AppVersion .Values.controller.image.tag }}"
+          imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
           name: {{ .Chart.Name }}
+          resources:
+            requests:
+              cpu: {{ .Values.controller.resources.requests.cpu }}
+              memory: {{ .Values.controller.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.controller.resources.limits.cpu }}
+              memory: {{ .Values.controller.resources.limits.memory }}
+          args:
+          - k3k
+          {{ range .Values.agent.imagePullSecrets }}
+          - --agent-image-pull-secret 
+          - {{ .name }}
+          {{ end }}
+           {{ range .Values.server.imagePullSecrets }}
+          - --server-image-pull-secret 
+          - {{ .name }}
+          {{ end }}
           env:
           - name: CLUSTER_CIDR
             value: {{ .Values.host.clusterCIDR }}
           - name: SHARED_AGENT_IMAGE
-            value: "{{ .Values.sharedAgent.image.repository }}:{{ default .Chart.AppVersion .Values.sharedAgent.image.tag }}"
+            value: "{{ .Values.agent.sharedAgentImage.repository }}:{{ default .Chart.AppVersion .Values.agent.sharedAgentImage.tag }}"
           - name: SHARED_AGENT_PULL_POLICY
-            value: {{ .Values.sharedAgent.image.pullPolicy }}
+            value: {{ .Values.agent.sharedAgentImage.pullPolicy }}
           - name: K3S_IMAGE
-            value: {{ .Values.k3sServer.image.repository }}
+            value: {{ .Values.server.image.repository }}
           - name: K3S_IMAGE_PULL_POLICY
-            value: {{ .Values.k3sServer.image.pullPolicy }}
+            value: {{ .Values.server.image.pullPolicy }}
           - name: KUBELET_PORT_RANGE
-            value: {{ .Values.sharedAgent.kubeletPortRange }}
+            value: {{ .Values.agent.kubeletPortRange }}
           - name: WEBHOOK_PORT_RANGE
-            value: {{ .Values.sharedAgent.webhookPortRange }}
+            value: {{ .Values.agent.webhookPortRange }}
           - name: CONTROLLER_NAMESPACE
             valueFrom:
               fieldRef:

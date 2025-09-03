@@ -71,7 +71,7 @@ var _ = BeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(context.Background())
 
-	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "", "rancher/k3s", "", 50, portAllocator, &record.FakeRecorder{})
+	err = cluster.Add(ctx, mgr, "rancher/k3k-kubelet:latest", "", "rancher/k3s", "", 50, portAllocator, &record.FakeRecorder{}, nil, nil)
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

@@ -40,6 +40,8 @@ var (
 	k3SImagePullPolicy         string
 	kubeletPortRange           string
 	webhookPortRange           string
+	serverImagePullSecrets     []string
+	agentImagePullSecrets      []string
 	maxConcurrentReconciles    int
 	debug                      bool
 	logger                     *log.Logger
@@ -74,6 +76,8 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&webhookPortRange, "webhook-port-range", "51001-52000", "Port Range for k3k kubelet webhook in shared mode")
 	rootCmd.PersistentFlags().StringVar(&k3SImage, "k3s-image", "rancher/k3k", "K3K server image")
 	rootCmd.PersistentFlags().StringVar(&k3SImagePullPolicy, "k3s-image-pull-policy", "", "K3K server image pull policy")
+	rootCmd.PersistentFlags().StringSliceVar(&serverImagePullSecrets, "server-image-pull-secret", nil, "Image pull secret used for for servers")
+	rootCmd.PersistentFlags().StringSliceVar(&agentImagePullSecrets, "agent-image-pull-secret", nil, "Image pull secret used for for agents")
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 50, "maximum number of concurrent reconciles")
 
 	if err := rootCmd.Execute(); err != nil {
@@ -113,7 +117,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage, k3SImagePullPolicy, maxConcurrentReconciles, portAllocator, nil); err != nil {
+	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage, k3SImagePullPolicy, maxConcurrentReconciles, portAllocator, nil, serverImagePullSecrets, agentImagePullSecrets); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 

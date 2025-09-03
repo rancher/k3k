@@ -5,6 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
@@ -79,7 +82,8 @@ func main() {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	logger.Info("Starting k3k - Version: " + buildinfo.Version)
 
@@ -128,6 +132,8 @@ func run(cmd *cobra.Command, args []string) error {
 	if err := mgr.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start the manager: %v", err)
 	}
+
+	logger.Info("controller manager stopped")
 
 	return nil
 }

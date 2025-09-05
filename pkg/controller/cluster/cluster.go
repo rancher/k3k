@@ -66,17 +66,19 @@ type ClusterReconciler struct {
 	Client          client.Client
 	Scheme          *runtime.Scheme
 	record.EventRecorder
-	SharedAgentImage           string
-	SharedAgentImagePullPolicy string
-	K3SImage                   string
-	K3SImagePullPolicy         string
-	PortAllocator              *agent.PortAllocator
-	ServerImagePullSecrets     []string
-	AgentImagePullSecrets      []string
+	SharedAgentImage            string
+	SharedAgentImagePullPolicy  string
+	VirtualAgentImage           string
+	VirtualAgentImagePullPolicy string
+	K3SServerImage              string
+	K3SServerImagePullPolicy    string
+	PortAllocator               *agent.PortAllocator
+	ServerImagePullSecrets      []string
+	AgentImagePullSecrets       []string
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, k3SImage string, k3SImagePullPolicy string, maxConcurrentReconciles int, portAllocator *agent.PortAllocator, eventRecorder record.EventRecorder, serverImagePullSecrets, agentImagePullSecrets []string) error {
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, virtualAgentImage, virtualAgentImagePullPolicy, k3SServerImage, k3SServerImagePullPolicy string, maxConcurrentReconciles int, portAllocator *agent.PortAllocator, eventRecorder record.EventRecorder, serverImagePullSecrets, agentImagePullSecrets []string) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
@@ -92,17 +94,19 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 
 	// initialize a new Reconciler
 	reconciler := ClusterReconciler{
-		DiscoveryClient:            discoveryClient,
-		Client:                     mgr.GetClient(),
-		Scheme:                     mgr.GetScheme(),
-		EventRecorder:              eventRecorder,
-		SharedAgentImage:           sharedAgentImage,
-		SharedAgentImagePullPolicy: sharedAgentImagePullPolicy,
-		K3SImage:                   k3SImage,
-		K3SImagePullPolicy:         k3SImagePullPolicy,
-		PortAllocator:              portAllocator,
-		ServerImagePullSecrets:     serverImagePullSecrets,
-		AgentImagePullSecrets:      agentImagePullSecrets,
+		DiscoveryClient:             discoveryClient,
+		Client:                      mgr.GetClient(),
+		Scheme:                      mgr.GetScheme(),
+		EventRecorder:               eventRecorder,
+		SharedAgentImage:            sharedAgentImage,
+		SharedAgentImagePullPolicy:  sharedAgentImagePullPolicy,
+		VirtualAgentImage:           virtualAgentImage,
+		VirtualAgentImagePullPolicy: virtualAgentImagePullPolicy,
+		K3SServerImage:              k3SServerImage,
+		K3SServerImagePullPolicy:    k3SServerImagePullPolicy,
+		PortAllocator:               portAllocator,
+		ServerImagePullSecrets:      serverImagePullSecrets,
+		AgentImagePullSecrets:       agentImagePullSecrets,
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -270,7 +274,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 		return err
 	}
 
-	s := server.New(cluster, c.Client, token, c.K3SImage, c.K3SImagePullPolicy, c.ServerImagePullSecrets)
+	s := server.New(cluster, c.Client, token, c.K3SServerImage, c.K3SServerImagePullPolicy, c.ServerImagePullSecrets)
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	if cluster.Status.ClusterCIDR == "" {
@@ -677,7 +681,7 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 
 	var agentEnsurer agent.ResourceEnsurer
 	if cluster.Spec.Mode == agent.VirtualNodeMode {
-		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.K3SImage, c.K3SImagePullPolicy, imagePullSecrets)
+		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.VirtualAgentImage, c.VirtualAgentImagePullPolicy, imagePullSecrets)
 	} else {
 		// Assign port from pool if shared agent enabled mirroring of host nodes
 		kubeletPort := 10250

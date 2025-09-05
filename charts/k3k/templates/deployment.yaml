@@ -48,17 +48,21 @@ spec:
           - name: CLUSTER_CIDR
             value: {{ .Values.host.clusterCIDR }}
           - name: SHARED_AGENT_IMAGE
-            value: "{{ .Values.agent.sharedAgentImage.repository }}:{{ default .Chart.AppVersion .Values.agent.sharedAgentImage.tag }}"
+            value: "{{ .Values.agent.shared.image.repository }}:{{ default .Chart.AppVersion .Values.agent.shared.image.tag }}"
           - name: SHARED_AGENT_PULL_POLICY
-            value: {{ .Values.agent.sharedAgentImage.pullPolicy }}
-          - name: K3S_IMAGE
+            value: {{ .Values.agent.shared.image.pullPolicy }}
+          - name: VIRTUAL_AGENT_IMAGE
+            value: {{ .Values.agent.virtual.image.repository }}
+          - name: VIRTUAL_AGENT_PULL_POLICY
+            value: {{ .Values.agent.virtual.image.pullPolicy }}
+          - name: K3S_SERVER_IMAGE
             value: {{ .Values.server.image.repository }}
-          - name: K3S_IMAGE_PULL_POLICY
+          - name: K3S_SERVER_IMAGE_PULL_POLICY
             value: {{ .Values.server.image.pullPolicy }}
           - name: KUBELET_PORT_RANGE
-            value: {{ .Values.agent.kubeletPortRange }}
+            value: {{ .Values.agent.shared.kubeletPortRange }}
           - name: WEBHOOK_PORT_RANGE
-            value: {{ .Values.agent.webhookPortRange }}
+            value: {{ .Values.agent.shared.webhookPortRange }}
           - name: CONTROLLER_NAMESPACE
             valueFrom:
               fieldRef:

@@ -107,8 +107,8 @@ install:	## Install K3k with Helm on the targeted Kubernetes cluster
 	helm upgrade --install --namespace k3k-system --create-namespace \
 		--set controller.image.repository=$(REPO)/k3k \
 		--set controller.image.tag=$(VERSION) \
-		--set agent.sharedAgentimage.repository=$(REPO)/k3k-kubelet \
-		--set agent.sharedAgentimage.tag=$(VERSION) \
+		--set agent.shared.image.repository=$(REPO)/k3k-kubelet \
+		--set agent.shared.image.tag=$(VERSION) \
 		k3k ./charts/k3k/
 
 .PHONY: help

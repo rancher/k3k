@@ -41,19 +41,29 @@ controller:
       cpu: ""
       memory: ""
 
-# configuration related to the agent pod in k3k
+# configuration related to the agent component in k3k
 agent:
   imagePullSecrets: []
-  # Specifies the port range that will be used for k3k-kubelet api if mirrorHostNodes is enabled
-  kubeletPortRange: "50000-51000"
-  # Specifies the port range that will be used for webhook if mirrorHostNodes is enabled
-  webhookPortRange: "51001-52000"
-  sharedAgentImage:
-    repository: "rancher/k3k-kubelet"
-    tag: ""
-    pullPolicy: ""
+  # configuration related to agent in shared mode
+  shared:
+    # Specifies the port range that will be used for k3k-kubelet api if mirrorHostNodes is enabled
+    kubeletPortRange: "50000-51000"
+    # Specifies the port range that will be used for webhook if mirrorHostNodes is enabled
+    webhookPortRange: "51001-52000"
+    image:
+      repository: "rancher/k3k-kubelet"
+      tag: ""
+      pullPolicy: ""
+  # configuration related to agent in virtual mode
+  virtual:
+    image:
+      repository: "rancher/k3s"
+      pullPolicy: ""
 
-# configuration related to k3s server pod in k3k
+  
+  
+
+# configuration related to k3s server component in k3k
 server:
   imagePullSecrets: []
   image:

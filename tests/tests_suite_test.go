@@ -145,14 +145,16 @@ func installK3kChart(ctx context.Context, kubeconfig []byte) {
 	iCli.Timeout = time.Minute
 	iCli.Wait = true
 
-	imageMap, _ := k3kChart.Values["image"].(map[string]any)
+	controllerMap, _ := k3kChart.Values["controller"].(map[string]any)
+	imageMap, _ := controllerMap["image"].(map[string]any)
 	maps.Copy(imageMap, map[string]any{
 		"repository": "rancher/k3k",
 		"tag":        "dev",
 		"pullPolicy": "IfNotPresent",
 	})
 
-	sharedAgentMap, _ := k3kChart.Values["sharedAgent"].(map[string]any)
+	agentMap, _ := k3kChart.Values["agent"].(map[string]any)
+	sharedAgentMap, _ := agentMap["shared"].(map[string]any)
 	sharedAgentImageMap, _ := sharedAgentMap["image"].(map[string]any)
 	maps.Copy(sharedAgentImageMap, map[string]any{
 		"repository": "rancher/k3k-kubelet",

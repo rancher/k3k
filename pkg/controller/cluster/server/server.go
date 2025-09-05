@@ -38,9 +38,10 @@ type Server struct {
 	token              string
 	k3SImage           string
 	k3SImagePullPolicy string
+	imagePullSecrets   []string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client, token string, k3SImage string, k3SImagePullPolicy string) *Server {
+func New(cluster *v1alpha1.Cluster, client client.Client, token string, k3SImage string, k3SImagePullPolicy string, imagePullSecrets []string) *Server {
 	return &Server{
 		cluster:            cluster,
 		client:             client,
@@ -48,6 +49,7 @@ func New(cluster *v1alpha1.Cluster, client client.Client, token string, k3SImage
 		mode:               string(cluster.Spec.Mode),
 		k3SImage:           k3SImage,
 		k3SImagePullPolicy: k3SImagePullPolicy,
+		imagePullSecrets:   imagePullSecrets,
 	}
 }
 
@@ -241,6 +243,11 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 	}
 
 	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, s.cluster.Spec.ServerEnvs...)
+
+	// add image pull secrets
+	for _, imagePullSecret := range s.imagePullSecrets {
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
+	}
 
 	return podSpec
 }

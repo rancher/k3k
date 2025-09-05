@@ -596,8 +596,6 @@ spec:
                         type: object
                     type: object
                   ingresses:
-                    default:
-                      enabled: false
                     description: Ingresses resources sync configuration.
                     properties:
                       enabled:
@@ -612,8 +610,6 @@ spec:
                         type: object
                     type: object
                   persistentVolumeClaims:
-                    default:
-                      enabled: false
                     description: PersistentVolumeClaims resources sync configuration.
                     properties:
                       enabled:
@@ -628,8 +624,6 @@ spec:
                         type: object
                     type: object
                   priorityClasses:
-                    default:
-                      enabled: false
                     description: PriorityClasses resources sync configuration.
                     properties:
                       enabled:

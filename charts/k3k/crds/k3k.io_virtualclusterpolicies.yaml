@@ -226,6 +226,7 @@ spec:
                     x-kubernetes-list-type: atomic
                 type: object
               sync:
+                default: {}
                 description: Sync specifies the synchronization configuration for
                   resources that can be applied to clusters
                 properties:
@@ -246,8 +247,6 @@ spec:
                         type: object
                     type: object
                   ingresses:
-                    default:
-                      enabled: false
                     description: Ingresses resources sync configuration.
                     properties:
                       enabled:
@@ -262,8 +261,6 @@ spec:
                         type: object
                     type: object
                   persistentVolumeClaims:
-                    default:
-                      enabled: false
                     description: PersistentVolumeClaims resources sync configuration.
                     properties:
                       enabled:
@@ -278,8 +275,6 @@ spec:
                         type: object
                     type: object
                   priorityClasses:
-                    default:
-                      enabled: false
                     description: PriorityClasses resources sync configuration.
                     properties:
                       enabled:

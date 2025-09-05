@@ -712,8 +712,8 @@ func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster, policy v1alpha1.
 		return fmt.Errorf("%w: mode %q is not allowed by the policy %q", ErrClusterValidation, cluster.Spec.Mode, policy.Name)
 	}
 
-	if cluster.Spec.CustomCAs.Enabled {
-		if err := c.validateCustomCACerts(cluster); err != nil {
+	if cluster.Spec.CustomCAs != nil && cluster.Spec.CustomCAs.Enabled {
+		if err := c.validateCustomCACerts(*cluster.Spec.CustomCAs); err != nil {
 			return fmt.Errorf("%w: %w", ErrClusterValidation, err)
 		}
 	}
@@ -803,16 +803,26 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 	return "", nil
 }
 
-// validateCustomCACerts will make sure that all the cert secrets exists
-func (c *ClusterReconciler) validateCustomCACerts(cluster *v1alpha1.Cluster) error {
-	credentialSources := cluster.Spec.CustomCAs.Sources
-	if credentialSources.ClientCA.SecretName == "" ||
-		credentialSources.ServerCA.SecretName == "" ||
-		credentialSources.ETCDPeerCA.SecretName == "" ||
-		credentialSources.ETCDServerCA.SecretName == "" ||
-		credentialSources.RequestHeaderCA.SecretName == "" ||
-		credentialSources.ServiceAccountToken.SecretName == "" {
-		return ErrCustomCACertSecretMissing
+// validateCustomCACerts ensures that if custom CAs are enabled, all required
+// secret names for the certificate sources are provided.
+func (c *ClusterReconciler) validateCustomCACerts(customCAs v1alpha1.CustomCAs) error {
+	if customCAs.Sources == nil {
+		return fmt.Errorf("%w: sources field is not defined", ErrCustomCACertSecretMissing)
+	}
+
+	sources := map[string]*v1alpha1.CredentialSource{
+		"ClientCA":            customCAs.Sources.ClientCA,
+		"ServerCA":            customCAs.Sources.ServerCA,
+		"ETCDPeerCA":          customCAs.Sources.ETCDPeerCA,
+		"ETCDServerCA":        customCAs.Sources.ETCDServerCA,
+		"RequestHeaderCA":     customCAs.Sources.RequestHeaderCA,
+		"ServiceAccountToken": customCAs.Sources.ServiceAccountToken,
+	}
+
+	for name, source := range sources {
+		if source == nil || source.SecretName == "" {
+			return fmt.Errorf("%w: secret name for %s is missing", ErrCustomCACertSecretMissing, name)
+		}
 	}
 
 	return nil

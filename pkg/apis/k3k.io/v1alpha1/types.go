@@ -175,13 +175,13 @@ type ClusterSpec struct {
 	// CustomCAs specifies the cert/key pairs for custom CA certificates.
 	//
 	// +optional
-	CustomCAs CustomCAs `json:"customCAs,omitempty"`
+	CustomCAs *CustomCAs `json:"customCAs,omitempty"`
 
 	// Sync specifies the resources types that will be synced from virtual cluster to host cluster.
 	//
 	// +kubebuilder:default={}
 	// +optional
-	Sync SyncConfig `json:"sync,omitempty"`
+	Sync *SyncConfig `json:"sync,omitempty"`
 }
 
 // SyncConfig will contain the resources that should be synced from virtual cluster to host cluster.
@@ -189,32 +189,41 @@ type SyncConfig struct {
 	// Services resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
-	Services ServiceSyncConfig `json:"services,omitempty"`
+	// +optional
+	Services *ServiceSyncConfig `json:"services,omitempty"`
+
 	// ConfigMaps resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
-	ConfigMaps ConfigMapSyncConfig `json:"configmaps,omitempty"`
+	// +optional
+	ConfigMaps *ConfigMapSyncConfig `json:"configmaps,omitempty"`
+
 	// Secrets resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
-	Secrets SecretSyncConfig `json:"secrets,omitempty"`
+	// +optional
+	Secrets *SecretSyncConfig `json:"secrets,omitempty"`
+
 	// Ingresses resources sync configuration.
 	//
-	// +kubebuilder:default={"enabled": false}
-	Ingresses IngressSyncConfig `json:"ingresses,omitempty"`
+	// +optional
+	Ingresses *IngressSyncConfig `json:"ingresses,omitempty"`
+
 	// PersistentVolumeClaims resources sync configuration.
 	//
-	// +kubebuilder:default={"enabled": false}
-	PersistentVolumeClaims PersistentVolumeClaimSyncConfig `json:"persistentVolumeClaims,omitempty"`
+	// +optional
+	PersistentVolumeClaims *PersistentVolumeClaimSyncConfig `json:"persistentVolumeClaims,omitempty"`
+
 	// PriorityClasses resources sync configuration.
 	//
-	// +kubebuilder:default={"enabled": false}
-	PriorityClasses PriorityClassSyncConfig `json:"priorityClasses,omitempty"`
+	// +optional
+	PriorityClasses *PriorityClassSyncConfig `json:"priorityClasses,omitempty"`
 }
 
 // SecretSyncConfig specifies the sync options for services.
 type SecretSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
+	//
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
@@ -228,6 +237,7 @@ type SecretSyncConfig struct {
 // ServiceSyncConfig specifies the sync options for services.
 type ServiceSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
+	//
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
@@ -241,6 +251,7 @@ type ServiceSyncConfig struct {
 // ConfigMapSyncConfig specifies the sync options for services.
 type ConfigMapSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
+	//
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
@@ -418,29 +429,29 @@ type CustomCAs struct {
 	Enabled bool `json:"enabled,omitempty"`
 
 	// Sources defines the sources for all required custom CA certificates.
-	Sources CredentialSources `json:"sources,omitempty"`
+	Sources *CredentialSources `json:"sources,omitempty"`
 }
 
 // CredentialSources lists all the required credentials, including both
 // TLS key pairs and single signing keys.
 type CredentialSources struct {
 	// ServerCA specifies the server-ca cert/key pair.
-	ServerCA CredentialSource `json:"serverCA,omitempty"`
+	ServerCA *CredentialSource `json:"serverCA,omitempty"`
 
 	// ClientCA specifies the client-ca cert/key pair.
-	ClientCA CredentialSource `json:"clientCA,omitempty"`
+	ClientCA *CredentialSource `json:"clientCA,omitempty"`
 
 	// RequestHeaderCA specifies the request-header-ca cert/key pair.
-	RequestHeaderCA CredentialSource `json:"requestHeaderCA,omitempty"`
+	RequestHeaderCA *CredentialSource `json:"requestHeaderCA,omitempty"`
 
 	// ETCDServerCA specifies the etcd-server-ca cert/key pair.
-	ETCDServerCA CredentialSource `json:"etcdServerCA,omitempty"`
+	ETCDServerCA *CredentialSource `json:"etcdServerCA,omitempty"`
 
 	// ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
-	ETCDPeerCA CredentialSource `json:"etcdPeerCA,omitempty"`
+	ETCDPeerCA *CredentialSource `json:"etcdPeerCA,omitempty"`
 
 	// ServiceAccountToken specifies the service-account-token key.
-	ServiceAccountToken CredentialSource `json:"serviceAccountToken,omitempty"`
+	ServiceAccountToken *CredentialSource `json:"serviceAccountToken,omitempty"`
 }
 
 // CredentialSource defines where to get a credential from.
@@ -450,6 +461,7 @@ type CredentialSource struct {
 	// The controller expects specific keys inside based on the credential type:
 	// - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
 	// - For ServiceAccountTokenKey: 'tls.key'.
+	//
 	// +optional
 	SecretName string `json:"secretName,omitempty"`
 }
@@ -599,8 +611,9 @@ type VirtualClusterPolicySpec struct {
 
 	// Sync specifies the synchronization configuration for resources that can be applied to clusters
 	//
+	// +kubebuilder:default={}
 	// +optional
-	Sync SyncConfig `json:"sync,omitempty"`
+	Sync *SyncConfig `json:"sync,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

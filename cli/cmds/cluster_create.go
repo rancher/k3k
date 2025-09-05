@@ -195,17 +195,6 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 				StorageClassName:   ptr.To(config.storageClassName),
 				StorageRequestSize: config.storageRequestSize,
 			},
-			Sync: v1alpha1.SyncConfig{
-				ConfigMaps: v1alpha1.ConfigMapSyncConfig{
-					Enabled: true,
-				},
-				Secrets: v1alpha1.SecretSyncConfig{
-					Enabled: true,
-				},
-				Services: v1alpha1.ServiceSyncConfig{
-					Enabled: true,
-				},
-			},
 			MirrorHostNodes: config.mirrorHostNodes,
 		},
 	}
@@ -221,25 +210,25 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 	}
 
 	if config.customCertsPath != "" {
-		cluster.Spec.CustomCAs = v1alpha1.CustomCAs{
+		cluster.Spec.CustomCAs = &v1alpha1.CustomCAs{
 			Enabled: true,
-			Sources: v1alpha1.CredentialSources{
-				ClientCA: v1alpha1.CredentialSource{
+			Sources: &v1alpha1.CredentialSources{
+				ClientCA: &v1alpha1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "client-ca"),
 				},
-				ServerCA: v1alpha1.CredentialSource{
+				ServerCA: &v1alpha1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "server-ca"),
 				},
-				ETCDServerCA: v1alpha1.CredentialSource{
+				ETCDServerCA: &v1alpha1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-server-ca"),
 				},
-				ETCDPeerCA: v1alpha1.CredentialSource{
+				ETCDPeerCA: &v1alpha1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-peer-ca"),
 				},
-				RequestHeaderCA: v1alpha1.CredentialSource{
+				RequestHeaderCA: &v1alpha1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "request-header-ca"),
 				},
-				ServiceAccountToken: v1alpha1.CredentialSource{
+				ServiceAccountToken: &v1alpha1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "service-account-token"),
 				},
 			},

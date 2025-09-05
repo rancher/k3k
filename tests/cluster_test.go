@@ -222,29 +222,31 @@ var _ = When("a cluster with custom certificates is installed with individual ce
 		}
 
 		cluster := NewCluster(namespace.Name)
-		cluster.Spec.CustomCAs = v1alpha1.CustomCAs{
+
+		cluster.Spec.CustomCAs = &v1alpha1.CustomCAs{
 			Enabled: true,
-			Sources: v1alpha1.CredentialSources{
-				ServerCA: v1alpha1.CredentialSource{
+			Sources: &v1alpha1.CredentialSources{
+				ServerCA: &v1alpha1.CredentialSource{
 					SecretName: "server-ca",
 				},
-				ClientCA: v1alpha1.CredentialSource{
+				ClientCA: &v1alpha1.CredentialSource{
 					SecretName: "client-ca",
 				},
-				ETCDServerCA: v1alpha1.CredentialSource{
+				ETCDServerCA: &v1alpha1.CredentialSource{
 					SecretName: "etcd-server-ca",
 				},
-				ETCDPeerCA: v1alpha1.CredentialSource{
+				ETCDPeerCA: &v1alpha1.CredentialSource{
 					SecretName: "etcd-peer-ca",
 				},
-				RequestHeaderCA: v1alpha1.CredentialSource{
+				RequestHeaderCA: &v1alpha1.CredentialSource{
 					SecretName: "request-header-ca",
 				},
-				ServiceAccountToken: v1alpha1.CredentialSource{
+				ServiceAccountToken: &v1alpha1.CredentialSource{
 					SecretName: "service",
 				},
 			},
 		}
+
 		CreateCluster(cluster)
 		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
 

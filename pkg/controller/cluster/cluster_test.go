@@ -56,6 +56,20 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				Expect(cluster.Spec.Persistence.Type).To(Equal(v1alpha1.DynamicPersistenceMode))
 				Expect(cluster.Spec.Persistence.StorageRequestSize).To(Equal("1G"))
 
+				Expect(cluster.Spec.Sync).To(Equal(&v1alpha1.SyncConfig{
+					ConfigMaps: &v1alpha1.ConfigMapSyncConfig{
+						Enabled: true,
+					},
+					Secrets: &v1alpha1.SecretSyncConfig{
+						Enabled: true,
+					},
+					Services: &v1alpha1.ServiceSyncConfig{
+						Enabled: true,
+					},
+				}))
+
+				Expect(cluster.Spec.CustomCAs).To(BeNil())
+
 				Expect(cluster.Status.Phase).To(Equal(v1alpha1.ClusterUnknown))
 
 				serverVersion, err := k8s.ServerVersion()

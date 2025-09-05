@@ -145,7 +145,8 @@ func installK3kChart(ctx context.Context, kubeconfig []byte) {
 	iCli.Timeout = time.Minute
 	iCli.Wait = true
 
-	imageMap, _ := k3kChart.Values["controller.image"].(map[string]any)
+	controllerMap, _ := k3kChart.Values["controller"].(map[string]any)
+	imageMap, _ := controllerMap["image"].(map[string]any)
 	maps.Copy(imageMap, map[string]any{
 		"repository": "rancher/k3k",
 		"tag":        "dev",

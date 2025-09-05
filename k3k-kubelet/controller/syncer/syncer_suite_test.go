@@ -172,6 +172,7 @@ var _ = Describe("Kubelet Controller", func() {
 	Describe("Service Syncer", ServiceTests)
 	Describe("Ingress Syncer", IngressTests)
 	Describe("PersistentVolumeClaim Syncer", PVCTests)
+	Describe("HostServiceStatus Syncer", HostServiceTests)
 })
 
 func translateName(cluster v1alpha1.Cluster, namespace, name string) string {

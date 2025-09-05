@@ -454,6 +454,12 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 		return errors.New("failed to add service syncer controller: " + err.Error())
 	}
 
+	logger.Info("adding host service status syncer controller")
+
+	if err := syncer.AddHostServiceStatusSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return errors.New("failed to add host service status syncer controller: " + err.Error())
+	}
+
 	logger.Info("adding ingress syncer controller")
 
 	if err := syncer.AddIngressSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {

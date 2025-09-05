@@ -28,8 +28,12 @@ spec:
               cpu: {{ .Values.controller.resources.requests.cpu }}
               memory: {{ .Values.controller.resources.requests.memory }}
             limits:
+              {{ if .Values.controller.resources.limits.cpu }}
               cpu: {{ .Values.controller.resources.limits.cpu }}
+              {{ end }}
+              {{ if .Values.controller.resources.limits.memory }}
               memory: {{ .Values.controller.resources.limits.memory }}
+              {{ end}}
           args:
           - k3k
           {{ range .Values.agent.imagePullSecrets }}

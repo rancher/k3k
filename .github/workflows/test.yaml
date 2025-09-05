@@ -79,7 +79,33 @@ jobs:
 
     - name: Install Ginkgo
       run: go install github.com/onsi/ginkgo/v2/ginkgo
-    
+
+    - name: Install helm
+      uses: azure/setup-helm@v4.3.0
+
+    - name: Install k3d and kubectl
+      run: |
+        wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+        k3d version
+
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+    - name: Setup Kubernetes (k3d)
+      env:
+        REPO_NAME: k3k-registry
+        REPO_PORT: 12345
+      run: |
+        echo "127.0.0.1 ${REPO_NAME}" | sudo tee -a /etc/hosts
+
+        k3d registry create ${REPO_NAME} --port ${REPO_PORT}
+        
+        k3d cluster create k3k --servers 3 \
+          -p "30000-30010:30000-30010@server:0" \
+          --registry-use k3d-${REPO_NAME}:${REPO_PORT}
+        
+        kubectl cluster-info
+        kubectl get nodes
+
     - name: Set coverage environment
       run: |
         mkdir ${{ github.workspace }}/covdata
@@ -87,13 +113,27 @@ jobs:
         echo "COVERAGE=true" >> $GITHUB_ENV
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
 
-    - name: Build and package
+    - name: Setup K3k
+      env:
+        REPO: k3k-registry:12345
       run: |
+        echo "127.0.0.1 k3k-registry" | sudo tee -a /etc/hosts
+
         make build
         make package
+        make push
 
         # add k3kcli to $PATH
         echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+        VERSION=$(make version)
+        k3d image import ${REPO}/k3k:${VERSION} -c k3k --verbose
+        k3d image import ${REPO}/k3k-kubelet:${VERSION} -c k3k --verbose
+
+        make install
+        
+        echo "Wait for K3k controller to be available"
+        kubectl wait -n k3k-system pod --for condition=Ready -l "app.kubernetes.io/name=k3k" --timeout=5m
 
     - name: Check k3kcli
       run: k3kcli -v

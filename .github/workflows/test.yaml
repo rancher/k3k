@@ -139,7 +139,11 @@ jobs:
       run: k3kcli -v
 
     - name: Run e2e tests
-      run: make test-e2e
+      run: |
+        REPO: k3k-registry:12345
+        VERSION=$(make version)
+
+        make test-e2e
 
     - name: Convert coverage data
       run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out

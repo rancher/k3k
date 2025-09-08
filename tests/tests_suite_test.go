@@ -161,7 +161,17 @@ func installK3kChart(ctx context.Context, kubeconfig []byte) {
 		"tag":        "dev",
 	})
 
-	err = k3sContainer.LoadImages(ctx, "rancher/k3k:dev", "rancher/k3k-kubelet:dev")
+	repo := "rancher"
+	if repoEnv := os.Getenv("REPO"); repoEnv != "" {
+		repo = repoEnv
+	}
+
+	version := "dev"
+	if versionEnv := os.Getenv("VERSION"); versionEnv != "" {
+		version = versionEnv
+	}
+
+	err = k3sContainer.LoadImages(ctx, repo+"/k3k:"+version, repo+"/k3k-kubelet:"+version)
 	Expect(err).To(Not(HaveOccurred()))
 
 	release, err := iCli.Run(k3kChart, k3kChart.Values)

@@ -140,8 +140,8 @@ jobs:
 
     - name: Run e2e tests
       run: |
-        REPO: k3k-registry:12345
-        VERSION=$(make version)
+        export REPO=k3k-registry:12345
+        export VERSION=$(make version)
 
         make test-e2e
 

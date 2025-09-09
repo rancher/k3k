@@ -181,7 +181,7 @@ type ClusterSpec struct {
 	//
 	// +kubebuilder:default={}
 	// +optional
-	Sync SyncConfig `json:"sync,omitempty"`
+	Sync *SyncConfig `json:"sync,omitempty"`
 }
 
 // SyncConfig will contain the resources that should be synced from virtual cluster to host cluster.
@@ -204,7 +204,7 @@ type SyncConfig struct {
 	Ingresses IngressSyncConfig `json:"ingresses,omitempty"`
 	// PersistentVolumeClaims resources sync configuration.
 	//
-	// +kubebuilder:default={"enabled": false}
+	// +kubebuilder:default={"enabled": true}
 	PersistentVolumeClaims PersistentVolumeClaimSyncConfig `json:"persistentVolumeClaims,omitempty"`
 	// PriorityClasses resources sync configuration.
 	//

@@ -429,7 +429,7 @@ _Appears in:_
 | `configmaps` _[ConfigMapSyncConfig](#configmapsyncconfig)_ | ConfigMaps resources sync configuration. | \{ enabled:true \} |  |
 | `secrets` _[SecretSyncConfig](#secretsyncconfig)_ | Secrets resources sync configuration. | \{ enabled:true \} |  |
 | `ingresses` _[IngressSyncConfig](#ingresssyncconfig)_ | Ingresses resources sync configuration. | \{ enabled:false \} |  |
-| `persistentVolumeClaims` _[PersistentVolumeClaimSyncConfig](#persistentvolumeclaimsyncconfig)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:false \} |  |
+| `persistentVolumeClaims` _[PersistentVolumeClaimSyncConfig](#persistentvolumeclaimsyncconfig)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:true \} |  |
 | `priorityClasses` _[PriorityClassSyncConfig](#priorityclasssyncconfig)_ | PriorityClasses resources sync configuration. | \{ enabled:false \} |  |
 
 

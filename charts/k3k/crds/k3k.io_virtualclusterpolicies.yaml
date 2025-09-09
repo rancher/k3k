@@ -263,7 +263,7 @@ spec:
                     type: object
                   persistentVolumeClaims:
                     default:
-                      enabled: false
+                      enabled: true
                     description: PersistentVolumeClaims resources sync configuration.
                     properties:
                       enabled:

@@ -35,11 +35,14 @@ var (
 	clusterCIDR                 string
 	sharedAgentImage            string
 	sharedAgentImagePullPolicy  string
+	sharedAgentImageRegistry    string
 	virtualAgentImage           string
 	virtualAgentImagePullPolicy string
+	virtualAgentImageRegistry   string
 	kubeconfig                  string
 	k3SServerImage              string
 	k3SServerImagePullPolicy    string
+	k3SServerImageRegistry      string
 	kubeletPortRange            string
 	webhookPortRange            string
 	serverImagePullSecrets      []string
@@ -73,13 +76,16 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig path")
 	rootCmd.PersistentFlags().StringVar(&clusterCIDR, "cluster-cidr", "", "Cluster CIDR to be added to the networkpolicy")
 	rootCmd.PersistentFlags().StringVar(&sharedAgentImage, "shared-agent-image", "", "K3K Virtual Kubelet image")
-	rootCmd.PersistentFlags().StringVar(&sharedAgentImagePullPolicy, "shared-agent-pull-policy", "", "K3K Virtual Kubelet image pull policy must be one of Always, IfNotPresent or Never")
+	rootCmd.PersistentFlags().StringVar(&sharedAgentImagePullPolicy, "shared-agent-image-pull-policy", "", "K3K Virtual Kubelet image pull policy must be one of Always, IfNotPresent or Never")
+	rootCmd.PersistentFlags().StringVar(&sharedAgentImageRegistry, "shared-agent-image-registry", "docker.io", "K3K Virtual Kubelet image registry")
 	rootCmd.PersistentFlags().StringVar(&kubeletPortRange, "kubelet-port-range", "50000-51000", "Port Range for k3k kubelet in shared mode")
 	rootCmd.PersistentFlags().StringVar(&virtualAgentImage, "virtual-agent-image", "", "K3S Virtual Agent image")
-	rootCmd.PersistentFlags().StringVar(&virtualAgentImagePullPolicy, "virtual-agent-pull-policy", "", "K3S Virtual Agent image pull policy must be one of Always, IfNotPresent or Never")
+	rootCmd.PersistentFlags().StringVar(&virtualAgentImagePullPolicy, "virtual-agent-image-pull-policy", "", "K3S Virtual Agent image pull policy must be one of Always, IfNotPresent or Never")
+	rootCmd.PersistentFlags().StringVar(&virtualAgentImageRegistry, "virtual-agent-image-registry", "", "K3S Virtual Agent image registry")
 	rootCmd.PersistentFlags().StringVar(&webhookPortRange, "webhook-port-range", "51001-52000", "Port Range for k3k kubelet webhook in shared mode")
 	rootCmd.PersistentFlags().StringVar(&k3SServerImage, "k3s-server-image", "rancher/k3k", "K3K server image")
 	rootCmd.PersistentFlags().StringVar(&k3SServerImagePullPolicy, "k3s-server-image-pull-policy", "", "K3K server image pull policy")
+	rootCmd.PersistentFlags().StringVar(&k3SServerImageRegistry, "k3s-server-image-registry", "", "K3K server image registry")
 	rootCmd.PersistentFlags().StringSliceVar(&serverImagePullSecrets, "server-image-pull-secret", nil, "Image pull secret used for for servers")
 	rootCmd.PersistentFlags().StringSliceVar(&agentImagePullSecrets, "agent-image-pull-secret", nil, "Image pull secret used for for agents")
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 50, "maximum number of concurrent reconciles")
@@ -121,7 +127,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, virtualAgentImage, virtualAgentImagePullPolicy, k3SServerImage, k3SServerImagePullPolicy, maxConcurrentReconciles, portAllocator, nil, serverImagePullSecrets, agentImagePullSecrets); err != nil {
+	if err := cluster.Add(ctx, mgr, sharedAgentImage, sharedAgentImagePullPolicy, sharedAgentImageRegistry, virtualAgentImage, virtualAgentImagePullPolicy, virtualAgentImageRegistry, k3SServerImage, k3SServerImagePullPolicy, k3SServerImageRegistry, maxConcurrentReconciles, portAllocator, nil, serverImagePullSecrets, agentImagePullSecrets); err != nil {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 

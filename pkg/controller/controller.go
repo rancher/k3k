@@ -28,7 +28,7 @@ var Backoff = wait.Backoff{
 // K3SImage returns the rancher/k3s image tagged with the specified Version.
 // If Version is empty it will use with the same k8s version of the host cluster,
 // stored in the Status object. It will return the untagged version as last fallback.
-func K3SImage(cluster *v1alpha1.Cluster, k3SImage string) string {
+func K3SImage(cluster *v1alpha1.Cluster, k3SImage, registry string) string {
 	if cluster.Spec.Version != "" {
 		return k3SImage + ":" + cluster.Spec.Version
 	}
@@ -37,7 +37,7 @@ func K3SImage(cluster *v1alpha1.Cluster, k3SImage string) string {
 		return k3SImage + ":" + cluster.Status.HostVersion
 	}
 
-	return k3SImage
+	return registry + "/" + k3SImage
 }
 
 // SafeConcatNameWithPrefix runs the SafeConcatName with extra prefix.

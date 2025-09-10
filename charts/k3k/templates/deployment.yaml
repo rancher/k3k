@@ -1,3 +1,9 @@
+{{- $serverSecrets := coalesce .Values.server.imagePullSecrets .Values.imagePullSecrets }}
+{{- $agentSecrets := coalesce .Values.agent.imagePullSecrets .Values.imagePullSecrets }}
+{{- $controllerRegistry := .Values.controller.image.registry | default .Values.imageRegistry }}
+{{- $sharedAgentImageRegistry := .Values.agent.shared.image.registry | default .Values.imageRegistry }}
+{{- $virtualAgentImageRegistry := .Values.agent.virtual.image.registry | default .Values.imageRegistry }}
+{{- $serverImageRegistry := .Values.server.image.registry | default .Values.imageRegistry }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,12 +21,20 @@ spec:
       labels:
         {{- include "k3k.selectorLabels" . | nindent 8 }}
     spec:
+      {{- with (coalesce .Values.controller.imagePullSecrets .Values.imagePullSecrets)}}
       imagePullSecrets:
-      {{ range .Values.controller.imagePullSecrets }}
-      - name: {{ .name }}
-      {{ end }}
+        {{- $imagePullSecrets := list }}
+            {{- range . }}
+                {{- if kindIs "string" . }}
+                    {{- $imagePullSecrets = append $imagePullSecrets (dict "name" .) }}
+                {{- else }}
+                    {{- $imagePullSecrets = append $imagePullSecrets . }}
+            {{- end }}
+        {{- end }}
+        {{- toYaml $imagePullSecrets | nindent 8 }}
+        {{- end }}
       containers:
-        - image: "{{ .Values.controller.image.repository }}:{{ default .Chart.AppVersion .Values.controller.image.tag }}"
+        - image: "{{- $controllerRegistry }}/{{ .Values.controller.image.repository }}:{{ default .Chart.AppVersion .Values.controller.image.tag }}"
           imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
           name: {{ .Chart.Name }}
           resources:
@@ -36,29 +50,35 @@ spec:
               {{ end}}
           args:
           - k3k
-          {{ range .Values.agent.imagePullSecrets }}
+          {{ range $agentSecrets }}
           - --agent-image-pull-secret 
-          - {{ .name }}
+          - {{ . }}
           {{ end }}
-           {{ range .Values.server.imagePullSecrets }}
+          {{ range $serverSecrets }}
           - --server-image-pull-secret 
-          - {{ .name }}
+          - {{ . }}
           {{ end }}
           env:
           - name: CLUSTER_CIDR
             value: {{ .Values.host.clusterCIDR }}
           - name: SHARED_AGENT_IMAGE
             value: "{{ .Values.agent.shared.image.repository }}:{{ default .Chart.AppVersion .Values.agent.shared.image.tag }}"
-          - name: SHARED_AGENT_PULL_POLICY
+          - name: SHARED_AGENT_IMAGE_PULL_POLICY
             value: {{ .Values.agent.shared.image.pullPolicy }}
+          - name: SHARED_AGENT_IMAGE_REGISTRY
+            value: "{{ $sharedAgentImageRegistry }}"
           - name: VIRTUAL_AGENT_IMAGE
             value: {{ .Values.agent.virtual.image.repository }}
-          - name: VIRTUAL_AGENT_PULL_POLICY
+          - name: VIRTUAL_AGENT_IMAGE_PULL_POLICY
             value: {{ .Values.agent.virtual.image.pullPolicy }}
+          - name: VIRTUAL_AGENT_IMAGE_REGISTRY
+            value: "{{ $virtualAgentImageRegistry }}"
           - name: K3S_SERVER_IMAGE
             value: {{ .Values.server.image.repository }}
           - name: K3S_SERVER_IMAGE_PULL_POLICY
             value: {{ .Values.server.image.pullPolicy }}
+          - name: K3S_SERVER_IMAGE_REGISTRY
+            value: "{{ $serverImageRegistry }}"
           - name: KUBELET_PORT_RANGE
             value: {{ .Values.agent.shared.kubeletPortRange }}
           - name: WEBHOOK_PORT_RANGE

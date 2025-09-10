@@ -34,18 +34,20 @@ type SharedAgent struct {
 	serviceIP        string
 	image            string
 	imagePullPolicy  string
+	imageRegistry    string
 	token            string
 	kubeletPort      int
 	webhookPort      int
 	imagePullSecrets []string
 }
 
-func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort, webhookPort int, imagePullSecrets []string) *SharedAgent {
+func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, imageRegistry, token string, kubeletPort, webhookPort int, imagePullSecrets []string) *SharedAgent {
 	return &SharedAgent{
 		Config:           config,
 		serviceIP:        serviceIP,
 		image:            image,
 		imagePullPolicy:  imagePullPolicy,
+		imageRegistry:    imageRegistry,
 		token:            token,
 		kubeletPort:      kubeletPort,
 		webhookPort:      webhookPort,
@@ -204,7 +206,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 		Containers: []v1.Container{
 			{
 				Name:            s.Name(),
-				Image:           s.image,
+				Image:           s.imageRegistry + "/" + s.image,
 				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{},

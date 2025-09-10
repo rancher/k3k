@@ -26,16 +26,18 @@ type VirtualAgent struct {
 	token              string
 	k3SImage           string
 	k3SImagePullPolicy string
+	k3SImageRegistry   string
 	imagePullSecrets   []string
 }
 
-func NewVirtualAgent(config *Config, serviceIP, token string, k3SImage string, k3SImagePullPolicy string, imagePullSecrets []string) *VirtualAgent {
+func NewVirtualAgent(config *Config, serviceIP, token, k3SImage, k3SImagePullPolicy, k3sImageRegistry string, imagePullSecrets []string) *VirtualAgent {
 	return &VirtualAgent{
 		Config:             config,
 		serviceIP:          serviceIP,
 		token:              token,
 		k3SImage:           k3SImage,
 		k3SImagePullPolicy: k3SImagePullPolicy,
+		k3SImageRegistry:   k3sImageRegistry,
 		imagePullSecrets:   imagePullSecrets,
 	}
 }
@@ -86,7 +88,7 @@ with-node-id: true`, serviceIP, token)
 }
 
 func (v *VirtualAgent) deployment(ctx context.Context) error {
-	image := controller.K3SImage(v.cluster, v.k3SImage)
+	image := controller.K3SImage(v.cluster, v.k3SImage, v.k3SImageRegistry)
 
 	const name = "k3k-agent"
 

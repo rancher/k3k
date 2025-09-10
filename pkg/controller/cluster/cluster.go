@@ -68,17 +68,20 @@ type ClusterReconciler struct {
 	record.EventRecorder
 	SharedAgentImage            string
 	SharedAgentImagePullPolicy  string
+	SharedAgentImageRegistry    string
 	VirtualAgentImage           string
 	VirtualAgentImagePullPolicy string
+	VirtualAgentImageRegistry   string
 	K3SServerImage              string
 	K3SServerImagePullPolicy    string
+	K3SServerImageRegistry      string
 	PortAllocator               *agent.PortAllocator
 	ServerImagePullSecrets      []string
 	AgentImagePullSecrets       []string
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, virtualAgentImage, virtualAgentImagePullPolicy, k3SServerImage, k3SServerImagePullPolicy string, maxConcurrentReconciles int, portAllocator *agent.PortAllocator, eventRecorder record.EventRecorder, serverImagePullSecrets, agentImagePullSecrets []string) error {
+func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, sharedAgentImageRegistry, virtualAgentImage, virtualAgentImagePullPolicy, virtualAgentImageRegistry, k3SServerImage, k3SServerImagePullPolicy, k3SServerImageRegistry string, maxConcurrentReconciles int, portAllocator *agent.PortAllocator, eventRecorder record.EventRecorder, serverImagePullSecrets, agentImagePullSecrets []string) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
@@ -100,10 +103,13 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 		EventRecorder:               eventRecorder,
 		SharedAgentImage:            sharedAgentImage,
 		SharedAgentImagePullPolicy:  sharedAgentImagePullPolicy,
+		SharedAgentImageRegistry:    sharedAgentImageRegistry,
 		VirtualAgentImage:           virtualAgentImage,
 		VirtualAgentImagePullPolicy: virtualAgentImagePullPolicy,
+		VirtualAgentImageRegistry:   virtualAgentImageRegistry,
 		K3SServerImage:              k3SServerImage,
 		K3SServerImagePullPolicy:    k3SServerImagePullPolicy,
+		K3SServerImageRegistry:      k3SServerImageRegistry,
 		PortAllocator:               portAllocator,
 		ServerImagePullSecrets:      serverImagePullSecrets,
 		AgentImagePullSecrets:       agentImagePullSecrets,
@@ -274,7 +280,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 		return err
 	}
 
-	s := server.New(cluster, c.Client, token, c.K3SServerImage, c.K3SServerImagePullPolicy, c.ServerImagePullSecrets)
+	s := server.New(cluster, c.Client, token, c.K3SServerImage, c.K3SServerImagePullPolicy, c.K3SServerImageRegistry, c.ServerImagePullSecrets)
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	if cluster.Status.ClusterCIDR == "" {
@@ -325,7 +331,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 		return err
 	}
 
-	if err := c.ensureAgent(ctx, cluster, serviceIP, token, c.AgentImagePullSecrets); err != nil {
+	if err := c.ensureAgent(ctx, cluster, serviceIP, token); err != nil {
 		return err
 	}
 
@@ -676,12 +682,12 @@ func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1alp
 	return err
 }
 
-func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string, imagePullSecrets []string) error {
+func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
 	config := agent.NewConfig(cluster, c.Client, c.Scheme)
 
 	var agentEnsurer agent.ResourceEnsurer
 	if cluster.Spec.Mode == agent.VirtualNodeMode {
-		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.VirtualAgentImage, c.VirtualAgentImagePullPolicy, imagePullSecrets)
+		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.VirtualAgentImage, c.VirtualAgentImagePullPolicy, c.VirtualAgentImageRegistry, c.AgentImagePullSecrets)
 	} else {
 		// Assign port from pool if shared agent enabled mirroring of host nodes
 		kubeletPort := 10250
@@ -705,7 +711,7 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 			cluster.Status.WebhookPort = webhookPort
 		}
 
-		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token, kubeletPort, webhookPort, imagePullSecrets)
+		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, c.SharedAgentImageRegistry, token, kubeletPort, webhookPort, c.AgentImagePullSecrets)
 	}
 
 	return agentEnsurer.EnsureResources(ctx)

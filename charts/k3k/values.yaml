@@ -1,6 +1,11 @@
 nameOverride: ""
 fullnameOverride: ""
 
+# -- Global override for container image registry
+imageRegistry: "docker.io"
+# -- Global override for container image registry pull secrets
+imagePullSecrets: []
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
@@ -16,6 +21,7 @@ host:
 controller:
   replicaCount: 1
   image:
+    registry:
     repository: rancher/k3k
     tag: ""
     pullPolicy: ""
@@ -51,21 +57,21 @@ agent:
     # Specifies the port range that will be used for webhook if mirrorHostNodes is enabled
     webhookPortRange: "51001-52000"
     image:
+      registry:
       repository: "rancher/k3k-kubelet"
       tag: ""
       pullPolicy: ""
   # configuration related to agent in virtual mode
   virtual:
     image:
+      registry:
       repository: "rancher/k3s"
       pullPolicy: ""
-
-  
-  
 
 # configuration related to k3s server component in k3k
 server:
   imagePullSecrets: []
   image:
+    registry:
     repository: "rancher/k3s"
     pullPolicy: ""

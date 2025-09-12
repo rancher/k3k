@@ -61,11 +61,8 @@ var (
 	ErrCustomCACertSecretMissing = errors.New("custom CA certificate secret is missing")
 )
 
-type ClusterReconciler struct {
-	DiscoveryClient *discovery.DiscoveryClient
-	Client          client.Client
-	Scheme          *runtime.Scheme
-	record.EventRecorder
+type Config struct {
+	ClusterCIDR                 string
 	SharedAgentImage            string
 	SharedAgentImagePullPolicy  string
 	SharedAgentImageRegistry    string
@@ -75,19 +72,28 @@ type ClusterReconciler struct {
 	K3SServerImage              string
 	K3SServerImagePullPolicy    string
 	K3SServerImageRegistry      string
-	PortAllocator               *agent.PortAllocator
 	ServerImagePullSecrets      []string
 	AgentImagePullSecrets       []string
 }
 
+type ClusterReconciler struct {
+	DiscoveryClient *discovery.DiscoveryClient
+	Client          client.Client
+	Scheme          *runtime.Scheme
+	PortAllocator   *agent.PortAllocator
+
+	record.EventRecorder
+	Config
+}
+
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgentImagePullPolicy, sharedAgentImageRegistry, virtualAgentImage, virtualAgentImagePullPolicy, virtualAgentImageRegistry, k3SServerImage, k3SServerImagePullPolicy, k3SServerImageRegistry string, maxConcurrentReconciles int, portAllocator *agent.PortAllocator, eventRecorder record.EventRecorder, serverImagePullSecrets, agentImagePullSecrets []string) error {
+func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrentReconciles int, portAllocator *agent.PortAllocator, eventRecorder record.EventRecorder) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
 	}
 
-	if sharedAgentImage == "" {
+	if config.SharedAgentImage == "" {
 		return errors.New("missing shared agent image")
 	}
 
@@ -97,22 +103,24 @@ func Add(ctx context.Context, mgr manager.Manager, sharedAgentImage, sharedAgent
 
 	// initialize a new Reconciler
 	reconciler := ClusterReconciler{
-		DiscoveryClient:             discoveryClient,
-		Client:                      mgr.GetClient(),
-		Scheme:                      mgr.GetScheme(),
-		EventRecorder:               eventRecorder,
-		SharedAgentImage:            sharedAgentImage,
-		SharedAgentImagePullPolicy:  sharedAgentImagePullPolicy,
-		SharedAgentImageRegistry:    sharedAgentImageRegistry,
-		VirtualAgentImage:           virtualAgentImage,
-		VirtualAgentImagePullPolicy: virtualAgentImagePullPolicy,
-		VirtualAgentImageRegistry:   virtualAgentImageRegistry,
-		K3SServerImage:              k3SServerImage,
-		K3SServerImagePullPolicy:    k3SServerImagePullPolicy,
-		K3SServerImageRegistry:      k3SServerImageRegistry,
-		PortAllocator:               portAllocator,
-		ServerImagePullSecrets:      serverImagePullSecrets,
-		AgentImagePullSecrets:       agentImagePullSecrets,
+		DiscoveryClient: discoveryClient,
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		EventRecorder:   eventRecorder,
+		PortAllocator:   portAllocator,
+		Config: Config{
+			SharedAgentImage:            config.SharedAgentImage,
+			SharedAgentImagePullPolicy:  config.SharedAgentImagePullPolicy,
+			SharedAgentImageRegistry:    config.SharedAgentImageRegistry,
+			VirtualAgentImage:           config.VirtualAgentImage,
+			VirtualAgentImagePullPolicy: config.VirtualAgentImagePullPolicy,
+			VirtualAgentImageRegistry:   config.VirtualAgentImageRegistry,
+			K3SServerImage:              config.K3SServerImage,
+			K3SServerImagePullPolicy:    config.K3SServerImagePullPolicy,
+			K3SServerImageRegistry:      config.K3SServerImageRegistry,
+			ServerImagePullSecrets:      config.ServerImagePullSecrets,
+			AgentImagePullSecrets:       config.AgentImagePullSecrets,
+		},
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).

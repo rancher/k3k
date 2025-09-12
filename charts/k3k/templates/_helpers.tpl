@@ -60,3 +60,18 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+    Print the image pull secrets in the expected format (an array of objects with one possible field, "name").
+*/}}
+{{- define "image.pullSecrets" }}
+    {{- $imagePullSecrets := list }}
+    {{- range . }}
+        {{- if kindIs "string" . }}
+            {{- $imagePullSecrets = append $imagePullSecrets (dict "name" .) }}
+        {{- else }}
+            {{- $imagePullSecrets = append $imagePullSecrets . }}
+        {{- end }}
+    {{- end }}
+    {{- toYaml $imagePullSecrets }}
+{{- end }}

@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -195,8 +196,12 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 				// Check baseline
 
+				// get policy again
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(policy), policy)
+				Expect(err).To(Not(HaveOccurred()))
+
 				policy.Spec.PodSecurityAdmissionLevel = &baseline
-				err := k8sClient.Update(ctx, policy)
+				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait a bit for the namespace to be updated
@@ -486,8 +491,11 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					WithPolling(time.Second).
 					Should(BeNil())
 
+				// get policy again
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(policy), policy)
+				Expect(err).To(Not(HaveOccurred()))
 				policy.Spec.Quota = nil
-				err := k8sClient.Update(ctx, policy)
+				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait for a bit for the resourceQuota to be deleted

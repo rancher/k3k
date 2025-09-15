@@ -5,7 +5,7 @@ global:
   # -- Global override for container image registry
   imageRegistry: ""
   # -- Global override for container image registry pull secrets
-  imagePullSecrets:
+  imagePullSecrets: []
 
 serviceAccount:
   # Specifies whether a service account should be created

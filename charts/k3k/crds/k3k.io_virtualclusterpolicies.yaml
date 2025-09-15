@@ -226,8 +226,9 @@ spec:
                     x-kubernetes-list-type: atomic
                 type: object
               sync:
-                description: Sync specifies the synchronization configuration for
-                  resources that can be applied to clusters
+                default: {}
+                description: Sync specifies the resources types that will be synced
+                  from virtual cluster to host cluster.
                 properties:
                   configmaps:
                     default:

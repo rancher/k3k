@@ -159,7 +159,9 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 		hostNetwork = true
 		dnsPolicy = v1.DNSClusterFirstWithHostNet
 	}
+
 	image := s.image
+
 	if s.imageRegistry != "" {
 		image = s.imageRegistry + "/" + s.image
 	}

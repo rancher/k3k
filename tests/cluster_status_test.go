@@ -76,7 +76,7 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 				g.Expect(cond.Reason).To(Equal(cluster.ReasonProvisioning))
 			}).
 				WithPolling(time.Second * 2).
-				WithTimeout(time.Second * 60).
+				WithTimeout(time.Second * 20).
 				Should(Succeed())
 
 			// Check for the status to be updated to Ready

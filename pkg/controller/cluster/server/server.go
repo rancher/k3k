@@ -32,26 +32,26 @@ const (
 
 // Server
 type Server struct {
-	cluster            *v1alpha1.Cluster
-	client             client.Client
-	mode               string
-	token              string
-	k3SImage           string
-	k3SImagePullPolicy string
-	k3SImageRegistry   string
-	imagePullSecrets   []string
+	cluster          *v1alpha1.Cluster
+	client           client.Client
+	mode             string
+	token            string
+	image            string
+	imagePullPolicy  string
+	imageRegistry    string
+	imagePullSecrets []string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client, token, k3SImage, k3SImagePullPolicy, k3SImageRegistry string, imagePullSecrets []string) *Server {
+func New(cluster *v1alpha1.Cluster, client client.Client, token, image, imagePullPolicy, imageRegistry string, imagePullSecrets []string) *Server {
 	return &Server{
-		cluster:            cluster,
-		client:             client,
-		token:              token,
-		mode:               string(cluster.Spec.Mode),
-		k3SImage:           k3SImage,
-		k3SImagePullPolicy: k3SImagePullPolicy,
-		imagePullSecrets:   imagePullSecrets,
-		k3SImageRegistry:   k3SImageRegistry,
+		cluster:          cluster,
+		client:           client,
+		token:            token,
+		mode:             string(cluster.Spec.Mode),
+		image:            image,
+		imagePullPolicy:  imagePullPolicy,
+		imagePullSecrets: imagePullSecrets,
+		imageRegistry:    imageRegistry,
 	}
 }
 
@@ -123,7 +123,7 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 			{
 				Name:            name,
 				Image:           image,
-				ImagePullPolicy: v1.PullPolicy(s.k3SImagePullPolicy),
+				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
 				Env: []v1.EnvVar{
 					{
 						Name: "POD_NAME",
@@ -262,7 +262,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		persistent bool
 	)
 
-	image := controller.K3SImage(s.cluster, s.k3SImage, s.k3SImageRegistry)
+	image := controller.K3SImage(s.cluster, s.image, s.imageRegistry)
 	name := controller.SafeConcatNameWithPrefix(s.cluster.Name, serverName)
 
 	replicas = *s.cluster.Spec.Servers

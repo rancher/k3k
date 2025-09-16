@@ -22,23 +22,23 @@ const (
 
 type VirtualAgent struct {
 	*Config
-	serviceIP          string
-	token              string
-	k3SImage           string
-	k3SImagePullPolicy string
-	k3SImageRegistry   string
-	imagePullSecrets   []string
+	serviceIP        string
+	token            string
+	Image            string
+	ImagePullPolicy  string
+	ImageRegistry    string
+	imagePullSecrets []string
 }
 
-func NewVirtualAgent(config *Config, serviceIP, token, k3SImage, k3SImagePullPolicy, k3sImageRegistry string, imagePullSecrets []string) *VirtualAgent {
+func NewVirtualAgent(config *Config, serviceIP, token, Image, ImagePullPolicy, ImageRegistry string, imagePullSecrets []string) *VirtualAgent {
 	return &VirtualAgent{
-		Config:             config,
-		serviceIP:          serviceIP,
-		token:              token,
-		k3SImage:           k3SImage,
-		k3SImagePullPolicy: k3SImagePullPolicy,
-		k3SImageRegistry:   k3sImageRegistry,
-		imagePullSecrets:   imagePullSecrets,
+		Config:           config,
+		serviceIP:        serviceIP,
+		token:            token,
+		Image:            Image,
+		ImagePullPolicy:  ImagePullPolicy,
+		ImageRegistry:    ImageRegistry,
+		imagePullSecrets: imagePullSecrets,
 	}
 }
 
@@ -88,7 +88,7 @@ with-node-id: true`, serviceIP, token)
 }
 
 func (v *VirtualAgent) deployment(ctx context.Context) error {
-	image := controller.K3SImage(v.cluster, v.k3SImage, v.k3SImageRegistry)
+	image := controller.K3SImage(v.cluster, v.Image, v.ImageRegistry)
 
 	const name = "k3k-agent"
 
@@ -187,7 +187,7 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 			{
 				Name:            name,
 				Image:           image,
-				ImagePullPolicy: v1.PullPolicy(v.k3SImagePullPolicy),
+				ImagePullPolicy: v1.PullPolicy(v.ImagePullPolicy),
 				SecurityContext: &v1.SecurityContext{
 					Privileged: ptr.To(true),
 				},

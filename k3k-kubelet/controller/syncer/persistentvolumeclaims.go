@@ -102,7 +102,7 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	// handle deletion
 	if !virtPVC.DeletionTimestamp.IsZero() {
 		// deleting the synced pvc if exists
-		if err := r.HostClient.Delete(ctx, syncedPVC); !apierrors.IsNotFound(err) {
+		if err := r.HostClient.Delete(ctx, syncedPVC); err != nil && !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 		// remove the finalizer after cleaning up the synced pvc

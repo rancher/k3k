@@ -42,7 +42,7 @@ var PriorityClassTests = func() {
 				Namespace:    namespace,
 			},
 			Spec: v1alpha1.ClusterSpec{
-				Sync: v1alpha1.SyncConfig{
+				Sync: &v1alpha1.SyncConfig{
 					PriorityClasses: v1alpha1.PriorityClassSyncConfig{
 						Enabled: true,
 					},

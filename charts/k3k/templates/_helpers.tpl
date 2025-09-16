@@ -75,3 +75,12 @@ Create the name of the service account to use
     {{- end }}
     {{- toYaml $imagePullSecrets }}
 {{- end }}
+
+{{- define "controller.registry" }}
+{{- $registry := .Values.global.imageRegistry | default .Values.controller.image.registry -}}
+{{- if $registry }}
+{{- $registry }}/
+{{- else }}
+{{- $registry }}
+{{- end }}
+{{- end }}

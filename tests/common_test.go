@@ -151,12 +151,9 @@ func CreateCluster(cluster *v1alpha1.Cluster) {
 
 		for _, pod := range podList.Items {
 			imageName := pod.Spec.Containers[0].Image
-			imageName = strings.Split(imageName, ":")[0] // remove tag
-
-			switch imageName {
-			case "rancher/k3s":
+			if strings.Contains(imageName, "rancher/k3s") {
 				serverRunning = pod.Status.Phase == corev1.PodRunning
-			case "rancher/k3k-kubelet":
+			} else if strings.Contains(imageName, "rancher/k3k-kubelet") {
 				kubeletRunning = pod.Status.Phase == corev1.PodRunning
 			}
 

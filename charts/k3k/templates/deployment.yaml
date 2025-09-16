@@ -17,7 +17,7 @@ spec:
     spec:
       imagePullSecrets: {{- include "image.pullSecrets" (concat .Values.controller.imagePullSecrets .Values.global.imagePullSecrets) | nindent 8 }}
       containers:
-        - image: "{{- .Values.global.imageRegistry | default .Values.controller.image.registry }}/{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default .Chart.AppVersion }}"
+        - image: "{{- include "controller.registry" .}}{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
           name: {{ .Chart.Name }}
           resources:

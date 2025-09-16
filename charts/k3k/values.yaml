@@ -22,7 +22,7 @@ host:
 controller:
   replicaCount: 1
   image:
-    registry: docker.io
+    registry:
     repository: rancher/k3k
     tag: ""
     pullPolicy: ""
@@ -58,14 +58,14 @@ agent:
     # Specifies the port range that will be used for webhook if mirrorHostNodes is enabled
     webhookPortRange: "51001-52000"
     image:
-      registry: docker.io
+      registry: 
       repository: "rancher/k3k-kubelet"
       tag: ""
       pullPolicy: ""
   # configuration related to agent in virtual mode
   virtual:
     image:
-      registry: docker.io
+      registry: 
       repository: "rancher/k3s"
       pullPolicy: ""
 
@@ -73,6 +73,6 @@ agent:
 server:
   imagePullSecrets: []
   image:
-    registry: docker.io
+    registry: 
     repository: "rancher/k3s"
     pullPolicy: ""

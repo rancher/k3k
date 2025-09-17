@@ -84,3 +84,30 @@ Create the name of the service account to use
 {{- $registry }}
 {{- end }}
 {{- end }}
+
+{{- define "server.registry" }}
+{{- $registry := .Values.global.imageRegistry | default .Values.server.image.registry -}}
+{{- if $registry }}
+{{- $registry }}/
+{{- else }}
+{{- $registry }}
+{{- end }}
+{{- end }}
+
+{{- define "agent.virtual.registry" }}
+{{- $registry := .Values.global.imageRegistry | default .Values.agent.virtual.image.registry -}}
+{{- if $registry }}
+{{- $registry }}/
+{{- else }}
+{{- $registry }}
+{{- end }}
+{{- end }}
+
+{{- define "agent.shared.registry" }}
+{{- $registry := .Values.global.imageRegistry | default .Values.agent.shared.image.registry -}}
+{{- if $registry }}
+{{- $registry }}/
+{{- else }}
+{{- $registry }}
+{{- end }}
+{{- end }}

@@ -65,13 +65,10 @@ type Config struct {
 	ClusterCIDR                 string
 	SharedAgentImage            string
 	SharedAgentImagePullPolicy  string
-	SharedAgentImageRegistry    string
 	VirtualAgentImage           string
 	VirtualAgentImagePullPolicy string
-	VirtualAgentImageRegistry   string
 	K3SServerImage              string
 	K3SServerImagePullPolicy    string
-	K3SServerImageRegistry      string
 	ServerImagePullSecrets      []string
 	AgentImagePullSecrets       []string
 }
@@ -111,13 +108,10 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		Config: Config{
 			SharedAgentImage:            config.SharedAgentImage,
 			SharedAgentImagePullPolicy:  config.SharedAgentImagePullPolicy,
-			SharedAgentImageRegistry:    config.SharedAgentImageRegistry,
 			VirtualAgentImage:           config.VirtualAgentImage,
 			VirtualAgentImagePullPolicy: config.VirtualAgentImagePullPolicy,
-			VirtualAgentImageRegistry:   config.VirtualAgentImageRegistry,
 			K3SServerImage:              config.K3SServerImage,
 			K3SServerImagePullPolicy:    config.K3SServerImagePullPolicy,
-			K3SServerImageRegistry:      config.K3SServerImageRegistry,
 			ServerImagePullSecrets:      config.ServerImagePullSecrets,
 			AgentImagePullSecrets:       config.AgentImagePullSecrets,
 		},
@@ -288,7 +282,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 		return err
 	}
 
-	s := server.New(cluster, c.Client, token, c.K3SServerImage, c.K3SServerImagePullPolicy, c.K3SServerImageRegistry, c.ServerImagePullSecrets)
+	s := server.New(cluster, c.Client, token, c.K3SServerImage, c.K3SServerImagePullPolicy, c.ServerImagePullSecrets)
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	if cluster.Status.ClusterCIDR == "" {
@@ -695,7 +689,7 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 
 	var agentEnsurer agent.ResourceEnsurer
 	if cluster.Spec.Mode == agent.VirtualNodeMode {
-		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.VirtualAgentImage, c.VirtualAgentImagePullPolicy, c.VirtualAgentImageRegistry, c.AgentImagePullSecrets)
+		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.VirtualAgentImage, c.VirtualAgentImagePullPolicy, c.AgentImagePullSecrets)
 	} else {
 		// Assign port from pool if shared agent enabled mirroring of host nodes
 		kubeletPort := 10250
@@ -719,7 +713,7 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 			cluster.Status.WebhookPort = webhookPort
 		}
 
-		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, c.SharedAgentImageRegistry, token, kubeletPort, webhookPort, c.AgentImagePullSecrets)
+		agentEnsurer = agent.NewSharedAgent(config, serviceIP, c.SharedAgentImage, c.SharedAgentImagePullPolicy, token, kubeletPort, webhookPort, c.AgentImagePullSecrets)
 	}
 
 	return agentEnsurer.EnsureResources(ctx)

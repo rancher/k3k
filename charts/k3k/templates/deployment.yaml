@@ -45,23 +45,17 @@ spec:
           - name: CLUSTER_CIDR
             value: {{ .Values.host.clusterCIDR }}
           - name: SHARED_AGENT_IMAGE
-            value: "{{ .Values.agent.shared.image.repository }}:{{ default .Chart.AppVersion .Values.agent.shared.image.tag }}"
+            value: "{{- include "agent.shared.registry" .}}{{ .Values.agent.shared.image.repository }}:{{ default .Chart.AppVersion .Values.agent.shared.image.tag }}"
           - name: SHARED_AGENT_IMAGE_PULL_POLICY
             value: {{ .Values.agent.shared.image.pullPolicy }}
-          - name: SHARED_AGENT_IMAGE_REGISTRY
-            value: "{{- .Values.global.imageRegistry | default .Values.agent.shared.image.registry }}"
           - name: VIRTUAL_AGENT_IMAGE
-            value: {{ .Values.agent.virtual.image.repository }}
+            value: "{{- include "agent.virtual.registry" .}}{{ .Values.agent.virtual.image.repository }}"
           - name: VIRTUAL_AGENT_IMAGE_PULL_POLICY
             value: {{ .Values.agent.virtual.image.pullPolicy }}
-          - name: VIRTUAL_AGENT_IMAGE_REGISTRY
-            value: "{{- .Values.global.imageRegistry | default .Values.agent.virtual.image.registry }}"
           - name: K3S_SERVER_IMAGE
-            value: {{ .Values.server.image.repository }}
+            value: "{{- include "server.registry" .}}{{ .Values.server.image.repository }}"
           - name: K3S_SERVER_IMAGE_PULL_POLICY
             value: {{ .Values.server.image.pullPolicy }}
-          - name: K3S_SERVER_IMAGE_REGISTRY
-            value: "{{- .Values.global.imageRegistry | default .Values.server.image.registry }}"
           - name: KUBELET_PORT_RANGE
             value: {{ .Values.agent.shared.kubeletPortRange }}
           - name: WEBHOOK_PORT_RANGE

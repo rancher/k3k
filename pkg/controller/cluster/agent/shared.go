@@ -41,13 +41,12 @@ type SharedAgent struct {
 	imagePullSecrets []string
 }
 
-func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, imageRegistry, token string, kubeletPort, webhookPort int, imagePullSecrets []string) *SharedAgent {
+func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort, webhookPort int, imagePullSecrets []string) *SharedAgent {
 	return &SharedAgent{
 		Config:           config,
 		serviceIP:        serviceIP,
 		image:            image,
 		imagePullPolicy:  imagePullPolicy,
-		imageRegistry:    imageRegistry,
 		token:            token,
 		kubeletPort:      kubeletPort,
 		webhookPort:      webhookPort,

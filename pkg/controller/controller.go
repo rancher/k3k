@@ -28,12 +28,8 @@ var Backoff = wait.Backoff{
 // Image returns the rancher/k3s image tagged with the specified Version.
 // If Version is empty it will use with the same k8s version of the host cluster,
 // stored in the Status object. It will return the latest version as last fallback.
-func K3SImage(cluster *v1alpha1.Cluster, k3SImage, registry string) string {
+func K3SImage(cluster *v1alpha1.Cluster, k3SImage string) string {
 	image := k3SImage
-
-	if registry != "" {
-		image = registry + "/" + k3SImage
-	}
 
 	imageVersion := "latest"
 

@@ -13,7 +13,6 @@ import (
 func Test_K3S_Image(t *testing.T) {
 	type args struct {
 		cluster  *v1alpha1.Cluster
-		registry string
 		k3sImage string
 	}
 
@@ -23,10 +22,9 @@ func Test_K3S_Image(t *testing.T) {
 		expectedData string
 	}{
 		{
-			name: "cluster with assigned version spec with empty registry",
+			name: "cluster with assigned version spec",
 			args: args{
 				k3sImage: "rancher/k3s",
-				registry: "",
 				cluster: &v1alpha1.Cluster{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "mycluster",
@@ -40,27 +38,9 @@ func Test_K3S_Image(t *testing.T) {
 			expectedData: "rancher/k3s:v1.2.3",
 		},
 		{
-			name: "cluster with assigned version spec with non-empty registry",
+			name: "cluster with empty version spec and assigned hostVersion status",
 			args: args{
 				k3sImage: "rancher/k3s",
-				registry: "gcr.io",
-				cluster: &v1alpha1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "mycluster",
-						Namespace: "ns-1",
-					},
-					Spec: v1alpha1.ClusterSpec{
-						Version: "v1.2.3",
-					},
-				},
-			},
-			expectedData: "gcr.io/rancher/k3s:v1.2.3",
-		},
-		{
-			name: "cluster with empty version spec and assigned hostVersion status and empty registry",
-			args: args{
-				k3sImage: "rancher/k3s",
-				registry: "",
 				cluster: &v1alpha1.Cluster{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "mycluster",
@@ -74,27 +54,23 @@ func Test_K3S_Image(t *testing.T) {
 			expectedData: "rancher/k3s:v4.5.6",
 		},
 		{
-			name: "cluster with empty version spec and assigned hostVersion status and non empty registry",
+			name: "cluster with empty version spec and empty hostVersion status",
 			args: args{
 				k3sImage: "rancher/k3s",
-				registry: "gcr.io",
 				cluster: &v1alpha1.Cluster{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
-					Status: v1alpha1.ClusterStatus{
-						HostVersion: "v4.5.6",
-					},
 				},
 			},
-			expectedData: "gcr.io/rancher/k3s:v4.5.6",
+			expectedData: "rancher/k3s:latest",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fullImage := K3SImage(tt.args.cluster, tt.args.k3sImage, tt.args.registry)
+			fullImage := K3SImage(tt.args.cluster, tt.args.k3sImage)
 			assert.Equal(t, tt.expectedData, fullImage)
 		})
 	}

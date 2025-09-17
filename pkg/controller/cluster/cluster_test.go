@@ -263,6 +263,26 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(etcdPort.TargetPort.IntValue()).To(BeEquivalentTo(2379))
 				})
 			})
+
+			When("exposing the cluster with nodePort and loadbalancer", func() {
+				It("will fail", func() {
+					cluster := &v1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1alpha1.ClusterSpec{
+							Expose: &v1alpha1.ExposeConfig{
+								LoadBalancer: &v1alpha1.LoadBalancerConfig{},
+								NodePort:     &v1alpha1.NodePortConfig{},
+							},
+						},
+					}
+
+					err := k8sClient.Create(ctx, cluster)
+					Expect(err).To(HaveOccurred())
+				})
+			})
 		})
 	})
 })

@@ -103,6 +103,7 @@ type ClusterSpec struct {
 	// Expose specifies options for exposing the API server.
 	// By default, it's only exposed as a ClusterIP.
 	//
+	// +kubebuilder:validation:XValidation:rule="[has(self.ingress), has(self.loadbalancer), has(self.nodePort)].filter(x, x).size() <= 1",message="ingress, loadbalancer and nodePort are mutually exclusive; only one can be set"
 	// +optional
 	Expose *ExposeConfig `json:"expose,omitempty"`
 

@@ -365,6 +365,11 @@ spec:
                         type: integer
                     type: object
                 type: object
+                x-kubernetes-validations:
+                - message: ingress, loadbalancer and nodePort are mutually exclusive;
+                    only one can be set
+                  rule: '[has(self.ingress), has(self.loadbalancer), has(self.nodePort)].filter(x,
+                    x).size() <= 1'
               mirrorHostNodes:
                 description: |-
                   MirrorHostNodes controls whether node objects from the host cluster

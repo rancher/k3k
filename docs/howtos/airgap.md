@@ -32,18 +32,27 @@ Load these images into your internal (air-gapped) registry.
 Update the `values.yaml` file in the K3k Helm chart with air gap settings:
 
 ```yaml
-image:
-  repository: rancher/k3k
-  tag: ""            # Specify the version tag
-  pullPolicy: ""     # Optional: "IfNotPresent", "Always", etc.
-
-sharedAgent:
+controller:
+  imagePullSecrets: [] # Optional
   image:
-    repository: rancher/k3k-kubelet
-    tag: ""          # Specify the version tag
-    pullPolicy: ""   # Optional
+    repository: rancher/k3k
+    tag: ""            # Specify the version tag
+    pullPolicy: ""     # Optional: "IfNotPresent", "Always", etc.
 
-k3sServer:
+agent:
+  imagePullSecrets: []
+  virtual:
+    image:
+      repository: rancher/k3s
+      pullPolicy: "" # Optional
+  shared:
+    image:
+      repository: rancher/k3k-kubelet
+      tag: ""          # Specify the version tag
+      pullPolicy: ""   # Optional
+
+server:
+  imagePullSecrets: [] # Optional
   image:
     repository: rancher/k3s
     pullPolicy: ""   # Optional

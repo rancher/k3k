@@ -32,22 +32,24 @@ const (
 
 // Server
 type Server struct {
-	cluster            *v1alpha1.Cluster
-	client             client.Client
-	mode               string
-	token              string
-	k3SImage           string
-	k3SImagePullPolicy string
+	cluster          *v1alpha1.Cluster
+	client           client.Client
+	mode             string
+	token            string
+	image            string
+	imagePullPolicy  string
+	imagePullSecrets []string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client, token string, k3SImage string, k3SImagePullPolicy string) *Server {
+func New(cluster *v1alpha1.Cluster, client client.Client, token, image, imagePullPolicy string, imagePullSecrets []string) *Server {
 	return &Server{
-		cluster:            cluster,
-		client:             client,
-		token:              token,
-		mode:               string(cluster.Spec.Mode),
-		k3SImage:           k3SImage,
-		k3SImagePullPolicy: k3SImagePullPolicy,
+		cluster:          cluster,
+		client:           client,
+		token:            token,
+		mode:             string(cluster.Spec.Mode),
+		image:            image,
+		imagePullPolicy:  imagePullPolicy,
+		imagePullSecrets: imagePullSecrets,
 	}
 }
 
@@ -119,7 +121,7 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 			{
 				Name:            name,
 				Image:           image,
-				ImagePullPolicy: v1.PullPolicy(s.k3SImagePullPolicy),
+				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
 				Env: []v1.EnvVar{
 					{
 						Name: "POD_NAME",
@@ -242,6 +244,11 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 
 	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, s.cluster.Spec.ServerEnvs...)
 
+	// add image pull secrets
+	for _, imagePullSecret := range s.imagePullSecrets {
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
+	}
+
 	return podSpec
 }
 
@@ -253,7 +260,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		persistent bool
 	)
 
-	image := controller.K3SImage(s.cluster, s.k3SImage)
+	image := controller.K3SImage(s.cluster, s.image)
 	name := controller.SafeConcatNameWithPrefix(s.cluster.Name, serverName)
 
 	replicas = *s.cluster.Spec.Servers

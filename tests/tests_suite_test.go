@@ -275,7 +275,7 @@ var _ = AfterSuite(func() {
 	goCoverDir := os.Getenv("GOCOVERDIR")
 	if goCoverDir == "" {
 		goCoverDir = path.Join(os.TempDir(), "covdata")
-		Expect(os.Mkdir(goCoverDir, 0o755)).To(Succeed())
+		Expect(os.MkdirAll(goCoverDir, 0o755)).To(Succeed())
 	}
 
 	dumpK3kCoverageData(ctx, goCoverDir)

@@ -34,13 +34,20 @@ type VirtualCluster struct {
 	Client     *kubernetes.Clientset
 }
 
-func NewVirtualCluster() *VirtualCluster {
+func NewVirtualCluster() *VirtualCluster { // By default, create an ephemeral cluster
+	return NewVirtualClusterWithType(v1alpha1.EphemeralPersistenceMode)
+}
+
+func NewVirtualClusterWithType(persistenceType v1alpha1.PersistenceMode) *VirtualCluster {
 	GinkgoHelper()
 
 	namespace := NewNamespace()
 
 	By(fmt.Sprintf("Creating new virtual cluster in namespace %s", namespace.Name))
+
 	cluster := NewCluster(namespace.Name)
+	cluster.Spec.Persistence.Type = persistenceType
+
 	CreateCluster(cluster)
 
 	client, restConfig := NewVirtualK8sClientAndConfig(cluster)
@@ -298,4 +305,30 @@ func (c *VirtualCluster) ExecCmd(pod *corev1.Pod, command string) (string, strin
 	})
 
 	return stdout.String(), stderr.String(), err
+}
+
+func restartServerPod(ctx context.Context, virtualCluster *VirtualCluster) {
+	GinkgoHelper()
+
+	labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
+	serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
+	Expect(err).To(Not(HaveOccurred()))
+
+	Expect(len(serverPods.Items)).To(Equal(1))
+	serverPod := serverPods.Items[0]
+
+	GinkgoWriter.Printf("deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
+
+	err = k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).Delete(ctx, serverPod.Name, v1.DeleteOptions{})
+	Expect(err).To(Not(HaveOccurred()))
+
+	By("Deleting server pod")
+
+	// check that the server pods restarted
+	Eventually(func() any {
+		serverPods, err = k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
+		Expect(err).To(Not(HaveOccurred()))
+		Expect(len(serverPods.Items)).To(Equal(1))
+		return serverPods.Items[0].DeletionTimestamp
+	}).WithTimeout(60 * time.Second).WithPolling(time.Second * 5).Should(BeNil())
 }

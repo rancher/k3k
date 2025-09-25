@@ -351,6 +351,7 @@ func agentPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod
 	if virtualCluster.Cluster.Spec.Mode == v1alpha1.VirtualClusterMode {
 		labelSelector = "cluster=" + virtualCluster.Cluster.Name + ",type=agent" + ",mode=virtual"
 	}
+
 	agentPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -365,6 +366,7 @@ func getEnv(pod *corev1.Pod, envName string) string {
 			return envVar.Value
 		}
 	}
+
 	return ""
 }
 
@@ -376,5 +378,6 @@ func isArgFound(pod *corev1.Pod, arg string) bool {
 			return true
 		}
 	}
+
 	return false
 }

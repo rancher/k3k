@@ -154,17 +154,21 @@ func CreateCluster(cluster *v1alpha1.Cluster) {
 		Expect(err).To(Not(HaveOccurred()))
 
 		serverRunning := false
-		kubeletRunning := false
+		agentRunning := false
 
 		for _, pod := range podList.Items {
-			imageName := pod.Spec.Containers[0].Image
-			if strings.Contains(imageName, "rancher/k3s") {
+			if pod.Labels == nil {
+				continue
+			}
+			roleLabel := pod.Labels["role"]
+			typeLabel := pod.Labels["type"]
+			if roleLabel == "server" {
 				serverRunning = pod.Status.Phase == corev1.PodRunning
-			} else if strings.Contains(imageName, "rancher/k3k-kubelet") {
-				kubeletRunning = pod.Status.Phase == corev1.PodRunning
+			} else if typeLabel == "agent" {
+				agentRunning = pod.Status.Phase == corev1.PodRunning
 			}
 
-			if serverRunning && kubeletRunning {
+			if serverRunning && agentRunning {
 				return true
 			}
 		}
@@ -331,4 +335,46 @@ func restartServerPod(ctx context.Context, virtualCluster *VirtualCluster) {
 		Expect(len(serverPods.Items)).To(Equal(1))
 		return serverPods.Items[0].DeletionTimestamp
 	}).WithTimeout(60 * time.Second).WithPolling(time.Second * 5).Should(BeNil())
+}
+
+func serverPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
+	labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
+
+	serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
+	Expect(err).To(Not(HaveOccurred()))
+
+	return serverPods.Items
+}
+
+func agentPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
+	labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",type=agent" + ",mode=shared"
+	if virtualCluster.Cluster.Spec.Mode == v1alpha1.VirtualClusterMode {
+		labelSelector = "cluster=" + virtualCluster.Cluster.Name + ",type=agent" + ",mode=virtual"
+	}
+	agentPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
+	Expect(err).To(Not(HaveOccurred()))
+
+	return agentPods.Items
+}
+
+// getEnv will get an environment variable from a pod it will return empty string if not found
+func getEnv(pod *corev1.Pod, envName string) string {
+	container := pod.Spec.Containers[0]
+	for _, envVar := range container.Env {
+		if envVar.Name == envName {
+			return envVar.Value
+		}
+	}
+	return ""
+}
+
+// isArgFound will return true if the argument passed to the function is found in container args
+func isArgFound(pod *corev1.Pod, arg string) bool {
+	container := pod.Spec.Containers[0]
+	for _, cmd := range container.Command {
+		if strings.Contains(cmd, arg) {
+			return true
+		}
+	}
+	return false
 }

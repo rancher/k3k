@@ -84,6 +84,7 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
+
 		// The owning cluster is gone, nothing to do.
 		return reconcile.Result{}, nil
 	}
@@ -102,6 +103,10 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	var podList v1.PodList
 	if err := p.Client.List(ctx, &podList, ctrlruntimeclient.InNamespace(req.Namespace), ctrlruntimeclient.MatchingLabels(sts.Spec.Selector.MatchLabels)); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+	}
+
+	if len(podList.Items) == 1 {
+		return reconcile.Result{}, nil
 	}
 
 	for _, pod := range podList.Items {
@@ -129,19 +134,6 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1a
 
 	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
 	if !pod.DeletionTimestamp.IsZero() {
-		// check if cluster is deleted then remove the finalizer from the pod
-		if cluster.Name == "" {
-			if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
-				controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
-
-				if err := p.Client.Update(ctx, pod); err != nil {
-					return err
-				}
-			}
-
-			return nil
-		}
-
 		tlsConfig, err := p.getETCDTLS(ctx, &cluster)
 		if err != nil {
 			return err

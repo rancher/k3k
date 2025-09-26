@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -24,6 +23,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -35,62 +35,73 @@ import (
 )
 
 const (
-	podController = "k3k-pod-controller"
+	statefulsetController = "k3k-statefulset-controller"
 )
 
-type PodReconciler struct {
+type StatefulSetReconciler struct {
 	Client ctrlruntimeclient.Client
 	Scheme *runtime.Scheme
 }
 
 // Add adds a new controller to the manager
-func AddPodController(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) error {
+func AddStatefulSetController(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) error {
 	// initialize a new Reconciler
-	reconciler := PodReconciler{
+	reconciler := StatefulSetReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Watches(&v1.Pod{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &apps.StatefulSet{}, handler.OnlyControllerOwner())).
-		Named(podController).
+		For(&apps.StatefulSet{}).
+		Owns(&v1.Pod{}).
+		Named(statefulsetController).
 		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
 
-func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("statefulset", req.NamespacedName)
-	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
+func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("reconciling statefulset")
 
-	s := strings.Split(req.Name, "-")
-	if len(s) < 1 {
-		return reconcile.Result{}, nil
-	}
-
-	if s[0] != "k3k" {
-		return reconcile.Result{}, nil
-	}
-
-	clusterName := s[1]
-
-	var cluster v1alpha1.Cluster
-	if err := p.Client.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: req.Namespace}, &cluster); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return reconcile.Result{}, err
-		}
-	}
-
-	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
-	listOpts := &ctrlruntimeclient.ListOptions{Namespace: req.Namespace}
-	matchingLabels.ApplyToList(listOpts)
-
-	var podList v1.PodList
-	if err := p.Client.List(ctx, &podList, listOpts); err != nil {
+	var sts apps.StatefulSet
+	if err := p.Client.Get(ctx, req.NamespacedName, &sts); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
-	if len(podList.Items) == 1 {
+	// We only care about statefulsets for k3k servers
+	if sts.Labels["role"] != "server" || !strings.HasPrefix(sts.Name, "k3k-") {
 		return reconcile.Result{}, nil
+	}
+
+	owner := metav1.GetControllerOf(&sts)
+	if owner == nil || owner.APIVersion != v1alpha1.SchemeGroupVersion.String() || owner.Kind != "Cluster" {
+		log.Info("StatefulSet is not owned by a k3k Cluster, skipping")
+		return reconcile.Result{}, nil
+	}
+
+	var cluster v1alpha1.Cluster
+	if err := p.Client.Get(ctx, types.NamespacedName{Name: owner.Name, Namespace: req.Namespace}, &cluster); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+		// The owning cluster is gone, nothing to do.
+		return reconcile.Result{}, nil
+	}
+
+	// If the statefulset is being deleted, we don't need to do anything,
+	// as the pods will be deleted and trigger their own reconciliation.
+	if !sts.DeletionTimestamp.IsZero() {
+		return reconcile.Result{}, nil
+	}
+
+	// Check if we need to scale down
+	if *sts.Spec.Replicas > 0 && sts.Status.ReadyReplicas < *sts.Spec.Replicas {
+		log.Info("StatefulSet is not fully ready, checking for pods to remove from etcd", "ready", sts.Status.ReadyReplicas, "desired", *sts.Spec.Replicas)
+	}
+
+	var podList v1.PodList
+	if err := p.Client.List(ctx, &podList, ctrlruntimeclient.InNamespace(req.Namespace), ctrlruntimeclient.MatchingLabels(sts.Spec.Selector.MatchLabels)); err != nil {
+		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
 	for _, pod := range podList.Items {
@@ -102,7 +113,7 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	return reconcile.Result{}, nil
 }
 
-func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
+func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("handling server pod")
 
@@ -166,7 +177,7 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 	return nil
 }
 
-func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluster) (*tls.Config, error) {
+func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluster) (*tls.Config, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("generating etcd TLS client certificate", "cluster", cluster)
 
@@ -253,7 +264,7 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 	return nil
 }
 
-func (p *PodReconciler) clusterToken(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
+func (p *StatefulSetReconciler) clusterToken(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
 	var tokenSecret v1.Secret
 
 	nn := types.NamespacedName{

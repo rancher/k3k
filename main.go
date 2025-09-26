@@ -117,10 +117,10 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 
-	logger.Info("adding etcd pod controller")
+	logger.Info("adding statefulset controller")
 
-	if err := cluster.AddPodController(ctx, mgr, maxConcurrentReconciles); err != nil {
-		return fmt.Errorf("failed to add the new cluster controller: %v", err)
+	if err := cluster.AddStatefulSetController(ctx, mgr, maxConcurrentReconciles); err != nil {
+		return fmt.Errorf("failed to add the statefulset controller: %v", err)
 	}
 
 	logger.Info("adding service controller")

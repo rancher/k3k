@@ -35,6 +35,8 @@ type VirtualCluster struct {
 }
 
 func NewVirtualCluster() *VirtualCluster { // By default, create an ephemeral cluster
+	GinkgoHelper()
+
 	return NewVirtualClusterWithType(v1alpha1.EphemeralPersistenceMode)
 }
 

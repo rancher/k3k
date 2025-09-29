@@ -31,6 +31,7 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	compbasemetrics "k8s.io/component-base/metrics"
@@ -589,15 +590,20 @@ func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 // expected to call the NotifyPods callback with a terminal pod status where all the containers are in a terminal
 // state, as well as the pod. DeletePod may be called multiple times for the same pod.
 func (p *Provider) deletePod(ctx context.Context, pod *corev1.Pod) error {
-	p.logger.Infof("Got request to delete pod %s", pod.Name)
+	p.logger.Infof("got request to delete pod %s/%s", pod.Namespace, pod.Name)
 	hostName := p.Translator.TranslateName(pod.Namespace, pod.Name)
 
 	err := p.CoreClient.Pods(p.ClusterNamespace).Delete(ctx, hostName, metav1.DeleteOptions{})
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			p.logger.Infof("pod %s/%s already deleted from host cluster", p.ClusterNamespace, hostName)
+			return nil
+		}
+
 		return fmt.Errorf("unable to delete pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 
-	p.logger.Infof("Deleted pod %s", pod.Name)
+	p.logger.Infof("pod %s/%s deleted from host cluster", p.ClusterNamespace, hostName)
 
 	return nil
 }

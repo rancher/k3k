@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -99,6 +100,29 @@ var _ = When("a dynamic cluster is installed", Label("e2e"), func() {
 
 	It("can create a nginx pod", func() {
 		_, _ = virtualCluster.NewNginxPod("")
+	})
+
+	It("can delete the cluster", func() {
+		ctx := context.Background()
+
+		By("Deleting cluster")
+
+		err := k8sClient.Delete(ctx, virtualCluster.Cluster)
+		Expect(err).To(Not(HaveOccurred()))
+
+		Eventually(func() []corev1.Pod {
+			By("listing the pods in the namespace")
+
+			podList, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+
+			GinkgoLogr.Info("podlist", "len", len(podList.Items))
+
+			return podList.Items
+		}).
+			WithTimeout(2 * time.Minute).
+			WithPolling(time.Second).
+			Should(BeEmpty())
 	})
 
 	It("uses the same bootstrap secret after a restart", func() {

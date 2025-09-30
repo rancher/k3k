@@ -46,7 +46,6 @@ const (
 	namePrefix           = "k3k"
 	clusterController    = "k3k-cluster-controller"
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
-	etcdPodFinalizerName = "etcdpod.k3k.io/finalizer"
 	ClusterInvalidName   = "system"
 
 	defaultVirtualClusterCIDR = "10.52.0.0/16"

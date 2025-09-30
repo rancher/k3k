@@ -36,6 +36,7 @@ import (
 
 const (
 	statefulsetController = "k3k-statefulset-controller"
+	etcdPodFinalizerName  = "etcdpod.k3k.io/finalizer"
 )
 
 type StatefulSetReconciler struct {
@@ -134,6 +135,17 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1a
 
 	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
 	if !pod.DeletionTimestamp.IsZero() {
+		// check if cluster is deleted then remove the finalizer from the pod
+		if cluster.Name == "" {
+			if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
+				if err := p.Client.Update(ctx, pod); err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}
+
 		tlsConfig, err := p.getETCDTLS(ctx, &cluster)
 		if err != nil {
 			return err

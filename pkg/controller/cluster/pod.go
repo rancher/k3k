@@ -56,8 +56,6 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 			return reconcile.Result{}, err
 		}
 
-		// TODO: should we delete it anyway?
-
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 

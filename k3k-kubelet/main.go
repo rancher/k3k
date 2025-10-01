@@ -73,7 +73,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create new virtual kubelet instance: %w", err)
 	}
 
-	if err := k.registerNode(ctx, k.agentIP, cfg); err != nil {
+	if err := k.registerNode(k.agentIP, cfg); err != nil {
 		return fmt.Errorf("failed to register new node: %w", err)
 	}
 

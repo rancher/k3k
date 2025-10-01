@@ -211,9 +211,9 @@ func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostCl
 	return service.Spec.ClusterIP, nil
 }
 
-func (k *kubelet) registerNode(ctx context.Context, agentIP string, cfg config) error {
+func (k *kubelet) registerNode(agentIP string, cfg config) error {
 	providerFunc := k.newProviderFunc(cfg)
-	nodeOpts := k.nodeOpts(ctx, cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, agentIP)
+	nodeOpts := k.nodeOpts(cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, agentIP)
 
 	var err error
 
@@ -277,7 +277,7 @@ func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 	}
 }
 
-func (k *kubelet) nodeOpts(ctx context.Context, srvPort int, namespace, name, hostname, agentIP string) nodeutil.NodeOpt {
+func (k *kubelet) nodeOpts(srvPort int, namespace, name, hostname, agentIP string) nodeutil.NodeOpt {
 	return func(c *nodeutil.NodeConfig) error {
 		c.HTTPListenAddr = fmt.Sprintf(":%d", srvPort)
 		// set up the routes
@@ -288,7 +288,7 @@ func (k *kubelet) nodeOpts(ctx context.Context, srvPort int, namespace, name, ho
 
 		c.Handler = mux
 
-		tlsConfig, err := loadTLSConfig(ctx, k.hostClient, name, namespace, k.name, hostname, k.token, agentIP)
+		tlsConfig, err := loadTLSConfig(name, namespace, k.name, hostname, k.token, agentIP)
 		if err != nil {
 			return errors.New("unable to get tls config: " + err.Error())
 		}
@@ -369,17 +369,10 @@ func kubeconfigBytes(url string, serverCA, clientCert, clientKey []byte) ([]byte
 	return clientcmd.Write(*config)
 }
 
-func loadTLSConfig(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, nodeName, hostname, token, agentIP string) (*tls.Config, error) {
-	var (
-		cluster v1alpha1.Cluster
-		b       *bootstrap.ControlRuntimeBootstrap
-	)
+func loadTLSConfig(clusterName, clusterNamespace, nodeName, hostname, token, agentIP string) (*tls.Config, error) {
+	var b *bootstrap.ControlRuntimeBootstrap
 
-	if err := hostClient.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster); err != nil {
-		return nil, err
-	}
-
-	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace)
+	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(clusterName), clusterNamespace)
 
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err != nil

@@ -123,6 +123,12 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to add the new cluster controller: %v", err)
 	}
 
+	logger.Info("adding service controller")
+
+	if err := cluster.AddServiceController(ctx, mgr, maxConcurrentReconciles); err != nil {
+		return fmt.Errorf("failed to add the new service controller: %v", err)
+	}
+
 	logger.Info("adding clusterpolicy controller")
 
 	if err := policy.Add(mgr, config.ClusterCIDR, maxConcurrentReconciles); err != nil {

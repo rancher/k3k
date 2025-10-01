@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -35,32 +34,34 @@ import (
 )
 
 const (
-	podController = "k3k-pod-controller"
+	statefulsetController = "k3k-statefulset-controller"
+	etcdPodFinalizerName  = "etcdpod.k3k.io/finalizer"
 )
 
-type PodReconciler struct {
+type StatefulSetReconciler struct {
 	Client ctrlruntimeclient.Client
 	Scheme *runtime.Scheme
 }
 
 // Add adds a new controller to the manager
-func AddPodController(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) error {
+func AddStatefulSetController(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) error {
 	// initialize a new Reconciler
-	reconciler := PodReconciler{
+	reconciler := StatefulSetReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Watches(&v1.Pod{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &apps.StatefulSet{}, handler.OnlyControllerOwner())).
-		Named(podController).
+		For(&apps.StatefulSet{}).
+		Owns(&v1.Pod{}).
+		Named(statefulsetController).
 		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
 
-func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("statefulset", req.NamespacedName)
-	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
+func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("reconciling statefulset")
 
 	s := strings.Split(req.Name, "-")
 	if len(s) < 1 {
@@ -102,7 +103,7 @@ func (p *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	return reconcile.Result{}, nil
 }
 
-func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
+func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("handling server pod")
 
@@ -120,9 +121,7 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 	if !pod.DeletionTimestamp.IsZero() {
 		// check if cluster is deleted then remove the finalizer from the pod
 		if cluster.Name == "" {
-			if controllerutil.ContainsFinalizer(pod, etcdPodFinalizerName) {
-				controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName)
-
+			if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
 				if err := p.Client.Update(ctx, pod); err != nil {
 					return err
 				}
@@ -166,7 +165,7 @@ func (p *PodReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cl
 	return nil
 }
 
-func (p *PodReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluster) (*tls.Config, error) {
+func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluster) (*tls.Config, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("generating etcd TLS client certificate", "cluster", cluster)
 
@@ -253,7 +252,7 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 	return nil
 }
 
-func (p *PodReconciler) clusterToken(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
+func (p *StatefulSetReconciler) clusterToken(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
 	var tokenSecret v1.Secret
 
 	nn := types.NamespacedName{

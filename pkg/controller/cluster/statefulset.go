@@ -23,7 +23,6 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -64,45 +63,30 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling statefulset")
 
-	var sts apps.StatefulSet
-	if err := p.Client.Get(ctx, req.NamespacedName, &sts); err != nil {
-		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
-	}
-
-	// We only care about statefulsets for k3k servers
-	if sts.Labels["role"] != "server" || !strings.HasPrefix(sts.Name, "k3k-") {
+	s := strings.Split(req.Name, "-")
+	if len(s) < 1 {
 		return reconcile.Result{}, nil
 	}
 
-	owner := metav1.GetControllerOf(&sts)
-	if owner == nil || owner.APIVersion != v1alpha1.SchemeGroupVersion.String() || owner.Kind != "Cluster" {
-		log.Info("StatefulSet is not owned by a k3k Cluster, skipping")
+	if s[0] != "k3k" {
 		return reconcile.Result{}, nil
 	}
+
+	clusterName := s[1]
 
 	var cluster v1alpha1.Cluster
-	if err := p.Client.Get(ctx, types.NamespacedName{Name: owner.Name, Namespace: req.Namespace}, &cluster); err != nil {
+	if err := p.Client.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: req.Namespace}, &cluster); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
-
-		// The owning cluster is gone, nothing to do.
-		return reconcile.Result{}, nil
 	}
 
-	// If the statefulset is being deleted, we don't need to do anything,
-	// as the pods will be deleted and trigger their own reconciliation.
-	if !sts.DeletionTimestamp.IsZero() {
-		return reconcile.Result{}, nil
-	}
-
-	// Check if we need to scale down
-	if *sts.Spec.Replicas > 0 && sts.Status.ReadyReplicas < *sts.Spec.Replicas {
-		log.Info("StatefulSet is not fully ready, checking for pods to remove from etcd", "ready", sts.Status.ReadyReplicas, "desired", *sts.Spec.Replicas)
-	}
+	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
+	listOpts := &ctrlruntimeclient.ListOptions{Namespace: req.Namespace}
+	matchingLabels.ApplyToList(listOpts)
 
 	var podList v1.PodList
-	if err := p.Client.List(ctx, &podList, ctrlruntimeclient.InNamespace(req.Namespace), ctrlruntimeclient.MatchingLabels(sts.Spec.Selector.MatchLabels)); err != nil {
+	if err := p.Client.List(ctx, &podList, listOpts); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 

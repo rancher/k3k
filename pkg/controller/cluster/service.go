@@ -53,6 +53,7 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring service status to virtual cluster")
+
 	var (
 		virtServiceName, virtServiceNamespace string
 		hostService, virtService              v1.Service

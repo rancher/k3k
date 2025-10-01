@@ -10,8 +10,10 @@ import (
 	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -31,6 +33,25 @@ var _ = When("an ephemeral cluster is installed", Label("e2e"), func() {
 
 	It("can create a nginx pod", func() {
 		_, _ = virtualCluster.NewNginxPod("")
+	})
+
+	It("deletes the pod in the virtual cluster when deleted from the host", func() {
+		ctx := context.Background()
+		pod, _ := virtualCluster.NewNginxPod("")
+
+		hostTranslator := translate.NewHostTranslator(virtualCluster.Cluster)
+		namespacedName := hostTranslator.NamespacedName(pod)
+
+		err := k8s.CoreV1().Pods(namespacedName.Namespace).Delete(ctx, namespacedName.Name, v1.DeleteOptions{})
+		Expect(err).To(Not(HaveOccurred()))
+
+		Eventually(func() bool {
+			_, err := virtualCluster.Client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, v1.GetOptions{})
+			return apierrors.IsNotFound(err)
+		}).
+			WithPolling(time.Second * 5).
+			WithTimeout(time.Minute).
+			Should(BeTrue())
 	})
 
 	It("regenerates the bootstrap secret after a restart", func() {

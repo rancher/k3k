@@ -85,25 +85,29 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
-
-		// The owning cluster is gone, nothing to do.
-		return reconcile.Result{}, nil
 	}
 
-	// If the statefulset is being deleted, we don't need to do anything,
-	// as the pods will be deleted and trigger their own reconciliation.
+	var podList v1.PodList
+	if err := p.Client.List(ctx, &podList, ctrlruntimeclient.InNamespace(req.Namespace), ctrlruntimeclient.MatchingLabels(sts.Spec.Selector.MatchLabels)); err != nil {
+		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+	}
+
+	// If the statefulset is being deleted, we need to remove the finalizers from the Pods
 	if !sts.DeletionTimestamp.IsZero() {
+		for _, pod := range podList.Items {
+			if controllerutil.RemoveFinalizer(&pod, etcdPodFinalizerName) {
+				if err := p.Client.Update(ctx, &pod); err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+		}
+
 		return reconcile.Result{}, nil
 	}
 
 	// Check if we need to scale down
 	if *sts.Spec.Replicas > 0 && sts.Status.ReadyReplicas < *sts.Spec.Replicas {
 		log.Info("StatefulSet is not fully ready, checking for pods to remove from etcd", "ready", sts.Status.ReadyReplicas, "desired", *sts.Spec.Replicas)
-	}
-
-	var podList v1.PodList
-	if err := p.Client.List(ctx, &podList, ctrlruntimeclient.InNamespace(req.Namespace), ctrlruntimeclient.MatchingLabels(sts.Spec.Selector.MatchLabels)); err != nil {
-		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
 	if len(podList.Items) == 1 {

@@ -112,10 +112,5 @@ func (r *ServiceReconciler) newVirtualClient(ctx context.Context, obj ctrlruntim
 		return nil, fmt.Errorf("failed to create config from kubeconfig file: %v", err)
 	}
 
-	virtClient, err := ctrlruntimeclient.New(virtConfig, ctrlruntimeclient.Options{})
-	if err != nil {
-		return nil, err
-	}
-
-	return virtClient, nil
+	return ctrlruntimeclient.New(virtConfig, ctrlruntimeclient.Options{})
 }

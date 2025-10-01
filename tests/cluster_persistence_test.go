@@ -128,7 +128,7 @@ var _ = When("a dynamic cluster is installed", Label("e2e"), func() {
 			Should(BeEmpty())
 	})
 
-	FIt("can delete a HA cluster", func() {
+	It("can delete a HA cluster", func() {
 		ctx := context.Background()
 
 		namespace := NewNamespace()

@@ -337,7 +337,7 @@ func restartServerPod(ctx context.Context, virtualCluster *VirtualCluster) {
 	}).WithTimeout(60 * time.Second).WithPolling(time.Second * 5).Should(BeNil())
 }
 
-func serverPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
+func listServerPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
 	labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
 
 	serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
@@ -346,11 +346,8 @@ func serverPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Po
 	return serverPods.Items
 }
 
-func agentPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
-	labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",type=agent" + ",mode=shared"
-	if virtualCluster.Cluster.Spec.Mode == v1alpha1.VirtualClusterMode {
-		labelSelector = "cluster=" + virtualCluster.Cluster.Name + ",type=agent" + ",mode=virtual"
-	}
+func listAgentPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
+	labelSelector := fmt.Sprintf("cluster=%s,type=agent,mode=%s", virtualCluster.Cluster.Name, virtualCluster.Cluster.Spec.Mode)
 
 	agentPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
 	Expect(err).To(Not(HaveOccurred()))
@@ -359,15 +356,15 @@ func agentPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod
 }
 
 // getEnv will get an environment variable from a pod it will return empty string if not found
-func getEnv(pod *corev1.Pod, envName string) string {
+func getEnv(pod *corev1.Pod, envName string) (string, bool) {
 	container := pod.Spec.Containers[0]
 	for _, envVar := range container.Env {
 		if envVar.Name == envName {
-			return envVar.Value
+			return envVar.Value, true
 		}
 	}
 
-	return ""
+	return "", false
 }
 
 // isArgFound will return true if the argument passed to the function is found in container args

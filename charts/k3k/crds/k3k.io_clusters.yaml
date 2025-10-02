@@ -410,7 +410,7 @@ spec:
                       This field is only relevant in "dynamic" mode.
                     type: string
                   storageRequestSize:
-                    default: 1G
+                    default: 2G
                     description: |-
                       StorageRequestSize is the requested size for the PVC.
                       This field is only relevant in "dynamic" mode.

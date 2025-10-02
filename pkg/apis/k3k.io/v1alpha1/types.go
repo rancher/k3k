@@ -343,7 +343,7 @@ type PersistenceConfig struct {
 	// StorageRequestSize is the requested size for the PVC.
 	// This field is only relevant in "dynamic" mode.
 	//
-	// +kubebuilder:default="1G"
+	// +kubebuilder:default="2G"
 	// +optional
 	StorageRequestSize string `json:"storageRequestSize,omitempty"`
 }

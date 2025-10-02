@@ -111,6 +111,10 @@ var _ = BeforeSuite(func() {
 	initKubernetesClient(kubeconfig)
 	installK3kChart(kubeconfig)
 
+	if kubeconfigPath != "" {
+		hostIP, err = getServerIP(restcfg)
+		Expect(err).To(Not(HaveOccurred()))
+	}
 	patchPVC(ctx, k8s)
 })
 

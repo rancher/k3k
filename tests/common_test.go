@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -377,4 +378,13 @@ func isArgFound(pod *corev1.Pod, arg string) bool {
 	}
 
 	return false
+}
+
+func getServerIP(cfg *rest.Config) (string, error) {
+	u, err := url.Parse(cfg.Host)
+	if err != nil {
+		return "", err
+	}
+	// If Host includes a port, u.Hostname() extracts just the hostname part
+	return u.Hostname(), nil
 }

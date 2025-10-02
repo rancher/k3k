@@ -94,9 +94,10 @@ jobs:
 
     - name: Build and package and push dev images
       run: |
-        REPO="ttl.sh/$(uuidgen)" VERSION=1h make build
-        REPO="ttl.sh/$(uuidgen)" VERSION=1h make package
-        REPO="ttl.sh/$(uuidgen)" VERSION=1h make push
+        uuidgen > uuidgen.txt
+        REPO="ttl.sh/$(cat uuidgen.txt)" VERSION=1h make build
+        REPO="ttl.sh/$(cat uuidgen.txt)" VERSION=1h make package
+        REPO="ttl.sh/$(cat uuidgen.txt)" VERSION=1h make push
 
         # add k3kcli to $PATH
         echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
@@ -105,7 +106,7 @@ jobs:
       run: k3kcli -v
 
     - name: Run e2e tests
-      run: E2E_KUBECONFIG=/etc/rancher/k3s/k3s.yaml REPO="ttl.sh/$(uuidgen)" VERSION=1h make test-e2e
+      run: E2E_KUBECONFIG=/etc/rancher/k3s/k3s.yaml REPO="ttl.sh/$(cat uuidgen.txt)" VERSION=1h make test-e2e
 
     - name: Convert coverage data
       run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out

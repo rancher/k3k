@@ -114,6 +114,24 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 
 		cluster := newCluster(name, namespace, config)
 
+		persistencemessage := "Ephemeral (data will be lost if all servers are removed)"
+		if cluster.Spec.Persistence.Type == v1alpha1.DynamicPersistenceMode {
+			sizemessage := "2Gi"
+			if cluster.Spec.Persistence.StorageRequestSize != "" {
+				sizemessage = cluster.Spec.Persistence.StorageRequestSize
+			}
+			persistencemessage = fmt.Sprintf("(StorageClass=%s, Size=%s)", ptr.Deref(cluster.Spec.Persistence.StorageClassName, "default"), sizemessage)
+		}
+		versionmessage := "Same as host"
+		if cluster.Spec.Version != "" {
+			versionmessage = cluster.Spec.Version
+		}
+		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
+			logrus.Infof("Cluster details: Mode=%s, Servers=%d, Version=%s, Persistence=%s", cluster.Spec.Mode, *cluster.Spec.Servers, versionmessage, persistencemessage)
+		} else {
+			logrus.Infof("Cluster details: Mode=%s, Servers=%d, Agents=%d, Version=%s, Persistence=%s", cluster.Spec.Mode, *cluster.Spec.Servers, *cluster.Spec.Agents, versionmessage, persistencemessage)
+		}
+
 		cluster.Spec.Expose = &v1alpha1.ExposeConfig{
 			NodePort: &v1alpha1.NodePortConfig{},
 		}

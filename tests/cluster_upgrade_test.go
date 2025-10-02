@@ -13,7 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("update"), func() {
+var _ = When("a shared mode cluster update its envs", Label("e2e"), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {
@@ -147,7 +147,7 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("updat
 	})
 })
 
-var _ = When("a shared mode cluster update its server args", Label("e2e"), Label("update"), func() {
+var _ = When("a shared mode cluster update its server args", Label("e2e"), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {

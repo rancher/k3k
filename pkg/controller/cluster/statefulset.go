@@ -23,6 +23,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -63,35 +64,35 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling statefulset")
 
-	s := strings.Split(req.Name, "-")
-	if len(s) < 1 {
-		return reconcile.Result{}, nil
+	var sts apps.StatefulSet
+	if err := p.Client.Get(ctx, req.NamespacedName, &sts); err != nil {
+		// we can ignore the IsNotFound error
+		// if the stateful set was deleted we have already cleaned up the pods
+		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
-	if s[0] != "k3k" {
-		return reconcile.Result{}, nil
+	// If the StatefulSet is being deleted, we need to remove the finalizers from its pods
+	// and remove the finalizer from the StatefulSet itself.
+	if !sts.DeletionTimestamp.IsZero() {
+		return p.handleDeletion(ctx, &sts)
 	}
 
-	clusterName := s[1]
+	owner := metav1.GetControllerOf(&sts)
+	if owner == nil || owner.APIVersion != v1alpha1.SchemeGroupVersion.String() || owner.Kind != "Cluster" {
+		log.Info("StatefulSet is not owned by a k3k Cluster, skipping")
+		return reconcile.Result{}, nil
+	}
 
 	var cluster v1alpha1.Cluster
-	if err := p.Client.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: req.Namespace}, &cluster); err != nil {
+	if err := p.Client.Get(ctx, types.NamespacedName{Name: owner.Name, Namespace: req.Namespace}, &cluster); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 	}
 
-	matchingLabels := ctrlruntimeclient.MatchingLabels(map[string]string{"role": "server"})
-	listOpts := &ctrlruntimeclient.ListOptions{Namespace: req.Namespace}
-	matchingLabels.ApplyToList(listOpts)
-
-	var podList v1.PodList
-	if err := p.Client.List(ctx, &podList, listOpts); err != nil {
-		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
-	}
-
-	if len(podList.Items) == 1 {
-		return reconcile.Result{}, nil
+	podList, err := p.listPods(ctx, &sts)
+	if err != nil {
+		return reconcile.Result{}, err
 	}
 
 	for _, pod := range podList.Items {
@@ -273,4 +274,44 @@ func (p *StatefulSetReconciler) clusterToken(ctx context.Context, cluster *v1alp
 	}
 
 	return string(tokenSecret.Data["token"]), nil
+}
+
+func (p *StatefulSetReconciler) handleDeletion(ctx context.Context, sts *apps.StatefulSet) (ctrl.Result, error) {
+	podList, err := p.listPods(ctx, sts)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	for _, pod := range podList.Items {
+		if controllerutil.RemoveFinalizer(&pod, etcdPodFinalizerName) {
+			if err := p.Client.Update(ctx, &pod); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	}
+
+	if controllerutil.RemoveFinalizer(sts, etcdPodFinalizerName) {
+		return reconcile.Result{}, p.Client.Update(ctx, sts)
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (p *StatefulSetReconciler) listPods(ctx context.Context, sts *apps.StatefulSet) (*v1.PodList, error) {
+	selector, err := metav1.LabelSelectorAsSelector(sts.Spec.Selector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create selector from statefulset: %w", err)
+	}
+
+	listOpts := &ctrlruntimeclient.ListOptions{
+		Namespace:     sts.Namespace,
+		LabelSelector: selector,
+	}
+
+	var podList v1.PodList
+	if err := p.Client.List(ctx, &podList, listOpts); err != nil {
+		return nil, ctrlruntimeclient.IgnoreNotFound(err)
+	}
+
+	return &podList, nil
 }

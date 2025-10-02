@@ -87,7 +87,7 @@ func NewVirtualClusters(n int) []*VirtualCluster {
 func NewNamespace() *corev1.Namespace {
 	GinkgoHelper()
 
-	namespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{GenerateName: "ns-"}}
+	namespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{GenerateName: "e2e-ns-", Labels: map[string]string{"e2e": "true"}}}
 	namespace, err := k8s.CoreV1().Namespaces().Create(context.Background(), namespace, v1.CreateOptions{})
 	Expect(err).To(Not(HaveOccurred()))
 

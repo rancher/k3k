@@ -54,7 +54,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				Expect(cluster.Spec.Version).To(BeEmpty())
 
 				Expect(cluster.Spec.Persistence.Type).To(Equal(v1alpha1.DynamicPersistenceMode))
-				Expect(cluster.Spec.Persistence.StorageRequestSize).To(Equal("1G"))
+				Expect(cluster.Spec.Persistence.StorageRequestSize).To(Equal("2G"))
 
 				Expect(cluster.Status.Phase).To(Equal(v1alpha1.ClusterUnknown))
 

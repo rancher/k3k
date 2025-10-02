@@ -104,7 +104,7 @@ jobs:
       run: k3kcli -v
 
     - name: Run e2e tests
-      run: E2E_KUBECONFIG= make test-e2e
+      run: E2E_KUBECONFIG=/etc/rancher/k3s/k3s.yaml make test-e2e
 
     - name: Convert coverage data
       run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out

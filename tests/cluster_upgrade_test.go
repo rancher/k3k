@@ -27,12 +27,20 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("updat
 				Name:  "TEST_SERVER_ENV_1",
 				Value: "not_upgraded",
 			},
+			{
+				Name:  "TEST_SERVER_ENV_2",
+				Value: "toBeRemoved",
+			},
 		}
 		// Add initial environment variables for agent
 		cluster.Spec.AgentEnvs = []corev1.EnvVar{
 			{
 				Name:  "TEST_AGENT_ENV_1",
 				Value: "not_upgraded",
+			},
+			{
+				Name:  "TEST_AGENT_ENV_2",
+				Value: "toBeRemoved",
 			},
 		}
 
@@ -54,6 +62,10 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("updat
 		Expect(ok).To(BeTrue())
 		Expect(serverEnv1).To(Equal("not_upgraded"))
 
+		serverEnv2, ok := getEnv(&serverPod, "TEST_SERVER_ENV_2")
+		Expect(ok).To(BeTrue())
+		Expect(serverEnv2).To(Equal("toBeRemoved"))
+
 		aPods := listAgentPods(ctx, virtualCluster)
 		Expect(len(aPods)).To(Equal(1))
 
@@ -62,6 +74,10 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("updat
 		agentEnv1, ok := getEnv(&agentPod, "TEST_AGENT_ENV_1")
 		Expect(ok).To(BeTrue())
 		Expect(agentEnv1).To(Equal("not_upgraded"))
+
+		agentEnv2, ok := getEnv(&agentPod, "TEST_AGENT_ENV_2")
+		Expect(ok).To(BeTrue())
+		Expect(agentEnv2).To(Equal("toBeRemoved"))
 	})
 	It("will update server and agent envs when cluster is updated", func() {
 		Eventually(func(g Gomega) {
@@ -77,7 +93,7 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("updat
 					Value: "upgraded",
 				},
 				{
-					Name:  "TEST_SERVER_ENV_2",
+					Name:  "TEST_SERVER_ENV_3",
 					Value: "new",
 				},
 			}
@@ -87,7 +103,7 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("updat
 					Value: "upgraded",
 				},
 				{
-					Name:  "TEST_AGENT_ENV_2",
+					Name:  "TEST_AGENT_ENV_3",
 					Value: "new",
 				},
 			}
@@ -103,9 +119,12 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("updat
 			g.Expect(ok).To(BeTrue())
 			g.Expect(serverEnv1).To(Equal("upgraded"))
 
-			serverEnv2, ok := getEnv(&serverPods[0], "TEST_SERVER_ENV_2")
+			_, ok = getEnv(&serverPods[0], "TEST_SERVER_ENV_2")
+			g.Expect(ok).To(BeFalse())
+
+			serverEnv3, ok := getEnv(&serverPods[0], "TEST_SERVER_ENV_3")
 			g.Expect(ok).To(BeTrue())
-			g.Expect(serverEnv2).To(Equal("new"))
+			g.Expect(serverEnv3).To(Equal("new"))
 
 			// agent pods
 			aPods := listAgentPods(ctx, virtualCluster)
@@ -115,9 +134,12 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("updat
 			g.Expect(ok).To(BeTrue())
 			g.Expect(agentEnv1).To(Equal("upgraded"))
 
-			agentEnv2, ok := getEnv(&aPods[0], "TEST_AGENT_ENV_2")
+			_, ok = getEnv(&aPods[0], "TEST_AGENT_ENV_2")
+			g.Expect(ok).To(BeFalse())
+
+			agentEnv3, ok := getEnv(&aPods[0], "TEST_AGENT_ENV_3")
 			g.Expect(ok).To(BeTrue())
-			g.Expect(agentEnv2).To(Equal("new"))
+			g.Expect(agentEnv3).To(Equal("new"))
 		}).
 			WithPolling(time.Second * 2).
 			WithTimeout(time.Minute * 2).

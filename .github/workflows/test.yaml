@@ -90,7 +90,7 @@ jobs:
 
     - name: Install k3s
       run: |
-        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.32.1+k3s1 INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
 
     - name: Build and package and push dev images
       run: |

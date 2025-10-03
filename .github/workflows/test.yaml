@@ -62,7 +62,6 @@ jobs:
         files: ./cover.out
         flags: unit
 
-# Test on real k3s cluster not dockerized
   tests-e2e:
     runs-on: ubuntu-latest
     needs: validate

@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	"github.com/rancher/k3k/pkg/controller"
 )
 
@@ -32,6 +34,13 @@ type ToHostTranslator struct {
 	// ClusterNamespace is the namespace of the virtual cluster whose resources
 	// we are translating to a host cluster
 	ClusterNamespace string
+}
+
+func NewHostTranslator(cluster *v1alpha1.Cluster) *ToHostTranslator {
+	return &ToHostTranslator{
+		ClusterName:      cluster.Name,
+		ClusterNamespace: cluster.Namespace,
+	}
 }
 
 // Translate translates a virtual cluster object to a host cluster object. This should only be used for
@@ -124,4 +133,12 @@ func (t *ToHostTranslator) TranslateName(namespace string, name string) string {
 	nameSuffix := hex.EncodeToString([]byte(nameKey))
 
 	return controller.SafeConcatName(namePrefix, nameSuffix)
+}
+
+// NamespacedName returns the types.NamespacedName of the resource in the host cluster
+func (t *ToHostTranslator) NamespacedName(obj client.Object) types.NamespacedName {
+	return types.NamespacedName{
+		Namespace: t.ClusterNamespace,
+		Name:      t.TranslateName(obj.GetNamespace(), obj.GetName()),
+	}
 }

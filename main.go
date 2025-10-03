@@ -114,29 +114,35 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := cluster.Add(ctx, mgr, &config, maxConcurrentReconciles, portAllocator, nil); err != nil {
-		return fmt.Errorf("failed to add the new cluster controller: %v", err)
+		return fmt.Errorf("failed to add cluster controller: %v", err)
 	}
 
 	logger.Info("adding statefulset controller")
 
 	if err := cluster.AddStatefulSetController(ctx, mgr, maxConcurrentReconciles); err != nil {
-		return fmt.Errorf("failed to add the statefulset controller: %v", err)
+		return fmt.Errorf("failed to add statefulset controller: %v", err)
 	}
 
 	logger.Info("adding service controller")
 
 	if err := cluster.AddServiceController(ctx, mgr, maxConcurrentReconciles); err != nil {
-		return fmt.Errorf("failed to add the new service controller: %v", err)
+		return fmt.Errorf("failed to add service controller: %v", err)
+	}
+
+	logger.Info("adding pod controller")
+
+	if err := cluster.AddPodController(ctx, mgr, maxConcurrentReconciles); err != nil {
+		return fmt.Errorf("failed to add pod controller: %v", err)
 	}
 
 	logger.Info("adding clusterpolicy controller")
 
 	if err := policy.Add(mgr, config.ClusterCIDR, maxConcurrentReconciles); err != nil {
-		return fmt.Errorf("failed to add the clusterpolicy controller: %v", err)
+		return fmt.Errorf("failed to add clusterpolicy controller: %v", err)
 	}
 
 	if err := mgr.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start the manager: %v", err)
+		return fmt.Errorf("failed to start manager: %v", err)
 	}
 
 	logger.Info("controller manager stopped")

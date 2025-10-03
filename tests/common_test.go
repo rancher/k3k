@@ -150,34 +150,45 @@ func CreateCluster(cluster *v1alpha1.Cluster) {
 	err := k8sClient.Create(ctx, cluster)
 	Expect(err).To(Not(HaveOccurred()))
 
+	By("Waiting for cluster to be ready")
+
 	// check that the server Pod and the Kubelet are in Ready state
 	Eventually(func() bool {
 		podList, err := k8s.CoreV1().Pods(cluster.Namespace).List(ctx, v1.ListOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 
-		serverRunning := false
-		agentRunning := false
+		// all the servers and agents needs to be in a running phase
+		var serversReady, agentsReady int
 
 		for _, pod := range podList.Items {
-			if pod.Labels == nil {
-				continue
-			}
-			roleLabel := pod.Labels["role"]
-			typeLabel := pod.Labels["type"]
-			if roleLabel == "server" {
-				serverRunning = pod.Status.Phase == corev1.PodRunning
-			} else if typeLabel == "agent" {
-				agentRunning = pod.Status.Phase == corev1.PodRunning
+			if pod.Labels["role"] == "server" {
+				GinkgoLogr.Info(fmt.Sprintf("server pod=%s/%s status=%s", pod.Namespace, pod.Name, pod.Status.Phase))
+				if pod.Status.Phase == corev1.PodRunning {
+					serversReady++
+				}
 			}
 
-			if serverRunning && agentRunning {
-				return true
+			if pod.Labels["type"] == "agent" {
+				GinkgoLogr.Info(fmt.Sprintf("agent pod=%s/%s status=%s", pod.Namespace, pod.Name, pod.Status.Phase))
+				if pod.Status.Phase == corev1.PodRunning {
+					agentsReady++
+				}
 			}
 		}
 
-		return false
+		expectedServers := int(*cluster.Spec.Servers)
+		expectedAgents := int(*cluster.Spec.Agents)
+
+		By(fmt.Sprintf("serversReady=%d/%d agentsReady=%d/%d", serversReady, expectedServers, agentsReady, expectedAgents))
+
+		// the server pods should equal the expected servers, but since in shared mode we also have the kubelet is fine to have more than one
+		if (serversReady != expectedServers) || (agentsReady < expectedAgents) {
+			return false
+		}
+
+		return true
 	}).
-		WithTimeout(time.Minute * 2).
+		WithTimeout(time.Minute * 5).
 		WithPolling(time.Second * 5).
 		Should(BeTrue())
 }

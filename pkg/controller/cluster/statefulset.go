@@ -77,14 +77,11 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 		return p.handleDeletion(ctx, &sts)
 	}
 
-	owner := metav1.GetControllerOf(&sts)
-	if owner == nil || owner.APIVersion != v1alpha1.SchemeGroupVersion.String() || owner.Kind != "Cluster" {
-		log.Info("StatefulSet is not owned by a k3k Cluster, skipping")
-		return reconcile.Result{}, nil
-	}
+	// get cluster name from the object
+	clusterKey := clusterNamespacedName(&sts)
 
 	var cluster v1alpha1.Cluster
-	if err := p.Client.Get(ctx, types.NamespacedName{Name: owner.Name, Namespace: req.Namespace}, &cluster); err != nil {
+	if err := p.Client.Get(ctx, clusterKey, &cluster); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
@@ -93,6 +90,19 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	podList, err := p.listPods(ctx, &sts)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+
+	if len(podList.Items) == 1 {
+		serverPod := podList.Items[0]
+		if !serverPod.DeletionTimestamp.IsZero() {
+			if controllerutil.RemoveFinalizer(&serverPod, etcdPodFinalizerName) {
+				if err := p.Client.Update(ctx, &serverPod); err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+
+			return reconcile.Result{}, nil
+		}
 	}
 
 	for _, pod := range podList.Items {
@@ -108,59 +118,52 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1a
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("handling server pod")
 
-	role, found := pod.Labels["role"]
-	if !found {
-		return fmt.Errorf("server pod has no role label")
-	}
+	if pod.DeletionTimestamp.IsZero() {
+		if controllerutil.AddFinalizer(pod, etcdPodFinalizerName) {
+			return p.Client.Update(ctx, pod)
+		}
 
-	if role != "server" {
-		log.V(1).Info("pod has a different role: " + role)
 		return nil
 	}
 
 	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
-	if !pod.DeletionTimestamp.IsZero() {
-		// check if cluster is deleted then remove the finalizer from the pod
-		if cluster.Name == "" {
-			if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
-				if err := p.Client.Update(ctx, pod); err != nil {
-					return err
-				}
-			}
 
-			return nil
-		}
-
-		tlsConfig, err := p.getETCDTLS(ctx, &cluster)
-		if err != nil {
-			return err
-		}
-
-		// remove server from etcd
-		client, err := clientv3.New(clientv3.Config{
-			Endpoints: []string{
-				fmt.Sprintf("https://%s.%s:2379", server.ServiceName(cluster.Name), pod.Namespace),
-			},
-			TLS: tlsConfig,
-		})
-		if err != nil {
-			return err
-		}
-
-		if err := removePeer(ctx, client, pod.Name, pod.Status.PodIP); err != nil {
-			return err
-		}
-
-		// remove our finalizer from the list and update it.
+	// check if cluster is deleted then remove the finalizer from the pod
+	if cluster.Name == "" {
 		if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
 			if err := p.Client.Update(ctx, pod); err != nil {
 				return err
 			}
 		}
+
+		return nil
 	}
 
-	if controllerutil.AddFinalizer(pod, etcdPodFinalizerName) {
-		return p.Client.Update(ctx, pod)
+	tlsConfig, err := p.getETCDTLS(ctx, &cluster)
+	if err != nil {
+		return err
+	}
+
+	// remove server from etcd
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints: []string{
+			fmt.Sprintf("https://%s.%s:2379", server.ServiceName(cluster.Name), pod.Namespace),
+		},
+		TLS: tlsConfig,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := removePeer(ctx, client, pod.Name, pod.Status.PodIP); err != nil {
+		return err
+	}
+
+	// remove our finalizer from the list and update it.
+	if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
+		if err := p.Client.Update(ctx, pod); err != nil {
+			return err
+		}
 	}
 
 	return nil

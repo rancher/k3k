@@ -59,6 +59,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, nil
 	}
 
+	// TODO FIX some services owned by the cluster don't have the annotations set (i.e. the kubelet svc)
 	virtualServiceKey := types.NamespacedName{
 		Name:      hostService.Annotations[translate.ResourceNameAnnotation],
 		Namespace: hostService.Annotations[translate.ResourceNamespaceAnnotation],

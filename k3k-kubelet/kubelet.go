@@ -11,11 +11,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-logr/zapr"
+	"github.com/go-logr/logr"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
+	"github.com/virtual-kubelet/virtual-kubelet/log/klogv2"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/authentication/user"
@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -43,7 +44,6 @@ import (
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
-	k3klog "github.com/rancher/k3k/pkg/log"
 )
 
 var (
@@ -70,11 +70,11 @@ type kubelet struct {
 	hostMgr    manager.Manager
 	virtualMgr manager.Manager
 	node       *nodeutil.Node
-	logger     *k3klog.Logger
+	logger     logr.Logger
 	token      string
 }
 
-func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet, error) {
+func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, error) {
 	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostKubeconfig)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		return nil, err
 	}
 
-	ctrl.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
+	ctrl.SetLogger(logger)
 
 	hostMetricsBindAddress := ":8083"
 	virtualMetricsBindAddress := ":8084"
@@ -189,7 +189,7 @@ func newKubelet(ctx context.Context, c *config, logger *k3klog.Logger) (*kubelet
 		hostMgr:    hostMgr,
 		virtualMgr: virtualMgr,
 		agentIP:    clusterIP,
-		logger:     logger.Named(k3kKubeletName),
+		logger:     logger,
 		token:      c.Token,
 		dnsIP:      dnsService.Spec.ClusterIP,
 		port:       c.KubeletPort,
@@ -231,34 +231,35 @@ func (k *kubelet) start(ctx context.Context) {
 	go func() {
 		err := k.hostMgr.Start(ctx)
 		if err != nil {
-			k.logger.Fatalw("host manager stopped", zap.Error(err))
+			k.logger.Error(err, "host manager stopped")
 		}
 	}()
 
 	go func() {
 		err := k.virtualMgr.Start(ctx)
 		if err != nil {
-			k.logger.Fatalw("virtual manager stopped", zap.Error(err))
+			k.logger.Error(err, "virtual manager stopped")
 		}
 	}()
 
 	// run the node async so that we can wait for it to be ready in another call
 
 	go func() {
-		ctx = log.WithLogger(ctx, k.logger)
+		klog.SetLogger(k.logger)
+		ctx = log.WithLogger(ctx, klogv2.New(nil))
 		if err := k.node.Run(ctx); err != nil {
-			k.logger.Fatalw("node errored when running", zap.Error(err))
+			k.logger.Error(err, "node errored when running")
 		}
 	}()
 
 	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
-		k.logger.Fatalw("node was not ready within timeout of 1 minute", zap.Error(err))
+		k.logger.Error(err, "node was not ready within timeout of 1 minute")
 	}
 
 	<-k.node.Done()
 
 	if err := k.node.Err(); err != nil {
-		k.logger.Fatalw("node stopped with an error", zap.Error(err))
+		k.logger.Error(err, "node stopped with an error")
 	}
 
 	k.logger.Info("node exited successfully")
@@ -299,7 +300,7 @@ func (k *kubelet) nodeOpts(srvPort int, namespace, name, hostname, agentIP strin
 	}
 }
 
-func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, token string, logger *k3klog.Logger) (*rest.Config, error) {
+func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, token string, logger logr.Logger) (*rest.Config, error) {
 	if virtualConfigPath != "" {
 		return clientcmd.BuildConfigFromFlags("", virtualConfigPath)
 	}
@@ -318,7 +319,7 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 	}, func() error {
 		var err error
 		b, err = bootstrap.DecodedBootstrap(token, endpoint)
-		logger.Infow("decoded bootstrap", zap.Error(err))
+		logger.Error(err, "decoded bootstrap")
 		return err
 	}); err != nil {
 		return nil, errors.New("unable to decode bootstrap: " + err.Error())

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -20,7 +21,6 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
-	"github.com/rancher/k3k/pkg/log"
 )
 
 const (
@@ -36,14 +36,14 @@ type webhookHandler struct {
 	serviceName      string
 	clusterName      string
 	clusterNamespace string
-	logger           *log.Logger
+	logger           logr.Logger
 	webhookPort      int
 }
 
 // AddPodMutatorWebhook will add a mutator webhook to the virtual cluster to
 // modify the nodeName of the created pods with the name of the virtual kubelet node name
 // as well as remove any status fields of the downward apis env fields
-func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, serviceName string, logger *log.Logger, webhookPort int) error {
+func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, serviceName string, logger logr.Logger, webhookPort int) error {
 	handler := webhookHandler{
 		client:           mgr.GetClient(),
 		scheme:           mgr.GetScheme(),
@@ -75,7 +75,7 @@ func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error 
 		return fmt.Errorf("invalid request: object was type %t not cluster", obj)
 	}
 
-	w.logger.Infow("mutator webhook request", "Pod", pod.Name, "Namespace", pod.Namespace)
+	w.logger.Info("mutator webhook request", "pod", pod.Name, "namespace", pod.Namespace)
 	// look for status.* fields in the env
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
@@ -100,7 +100,7 @@ func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error 
 }
 
 func (w *webhookHandler) configuration(ctx context.Context, hostClient ctrlruntimeclient.Client) (*admissionregistrationv1.MutatingWebhookConfiguration, error) {
-	w.logger.Infow("extracting webhook tls from host cluster")
+	w.logger.Info("extracting webhook tls from host cluster")
 
 	var webhookTLSSecret v1.Secret
 

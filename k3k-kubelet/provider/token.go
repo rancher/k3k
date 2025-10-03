@@ -23,7 +23,7 @@ const (
 // transformTokens copies the serviceaccount tokens used by pod's serviceaccount to a secret on the host cluster and mount it
 // to look like the serviceaccount token
 func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) error {
-	p.logger.Infow("transforming token", "Pod", pod.Name, "Namespace", pod.Namespace, "serviceAccountName", pod.Spec.ServiceAccountName)
+	p.logger.Info("transforming token", "pod", pod.Name, "namespace", pod.Namespace, "serviceAccountName", pod.Spec.ServiceAccountName)
 
 	// skip this process if the kube-api-access is already removed from the pod
 	// this is needed in case users already adds their own custom tokens like in rancher imported clusters

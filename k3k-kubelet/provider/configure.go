@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -13,15 +14,14 @@ import (
 	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
-	k3klog "github.com/rancher/k3k/pkg/log"
 )
 
-func ConfigureNode(logger *k3klog.Logger, node *corev1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster, version string, mirrorHostNodes bool) {
+func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster, version string, mirrorHostNodes bool) {
 	ctx := context.Background()
 	if mirrorHostNodes {
 		hostNode, err := coreClient.Nodes().Get(ctx, node.Name, metav1.GetOptions{})
 		if err != nil {
-			logger.Fatal("error getting host node for mirroring", err)
+			logger.Error(err, "error getting host node for mirroring", err)
 		}
 
 		node.Spec = *hostNode.Spec.DeepCopy()
@@ -56,7 +56,7 @@ func ConfigureNode(logger *k3klog.Logger, node *corev1.Node, hostname string, se
 		go func() {
 			for range ticker.C {
 				if err := updateNodeCapacity(ctx, coreClient, virtualClient, node.Name, virtualCluster.Spec.NodeSelector); err != nil {
-					logger.Error("error updating node capacity", err)
+					logger.Error(err, "error updating node capacity")
 				}
 			}
 		}()

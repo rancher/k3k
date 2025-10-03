@@ -7,12 +7,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -22,7 +22,7 @@ import (
 var (
 	configFile string
 	cfg        config
-	logger     *log.Logger
+	logger     logr.Logger
 	debug      bool
 )
 
@@ -34,8 +34,9 @@ func main() {
 			if err := InitializeConfig(cmd); err != nil {
 				return err
 			}
-			logger = log.New(debug)
-			ctrlruntimelog.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
+
+			logger = zapr.NewLogger(log.New(debug))
+			ctrlruntimelog.SetLogger(logger)
 			return nil
 		},
 		RunE: run,

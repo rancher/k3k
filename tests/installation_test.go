@@ -16,7 +16,7 @@ var _ = When("k3k is installed", Label("e2e"), func() {
 		// check that the controller is running
 		Eventually(func() bool {
 			opts := v1.ListOptions{LabelSelector: "app.kubernetes.io/name=k3k"}
-			podList, err := k8s.CoreV1().Pods("k3k-system").List(context.Background(), opts)
+			podList, err := k8s.CoreV1().Pods(k3kNamespace).List(context.Background(), opts)
 
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(podList.Items).To(Not(BeEmpty()))

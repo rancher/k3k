@@ -15,7 +15,6 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 )
 
 const (
@@ -38,6 +37,7 @@ func AddPodController(ctx context.Context, mgr manager.Manager, maxConcurrentRec
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1.Pod{}).
 		Named(podController).
+		WithEventFilter(newClusterPredicate()).
 		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
@@ -55,13 +55,10 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
-	owner := metav1.GetControllerOf(&pod)
-	if owner == nil || owner.APIVersion != v1alpha1.SchemeGroupVersion.String() || owner.Kind != "Cluster" {
-		log.Info("Pod is not owned by a k3k Cluster, skipping")
-		return reconcile.Result{}, nil
-	}
+	// get cluster from the object
+	cluster := clusterNamespacedName(&pod)
 
-	virtualClient, err := newVirtualClient(ctx, r.Client, owner.Name, pod.Namespace)
+	virtualClient, err := newVirtualClient(ctx, r.Client, cluster.Name, cluster.Namespace)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

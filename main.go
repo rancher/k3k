@@ -38,6 +38,7 @@ var (
 	webhookPortRange        string
 	maxConcurrentReconciles int
 	debug                   bool
+	logFormat               string
 	logger                  logr.Logger
 )
 
@@ -56,12 +57,13 @@ func main() {
 		},
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			cmds.InitializeConfig(cmd)
-			logger = zapr.NewLogger(log.New(debug))
+			logger = zapr.NewLogger(log.New(debug, logFormat))
 		},
 		RunE: run,
 	}
 
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Debug level logging")
+	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "json", "Log format (json or console)")
 	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig path")
 	rootCmd.PersistentFlags().StringVar(&config.ClusterCIDR, "cluster-cidr", "", "Cluster CIDR to be added to the networkpolicy")
 	rootCmd.PersistentFlags().StringVar(&config.SharedAgentImage, "shared-agent-image", "rancher/k3k-kubelet", "K3K Virtual Kubelet image")

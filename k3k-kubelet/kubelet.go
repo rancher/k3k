@@ -75,6 +75,10 @@ type kubelet struct {
 }
 
 func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, error) {
+	logger.Info("starting kubelet 0")
+	logger.V(1).Info("starting kubelet 1")
+	logger.V(2).Info("starting kubelet 2")
+
 	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostKubeconfig)
 	if err != nil {
 		return nil, err

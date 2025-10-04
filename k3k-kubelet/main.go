@@ -35,7 +35,7 @@ func main() {
 				return err
 			}
 
-			logger = zapr.NewLogger(log.New(debug))
+			logger = zapr.NewLogger(log.New(true))
 			ctrlruntimelog.SetLogger(logger)
 			return nil
 		},

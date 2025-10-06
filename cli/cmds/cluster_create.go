@@ -120,16 +120,16 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			if cluster.Spec.Persistence.StorageRequestSize != "" {
 				sizemessage = cluster.Spec.Persistence.StorageRequestSize
 			}
-			persistencemessage = fmt.Sprintf("(StorageClass=%s, Size=%s)", ptr.Deref(cluster.Spec.Persistence.StorageClassName, "default"), sizemessage)
+			persistencemessage = fmt.Sprintf("[StorageClass: %s, Size: %s]", ptr.Deref(cluster.Spec.Persistence.StorageClassName, "default"), sizemessage)
 		}
 		versionmessage := "Same as host"
 		if cluster.Spec.Version != "" {
 			versionmessage = cluster.Spec.Version
 		}
 		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
-			logrus.Infof("Cluster details: Mode=%s, Servers=%d, Version=%s, Persistence=%s", cluster.Spec.Mode, *cluster.Spec.Servers, versionmessage, persistencemessage)
+			logrus.Infof("Cluster details: \n  Mode: %s\n  Servers: %d\n  Version: %s\n  Persistence: %s", cluster.Spec.Mode, *cluster.Spec.Servers, versionmessage, persistencemessage)
 		} else {
-			logrus.Infof("Cluster details: Mode=%s, Servers=%d, Agents=%d, Version=%s, Persistence=%s", cluster.Spec.Mode, *cluster.Spec.Servers, *cluster.Spec.Agents, versionmessage, persistencemessage)
+			logrus.Infof("Cluster details: \n  Mode: %s\n  Servers: %d\n  Agents: %d\n  Version: %s\n  Persistence: %s", cluster.Spec.Mode, *cluster.Spec.Servers, *cluster.Spec.Agents, versionmessage, persistencemessage)
 		}
 
 		cluster.Spec.Expose = &v1alpha1.ExposeConfig{

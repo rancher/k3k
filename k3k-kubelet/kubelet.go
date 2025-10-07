@@ -46,10 +46,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 )
 
-var (
-	baseScheme     = runtime.NewScheme()
-	k3kKubeletName = "k3k-kubelet"
-)
+var baseScheme = runtime.NewScheme()
 
 func init() {
 	_ = clientgoscheme.AddToScheme(baseScheme)
@@ -250,6 +247,7 @@ func (k *kubelet) start(ctx context.Context) {
 
 	go func() {
 		klog.SetLogger(k.logger)
+
 		ctx = log.WithLogger(ctx, klogv2.New(nil))
 		if err := k.node.Run(ctx); err != nil {
 			k.logger.Error(err, "node errored when running")

@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -39,7 +38,7 @@ import (
 )
 
 const (
-	k3kNamespace = "k3k-e2e-system"
+	k3kNamespace = "k3k-system"
 	k3kName      = "k3k"
 )
 
@@ -49,15 +48,14 @@ func TestTests(t *testing.T) {
 }
 
 var (
-	k3sContainer       *k3s.K3sContainer
-	hostIP             string
-	restcfg            *rest.Config
-	k8s                *kubernetes.Clientset
-	k8sClient          client.Client
-	kubeconfigPath     string
-	repo               string
-	helmActionConfig   *action.Configuration
-	dockerInstallation bool
+	k3sContainer     *k3s.K3sContainer
+	hostIP           string
+	restcfg          *rest.Config
+	k8s              *kubernetes.Clientset
+	k8sClient        client.Client
+	kubeconfigPath   string
+	repo             string
+	helmActionConfig *action.Configuration
 )
 
 var _ = BeforeSuite(func() {
@@ -69,57 +67,45 @@ var _ = BeforeSuite(func() {
 
 	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
 
-	// Use external cluster to run the e2e tests
-	kubeconfigPath = os.Getenv("E2E_KUBECONFIG")
 	repo = os.Getenv("REPO")
 	if repo == "" {
 		repo = "rancher"
 	}
-	if kubeconfigPath == "" {
-		dockerInstallation = true
 
-		k3sContainer, err = k3s.Run(ctx, "rancher/k3s:v1.32.1-k3s1")
-		Expect(err).To(Not(HaveOccurred()))
+	dockerInstallationEnv := os.Getenv("K3K_DOCKER_INSTALL")
 
-		hostIP, err = k3sContainer.ContainerIP(ctx)
-		Expect(err).To(Not(HaveOccurred()))
-
-		GinkgoWriter.Println("K3s containerIP: " + hostIP)
-
-		kubeconfig, err = k3sContainer.GetKubeConfig(context.Background())
-		Expect(err).To(Not(HaveOccurred()))
-
-		tmpFile, err := os.CreateTemp("", "kubeconfig-")
-		Expect(err).To(Not(HaveOccurred()))
-
-		_, err = tmpFile.Write(kubeconfig)
-		Expect(err).To(Not(HaveOccurred()))
-		Expect(tmpFile.Close()).To(Succeed())
-		kubeconfigPath = tmpFile.Name()
-
-		err = k3sContainer.LoadImages(ctx, repo+"/k3k:dev", repo+"/k3k-kubelet:dev")
-		Expect(err).To(Not(HaveOccurred()))
-		DeferCleanup(os.Remove, kubeconfigPath)
-	} else {
-		kubeconfig, err = os.ReadFile(kubeconfigPath)
-		Expect(err).To(Not(HaveOccurred()))
+	if dockerInstallationEnv != "" {
+		installK3SDocker(ctx)
 	}
 
-	Expect(os.Setenv("KUBECONFIG", kubeconfigPath)).To(Succeed())
-	GinkgoWriter.Print(kubeconfigPath)
+	kubeconfigPath = os.Getenv("KUBECONFIG")
+	Expect(kubeconfigPath).To(Not(BeEmpty()))
 
-	initKubernetesClient(kubeconfig)
+	kubeconfig, err = os.ReadFile(kubeconfigPath)
+	Expect(err).To(Not(HaveOccurred()))
+
+	restcfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfig)
+	Expect(err).To(Not(HaveOccurred()))
+
+	hostIP, err = getServerIP(ctx, restcfg)
+	Expect(err).To(Not(HaveOccurred()))
+
+	initKubernetesClient()
 	installK3kChart(kubeconfig)
 
-	if kubeconfigPath != "" {
-		hostIP, err = getServerIP(restcfg)
-		Expect(err).To(Not(HaveOccurred()))
-	}
 	patchPVC(ctx, k8s)
 })
 
-func initKubernetesClient(kubeconfig []byte) {
-	var err error
+func initKubernetesClient() {
+	var (
+		err        error
+		kubeconfig []byte
+	)
+
+	kubeconfigPath := os.Getenv("KUBECONFIG")
+
+	kubeconfig, err = os.ReadFile(kubeconfigPath)
+	Expect(err).To(Not(HaveOccurred()))
 
 	restcfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	Expect(err).To(Not(HaveOccurred()))
@@ -147,7 +133,42 @@ func buildScheme() *runtime.Scheme {
 	return scheme
 }
 
+func installK3SDocker(ctx context.Context) {
+	var (
+		err        error
+		kubeconfig []byte
+	)
+
+	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:v1.32.1-k3s1")
+	Expect(err).To(Not(HaveOccurred()))
+
+	GinkgoWriter.Println("K3s containerIP: " + hostIP)
+
+	kubeconfig, err = k3sContainer.GetKubeConfig(context.Background())
+	Expect(err).To(Not(HaveOccurred()))
+
+	tmpFile, err := os.CreateTemp("", "kubeconfig-")
+	Expect(err).To(Not(HaveOccurred()))
+
+	_, err = tmpFile.Write(kubeconfig)
+	Expect(err).To(Not(HaveOccurred()))
+	Expect(tmpFile.Close()).To(Succeed())
+	kubeconfigPath = tmpFile.Name()
+
+	err = k3sContainer.LoadImages(ctx, repo+"/k3k:dev", repo+"/k3k-kubelet:dev")
+	Expect(err).To(Not(HaveOccurred()))
+	DeferCleanup(os.Remove, kubeconfigPath)
+
+	Expect(os.Setenv("KUBECONFIG", kubeconfigPath)).To(Succeed())
+	GinkgoWriter.Print(kubeconfigPath)
+}
+
 func installK3kChart(kubeconfig []byte) {
+	if k3sContainer == nil {
+		GinkgoWriter.Print("skipping helm installation")
+		return
+	}
+
 	pwd, err := os.Getwd()
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -302,7 +323,7 @@ var _ = AfterSuite(func() {
 	}
 
 	dumpK3kCoverageData(ctx, goCoverDir)
-	if dockerInstallation {
+	if k3sContainer != nil {
 		// dump k3s logs
 		k3sLogs, err := k3sContainer.Logs(ctx)
 		Expect(err).To(Not(HaveOccurred()))
@@ -313,9 +334,6 @@ var _ = AfterSuite(func() {
 		writeLogs("k3k.log", k3kLogs)
 
 		testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
-	} else {
-		err := cleanupE2EResources(ctx)
-		Expect(err).To(Not(HaveOccurred()))
 	}
 })
 
@@ -458,58 +476,4 @@ func caCertSecret(name, namespace string, crt, key []byte) *corev1.Secret {
 			"tls.key": key,
 		},
 	}
-}
-
-func cleanupE2EResources(ctx context.Context) error {
-	// remove all namespaces created for tests
-	nsList, err := k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
-		LabelSelector: "e2e=true",
-	})
-	if err != nil {
-		return fmt.Errorf("list namespaces: %w", err)
-	}
-
-	for _, ns := range nsList.Items {
-		// delete cluster
-		if err := k8sClient.DeleteAllOf(ctx, &v1alpha1.Cluster{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: ns.Name}}); err != nil {
-			return err
-		}
-
-		if err := k8s.CoreV1().Namespaces().Delete(ctx, ns.Name, metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-	}
-
-	// remove k3k-e2e-system namespace
-	if err := k8s.CoreV1().Namespaces().Delete(ctx, k3kNamespace, metav1.DeleteOptions{}); err != nil {
-		return err
-	}
-
-	// remove k3k chart
-	uCli := action.NewUninstall(helmActionConfig)
-
-	uCli.IgnoreNotFound = true
-	uCli.Timeout = time.Minute
-	uCli.Wait = true
-
-	if _, err := uCli.Run(k3kName); err != nil {
-		return err
-	}
-
-	// delete coverage data pvc
-	if err := k8s.CoreV1().PersistentVolumeClaims(k3kNamespace).Delete(ctx, "coverage-data-pvc", metav1.DeleteOptions{}); err != nil {
-		return err
-	}
-
-	// remove crds
-	apiExtClient, err := apiextensionsclient.NewForConfig(restcfg)
-	if err != nil {
-		return err
-	}
-
-	if err := apiExtClient.ApiextensionsV1().CustomResourceDefinitions().Delete(ctx, "virtualclusterpolicies.k3k.io", metav1.DeleteOptions{}); err != nil {
-		return err
-	}
-
-	return apiExtClient.ApiextensionsV1().CustomResourceDefinitions().Delete(ctx, "clusters.k3k.io", metav1.DeleteOptions{})
 }

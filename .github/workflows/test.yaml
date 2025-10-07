@@ -27,7 +27,7 @@ jobs:
         version: v2.3.0
 
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest>> $GIT
 
     steps:
     - name: Checkout code
@@ -110,7 +110,11 @@ jobs:
       run: k3kcli -v
 
     - name: Run e2e tests
-      run: E2E_KUBECONFIG=/etc/rancher/k3s/k3s.yaml REPO="ttl.sh/$(cat uuidgen.txt)" VERSION=1h make test-e2e
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        REPO: ${{ env.REPO }}
+        VERSION: ${{ env.VERSION }}
+      run:  make test-e2e
 
     - name: Convert coverage data
       run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out

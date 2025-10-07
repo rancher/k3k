@@ -91,15 +91,20 @@ jobs:
       run: |
         curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.32.1+k3s1 INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
 
-    - name: Build and package and push dev images
+    - name: Setup env
       run: |
-        uuidgen > uuidgen.txt
-        REPO="ttl.sh/$(cat uuidgen.txt)" VERSION=1h make build
-        REPO="ttl.sh/$(cat uuidgen.txt)" VERSION=1h make package
-        REPO="ttl.sh/$(cat uuidgen.txt)" VERSION=1h make push
+        echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
+        echo "VERSION=1h" >> $GITHUB_ENV
 
-        # add k3kcli to $PATH
-        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+    - name: Build and package and push dev images
+      env:
+        REPO: ${{ env.REPO }}
+        VERSION: ${{ env.VERSION }}
+      run: |
+        make build
+        make package
+        make push
+        make install
 
     - name: Check k3kcli
       run: k3kcli -v

@@ -59,7 +59,6 @@ var (
 )
 
 var _ = BeforeSuite(func() {
-	var kubeconfig []byte
 	ctx := context.Background()
 
 	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
@@ -74,7 +73,7 @@ var _ = BeforeSuite(func() {
 	if dockerInstallEnabled {
 		installK3SDocker(ctx)
 		initKubernetesClient(ctx)
-		installK3kChart(kubeconfig)
+		installK3kChart()
 	} else {
 		initKubernetesClient(ctx)
 	}
@@ -133,7 +132,10 @@ func installK3SDocker(ctx context.Context) {
 	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:v1.32.1-k3s1")
 	Expect(err).To(Not(HaveOccurred()))
 
-	GinkgoWriter.Println("K3s containerIP: " + hostIP)
+	containerIP, err := k3sContainer.ContainerIP(ctx)
+	Expect(err).To(Not(HaveOccurred()))
+
+	GinkgoWriter.Println("K3s containerIP: " + containerIP)
 
 	kubeconfig, err = k3sContainer.GetKubeConfig(context.Background())
 	Expect(err).To(Not(HaveOccurred()))
@@ -152,14 +154,10 @@ func installK3SDocker(ctx context.Context) {
 
 	Expect(os.Setenv("KUBECONFIG", kubeconfigPath)).To(Succeed())
 	GinkgoWriter.Print(kubeconfigPath)
+	GinkgoWriter.Print(string(kubeconfig))
 }
 
-func installK3kChart(kubeconfig []byte) {
-	if k3sContainer == nil {
-		GinkgoWriter.Print("skipping helm installation")
-		return
-	}
-
+func installK3kChart() {
 	pwd, err := os.Getwd()
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -167,6 +165,9 @@ func installK3kChart(kubeconfig []byte) {
 	Expect(err).To(Not(HaveOccurred()))
 
 	helmActionConfig = new(action.Configuration)
+
+	kubeconfig, err := os.ReadFile(kubeconfigPath)
+	Expect(err).To(Not(HaveOccurred()))
 
 	restClientGetter, err := NewRESTClientGetter(kubeconfig)
 	Expect(err).To(Not(HaveOccurred()))

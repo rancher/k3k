@@ -189,6 +189,7 @@ jobs:
     - name: Run cli tests
       env:
         K3K_DOCKER_INSTALL: "true"
+        K3S_HOST_VERSION: "${{ env.K3S_HOST_VERSION }"
       run: make test-cli
 
     - name: Convert coverage data

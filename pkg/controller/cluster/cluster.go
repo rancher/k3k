@@ -634,6 +634,9 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 		return err
 	}
 
+	// Add the finalizer to the StatefulSet so the statefulset controller can handle cleanup.
+	controllerutil.AddFinalizer(expectedServerStatefulSet, etcdPodFinalizerName)
+
 	currentServerStatefulSet := expectedServerStatefulSet.DeepCopy()
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerStatefulSet, func() error {
 		if err := controllerutil.SetControllerReference(cluster, currentServerStatefulSet, c.Scheme); err != nil {

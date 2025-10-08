@@ -39,14 +39,16 @@ controller:
   #         name: my-secret
   #         key: my-key
   extraEnv: []
-  # resources limits and requests allows you to set resources limits and requests for CPU and Memory
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "100Mi"
-    limits:
-      cpu: ""
-      memory: ""
+
+  # resources allows you to set resources limits and requests for CPU and Memory
+  # resources:
+  #   limits:
+  #     cpu: "200m"
+  #     memory: "200Mi"
+  #   requests:
+  #     cpu: "100m"
+  #     memory: "100Mi"
+  resources: {}
 
 # configuration related to the agent component in k3k
 agent:

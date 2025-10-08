@@ -20,17 +20,10 @@ spec:
         - image: "{{- include "controller.registry" .}}{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
           name: {{ .Chart.Name }}
+          {{- with .Values.controller.resources }}
           resources:
-            requests:
-              cpu: {{ .Values.controller.resources.requests.cpu }}
-              memory: {{ .Values.controller.resources.requests.memory }}
-            limits:
-              {{ if .Values.controller.resources.limits.cpu }}
-              cpu: {{ .Values.controller.resources.limits.cpu }}
-              {{ end }}
-              {{ if .Values.controller.resources.limits.memory }}
-              memory: {{ .Values.controller.resources.limits.memory }}
-              {{ end}}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           args:
           - k3k
           - --cluster-cidr={{ .Values.host.clusterCIDR }}

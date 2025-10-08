@@ -130,8 +130,10 @@ func installK3SDocker(ctx context.Context) {
 		kubeconfig []byte
 	)
 
-	k3sHostVersion, ok := os.LookupEnv("K3S_HOST_VERSION")
-	Expect(ok).To(BeTrue())
+	k3sHostVersion := os.Getenv("K3S_HOST_VERSION")
+	if k3sHostVersion == "" {
+		k3sHostVersion = "v1.32.1+k3s1"
+	}
 
 	k3sHostVersion = strings.ReplaceAll(k3sHostVersion, "+", "-")
 

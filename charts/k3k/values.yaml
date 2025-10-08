@@ -20,13 +20,15 @@ host:
   clusterCIDR: ""
 
 controller:
-  replicaCount: 1
+  replicas: 1
   image:
     registry: ""
     repository: rancher/k3k
     tag: ""
     pullPolicy: ""
+
   imagePullSecrets: []
+
   # extraEnv allows you to specify additional environment variables for the k3k controller deployment.
   # This is useful for passing custom configuration or secrets to the controller.
   # For example:
@@ -39,35 +41,16 @@ controller:
   #         name: my-secret
   #         key: my-key
   extraEnv: []
-  # resources limits and requests allows you to set resources limits and requests for CPU and Memory
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "100Mi"
-    limits:
-      cpu: ""
-      memory: ""
 
-# configuration related to the agent component in k3k
-agent:
-  imagePullSecrets: []
-  # configuration related to agent in shared mode
-  shared:
-    # Specifies the port range that will be used for k3k-kubelet api if mirrorHostNodes is enabled
-    kubeletPortRange: "50000-51000"
-    # Specifies the port range that will be used for webhook if mirrorHostNodes is enabled
-    webhookPortRange: "51001-52000"
-    image:
-      registry: ""
-      repository: "rancher/k3k-kubelet"
-      tag: ""
-      pullPolicy: ""
-  # configuration related to agent in virtual mode
-  virtual:
-    image:
-      registry: ""
-      repository: "rancher/k3s"
-      pullPolicy: ""
+  # resources allows you to set resources limits and requests for CPU and Memory
+  # resources:
+  #   limits:
+  #     cpu: "200m"
+  #     memory: "200Mi"
+  #   requests:
+  #     cpu: "100m"
+  #     memory: "100Mi"
+  resources: {}
 
 # configuration related to k3s server component in k3k
 server:
@@ -76,3 +59,27 @@ server:
     registry: 
     repository: "rancher/k3s"
     pullPolicy: ""
+
+# configuration related to the agent component in k3k
+agent:
+  imagePullSecrets: []
+
+  # configuration related to agent in shared mode
+  shared:
+    image:
+      registry: ""
+      repository: "rancher/k3k-kubelet"
+      tag: ""
+      pullPolicy: ""
+
+    # Specifies the port range that will be used for k3k-kubelet api if mirrorHostNodes is enabled
+    kubeletPortRange: "50000-51000"
+    # Specifies the port range that will be used for webhook if mirrorHostNodes is enabled
+    webhookPortRange: "51001-52000"
+
+  # configuration related to agent in virtual mode
+  virtual:
+    image:
+      registry: ""
+      repository: "rancher/k3s"
+      pullPolicy: ""

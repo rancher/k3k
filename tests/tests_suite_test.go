@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -129,7 +130,12 @@ func installK3SDocker(ctx context.Context) {
 		kubeconfig []byte
 	)
 
-	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:v1.32.1-k3s1")
+	k3sHostVersion, ok := os.LookupEnv("K3S_HOST_VERSION")
+	Expect(ok).To(BeTrue())
+
+	k3sHostVersion = strings.Replace(k3sHostVersion, "+", "-", -1)
+
+	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:"+k3sHostVersion)
 	Expect(err).To(Not(HaveOccurred()))
 
 	containerIP, err := k3sContainer.ContainerIP(ctx)

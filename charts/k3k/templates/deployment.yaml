@@ -36,11 +36,11 @@ spec:
           - --kubelet-port-range={{ .Values.agent.shared.kubeletPortRange }}
           - --webhook-port-range={{ .Values.agent.shared.webhookPortRange }}
           {{- range $key, $value := include "image.pullSecrets" (concat .Values.agent.imagePullSecrets .Values.global.imagePullSecrets) | fromYamlArray }}
-          - --agent-image-pull-secret 
+          - --agent-image-pull-secret
           - {{ .name }}
           {{- end }}
           {{- range $key, $value := include "image.pullSecrets" (concat .Values.server.imagePullSecrets .Values.global.imagePullSecrets) | fromYamlArray }}
-          - --server-image-pull-secret 
+          - --server-image-pull-secret
           - {{ .name }}
           {{- end }}
           env:

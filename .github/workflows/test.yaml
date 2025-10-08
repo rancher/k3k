@@ -188,6 +188,8 @@ jobs:
       run: k3kcli -v
 
     - name: Run cli tests
+      env:
+        K3K_DOCKER_INSTALL: "true"
       run: make test-cli
 
     - name: Convert coverage data

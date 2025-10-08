@@ -74,14 +74,14 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		Namespace: virtualServiceNamespace,
 	}
 
-	var virtService v1.Service
-	if err := virtualClient.Get(ctx, virtualServiceKey, &virtService); err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to get virt service: %v", err)
+	var virtualService v1.Service
+	if err := virtualClient.Get(ctx, virtualServiceKey, &virtualService); err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to get virtual service: %v", err)
 	}
 
-	if !equality.Semantic.DeepEqual(virtService.Status.LoadBalancer, hostService.Status.LoadBalancer) {
-		virtService.Status.LoadBalancer = hostService.Status.LoadBalancer
-		if err := virtualClient.Status().Update(ctx, &virtService); err != nil {
+	if !equality.Semantic.DeepEqual(virtualService.Status.LoadBalancer, hostService.Status.LoadBalancer) {
+		virtualService.Status.LoadBalancer = hostService.Status.LoadBalancer
+		if err := virtualClient.Status().Update(ctx, &virtualService); err != nil {
 			return reconcile.Result{}, err
 		}
 	}

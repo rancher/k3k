@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -89,7 +90,7 @@ func NewVirtualClusters(n int) []*VirtualCluster {
 func NewNamespace() *corev1.Namespace {
 	GinkgoHelper()
 
-	namespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{GenerateName: "ns-"}}
+	namespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{GenerateName: "ns-", Labels: map[string]string{"e2e": "true"}}}
 	namespace, err := k8s.CoreV1().Namespaces().Create(context.Background(), namespace, v1.CreateOptions{})
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -390,4 +391,17 @@ func isArgFound(pod *corev1.Pod, arg string) bool {
 	}
 
 	return false
+}
+
+func getServerIP(ctx context.Context, cfg *rest.Config) (string, error) {
+	if k3sContainer != nil {
+		return k3sContainer.ContainerIP(ctx)
+	}
+
+	u, err := url.Parse(cfg.Host)
+	if err != nil {
+		return "", err
+	}
+	// If Host includes a port, u.Hostname() extracts just the hostname part
+	return u.Hostname(), nil
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,54 +49,55 @@ func TestTests(t *testing.T) {
 }
 
 var (
-	k3sContainer   *k3s.K3sContainer
-	hostIP         string
-	restcfg        *rest.Config
-	k8s            *kubernetes.Clientset
-	k8sClient      client.Client
-	kubeconfigPath string
+	k3sContainer     *k3s.K3sContainer
+	hostIP           string
+	restcfg          *rest.Config
+	k8s              *kubernetes.Clientset
+	k8sClient        client.Client
+	kubeconfigPath   string
+	repo             string
+	helmActionConfig *action.Configuration
 )
 
 var _ = BeforeSuite(func() {
-	var err error
 	ctx := context.Background()
 
 	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
 
-	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:v1.32.1-k3s1")
-	Expect(err).To(Not(HaveOccurred()))
+	repo = os.Getenv("REPO")
+	if repo == "" {
+		repo = "rancher"
+	}
 
-	hostIP, err = k3sContainer.ContainerIP(ctx)
-	Expect(err).To(Not(HaveOccurred()))
+	_, dockerInstallEnabled := os.LookupEnv("K3K_DOCKER_INSTALL")
 
-	GinkgoWriter.Println("K3s containerIP: " + hostIP)
-
-	kubeconfig, err := k3sContainer.GetKubeConfig(context.Background())
-	Expect(err).To(Not(HaveOccurred()))
-
-	tmpFile, err := os.CreateTemp("", "kubeconfig-")
-	Expect(err).To(Not(HaveOccurred()))
-
-	_, err = tmpFile.Write(kubeconfig)
-	Expect(err).To(Not(HaveOccurred()))
-	Expect(tmpFile.Close()).To(Succeed())
-
-	kubeconfigPath = tmpFile.Name()
-
-	Expect(os.Setenv("KUBECONFIG", kubeconfigPath)).To(Succeed())
-
-	DeferCleanup(os.Remove, kubeconfigPath)
-
-	initKubernetesClient(kubeconfig)
-	installK3kChart(ctx, kubeconfig)
+	if dockerInstallEnabled {
+		installK3SDocker(ctx)
+		initKubernetesClient(ctx)
+		installK3kChart()
+	} else {
+		initKubernetesClient(ctx)
+	}
 
 	patchPVC(ctx, k8s)
 })
 
-func initKubernetesClient(kubeconfig []byte) {
-	var err error
+func initKubernetesClient(ctx context.Context) {
+	var (
+		err        error
+		kubeconfig []byte
+	)
+
+	kubeconfigPath := os.Getenv("KUBECONFIG")
+	Expect(kubeconfigPath).To(Not(BeEmpty()))
+
+	kubeconfig, err = os.ReadFile(kubeconfigPath)
+	Expect(err).To(Not(HaveOccurred()))
 
 	restcfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfig)
+	Expect(err).To(Not(HaveOccurred()))
+
+	hostIP, err = getServerIP(ctx, restcfg)
 	Expect(err).To(Not(HaveOccurred()))
 
 	k8s, err = kubernetes.NewForConfig(restcfg)
@@ -107,6 +109,7 @@ func initKubernetesClient(kubeconfig []byte) {
 
 	logger, err := zap.NewDevelopment()
 	Expect(err).NotTo(HaveOccurred())
+
 	log.SetLogger(zapr.NewLogger(logger))
 }
 
@@ -121,24 +124,68 @@ func buildScheme() *runtime.Scheme {
 	return scheme
 }
 
-func installK3kChart(ctx context.Context, kubeconfig []byte) {
+func installK3SDocker(ctx context.Context) {
+	var (
+		err        error
+		kubeconfig []byte
+	)
+
+	k3sHostVersion := os.Getenv("K3S_HOST_VERSION")
+	if k3sHostVersion == "" {
+		k3sHostVersion = "v1.32.1+k3s1"
+	}
+
+	k3sHostVersion = strings.ReplaceAll(k3sHostVersion, "+", "-")
+
+	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:"+k3sHostVersion)
+	Expect(err).To(Not(HaveOccurred()))
+
+	containerIP, err := k3sContainer.ContainerIP(ctx)
+	Expect(err).To(Not(HaveOccurred()))
+
+	GinkgoWriter.Println("K3s containerIP: " + containerIP)
+
+	kubeconfig, err = k3sContainer.GetKubeConfig(context.Background())
+	Expect(err).To(Not(HaveOccurred()))
+
+	tmpFile, err := os.CreateTemp("", "kubeconfig-")
+	Expect(err).To(Not(HaveOccurred()))
+
+	_, err = tmpFile.Write(kubeconfig)
+	Expect(err).To(Not(HaveOccurred()))
+	Expect(tmpFile.Close()).To(Succeed())
+	kubeconfigPath = tmpFile.Name()
+
+	err = k3sContainer.LoadImages(ctx, repo+"/k3k:dev", repo+"/k3k-kubelet:dev")
+	Expect(err).To(Not(HaveOccurred()))
+	DeferCleanup(os.Remove, kubeconfigPath)
+
+	Expect(os.Setenv("KUBECONFIG", kubeconfigPath)).To(Succeed())
+	GinkgoWriter.Print(kubeconfigPath)
+	GinkgoWriter.Print(string(kubeconfig))
+}
+
+func installK3kChart() {
 	pwd, err := os.Getwd()
 	Expect(err).To(Not(HaveOccurred()))
 
 	k3kChart, err := loader.Load(path.Join(pwd, "../charts/k3k"))
 	Expect(err).To(Not(HaveOccurred()))
 
-	actionConfig := new(action.Configuration)
+	helmActionConfig = new(action.Configuration)
+
+	kubeconfig, err := os.ReadFile(kubeconfigPath)
+	Expect(err).To(Not(HaveOccurred()))
 
 	restClientGetter, err := NewRESTClientGetter(kubeconfig)
 	Expect(err).To(Not(HaveOccurred()))
 
-	err = actionConfig.Init(restClientGetter, k3kNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...any) {
+	err = helmActionConfig.Init(restClientGetter, k3kNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...any) {
 		GinkgoWriter.Printf("helm debug: "+format+"\n", v...)
 	})
 	Expect(err).To(Not(HaveOccurred()))
 
-	iCli := action.NewInstall(actionConfig)
+	iCli := action.NewInstall(helmActionConfig)
 	iCli.ReleaseName = k3kName
 	iCli.Namespace = k3kNamespace
 	iCli.CreateNamespace = true
@@ -148,7 +195,7 @@ func installK3kChart(ctx context.Context, kubeconfig []byte) {
 	controllerMap, _ := k3kChart.Values["controller"].(map[string]any)
 	imageMap, _ := controllerMap["image"].(map[string]any)
 	maps.Copy(imageMap, map[string]any{
-		"repository": "rancher/k3k",
+		"repository": repo + "/k3k",
 		"tag":        "dev",
 		"pullPolicy": "IfNotPresent",
 	})
@@ -157,12 +204,9 @@ func installK3kChart(ctx context.Context, kubeconfig []byte) {
 	sharedAgentMap, _ := agentMap["shared"].(map[string]any)
 	sharedAgentImageMap, _ := sharedAgentMap["image"].(map[string]any)
 	maps.Copy(sharedAgentImageMap, map[string]any{
-		"repository": "rancher/k3k-kubelet",
+		"repository": repo + "/k3k-kubelet",
 		"tag":        "dev",
 	})
-
-	err = k3sContainer.LoadImages(ctx, "rancher/k3k:dev", "rancher/k3k-kubelet:dev")
-	Expect(err).To(Not(HaveOccurred()))
 
 	release, err := iCli.Run(k3kChart, k3kChart.Values)
 	Expect(err).To(Not(HaveOccurred()))
@@ -279,17 +323,18 @@ var _ = AfterSuite(func() {
 	}
 
 	dumpK3kCoverageData(ctx, goCoverDir)
+	if k3sContainer != nil {
+		// dump k3s logs
+		k3sLogs, err := k3sContainer.Logs(ctx)
+		Expect(err).To(Not(HaveOccurred()))
+		writeLogs("k3s.log", k3sLogs)
 
-	// dump k3s logs
-	k3sLogs, err := k3sContainer.Logs(ctx)
-	Expect(err).To(Not(HaveOccurred()))
-	writeLogs("k3s.log", k3sLogs)
+		// dump k3k controller logs
+		k3kLogs := getK3kLogs(ctx)
+		writeLogs("k3k.log", k3kLogs)
 
-	// dump k3k controller logs
-	k3kLogs := getK3kLogs(ctx)
-	writeLogs("k3k.log", k3kLogs)
-
-	testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
+		testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
+	}
 })
 
 // dumpK3kCoverageData will kill the K3k controller container to force it to dump the coverage data.

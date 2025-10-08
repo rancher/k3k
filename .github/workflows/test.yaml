@@ -80,17 +80,30 @@ jobs:
     - name: Install Ginkgo
       run: go install github.com/onsi/ginkgo/v2/ginkgo
     
-    - name: Set coverage environment
+    - name: Setup environment
       run: |
         mkdir ${{ github.workspace }}/covdata
         
         echo "COVERAGE=true" >> $GITHUB_ENV
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
+        echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
+        echo "VERSION=1h" >> $GITHUB_ENV
+        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
 
-    - name: Build and package
+    - name: Install k3s
+      run: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${{ env.K3S_HOST_VERSION }} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
+
+    - name: Build and package and push dev images
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        REPO: ${{ env.REPO }}
+        VERSION: ${{ env.VERSION }}
       run: |
         make build
         make package
+        make push
+        make install
 
         # add k3kcli to $PATH
         echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
@@ -99,7 +112,11 @@ jobs:
       run: k3kcli -v
 
     - name: Run e2e tests
-      run: make test-e2e
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        REPO: ${{ env.REPO }}
+        VERSION: ${{ env.VERSION }}
+      run:  make test-e2e
 
     - name: Convert coverage data
       run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out
@@ -150,12 +167,13 @@ jobs:
     - name: Install Ginkgo
       run: go install github.com/onsi/ginkgo/v2/ginkgo
     
-    - name: Set coverage environment
+    - name: Setup environment
       run: |
         mkdir ${{ github.workspace }}/covdata
         
         echo "COVERAGE=true" >> $GITHUB_ENV
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
+        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
     
     - name: Build and package
       run: |
@@ -169,6 +187,9 @@ jobs:
       run: k3kcli -v
 
     - name: Run cli tests
+      env:
+        K3K_DOCKER_INSTALL: "true"
+        K3S_HOST_VERSION: "${{ env.K3S_HOST_VERSION }}"
       run: make test-cli
 
     - name: Convert coverage data

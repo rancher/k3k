@@ -33,6 +33,15 @@ spec:
               {{ end}}
           args:
           - k3k
+          - --cluster-cidr={{ .Values.host.clusterCIDR }}
+          - --k3s-server-image={{- include "server.registry" .}}{{ .Values.server.image.repository }}
+          - --k3s-server-image-pull-policy={{ .Values.server.image.pullPolicy }}
+          - --shared-agent-image={{- include "agent.shared.registry" .}}{{ .Values.agent.shared.image.repository }}:{{ default .Chart.AppVersion .Values.agent.shared.image.tag }}
+          - --shared-agent-image-pull-policy={{ .Values.agent.shared.image.pullPolicy }}
+          - --virtual-agent-image={{- include "agent.virtual.registry" .}}{{ .Values.agent.virtual.image.repository }}
+          - --virtual-agent-image-pull-policy={{ .Values.agent.virtual.image.pullPolicy }}
+          - --kubelet-port-range={{ .Values.agent.shared.kubeletPortRange }}
+          - --webhook-port-range={{ .Values.agent.shared.webhookPortRange }}
           {{- range $key, $value := include "image.pullSecrets" (concat .Values.agent.imagePullSecrets .Values.global.imagePullSecrets) | fromYamlArray }}
           - --agent-image-pull-secret 
           - {{ .name }}
@@ -42,24 +51,6 @@ spec:
           - {{ .name }}
           {{- end }}
           env:
-          - name: CLUSTER_CIDR
-            value: {{ .Values.host.clusterCIDR }}
-          - name: SHARED_AGENT_IMAGE
-            value: "{{- include "agent.shared.registry" .}}{{ .Values.agent.shared.image.repository }}:{{ default .Chart.AppVersion .Values.agent.shared.image.tag }}"
-          - name: SHARED_AGENT_IMAGE_PULL_POLICY
-            value: {{ .Values.agent.shared.image.pullPolicy }}
-          - name: VIRTUAL_AGENT_IMAGE
-            value: "{{- include "agent.virtual.registry" .}}{{ .Values.agent.virtual.image.repository }}"
-          - name: VIRTUAL_AGENT_IMAGE_PULL_POLICY
-            value: {{ .Values.agent.virtual.image.pullPolicy }}
-          - name: K3S_SERVER_IMAGE
-            value: "{{- include "server.registry" .}}{{ .Values.server.image.repository }}"
-          - name: K3S_SERVER_IMAGE_PULL_POLICY
-            value: {{ .Values.server.image.pullPolicy }}
-          - name: KUBELET_PORT_RANGE
-            value: {{ .Values.agent.shared.kubeletPortRange }}
-          - name: WEBHOOK_PORT_RANGE
-            value: {{ .Values.agent.shared.webhookPortRange }}
           - name: CONTROLLER_NAMESPACE
             valueFrom:
               fieldRef:

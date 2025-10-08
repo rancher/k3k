@@ -27,7 +27,7 @@ jobs:
         version: v2.3.0
 
   validate:
-    runs-on: ubuntu-latest>> $GIT
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code

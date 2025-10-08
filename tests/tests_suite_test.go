@@ -59,10 +59,7 @@ var (
 )
 
 var _ = BeforeSuite(func() {
-	var (
-		kubeconfig []byte
-		err        error
-	)
+	var kubeconfig []byte
 	ctx := context.Background()
 
 	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
@@ -72,13 +69,26 @@ var _ = BeforeSuite(func() {
 		repo = "rancher"
 	}
 
-	dockerInstallationEnv := os.Getenv("K3K_DOCKER_INSTALL")
+	_, dockerInstallEnabled := os.LookupEnv("K3K_DOCKER_INSTALL")
 
-	if dockerInstallationEnv != "" {
+	if dockerInstallEnabled {
 		installK3SDocker(ctx)
+		initKubernetesClient(ctx)
+		installK3kChart(kubeconfig)
+	} else {
+		initKubernetesClient(ctx)
 	}
 
-	kubeconfigPath = os.Getenv("KUBECONFIG")
+	patchPVC(ctx, k8s)
+})
+
+func initKubernetesClient(ctx context.Context) {
+	var (
+		err        error
+		kubeconfig []byte
+	)
+
+	kubeconfigPath := os.Getenv("KUBECONFIG")
 	Expect(kubeconfigPath).To(Not(BeEmpty()))
 
 	kubeconfig, err = os.ReadFile(kubeconfigPath)
@@ -90,26 +100,6 @@ var _ = BeforeSuite(func() {
 	hostIP, err = getServerIP(ctx, restcfg)
 	Expect(err).To(Not(HaveOccurred()))
 
-	initKubernetesClient()
-	installK3kChart(kubeconfig)
-
-	patchPVC(ctx, k8s)
-})
-
-func initKubernetesClient() {
-	var (
-		err        error
-		kubeconfig []byte
-	)
-
-	kubeconfigPath := os.Getenv("KUBECONFIG")
-
-	kubeconfig, err = os.ReadFile(kubeconfigPath)
-	Expect(err).To(Not(HaveOccurred()))
-
-	restcfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-	Expect(err).To(Not(HaveOccurred()))
-
 	k8s, err = kubernetes.NewForConfig(restcfg)
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -119,6 +109,7 @@ func initKubernetesClient() {
 
 	logger, err := zap.NewDevelopment()
 	Expect(err).NotTo(HaveOccurred())
+
 	log.SetLogger(zapr.NewLogger(logger))
 }
 

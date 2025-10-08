@@ -64,7 +64,7 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          {{- with .Values.extraEnv }}
+          {{- with .Values.controller.extraEnv }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
           ports:

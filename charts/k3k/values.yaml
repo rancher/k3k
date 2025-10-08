@@ -20,7 +20,7 @@ host:
   clusterCIDR: ""
 
 controller:
-  replicaCount: 1
+  replicas: 1
   image:
     registry: ""
     repository: rancher/k3k

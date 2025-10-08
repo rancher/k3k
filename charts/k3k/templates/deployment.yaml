@@ -6,7 +6,7 @@ metadata:
     {{- include "k3k.labels" . | nindent 4 }}
   namespace: {{ .Release.Namespace }}
 spec:
-  replicas: {{ .Values.controller.replicaCount }}
+  replicas: {{ .Values.controller.replicas }}
   selector:
      matchLabels:
       {{- include "k3k.selectorLabels" . | nindent 6 }}

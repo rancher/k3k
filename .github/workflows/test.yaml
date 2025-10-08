@@ -107,6 +107,9 @@ jobs:
         make push
         make install
 
+        # add k3kcli to $PATH
+        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
     - name: Check k3kcli
       run: k3kcli -v
 

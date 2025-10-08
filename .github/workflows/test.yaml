@@ -98,6 +98,7 @@ jobs:
 
     - name: Build and package and push dev images
       env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         REPO: ${{ env.REPO }}
         VERSION: ${{ env.VERSION }}
       run: |

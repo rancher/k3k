@@ -41,10 +41,20 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring service status to virtual cluster")
 
-	var hostService, virtService v1.Service
-
+	var hostService v1.Service
 	if err := r.HostClient.Get(ctx, req.NamespacedName, &hostService); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+	}
+
+	// Some services are owned by the cluster but don't have the annotations set (i.e. the kubelet svc)
+	// They don't exists in the virtual cluster, so we can skip them
+
+	virtualServiceName, virtualServiceNameFound := hostService.Annotations[translate.ResourceNameAnnotation]
+	virtualServiceNamespace, virtualServiceNamespaceFound := hostService.Annotations[translate.ResourceNamespaceAnnotation]
+
+	if !virtualServiceNameFound || !virtualServiceNamespaceFound {
+		log.V(1).Info(fmt.Sprintf("service %s/%s does not have virtual service annotations, skipping", hostService.Namespace, hostService.Name))
+		return reconcile.Result{}, nil
 	}
 
 	// get cluster from the object
@@ -60,10 +70,11 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	virtualServiceKey := types.NamespacedName{
-		Name:      hostService.Annotations[translate.ResourceNameAnnotation],
-		Namespace: hostService.Annotations[translate.ResourceNamespaceAnnotation],
+		Name:      virtualServiceName,
+		Namespace: virtualServiceNamespace,
 	}
 
+	var virtService v1.Service
 	if err := virtualClient.Get(ctx, virtualServiceKey, &virtService); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get virt service: %v", err)
 	}

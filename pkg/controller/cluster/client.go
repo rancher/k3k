@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 )
 
-// newVirtualClient
+// newVirtualClient creates a new Client that can be used to interact with the virtual cluster
 func newVirtualClient(ctx context.Context, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace string) (ctrlruntimeclient.Client, error) {
 	var clusterKubeConfig v1.Secret
 

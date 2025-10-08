@@ -9,9 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -38,7 +38,8 @@ var (
 	webhookPortRange        string
 	maxConcurrentReconciles int
 	debug                   bool
-	logger                  *log.Logger
+	logFormat               string
+	logger                  logr.Logger
 )
 
 func init() {
@@ -56,12 +57,13 @@ func main() {
 		},
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			cmds.InitializeConfig(cmd)
-			logger = log.New(debug)
+			logger = zapr.NewLogger(log.New(debug, logFormat))
 		},
 		RunE: run,
 	}
 
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Debug level logging")
+	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "json", "Log format (json or console)")
 	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig path")
 	rootCmd.PersistentFlags().StringVar(&config.ClusterCIDR, "cluster-cidr", "", "Cluster CIDR to be added to the networkpolicy")
 	rootCmd.PersistentFlags().StringVar(&config.SharedAgentImage, "shared-agent-image", "rancher/k3k-kubelet", "K3K Virtual Kubelet image")
@@ -77,7 +79,7 @@ func main() {
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 50, "maximum number of concurrent reconciles")
 
 	if err := rootCmd.Execute(); err != nil {
-		logger.Fatalw("failed to run k3k controller", zap.Error(err))
+		logger.Error(err, "failed to run k3k controller")
 	}
 }
 
@@ -86,6 +88,7 @@ func run(cmd *cobra.Command, args []string) error {
 	defer stop()
 
 	logger.Info("Starting k3k - Version: " + buildinfo.Version)
+	ctrlruntimelog.SetLogger(logger)
 
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -98,8 +101,6 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create new controller runtime manager: %v", err)
 	}
-
-	ctrlruntimelog.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
 
 	logger.Info("adding cluster controller")
 

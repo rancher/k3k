@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
@@ -42,7 +43,6 @@ import (
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
-	k3klog "github.com/rancher/k3k/pkg/log"
 )
 
 // check at compile time if the Provider implements the nodeutil.Provider interface
@@ -61,12 +61,12 @@ type Provider struct {
 	ClusterName      string
 	serverIP         string
 	dnsIP            string
-	logger           *k3klog.Logger
+	logger           logr.Logger
 }
 
 var ErrRetryTimeout = errors.New("provider timed out")
 
-func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger *k3klog.Logger, namespace, name, serverIP, dnsIP string) (*Provider, error) {
+func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger logr.Logger, namespace, name, serverIP, dnsIP string) (*Provider, error) {
 	coreClient, err := cv1.NewForConfig(&hostConfig)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (p *Provider) GetContainerLogs(ctx context.Context, namespace, podName, con
 	}
 
 	closer, err := p.CoreClient.Pods(p.ClusterNamespace).GetLogs(hostPodName, &options).Stream(ctx)
-	p.logger.Infof("got error %s when getting logs for %s in %s", err, hostPodName, p.ClusterNamespace)
+	p.logger.Error(err, fmt.Sprintf("got error when getting logs for %s in %s", hostPodName, p.ClusterNamespace))
 
 	return closer, err
 }
@@ -199,7 +199,7 @@ func (p *Provider) AttachToContainer(ctx context.Context, namespace, podName, co
 
 // GetStatsSummary gets the stats for the node, including running pods
 func (p *Provider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
-	p.logger.Debug("GetStatsSummary")
+	p.logger.V(1).Info("GetStatsSummary")
 
 	nodeList := &corev1.NodeList{}
 	if err := p.CoreClient.RESTClient().Get().Resource("nodes").Do(ctx).Into(nodeList); err != nil {
@@ -403,7 +403,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	// inject networking information to the pod including the virtual cluster controlplane endpoint
 	configureNetworking(tPod, pod.Name, pod.Namespace, p.serverIP, p.dnsIP)
 
-	p.logger.Infow("creating pod",
+	p.logger.Info("creating pod",
 		"host_namespace", tPod.Namespace, "host_name", tPod.Name,
 		"virtual_namespace", pod.Namespace, "virtual_name", pod.Name,
 	)
@@ -489,7 +489,7 @@ func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 }
 
 func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
-	p.logger.Debugw("got a request for update pod")
+	p.logger.V(1).Info("got a request for update pod")
 
 	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
 	// See: https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
@@ -519,7 +519,7 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 		currentHostPod.Spec.EphemeralContainers = pod.Spec.EphemeralContainers
 
 		if _, err := p.CoreClient.Pods(p.ClusterNamespace).UpdateEphemeralContainers(ctx, currentHostPod.Name, &currentHostPod, metav1.UpdateOptions{}); err != nil {
-			p.logger.Errorf("error when updating ephemeral containers: %v", err)
+			p.logger.Error(err, "error when updating ephemeral containers")
 			return err
 		}
 
@@ -590,20 +590,20 @@ func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 // expected to call the NotifyPods callback with a terminal pod status where all the containers are in a terminal
 // state, as well as the pod. DeletePod may be called multiple times for the same pod.
 func (p *Provider) deletePod(ctx context.Context, pod *corev1.Pod) error {
-	p.logger.Infof("got request to delete pod %s/%s", pod.Namespace, pod.Name)
+	p.logger.Info(fmt.Sprintf("got request to delete pod %s/%s", pod.Namespace, pod.Name))
 	hostName := p.Translator.TranslateName(pod.Namespace, pod.Name)
 
 	err := p.CoreClient.Pods(p.ClusterNamespace).Delete(ctx, hostName, metav1.DeleteOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			p.logger.Infof("pod %s/%s already deleted from host cluster", p.ClusterNamespace, hostName)
+			p.logger.Info(fmt.Sprintf("pod %s/%s already deleted from host cluster", p.ClusterNamespace, hostName))
 			return nil
 		}
 
 		return fmt.Errorf("unable to delete pod %s/%s: %w", pod.Namespace, pod.Name, err)
 	}
 
-	p.logger.Infof("pod %s/%s deleted from host cluster", p.ClusterNamespace, hostName)
+	p.logger.Info(fmt.Sprintf("pod %s/%s deleted from host cluster", p.ClusterNamespace, hostName))
 
 	return nil
 }
@@ -613,7 +613,7 @@ func (p *Provider) deletePod(ctx context.Context, pod *corev1.Pod) error {
 // concurrently outside of the calling goroutine. Therefore it is recommended
 // to return a version after DeepCopy.
 func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
-	p.logger.Debugw("got a request for get pod", "Namespace", namespace, "Name", name)
+	p.logger.V(1).Info("got a request for get pod", "namespace", namespace, "name", name)
 	hostNamespaceName := types.NamespacedName{
 		Namespace: p.ClusterNamespace,
 		Name:      p.Translator.TranslateName(namespace, name),
@@ -635,14 +635,14 @@ func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.
 // concurrently outside of the calling goroutine. Therefore it is recommended
 // to return a version after DeepCopy.
 func (p *Provider) GetPodStatus(ctx context.Context, namespace, name string) (*corev1.PodStatus, error) {
-	p.logger.Debugw("got a request for pod status", "Namespace", namespace, "Name", name)
+	p.logger.V(1).Info("got a request for pod status", "namespace", namespace, "name", name)
 
 	pod, err := p.GetPod(ctx, namespace, name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get pod for status: %w", err)
 	}
 
-	p.logger.Debugw("got pod status", "Namespace", namespace, "Name", name, "Status", pod.Status)
+	p.logger.V(1).Info("got pod status", "namespace", namespace, "name", name, "status", pod.Status)
 
 	return pod.Status.DeepCopy(), nil
 }

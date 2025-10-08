@@ -7,12 +7,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -22,8 +22,9 @@ import (
 var (
 	configFile string
 	cfg        config
-	logger     *log.Logger
+	logger     logr.Logger
 	debug      bool
+	logFormat  string
 )
 
 func main() {
@@ -34,13 +35,16 @@ func main() {
 			if err := InitializeConfig(cmd); err != nil {
 				return err
 			}
-			logger = log.New(debug)
-			ctrlruntimelog.SetLogger(zapr.NewLogger(logger.Desugar().WithOptions(zap.AddCallerSkip(1))))
+
+			logger = zapr.NewLogger(log.New(debug, logFormat))
+			ctrlruntimelog.SetLogger(logger)
 			return nil
 		},
 		RunE: run,
 	}
 
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug logging")
+	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "json", "Log format (json or console)")
 	rootCmd.PersistentFlags().StringVar(&cfg.ClusterName, "cluster-name", "", "Name of the k3k cluster")
 	rootCmd.PersistentFlags().StringVar(&cfg.ClusterNamespace, "cluster-namespace", "", "Namespace of the k3k cluster")
 	rootCmd.PersistentFlags().StringVar(&cfg.Token, "token", "", "K3S token of the k3k cluster")
@@ -53,7 +57,6 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&cfg.ServerIP, "server-ip", "", "Server IP used for registering the virtual kubelet to the cluster")
 	rootCmd.PersistentFlags().StringVar(&cfg.Version, "version", "", "Version of kubernetes server")
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "/opt/rancher/k3k/config.yaml", "Path to k3k-kubelet config file")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug logging")
 	rootCmd.PersistentFlags().BoolVar(&cfg.MirrorHostNodes, "mirror-host-nodes", false, "Mirror real node objects from host cluster")
 
 	if err := rootCmd.Execute(); err != nil {

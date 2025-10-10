@@ -484,5 +484,6 @@ func findPodCondition(conditions []corev1.PodCondition, condType corev1.PodCondi
 			return &conditions[i]
 		}
 	}
+
 	return nil
 }

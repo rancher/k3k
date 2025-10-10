@@ -140,6 +140,9 @@ func NewCluster(namespace string) *v1alpha1.Cluster {
 			Persistence: v1alpha1.PersistenceConfig{
 				Type: v1alpha1.EphemeralPersistenceMode,
 			},
+			ServerArgs: []string{
+				"--disable-network-policy",
+			},
 		},
 	}
 }
@@ -261,32 +264,35 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {
 
 	var podIP string
 
-	// check that the nginx Pod is up and running in the host cluster
-	Eventually(func() bool {
-		podList, err := k8s.CoreV1().Pods(c.Cluster.Namespace).List(ctx, v1.ListOptions{})
-		Expect(err).To(Not(HaveOccurred()))
+	// only check the pod on the host cluster if the mode is shared mode
+	if c.Cluster.Spec.Mode == v1alpha1.SharedClusterMode {
+		// check that the nginx Pod is up and running in the host cluster
+		Eventually(func() bool {
+			podList, err := k8s.CoreV1().Pods(c.Cluster.Namespace).List(ctx, v1.ListOptions{})
+			Expect(err).To(Not(HaveOccurred()))
 
-		for _, pod := range podList.Items {
-			resourceName := pod.Annotations[translate.ResourceNameAnnotation]
-			resourceNamespace := pod.Annotations[translate.ResourceNamespaceAnnotation]
+			for _, pod := range podList.Items {
+				resourceName := pod.Annotations[translate.ResourceNameAnnotation]
+				resourceNamespace := pod.Annotations[translate.ResourceNamespaceAnnotation]
 
-			if resourceName == nginxPod.Name && resourceNamespace == nginxPod.Namespace {
-				podIP = pod.Status.PodIP
+				if resourceName == nginxPod.Name && resourceNamespace == nginxPod.Namespace {
+					podIP = pod.Status.PodIP
 
-				GinkgoWriter.Printf(
-					"pod=%s resource=%s/%s status=%s podIP=%s\n",
-					pod.Name, resourceNamespace, resourceName, pod.Status.Phase, podIP,
-				)
+					GinkgoWriter.Printf(
+						"pod=%s resource=%s/%s status=%s podIP=%s\n",
+						pod.Name, resourceNamespace, resourceName, pod.Status.Phase, podIP,
+					)
 
-				return pod.Status.Phase == corev1.PodRunning && podIP != ""
+					return pod.Status.Phase == corev1.PodRunning && podIP != ""
+				}
 			}
-		}
 
-		return false
-	}).
-		WithTimeout(time.Minute).
-		WithPolling(time.Second * 5).
-		Should(BeTrue())
+			return false
+		}).
+			WithTimeout(time.Minute).
+			WithPolling(time.Second * 5).
+			Should(BeTrue())
+	}
 
 	// get the running pod from the virtual cluster
 	nginxPod, err = c.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, v1.GetOptions{})

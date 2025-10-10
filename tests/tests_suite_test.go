@@ -477,3 +477,12 @@ func caCertSecret(name, namespace string, crt, key []byte) *corev1.Secret {
 		},
 	}
 }
+
+func findPodCondition(conditions []corev1.PodCondition, condType corev1.PodConditionType) *corev1.PodCondition {
+	for i := range conditions {
+		if conditions[i].Type == condType {
+			return &conditions[i]
+		}
+	}
+	return nil
+}

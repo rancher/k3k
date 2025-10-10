@@ -2,11 +2,14 @@ package k3k_test
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
@@ -395,6 +398,180 @@ var _ = When("a virtual mode cluster update its server args", Label("e2e"), func
 		}).
 			WithPolling(time.Second * 2).
 			WithTimeout(time.Minute * 2).
+			Should(Succeed())
+	})
+})
+
+var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
+	var (
+		virtualCluster *VirtualCluster
+		nginxPod       *v1.Pod
+	)
+	ctx := context.Background()
+	BeforeEach(func() {
+		namespace := NewNamespace()
+
+		cluster := NewCluster(namespace.Name)
+
+		// Add initial version
+		cluster.Spec.Version = "v1.31.13-k3s1"
+
+		// need to enable persistence for this
+		cluster.Spec.Persistence = v1alpha1.PersistenceConfig{
+			Type: v1alpha1.DynamicPersistenceMode,
+		}
+
+		CreateCluster(cluster)
+
+		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     client,
+		}
+		sPods := listServerPods(ctx, virtualCluster)
+		Expect(len(sPods)).To(Equal(1))
+
+		serverPod := sPods[0]
+		Expect(serverPod.Spec.Containers[0].Image).To(Equal("rancher/k3s:" + cluster.Spec.Version))
+
+		nginxPod, _ = virtualCluster.NewNginxPod("")
+	})
+	It("will update server version when version spec is updated", func() {
+		Eventually(func(g Gomega) {
+			var cluster v1alpha1.Cluster
+
+			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// update cluster version
+			cluster.Spec.Version = "v1.32.8-k3s1"
+
+			err = k8sClient.Update(ctx, &cluster)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// server pods
+			serverPods := listServerPods(ctx, virtualCluster)
+			g.Expect(len(serverPods)).To(Equal(1))
+
+			serverPod := serverPods[0]
+			cond := findPodCondition(serverPod.Status.Conditions, corev1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+
+			g.Expect(serverPod.Spec.Containers[0].Image).To(Equal("rancher/k3s:" + cluster.Spec.Version))
+
+			clusterVersion, err := virtualCluster.Client.Discovery().ServerVersion()
+			g.Expect(err).To(BeNil())
+			g.Expect(clusterVersion.String()).To(Equal(strings.ReplaceAll(cluster.Spec.Version, "-", "+")))
+
+			_, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
+			g.Expect(err).To(BeNil())
+
+			cond = findPodCondition(nginxPod.Status.Conditions, corev1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 3).
+			Should(Succeed())
+	})
+})
+
+var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
+	var (
+		virtualCluster *VirtualCluster
+		nginxPod       *v1.Pod
+	)
+	ctx := context.Background()
+	BeforeEach(func() {
+		namespace := NewNamespace()
+
+		cluster := NewCluster(namespace.Name)
+
+		// Add initial version
+		cluster.Spec.Version = "v1.31.13-k3s1"
+
+		cluster.Spec.Mode = v1alpha1.VirtualClusterMode
+		cluster.Spec.Agents = ptr.To(int32(1))
+
+		// need to enable persistence for this
+		cluster.Spec.Persistence = v1alpha1.PersistenceConfig{
+			Type: v1alpha1.DynamicPersistenceMode,
+		}
+
+		CreateCluster(cluster)
+
+		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     client,
+		}
+		sPods := listServerPods(ctx, virtualCluster)
+		Expect(len(sPods)).To(Equal(1))
+
+		serverPod := sPods[0]
+		Expect(serverPod.Spec.Containers[0].Image).To(Equal("rancher/k3s:" + cluster.Spec.Version))
+
+		aPods := listAgentPods(ctx, virtualCluster)
+		Expect(len(aPods)).To(Equal(1))
+
+		agentPod := aPods[0]
+		Expect(agentPod.Spec.Containers[0].Image).To(Equal("rancher/k3s:" + cluster.Spec.Version))
+
+		nginxPod, _ = virtualCluster.NewNginxPod("")
+	})
+	It("will update server version when version spec is updated", func() {
+		Eventually(func(g Gomega) {
+			var cluster v1alpha1.Cluster
+
+			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// update cluster version
+			cluster.Spec.Version = "v1.32.8-k3s1"
+
+			err = k8sClient.Update(ctx, &cluster)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// server pods
+			serverPods := listServerPods(ctx, virtualCluster)
+			g.Expect(len(serverPods)).To(Equal(1))
+
+			serverPod := serverPods[0]
+			cond := findPodCondition(serverPod.Status.Conditions, corev1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+
+			g.Expect(serverPod.Spec.Containers[0].Image).To(Equal("rancher/k3s:" + cluster.Spec.Version))
+
+			// agent pods
+			agentPods := listAgentPods(ctx, virtualCluster)
+			g.Expect(len(agentPods)).To(Equal(1))
+
+			agentPod := agentPods[0]
+			cond = findPodCondition(agentPod.Status.Conditions, corev1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+
+			g.Expect(agentPod.Spec.Containers[0].Image).To(Equal("rancher/k3s:" + cluster.Spec.Version))
+
+			clusterVersion, err := virtualCluster.Client.Discovery().ServerVersion()
+			g.Expect(err).To(BeNil())
+			g.Expect(clusterVersion.String()).To(Equal(strings.ReplaceAll(cluster.Spec.Version, "-", "+")))
+
+			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
+			g.Expect(err).To(BeNil())
+
+			cond = findPodCondition(nginxPod.Status.Conditions, corev1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 3).
 			Should(Succeed())
 	})
 })

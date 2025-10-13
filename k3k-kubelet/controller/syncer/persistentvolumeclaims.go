@@ -16,7 +16,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 const (
@@ -53,7 +53,7 @@ func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, cluster
 }
 
 func (r *PVCReconciler) filterResources(object ctrlruntimeclient.Object) bool {
-	var cluster v1alpha1.Cluster
+	var cluster v1beta1.Cluster
 
 	ctx := context.Background()
 
@@ -83,7 +83,7 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 
 	var (
 		virtPVC v1.PersistentVolumeClaim
-		cluster v1alpha1.Cluster
+		cluster v1beta1.Cluster
 	)
 
 	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {

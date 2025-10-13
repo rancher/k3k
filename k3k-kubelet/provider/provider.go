@@ -41,7 +41,7 @@ import (
 	"github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider/collectors"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
 
@@ -347,7 +347,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 		Name:      p.ClusterName,
 	}
 
-	var cluster v1alpha1.Cluster
+	var cluster v1beta1.Cluster
 
 	if err := p.HostClient.Get(ctx, clusterKey, &cluster); err != nil {
 		return fmt.Errorf("unable to get cluster %s in namespace %s: %w", p.ClusterName, p.ClusterNamespace, err)

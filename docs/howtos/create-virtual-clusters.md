@@ -17,7 +17,7 @@ This guide walks through the various ways to create and manage virtual clusters 
 ### CRD Method
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: k3kcluster-ingress
@@ -46,7 +46,7 @@ This will create a virtual cluster in `shared` mode and expose it via an ingress
 ### CRD Method
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: k3kcluster-persistent
@@ -80,7 +80,7 @@ k3kcli cluster create \
 ### CRD Method
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: k3kcluster-ha
@@ -105,7 +105,7 @@ k3kcli cluster create \
 ### CRD Method
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: k3kcluster-virtual
@@ -136,7 +136,7 @@ k3kcli cluster create \
 ### CRD Method
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: k3kcluster-ephemeral
@@ -162,7 +162,7 @@ k3kcli cluster create \
 ### CRD Method
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: k3kcluster-custom-k8s
@@ -189,7 +189,7 @@ k3kcli cluster create \
 ### CRD Method
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: k3kcluster-resourced
@@ -216,7 +216,7 @@ This configures the CPU and memory limit for the virtual cluster.
 ### CRD Method
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: k3kcluster-node-placed
@@ -259,7 +259,7 @@ k3kcli cluster create \
 ### CRD Method
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: k3kcluster-http-proxy

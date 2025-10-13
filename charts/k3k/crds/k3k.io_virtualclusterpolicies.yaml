@@ -20,7 +20,7 @@ spec:
     - jsonPath: .spec.allowedMode
       name: Mode
       type: string
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: |-

@@ -1,4 +1,4 @@
-package v1alpha1
+package v1beta1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	SchemeGroupVersion = schema.GroupVersion{Group: k3k.GroupName, Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: k3k.GroupName, Version: "v1beta1"}
 	SchemBuilder       = runtime.NewSchemeBuilder(addKnownTypes)
 	AddToScheme        = SchemBuilder.AddToScheme
 )

@@ -16,7 +16,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/policy"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -81,7 +81,7 @@ func buildScheme() *runtime.Scheme {
 	Expect(err).NotTo(HaveOccurred())
 	err = networkingv1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = v1alpha1.AddToScheme(scheme)
+	err = v1beta1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	return scheme

@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 )
 
@@ -36,7 +36,7 @@ type ToHostTranslator struct {
 	ClusterNamespace string
 }
 
-func NewHostTranslator(cluster *v1alpha1.Cluster) *ToHostTranslator {
+func NewHostTranslator(cluster *v1beta1.Cluster) *ToHostTranslator {
 	return &ToHostTranslator{
 		ClusterName:      cluster.Name,
 		ClusterNamespace: cluster.Namespace,

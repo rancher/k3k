@@ -21,7 +21,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 
@@ -30,7 +30,7 @@ import (
 )
 
 type VirtualCluster struct {
-	Cluster    *v1alpha1.Cluster
+	Cluster    *v1beta1.Cluster
 	RestConfig *rest.Config
 	Client     *kubernetes.Clientset
 }
@@ -38,10 +38,10 @@ type VirtualCluster struct {
 func NewVirtualCluster() *VirtualCluster { // By default, create an ephemeral cluster
 	GinkgoHelper()
 
-	return NewVirtualClusterWithType(v1alpha1.EphemeralPersistenceMode)
+	return NewVirtualClusterWithType(v1beta1.EphemeralPersistenceMode)
 }
 
-func NewVirtualClusterWithType(persistenceType v1alpha1.PersistenceMode) *VirtualCluster {
+func NewVirtualClusterWithType(persistenceType v1beta1.PersistenceMode) *VirtualCluster {
 	GinkgoHelper()
 
 	namespace := NewNamespace()
@@ -126,19 +126,19 @@ func deleteNamespace(name string) {
 	Expect(err).To(Not(HaveOccurred()))
 }
 
-func NewCluster(namespace string) *v1alpha1.Cluster {
-	return &v1alpha1.Cluster{
+func NewCluster(namespace string) *v1beta1.Cluster {
+	return &v1beta1.Cluster{
 		ObjectMeta: v1.ObjectMeta{
 			GenerateName: "cluster-",
 			Namespace:    namespace,
 		},
-		Spec: v1alpha1.ClusterSpec{
+		Spec: v1beta1.ClusterSpec{
 			TLSSANs: []string{hostIP},
-			Expose: &v1alpha1.ExposeConfig{
-				NodePort: &v1alpha1.NodePortConfig{},
+			Expose: &v1beta1.ExposeConfig{
+				NodePort: &v1beta1.NodePortConfig{},
 			},
-			Persistence: v1alpha1.PersistenceConfig{
-				Type: v1alpha1.EphemeralPersistenceMode,
+			Persistence: v1beta1.PersistenceConfig{
+				Type: v1beta1.EphemeralPersistenceMode,
 			},
 			ServerArgs: []string{
 				"--disable-network-policy",
@@ -147,7 +147,7 @@ func NewCluster(namespace string) *v1alpha1.Cluster {
 	}
 }
 
-func CreateCluster(cluster *v1alpha1.Cluster) {
+func CreateCluster(cluster *v1beta1.Cluster) {
 	GinkgoHelper()
 
 	ctx := context.Background()
@@ -198,13 +198,13 @@ func CreateCluster(cluster *v1alpha1.Cluster) {
 }
 
 // NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
-func NewVirtualK8sClient(cluster *v1alpha1.Cluster) *kubernetes.Clientset {
+func NewVirtualK8sClient(cluster *v1beta1.Cluster) *kubernetes.Clientset {
 	virtualK8sClient, _ := NewVirtualK8sClientAndConfig(cluster)
 	return virtualK8sClient
 }
 
 // NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
-func NewVirtualK8sClientAndConfig(cluster *v1alpha1.Cluster) (*kubernetes.Clientset, *rest.Config) {
+func NewVirtualK8sClientAndConfig(cluster *v1beta1.Cluster) (*kubernetes.Clientset, *rest.Config) {
 	GinkgoHelper()
 
 	var (
@@ -265,7 +265,7 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {
 	var podIP string
 
 	// only check the pod on the host cluster if the mode is shared mode
-	if c.Cluster.Spec.Mode != v1alpha1.SharedClusterMode {
+	if c.Cluster.Spec.Mode != v1beta1.SharedClusterMode {
 		return nginxPod, ""
 	}
 	// check that the nginx Pod is up and running in the host cluster

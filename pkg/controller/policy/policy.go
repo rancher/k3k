@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
 
@@ -46,10 +46,10 @@ func Add(mgr manager.Manager, clusterCIDR string, maxConcurrentReconciles int) e
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.VirtualClusterPolicy{}).
+		For(&v1beta1.VirtualClusterPolicy{}).
 		Watches(&v1.Namespace{}, namespaceEventHandler()).
 		Watches(&v1.Node{}, nodeEventHandler(&reconciler)).
-		Watches(&v1alpha1.Cluster{}, clusterEventHandler(&reconciler)).
+		Watches(&v1beta1.Cluster{}, clusterEventHandler(&reconciler)).
 		Owns(&networkingv1.NetworkPolicy{}).
 		Owns(&v1.ResourceQuota{}).
 		Owns(&v1.LimitRange{}).
@@ -129,7 +129,7 @@ func namespaceEventHandler() handler.Funcs {
 func nodeEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 	// enqueue all the available VirtualClusterPolicies
 	enqueueAllVCPs := func(ctx context.Context, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-		vcpList := &v1alpha1.VirtualClusterPolicyList{}
+		vcpList := &v1beta1.VirtualClusterPolicyList{}
 		if err := r.Client.List(ctx, vcpList); err != nil {
 			return
 		}
@@ -193,7 +193,7 @@ func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 	return handler.Funcs{
 		// When a Cluster is created, if its Namespace has the "policy.k3k.io/policy-name" label
 		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			cluster, ok := e.Object.(*v1alpha1.Cluster)
+			cluster, ok := e.Object.(*v1beta1.Cluster)
 			if !ok {
 				return
 			}
@@ -210,8 +210,8 @@ func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 		// When a Cluster is updated, if its Namespace has the "policy.k3k.io/policy-name" label
 		// and if some of its spec influenced by the policy changed
 		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			oldCluster, okOld := e.ObjectOld.(*v1alpha1.Cluster)
-			newCluster, okNew := e.ObjectNew.(*v1alpha1.Cluster)
+			oldCluster, okOld := e.ObjectOld.(*v1beta1.Cluster)
+			newCluster, okNew := e.ObjectNew.(*v1beta1.Cluster)
 
 			if !okOld || !okNew {
 				return
@@ -250,7 +250,7 @@ func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reco
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling VirtualClusterPolicy")
 
-	var policy v1alpha1.VirtualClusterPolicy
+	var policy v1beta1.VirtualClusterPolicy
 	if err := c.Client.Get(ctx, req.NamespacedName, &policy); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
@@ -281,7 +281,7 @@ func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reco
 	return reconcile.Result{}, nil
 }
 
-func (c *VirtualClusterPolicyReconciler) reconcileVirtualClusterPolicy(ctx context.Context, policy *v1alpha1.VirtualClusterPolicy) error {
+func (c *VirtualClusterPolicyReconciler) reconcileVirtualClusterPolicy(ctx context.Context, policy *v1beta1.VirtualClusterPolicy) error {
 	if err := c.reconcileMatchingNamespaces(ctx, policy); err != nil {
 		return err
 	}
@@ -293,7 +293,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileVirtualClusterPolicy(ctx conte
 	return nil
 }
 
-func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context.Context, policy *v1alpha1.VirtualClusterPolicy) error {
+func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context.Context, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling matching Namespaces")
 
@@ -340,7 +340,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context
 	return nil
 }
 
-func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, namespace string, policy *v1alpha1.VirtualClusterPolicy) error {
+func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, namespace string, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling ResourceQuota")
 
@@ -389,7 +389,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, nam
 	return err
 }
 
-func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, namespace string, policy *v1alpha1.VirtualClusterPolicy) error {
+func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, namespace string, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling LimitRange")
 
@@ -437,11 +437,11 @@ func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, nam
 	return err
 }
 
-func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, namespace *v1.Namespace, policy *v1alpha1.VirtualClusterPolicy) error {
+func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, namespace *v1.Namespace, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling Clusters")
 
-	var clusters v1alpha1.ClusterList
+	var clusters v1beta1.ClusterList
 	if err := c.Client.List(ctx, &clusters, client.InNamespace(namespace.Name)); err != nil {
 		return err
 	}

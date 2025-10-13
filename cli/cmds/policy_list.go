@@ -9,7 +9,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 func NewPolicyListCmd(appCtx *AppContext) *cobra.Command {
@@ -27,7 +27,7 @@ func policyList(appCtx *AppContext) func(cmd *cobra.Command, args []string) erro
 		ctx := context.Background()
 		client := appCtx.Client
 
-		var policies v1alpha1.VirtualClusterPolicyList
+		var policies v1beta1.VirtualClusterPolicyList
 		if err := client.List(ctx, &policies); err != nil {
 			return err
 		}

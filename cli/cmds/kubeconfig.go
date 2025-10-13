@@ -18,7 +18,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
@@ -83,7 +83,7 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 			Namespace: appCtx.Namespace(cfg.name),
 		}
 
-		var cluster v1alpha1.Cluster
+		var cluster v1beta1.Cluster
 
 		if err := client.Get(ctx, clusterKey, &cluster); err != nil {
 			return err
@@ -128,7 +128,7 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 	}
 }
 
-func writeKubeconfigFile(cluster *v1alpha1.Cluster, kubeconfig *clientcmdapi.Config, configName string) error {
+func writeKubeconfigFile(cluster *v1beta1.Cluster, kubeconfig *clientcmdapi.Config, configName string) error {
 	if configName == "" {
 		configName = cluster.Namespace + "-" + cluster.Name + "-kubeconfig.yaml"
 	}

@@ -13,10 +13,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1alpha1.Cluster, version string, mirrorHostNodes bool) {
+func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1beta1.Cluster, version string, mirrorHostNodes bool) {
 	ctx := context.Background()
 	if mirrorHostNodes {
 		hostNode, err := coreClient.Nodes().Get(ctx, node.Name, metav1.GetOptions{})

@@ -32,7 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -118,7 +118,7 @@ func buildScheme() *runtime.Scheme {
 
 	err := corev1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = v1alpha1.AddToScheme(scheme)
+	err = v1beta1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	return scheme

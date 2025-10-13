@@ -16,7 +16,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/buildinfo"
 )
 
@@ -51,7 +51,7 @@ func NewRootCmd() *cobra.Command {
 
 			scheme := runtime.NewScheme()
 			_ = clientgoscheme.AddToScheme(scheme)
-			_ = v1alpha1.AddToScheme(scheme)
+			_ = v1beta1.AddToScheme(scheme)
 			_ = apiextensionsv1.AddToScheme(scheme)
 
 			ctrlClient, err := client.New(restConfig, client.Options{Scheme: scheme})

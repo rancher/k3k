@@ -20,7 +20,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -119,7 +119,7 @@ func buildScheme() *runtime.Scheme {
 
 	err := clientgoscheme.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = v1alpha1.AddToScheme(scheme)
+	err = v1beta1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	return scheme
@@ -174,7 +174,7 @@ var _ = Describe("Kubelet Controller", func() {
 	Describe("PersistentVolumeClaim Syncer", PVCTests)
 })
 
-func translateName(cluster v1alpha1.Cluster, namespace, name string) string {
+func translateName(cluster v1beta1.Cluster, namespace, name string) string {
 	translator := translate.ToHostTranslator{
 		ClusterName:      cluster.Name,
 		ClusterNamespace: cluster.Namespace,

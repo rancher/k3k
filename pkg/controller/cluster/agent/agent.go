@@ -11,7 +11,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 )
 
@@ -24,12 +24,12 @@ type ResourceEnsurer interface {
 }
 
 type Config struct {
-	cluster *v1alpha1.Cluster
+	cluster *v1beta1.Cluster
 	client  ctrlruntimeclient.Client
 	scheme  *runtime.Scheme
 }
 
-func NewConfig(cluster *v1alpha1.Cluster, client ctrlruntimeclient.Client, scheme *runtime.Scheme) *Config {
+func NewConfig(cluster *v1beta1.Cluster, client ctrlruntimeclient.Client, scheme *runtime.Scheme) *Config {
 	return &Config{
 		cluster: cluster,
 		client:  client,

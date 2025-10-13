@@ -22,7 +22,7 @@ This example creates a "shared" mode K3k cluster with:
 
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: my-virtual-cluster

@@ -27,7 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
@@ -80,7 +80,7 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	// get cluster name from the object
 	clusterKey := clusterNamespacedName(&sts)
 
-	var cluster v1alpha1.Cluster
+	var cluster v1beta1.Cluster
 	if err := p.Client.Get(ctx, clusterKey, &cluster); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
@@ -114,7 +114,7 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	return reconcile.Result{}, nil
 }
 
-func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1alpha1.Cluster, pod *v1.Pod) error {
+func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1beta1.Cluster, pod *v1.Pod) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("handling server pod")
 
@@ -169,7 +169,7 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1a
 	return nil
 }
 
-func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1alpha1.Cluster) (*tls.Config, error) {
+func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1.Cluster) (*tls.Config, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("generating etcd TLS client certificate", "cluster", cluster)
 
@@ -256,7 +256,7 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 	return nil
 }
 
-func (p *StatefulSetReconciler) clusterToken(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
+func (p *StatefulSetReconciler) clusterToken(ctx context.Context, cluster *v1beta1.Cluster) (string, error) {
 	var tokenSecret v1.Secret
 
 	nn := types.NamespacedName{

@@ -1,3 +1,3 @@
 // +k8s:deepcopy-gen=package
 // +groupName=k3k.io
-package v1alpha1
+package v1beta1

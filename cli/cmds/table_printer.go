@@ -25,7 +25,7 @@ func getPrinterColumnsFromCRD(crd *apiextensionsv1.CustomResourceDefinition) []a
 	}
 
 	for _, version := range crd.Spec.Versions {
-		if version.Name == "v1alpha1" {
+		if version.Name == "v1beta1" {
 			printerColumns = append(printerColumns, version.AdditionalPrinterColumns...)
 			break
 		}

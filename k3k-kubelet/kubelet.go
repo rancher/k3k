@@ -39,7 +39,7 @@ import (
 	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
 	k3kwebhook "github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
@@ -50,11 +50,11 @@ var baseScheme = runtime.NewScheme()
 
 func init() {
 	_ = clientgoscheme.AddToScheme(baseScheme)
-	_ = v1alpha1.AddToScheme(baseScheme)
+	_ = v1beta1.AddToScheme(baseScheme)
 }
 
 type kubelet struct {
-	virtualCluster v1alpha1.Cluster
+	virtualCluster v1beta1.Cluster
 
 	name       string
 	port       int
@@ -170,7 +170,7 @@ func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, e
 		return nil, errors.New("failed to get the DNS service for the cluster: " + err.Error())
 	}
 
-	var virtualCluster v1alpha1.Cluster
+	var virtualCluster v1beta1.Cluster
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: c.ClusterName, Namespace: c.ClusterNamespace}, &virtualCluster); err != nil {
 		return nil, errors.New("failed to get virtualCluster spec: " + err.Error())
 	}
@@ -303,7 +303,7 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		return clientcmd.BuildConfigFromFlags("", virtualConfigPath)
 	}
 	// virtual kubeconfig file is empty, trying to fetch the k3k cluster kubeconfig
-	var cluster v1alpha1.Cluster
+	var cluster v1beta1.Cluster
 	if err := hostClient.Get(ctx, types.NamespacedName{Namespace: clusterNamespace, Name: clusterName}, &cluster); err != nil {
 		return nil, err
 	}
@@ -421,7 +421,7 @@ func loadTLSConfig(clusterName, clusterNamespace, nodeName, hostname, token, age
 }
 
 func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c *config, hostClient ctrlruntimeclient.Client) error {
-	var cluster v1alpha1.Cluster
+	var cluster v1beta1.Cluster
 
 	objKey := types.NamespacedName{
 		Namespace: c.ClusterNamespace,

@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -86,7 +86,7 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), func() {
 	})
 	It("will update server and agent envs when cluster is updated", func() {
 		Eventually(func(g Gomega) {
-			var cluster v1alpha1.Cluster
+			var cluster v1beta1.Cluster
 
 			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
 			g.Expect(err).NotTo(HaveOccurred())
@@ -183,7 +183,7 @@ var _ = When("a shared mode cluster update its server args", Label("e2e"), func(
 	})
 	It("will update server args", func() {
 		Eventually(func(g Gomega) {
-			var cluster v1alpha1.Cluster
+			var cluster v1beta1.Cluster
 
 			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
 			g.Expect(err).NotTo(HaveOccurred())
@@ -238,7 +238,7 @@ var _ = When("a virtual mode cluster update its envs", Label("e2e"), func() {
 			},
 		}
 
-		cluster.Spec.Mode = v1alpha1.VirtualClusterMode
+		cluster.Spec.Mode = v1beta1.VirtualClusterMode
 		cluster.Spec.Agents = ptr.To(int32(1))
 
 		CreateCluster(cluster)
@@ -278,7 +278,7 @@ var _ = When("a virtual mode cluster update its envs", Label("e2e"), func() {
 	})
 	It("will update server and agent envs when cluster is updated", func() {
 		Eventually(func(g Gomega) {
-			var cluster v1alpha1.Cluster
+			var cluster v1beta1.Cluster
 
 			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
 			g.Expect(err).NotTo(HaveOccurred())
@@ -357,7 +357,7 @@ var _ = When("a virtual mode cluster update its server args", Label("e2e"), func
 			"--node-label=test_server=not_upgraded",
 		}
 
-		cluster.Spec.Mode = v1alpha1.VirtualClusterMode
+		cluster.Spec.Mode = v1beta1.VirtualClusterMode
 		cluster.Spec.Agents = ptr.To(int32(1))
 
 		CreateCluster(cluster)
@@ -378,7 +378,7 @@ var _ = When("a virtual mode cluster update its server args", Label("e2e"), func
 	})
 	It("will update server args", func() {
 		Eventually(func(g Gomega) {
-			var cluster v1alpha1.Cluster
+			var cluster v1beta1.Cluster
 
 			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
 			g.Expect(err).NotTo(HaveOccurred())
@@ -417,8 +417,8 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 		cluster.Spec.Version = "v1.31.13-k3s1"
 
 		// need to enable persistence for this
-		cluster.Spec.Persistence = v1alpha1.PersistenceConfig{
-			Type: v1alpha1.DynamicPersistenceMode,
+		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
+			Type: v1beta1.DynamicPersistenceMode,
 		}
 
 		CreateCluster(cluster)
@@ -439,7 +439,7 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 		nginxPod, _ = virtualCluster.NewNginxPod("")
 	})
 	It("will update server version when version spec is updated", func() {
-		var cluster v1alpha1.Cluster
+		var cluster v1beta1.Cluster
 		ctx := context.Background()
 
 		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
@@ -495,12 +495,12 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 		// Add initial version
 		cluster.Spec.Version = "v1.31.13-k3s1"
 
-		cluster.Spec.Mode = v1alpha1.VirtualClusterMode
+		cluster.Spec.Mode = v1beta1.VirtualClusterMode
 		cluster.Spec.Agents = ptr.To(int32(1))
 
 		// need to enable persistence for this
-		cluster.Spec.Persistence = v1alpha1.PersistenceConfig{
-			Type: v1alpha1.DynamicPersistenceMode,
+		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
+			Type: v1beta1.DynamicPersistenceMode,
 		}
 
 		CreateCluster(cluster)
@@ -527,7 +527,7 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 		nginxPod, _ = virtualCluster.NewNginxPod("")
 	})
 	It("will update server version when version spec is updated", func() {
-		var cluster v1alpha1.Cluster
+		var cluster v1beta1.Cluster
 		ctx := context.Background()
 
 		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)

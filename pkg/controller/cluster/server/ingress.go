@@ -8,7 +8,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 )
 
@@ -22,7 +22,7 @@ func IngressName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "ingress")
 }
 
-func Ingress(ctx context.Context, cluster *v1alpha1.Cluster) networkingv1.Ingress {
+func Ingress(ctx context.Context, cluster *v1beta1.Cluster) networkingv1.Ingress {
 	ingress := networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Ingress",
@@ -52,7 +52,7 @@ func Ingress(ctx context.Context, cluster *v1alpha1.Cluster) networkingv1.Ingres
 	return ingress
 }
 
-func ingressRules(cluster *v1alpha1.Cluster) []networkingv1.IngressRule {
+func ingressRules(cluster *v1beta1.Cluster) []networkingv1.IngressRule {
 	var ingressRules []networkingv1.IngressRule
 
 	if cluster.Spec.Expose == nil || cluster.Spec.Expose.Ingress == nil {

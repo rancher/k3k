@@ -18,7 +18,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
@@ -32,7 +32,7 @@ const (
 
 // Server
 type Server struct {
-	cluster          *v1alpha1.Cluster
+	cluster          *v1beta1.Cluster
 	client           client.Client
 	mode             string
 	token            string
@@ -41,7 +41,7 @@ type Server struct {
 	imagePullSecrets []string
 }
 
-func New(cluster *v1alpha1.Cluster, client client.Client, token, image, imagePullPolicy string, imagePullSecrets []string) *Server {
+func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePullPolicy string, imagePullSecrets []string) *Server {
 	return &Server{
 		cluster:          cluster,
 		client:           client,
@@ -265,7 +265,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 
 	replicas = *s.cluster.Spec.Servers
 
-	if s.cluster.Spec.Persistence.Type == v1alpha1.DynamicPersistenceMode {
+	if s.cluster.Spec.Persistence.Type == v1beta1.DynamicPersistenceMode {
 		persistent = true
 		pvClaim = s.setupDynamicPersistence()
 	}
@@ -379,7 +379,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 			},
 		},
 	}
-	if s.cluster.Spec.Persistence.Type == v1alpha1.DynamicPersistenceMode {
+	if s.cluster.Spec.Persistence.Type == v1beta1.DynamicPersistenceMode {
 		ss.Spec.VolumeClaimTemplates = []v1.PersistentVolumeClaim{pvClaim}
 	}
 

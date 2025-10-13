@@ -15,7 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/policy"
 
@@ -26,25 +26,25 @@ import (
 var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("VirtualClusterPolicy"), func() {
 	Context("creating a VirtualClusterPolicy", func() {
 		It("should have the 'shared' allowedMode", func() {
-			policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{})
-			Expect(policy.Spec.AllowedMode).To(Equal(v1alpha1.SharedClusterMode))
+			policy := newPolicy(v1beta1.VirtualClusterPolicySpec{})
+			Expect(policy.Spec.AllowedMode).To(Equal(v1beta1.SharedClusterMode))
 		})
 
 		It("should have the 'virtual' mode if specified", func() {
-			policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
-				AllowedMode: v1alpha1.VirtualClusterMode,
+			policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
+				AllowedMode: v1beta1.VirtualClusterMode,
 			})
 
-			Expect(policy.Spec.AllowedMode).To(Equal(v1alpha1.VirtualClusterMode))
+			Expect(policy.Spec.AllowedMode).To(Equal(v1beta1.VirtualClusterMode))
 		})
 
 		It("should fail for a non-existing mode", func() {
-			policy := &v1alpha1.VirtualClusterPolicy{
+			policy := &v1beta1.VirtualClusterPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "policy-",
 				},
-				Spec: v1alpha1.VirtualClusterPolicySpec{
-					AllowedMode: v1alpha1.ClusterMode("non-existing"),
+				Spec: v1beta1.VirtualClusterPolicySpec{
+					AllowedMode: v1beta1.ClusterMode("non-existing"),
 				},
 			}
 
@@ -67,7 +67,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("should create a NetworkPolicy", func() {
-				policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{})
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{})
 				bindPolicyToNamespace(namespace, policy)
 
 				// look for network policies etc
@@ -122,7 +122,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("should recreate the NetworkPolicy if deleted", func() {
-				policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{})
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{})
 				bindPolicyToNamespace(namespace, policy)
 
 				// look for network policy
@@ -164,12 +164,12 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 			It("should add and update the proper pod-security labels to the namespace", func() {
 				var (
-					privileged = v1alpha1.PrivilegedPodSecurityAdmissionLevel
-					baseline   = v1alpha1.BaselinePodSecurityAdmissionLevel
-					restricted = v1alpha1.RestrictedPodSecurityAdmissionLevel
+					privileged = v1beta1.PrivilegedPodSecurityAdmissionLevel
+					baseline   = v1beta1.BaselinePodSecurityAdmissionLevel
+					restricted = v1beta1.RestrictedPodSecurityAdmissionLevel
 				)
 
-				policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					PodSecurityAdmissionLevel: &privileged,
 				})
 
@@ -264,9 +264,9 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("should restore the labels if Namespace is updated", func() {
-				privileged := v1alpha1.PrivilegedPodSecurityAdmissionLevel
+				privileged := v1beta1.PrivilegedPodSecurityAdmissionLevel
 
-				policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					PodSecurityAdmissionLevel: &privileged,
 				})
 
@@ -308,19 +308,19 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("should update Cluster's PriorityClass", func() {
-				policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					DefaultPriorityClass: "foobar",
 				})
 
 				bindPolicyToNamespace(namespace, policy)
 
-				cluster := &v1alpha1.Cluster{
+				cluster := &v1beta1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
 						Namespace:    namespace.Name,
 					},
-					Spec: v1alpha1.ClusterSpec{
-						Mode:    v1alpha1.SharedClusterMode,
+					Spec: v1beta1.ClusterSpec{
+						Mode:    v1beta1.SharedClusterMode,
 						Servers: ptr.To[int32](1),
 						Agents:  ptr.To[int32](0),
 					},
@@ -342,7 +342,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("should update Cluster's NodeSelector", func() {
-				policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					DefaultNodeSelector: map[string]string{"label-1": "value-1"},
 				})
 				bindPolicyToNamespace(namespace, policy)
@@ -350,13 +350,13 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				err := k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
 
-				cluster := &v1alpha1.Cluster{
+				cluster := &v1beta1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
 						Namespace:    namespace.Name,
 					},
-					Spec: v1alpha1.ClusterSpec{
-						Mode:    v1alpha1.SharedClusterMode,
+					Spec: v1beta1.ClusterSpec{
+						Mode:    v1beta1.SharedClusterMode,
 						Servers: ptr.To[int32](1),
 						Agents:  ptr.To[int32](0),
 					},
@@ -378,18 +378,18 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("should update the nodeSelector if changed", func() {
-				policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					DefaultNodeSelector: map[string]string{"label-1": "value-1"},
 				})
 				bindPolicyToNamespace(namespace, policy)
 
-				cluster := &v1alpha1.Cluster{
+				cluster := &v1beta1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
 						Namespace:    namespace.Name,
 					},
-					Spec: v1alpha1.ClusterSpec{
-						Mode:         v1alpha1.SharedClusterMode,
+					Spec: v1beta1.ClusterSpec{
+						Mode:         v1beta1.SharedClusterMode,
 						Servers:      ptr.To[int32](1),
 						Agents:       ptr.To[int32](0),
 						NodeSelector: map[string]string{"label-1": "value-1"},
@@ -426,7 +426,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 				// wait a bit and check it's restored
 				Eventually(func() bool {
-					var updatedCluster v1alpha1.Cluster
+					var updatedCluster v1beta1.Cluster
 
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
 					err = k8sClient.Get(ctx, key, &updatedCluster)
@@ -439,7 +439,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("should create a ResourceQuota if Quota is enabled", func() {
-				policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					Quota: &v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    resource.MustParse("800m"),
@@ -467,7 +467,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("should delete the ResourceQuota if Quota is deleted", func() {
-				policy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					Quota: &v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    resource.MustParse("800m"),
@@ -513,7 +513,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("should delete the ResourceQuota if unbound", func() {
-				clusterPolicy := newPolicy(v1alpha1.VirtualClusterPolicySpec{
+				clusterPolicy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					Quota: &v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    resource.MustParse("800m"),
@@ -558,10 +558,10 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 	})
 })
 
-func newPolicy(spec v1alpha1.VirtualClusterPolicySpec) *v1alpha1.VirtualClusterPolicy {
+func newPolicy(spec v1beta1.VirtualClusterPolicySpec) *v1beta1.VirtualClusterPolicy {
 	GinkgoHelper()
 
-	policy := &v1alpha1.VirtualClusterPolicy{
+	policy := &v1beta1.VirtualClusterPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "policy-",
 		},
@@ -574,7 +574,7 @@ func newPolicy(spec v1alpha1.VirtualClusterPolicySpec) *v1alpha1.VirtualClusterP
 	return policy
 }
 
-func bindPolicyToNamespace(namespace *v1.Namespace, pol *v1alpha1.VirtualClusterPolicy) {
+func bindPolicyToNamespace(namespace *v1.Namespace, pol *v1beta1.VirtualClusterPolicy) {
 	GinkgoHelper()
 
 	if len(namespace.Labels) == 0 {

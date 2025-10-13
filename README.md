@@ -135,7 +135,7 @@ You can also directly create a Cluster resource in some namespace, to create a K
 
 ```bash
 kubectl apply -f - <<EOF
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: mycluster

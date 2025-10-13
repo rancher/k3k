@@ -11,11 +11,11 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 // reconcileNamespacePodSecurityLabels will update the labels of the namespace to reconcile the PSA level specified in the VirtualClusterPolicy
-func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, namespace *v1.Namespace, policy *v1alpha1.VirtualClusterPolicy) {
+func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, namespace *v1.Namespace, policy *v1beta1.VirtualClusterPolicy) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("reconciling PSA labels")
 
@@ -33,7 +33,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx
 		namespace.Labels["pod-security.kubernetes.io/enforce-version"] = "latest"
 
 		// skip the 'warn' only for the privileged PSA level
-		if psaLevel != v1alpha1.PrivilegedPodSecurityAdmissionLevel {
+		if psaLevel != v1beta1.PrivilegedPodSecurityAdmissionLevel {
 			namespace.Labels["pod-security.kubernetes.io/warn"] = string(psaLevel)
 			namespace.Labels["pod-security.kubernetes.io/warn-version"] = "latest"
 		}

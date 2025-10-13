@@ -17,7 +17,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
@@ -39,7 +39,7 @@ func New() *KubeConfig {
 	}
 }
 
-func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string, port int) (*clientcmdapi.Config, error) {
+func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster *v1beta1.Cluster, hostServerIP string, port int) (*clientcmdapi.Config, error) {
 	bootstrapData, err := bootstrap.GetFromSecret(ctx, client, cluster)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func NewConfig(url string, serverCA, clientCert, clientKey []byte) *clientcmdapi
 	return config
 }
 
-func getURLFromService(ctx context.Context, client client.Client, cluster *v1alpha1.Cluster, hostServerIP string, serverPort int) (string, error) {
+func getURLFromService(ctx context.Context, client client.Client, cluster *v1beta1.Cluster, hostServerIP string, serverPort int) (string, error) {
 	// get the server service to extract the right IP
 	key := types.NamespacedName{
 		Name:      server.ServiceName(cluster.Name),

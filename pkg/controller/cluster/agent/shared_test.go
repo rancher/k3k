@@ -8,12 +8,12 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 func Test_sharedAgentData(t *testing.T) {
 	type args struct {
-		cluster     *v1alpha1.Cluster
+		cluster     *v1beta1.Cluster
 		serviceName string
 		ip          string
 		kubeletPort int
@@ -29,12 +29,12 @@ func Test_sharedAgentData(t *testing.T) {
 		{
 			name: "simple config",
 			args: args{
-				cluster: &v1alpha1.Cluster{
+				cluster: &v1beta1.Cluster{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
-					Spec: v1alpha1.ClusterSpec{
+					Spec: v1beta1.ClusterSpec{
 						Version: "v1.2.3",
 					},
 				},
@@ -59,15 +59,15 @@ func Test_sharedAgentData(t *testing.T) {
 		{
 			name: "version in status",
 			args: args{
-				cluster: &v1alpha1.Cluster{
+				cluster: &v1beta1.Cluster{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
-					Spec: v1alpha1.ClusterSpec{
+					Spec: v1beta1.ClusterSpec{
 						Version: "v1.2.3",
 					},
-					Status: v1alpha1.ClusterStatus{
+					Status: v1beta1.ClusterStatus{
 						HostVersion: "v1.3.3",
 					},
 				},
@@ -92,12 +92,12 @@ func Test_sharedAgentData(t *testing.T) {
 		{
 			name: "missing version in spec",
 			args: args{
-				cluster: &v1alpha1.Cluster{
+				cluster: &v1beta1.Cluster{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
-					Status: v1alpha1.ClusterStatus{
+					Status: v1beta1.ClusterStatus{
 						HostVersion: "v1.3.3",
 					},
 				},

@@ -8,7 +8,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
@@ -45,15 +45,15 @@ func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
 	}, nil
 }
 
-func serverConfigData(serviceIP string, cluster *v1alpha1.Cluster, token string) string {
+func serverConfigData(serviceIP string, cluster *v1beta1.Cluster, token string) string {
 	return "cluster-init: true\nserver: https://" + serviceIP + "\n" + serverOptions(cluster, token)
 }
 
-func initConfigData(cluster *v1alpha1.Cluster, token string) string {
+func initConfigData(cluster *v1beta1.Cluster, token string) string {
 	return "cluster-init: true\n" + serverOptions(cluster, token)
 }
 
-func serverOptions(cluster *v1alpha1.Cluster, token string) string {
+func serverOptions(cluster *v1beta1.Cluster, token string) string {
 	var opts string
 
 	// TODO: generate token if not found

@@ -14,7 +14,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -115,7 +115,7 @@ var _ = When("a dynamic cluster is installed", Label("e2e"), func() {
 	var virtualCluster *VirtualCluster
 
 	BeforeEach(func() {
-		virtualCluster = NewVirtualClusterWithType(v1alpha1.DynamicPersistenceMode)
+		virtualCluster = NewVirtualClusterWithType(v1beta1.DynamicPersistenceMode)
 	})
 
 	AfterEach(func() {
@@ -157,7 +157,7 @@ var _ = When("a dynamic cluster is installed", Label("e2e"), func() {
 		By(fmt.Sprintf("Creating new virtual cluster in namespace %s", namespace.Name))
 
 		cluster := NewCluster(namespace.Name)
-		cluster.Spec.Persistence.Type = v1alpha1.DynamicPersistenceMode
+		cluster.Spec.Persistence.Type = v1beta1.DynamicPersistenceMode
 		cluster.Spec.Servers = ptr.To[int32](2)
 
 		CreateCluster(cluster)

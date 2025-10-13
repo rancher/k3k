@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 func newClusterPredicate() predicate.Predicate {
@@ -17,7 +17,7 @@ func newClusterPredicate() predicate.Predicate {
 
 		return owner != nil &&
 			owner.Kind == "Cluster" &&
-			owner.APIVersion == v1alpha1.SchemeGroupVersion.String()
+			owner.APIVersion == v1beta1.SchemeGroupVersion.String()
 	})
 }
 
@@ -25,7 +25,7 @@ func clusterNamespacedName(object client.Object) types.NamespacedName {
 	var clusterName string
 
 	owner := metav1.GetControllerOf(object)
-	if owner != nil && owner.Kind == "Cluster" && owner.APIVersion == v1alpha1.SchemeGroupVersion.String() {
+	if owner != nil && owner.Kind == "Cluster" && owner.APIVersion == v1beta1.SchemeGroupVersion.String() {
 		clusterName = owner.Name
 	} else {
 		clusterName = object.GetLabels()[translate.ClusterNameLabel]

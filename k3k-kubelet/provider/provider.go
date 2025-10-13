@@ -766,7 +766,7 @@ func mergeEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 	return orig
 }
 
-// configureFieldPathEnv will retrieve all annotations created by the pod mutator webhook
+// configureFieldPathEnv will retrieve all annotations created by the pod mutating webhook
 // to assign env fieldpaths to pods, it will also make sure to change the metadata.name and metadata.namespace to the
 // assigned annotations
 func (p *Provider) configureFieldPathEnv(pod, tPod *corev1.Pod) error {

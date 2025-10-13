@@ -147,10 +147,10 @@ func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, e
 		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
 	}
 
-	logger.Info("adding pod mutator webhook")
+	logger.Info("adding pod mutating webhook")
 
-	if err := k3kwebhook.AddPodMutatorWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.ServiceName, logger, c.WebhookPort); err != nil {
-		return nil, errors.New("unable to add pod mutator webhook for virtual cluster: " + err.Error())
+	if err := k3kwebhook.AddPodMutatingWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.ServiceName, logger, c.WebhookPort); err != nil {
+		return nil, errors.New("unable to add pod mutating webhook for virtual cluster: " + err.Error())
 	}
 
 	if err := addControllers(ctx, hostMgr, virtualMgr, c, hostClient); err != nil {

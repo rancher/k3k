@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
@@ -50,7 +50,7 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 
 		logrus.Infof("Deleting [%s] cluster in namespace [%s]", name, namespace)
 
-		cluster := v1alpha1.Cluster{
+		cluster := v1beta1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
@@ -86,7 +86,7 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl ctrlclient.Client, cluster v1alpha1.Cluster) error {
+func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl ctrlclient.Client, cluster v1beta1.Cluster) error {
 	var secret v1.Secret
 
 	key := types.NamespacedName{

@@ -106,7 +106,7 @@ jobs:
         kubectl create namespace k3k-mycluster
 
         cat <<EOF | kubectl apply -f -
-        apiVersion: k3k.io/v1alpha1
+        apiVersion: k3k.io/v1beta1
         kind: Cluster
         metadata:
           name: mycluster
@@ -259,7 +259,7 @@ jobs:
         kubectl create namespace k3k-mycluster
 
         cat <<EOF | kubectl apply -f -
-        apiVersion: k3k.io/v1alpha1
+        apiVersion: k3k.io/v1beta1
         kind: Cluster
         metadata:
           name: mycluster

@@ -33,7 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
@@ -117,7 +117,7 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.Cluster{}).
+		For(&v1beta1.Cluster{}).
 		Watches(&v1.Namespace{}, namespaceEventHandler(&reconciler)).
 		Owns(&apps.StatefulSet{}).
 		Owns(&v1.Service{}).
@@ -148,7 +148,7 @@ func namespaceEventHandler(r *ClusterReconciler) handler.Funcs {
 			}
 
 			// Enqueue all the Cluster in the namespace
-			var clusterList v1alpha1.ClusterList
+			var clusterList v1beta1.ClusterList
 			if err := r.Client.List(ctx, &clusterList, client.InNamespace(oldNs.Name)); err != nil {
 				return
 			}
@@ -166,7 +166,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	log.Info("reconciling cluster")
 
-	var cluster v1alpha1.Cluster
+	var cluster v1beta1.Cluster
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
@@ -177,8 +177,8 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// Set initial status if not already set
-	if cluster.Status.Phase == "" || cluster.Status.Phase == v1alpha1.ClusterUnknown {
-		cluster.Status.Phase = v1alpha1.ClusterProvisioning
+	if cluster.Status.Phase == "" || cluster.Status.Phase == v1beta1.ClusterUnknown {
+		cluster.Status.Phase = v1beta1.ClusterProvisioning
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 			Type:    ConditionReady,
 			Status:  metav1.ConditionFalse,
@@ -232,14 +232,14 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	return reconcile.Result{}, nil
 }
 
-func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1beta1.Cluster) error {
 	err := c.reconcile(ctx, cluster)
 	c.updateStatus(cluster, err)
 
 	return err
 }
 
-func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	var ns v1.Namespace
@@ -251,7 +251,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 	cluster.Status.PolicyName = policyName
 
 	if found && policyName != "" {
-		var policy v1alpha1.VirtualClusterPolicy
+		var policy v1beta1.VirtualClusterPolicy
 		if err := c.Client.Get(ctx, client.ObjectKey{Name: policyName}, &policy); err != nil {
 			return err
 		}
@@ -286,7 +286,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	if cluster.Status.ClusterCIDR == "" {
 		cluster.Status.ClusterCIDR = defaultVirtualClusterCIDR
-		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
+		if cluster.Spec.Mode == v1beta1.SharedClusterMode {
 			cluster.Status.ClusterCIDR = defaultSharedClusterCIDR
 		}
 	}
@@ -294,7 +294,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
 	if cluster.Status.ServiceCIDR == "" {
 		// in shared mode try to lookup the serviceCIDR
-		if cluster.Spec.Mode == v1alpha1.SharedClusterMode {
+		if cluster.Spec.Mode == v1beta1.SharedClusterMode {
 			log.Info("looking up Service CIDR for shared mode")
 
 			cluster.Status.ServiceCIDR, err = c.lookupServiceCIDR(ctx)
@@ -306,7 +306,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 		}
 
 		// in virtual mode assign a default serviceCIDR
-		if cluster.Spec.Mode == v1alpha1.VirtualClusterMode {
+		if cluster.Spec.Mode == v1beta1.VirtualClusterMode {
 			log.Info("assign default service CIDR for virtual mode")
 
 			cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
@@ -352,7 +352,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1alpha1.Clu
 }
 
 // ensureBootstrapSecret will create or update the Secret containing the bootstrap data from the k3s server
-func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
+func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring bootstrap secret")
 
@@ -384,7 +384,7 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 }
 
 // ensureKubeconfigSecret will create or update the Secret containing the kubeconfig data from the k3s server
-func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP string, port int) error {
+func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP string, port int) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring kubeconfig secret")
 
@@ -422,7 +422,7 @@ func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster 
 	return err
 }
 
-func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server, serviceIP string) error {
+func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, serviceIP string) error {
 	// create init node config
 	initServerConfig, err := server.Config(true, serviceIP)
 	if err != nil {
@@ -458,7 +458,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 	return nil
 }
 
-func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring network policy")
 
@@ -550,7 +550,7 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 	return nil
 }
 
-func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v1alpha1.Cluster) (*v1.Service, error) {
+func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v1beta1.Cluster) (*v1.Service, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring cluster service")
 
@@ -578,7 +578,7 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 	return currentService, nil
 }
 
-func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("ensuring cluster ingress")
 
@@ -614,7 +614,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1alpha1
 	return nil
 }
 
-func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluster, server *server.Server) error {
+func (c *ClusterReconciler) server(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	// create headless service for the statefulset
@@ -656,7 +656,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1alpha1.Cluste
 	return err
 }
 
-func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1beta1.Cluster) error {
 	clusterRoles := []string{"k3k-kubelet-node", "k3k-priorityclass"}
 
 	var err error
@@ -686,7 +686,7 @@ func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1alp
 	return err
 }
 
-func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.Cluster, serviceIP, token string) error {
+func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
 	config := agent.NewConfig(cluster, c.Client, c.Scheme)
 
 	var agentEnsurer agent.ResourceEnsurer
@@ -721,7 +721,7 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1alpha1.C
 	return agentEnsurer.EnsureResources(ctx)
 }
 
-func (c *ClusterReconciler) validate(cluster *v1alpha1.Cluster, policy v1alpha1.VirtualClusterPolicy) error {
+func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy v1beta1.VirtualClusterPolicy) error {
 	if cluster.Name == ClusterInvalidName {
 		return fmt.Errorf("%w: invalid cluster name %q", ErrClusterValidation, cluster.Name)
 	}
@@ -822,7 +822,7 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 }
 
 // validateCustomCACerts will make sure that all the cert secrets exists
-func (c *ClusterReconciler) validateCustomCACerts(cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) validateCustomCACerts(cluster *v1beta1.Cluster) error {
 	credentialSources := cluster.Spec.CustomCAs.Sources
 	if credentialSources.ClientCA.SecretName == "" ||
 		credentialSources.ServerCA.SecretName == "" ||

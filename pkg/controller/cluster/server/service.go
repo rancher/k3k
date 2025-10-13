@@ -6,11 +6,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 )
 
-func Service(cluster *v1alpha1.Cluster) *v1.Service {
+func Service(cluster *v1beta1.Cluster) *v1.Service {
 	service := &v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
@@ -69,7 +69,7 @@ func Service(cluster *v1alpha1.Cluster) *v1.Service {
 }
 
 // addLoadBalancerPorts adds the load balancer ports to the service
-func addLoadBalancerPorts(service *v1.Service, loadbalancerConfig v1alpha1.LoadBalancerConfig, k3sServerPort, etcdPort v1.ServicePort) {
+func addLoadBalancerPorts(service *v1.Service, loadbalancerConfig v1beta1.LoadBalancerConfig, k3sServerPort, etcdPort v1.ServicePort) {
 	// If the server port is not specified, use the default port
 	if loadbalancerConfig.ServerPort == nil {
 		service.Spec.Ports = append(service.Spec.Ports, k3sServerPort)
@@ -90,7 +90,7 @@ func addLoadBalancerPorts(service *v1.Service, loadbalancerConfig v1alpha1.LoadB
 }
 
 // addNodePortPorts adds the node port ports to the service
-func addNodePortPorts(service *v1.Service, nodePortConfig v1alpha1.NodePortConfig, k3sServerPort, etcdPort v1.ServicePort) {
+func addNodePortPorts(service *v1.Service, nodePortConfig v1beta1.NodePortConfig, k3sServerPort, etcdPort v1.ServicePort) {
 	// If the server port is not specified Kubernetes will set the node port to a random port between 30000-32767
 	if nodePortConfig.ServerPort == nil {
 		service.Spec.Ports = append(service.Spec.Ports, k3sServerPort)

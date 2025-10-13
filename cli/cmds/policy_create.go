@@ -13,7 +13,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/policy"
 )
 
@@ -30,7 +30,7 @@ func NewPolicyCreateCmd(appCtx *AppContext) *cobra.Command {
 		Example: "k3kcli policy create [command options] NAME",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			switch config.mode {
-			case string(v1alpha1.VirtualClusterMode), string(v1alpha1.SharedClusterMode):
+			case string(v1beta1.VirtualClusterMode), string(v1beta1.SharedClusterMode):
 				return nil
 			default:
 				return errors.New(`mode should be one of "shared" or "virtual"`)
@@ -51,7 +51,7 @@ func policyCreateAction(appCtx *AppContext, config *VirtualClusterPolicyCreateCo
 		client := appCtx.Client
 		policyName := args[0]
 
-		_, err := createPolicy(ctx, client, v1alpha1.ClusterMode(config.mode), policyName)
+		_, err := createPolicy(ctx, client, v1beta1.ClusterMode(config.mode), policyName)
 
 		return err
 	}
@@ -81,18 +81,18 @@ func createNamespace(ctx context.Context, client client.Client, name, policyName
 	return nil
 }
 
-func createPolicy(ctx context.Context, client client.Client, mode v1alpha1.ClusterMode, policyName string) (*v1alpha1.VirtualClusterPolicy, error) {
+func createPolicy(ctx context.Context, client client.Client, mode v1beta1.ClusterMode, policyName string) (*v1beta1.VirtualClusterPolicy, error) {
 	logrus.Infof("Creating policy [%s]", policyName)
 
-	policy := &v1alpha1.VirtualClusterPolicy{
+	policy := &v1beta1.VirtualClusterPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: policyName,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "VirtualClusterPolicy",
-			APIVersion: "k3k.io/v1alpha1",
+			APIVersion: "k3k.io/v1beta1",
 		},
-		Spec: v1alpha1.VirtualClusterPolicySpec{
+		Spec: v1beta1.VirtualClusterPolicySpec{
 			AllowedMode: mode,
 		},
 	}

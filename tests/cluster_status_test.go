@@ -10,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/policy"
 
@@ -21,7 +21,7 @@ import (
 var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 	var (
 		namespace *corev1.Namespace
-		vcp       *v1alpha1.VirtualClusterPolicy
+		vcp       *v1beta1.VirtualClusterPolicy
 	)
 
 	// This BeforeEach/AfterEach will create a new namespace and a default policy for each test.
@@ -29,7 +29,7 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 		ctx := context.Background()
 		namespace = NewNamespace()
 
-		vcp = &v1alpha1.VirtualClusterPolicy{
+		vcp = &v1beta1.VirtualClusterPolicy{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "policy-",
 			},
@@ -53,7 +53,7 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 		It("should start with Provisioning status and transition to Ready", func() {
 			ctx := context.Background()
 
-			clusterObj := &v1alpha1.Cluster{
+			clusterObj := &v1beta1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "status-cluster-",
 					Namespace:    namespace.Name,
@@ -68,7 +68,7 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 				err := k8sClient.Get(ctx, clusterKey, clusterObj)
 				g.Expect(err).NotTo(HaveOccurred())
 
-				g.Expect(clusterObj.Status.Phase).To(Equal(v1alpha1.ClusterProvisioning))
+				g.Expect(clusterObj.Status.Phase).To(Equal(v1beta1.ClusterProvisioning))
 
 				cond := meta.FindStatusCondition(clusterObj.Status.Conditions, cluster.ConditionReady)
 				g.Expect(cond).NotTo(BeNil())
@@ -84,7 +84,7 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 				err := k8sClient.Get(ctx, clusterKey, clusterObj)
 				g.Expect(err).NotTo(HaveOccurred())
 
-				g.Expect(clusterObj.Status.Phase).To(Equal(v1alpha1.ClusterReady))
+				g.Expect(clusterObj.Status.Phase).To(Equal(v1beta1.ClusterReady))
 
 				cond := meta.FindStatusCondition(clusterObj.Status.Conditions, cluster.ConditionReady)
 				g.Expect(cond).NotTo(BeNil())
@@ -101,13 +101,13 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 		It("should be in Pending status with ValidationFailed reason", func() {
 			ctx := context.Background()
 
-			clusterObj := &v1alpha1.Cluster{
+			clusterObj := &v1beta1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "cluster-",
 					Namespace:    namespace.Name,
 				},
-				Spec: v1alpha1.ClusterSpec{
-					Mode: v1alpha1.VirtualClusterMode,
+				Spec: v1beta1.ClusterSpec{
+					Mode: v1beta1.VirtualClusterMode,
 				},
 			}
 			Expect(k8sClient.Create(ctx, clusterObj)).To(Succeed())
@@ -119,7 +119,7 @@ var _ = When("a cluster's status is tracked", Label("e2e"), func() {
 				err := k8sClient.Get(ctx, clusterKey, clusterObj)
 				g.Expect(err).NotTo(HaveOccurred())
 
-				g.Expect(clusterObj.Status.Phase).To(Equal(v1alpha1.ClusterPending))
+				g.Expect(clusterObj.Status.Phase).To(Equal(v1beta1.ClusterPending))
 
 				cond := meta.FindStatusCondition(clusterObj.Status.Conditions, cluster.ConditionReady)
 				g.Expect(cond).NotTo(BeNil())

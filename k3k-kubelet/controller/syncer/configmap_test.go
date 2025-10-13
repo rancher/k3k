@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -21,7 +21,7 @@ import (
 var ConfigMapTests = func() {
 	var (
 		namespace string
-		cluster   v1alpha1.Cluster
+		cluster   v1beta1.Cluster
 	)
 
 	BeforeEach(func() {
@@ -35,14 +35,14 @@ var ConfigMapTests = func() {
 
 		namespace = ns.Name
 
-		cluster = v1alpha1.Cluster{
+		cluster = v1beta1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "cluster-",
 				Namespace:    namespace,
 			},
-			Spec: v1alpha1.ClusterSpec{
-				Sync: &v1alpha1.SyncConfig{
-					ConfigMaps: v1alpha1.ConfigMapSyncConfig{
+			Spec: v1beta1.ClusterSpec{
+				Sync: &v1beta1.SyncConfig{
+					ConfigMaps: v1beta1.ConfigMapSyncConfig{
 						Enabled: true,
 					},
 				},

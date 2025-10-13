@@ -24,7 +24,7 @@ spec:
     - jsonPath: .status.policyName
       name: Policy
       type: string
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: |-

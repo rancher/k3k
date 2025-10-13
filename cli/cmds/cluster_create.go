@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
@@ -78,7 +78,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return errors.New("invalid cluster name")
 		}
 
-		if config.mode == string(v1alpha1.SharedClusterMode) && config.agents != 0 {
+		if config.mode == string(v1beta1.SharedClusterMode) && config.agents != 0 {
 			return errors.New("invalid flag, --agents flag is only allowed in virtual mode")
 		}
 
@@ -114,8 +114,8 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 
 		cluster := newCluster(name, namespace, config)
 
-		cluster.Spec.Expose = &v1alpha1.ExposeConfig{
-			NodePort: &v1alpha1.NodePortConfig{},
+		cluster.Spec.Expose = &v1beta1.ExposeConfig{
+			NodePort: &v1beta1.NodePortConfig{},
 		}
 
 		// add Host IP address as an extra TLS-SAN to expose the k3k cluster
@@ -169,17 +169,17 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 	}
 }
 
-func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster {
-	cluster := &v1alpha1.Cluster{
+func newCluster(name, namespace string, config *CreateConfig) *v1beta1.Cluster {
+	cluster := &v1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Cluster",
-			APIVersion: "k3k.io/v1alpha1",
+			APIVersion: "k3k.io/v1beta1",
 		},
-		Spec: v1alpha1.ClusterSpec{
+		Spec: v1beta1.ClusterSpec{
 			Servers:     ptr.To(int32(config.servers)),
 			Agents:      ptr.To(int32(config.agents)),
 			ClusterCIDR: config.clusterCIDR,
@@ -189,9 +189,9 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 			ServerEnvs:  env(config.serverEnvs),
 			AgentEnvs:   env(config.agentEnvs),
 			Version:     config.version,
-			Mode:        v1alpha1.ClusterMode(config.mode),
-			Persistence: v1alpha1.PersistenceConfig{
-				Type:               v1alpha1.PersistenceMode(config.persistenceType),
+			Mode:        v1beta1.ClusterMode(config.mode),
+			Persistence: v1beta1.PersistenceConfig{
+				Type:               v1beta1.PersistenceMode(config.persistenceType),
 				StorageClassName:   ptr.To(config.storageClassName),
 				StorageRequestSize: config.storageRequestSize,
 			},
@@ -210,25 +210,25 @@ func newCluster(name, namespace string, config *CreateConfig) *v1alpha1.Cluster 
 	}
 
 	if config.customCertsPath != "" {
-		cluster.Spec.CustomCAs = v1alpha1.CustomCAs{
+		cluster.Spec.CustomCAs = v1beta1.CustomCAs{
 			Enabled: true,
-			Sources: v1alpha1.CredentialSources{
-				ClientCA: v1alpha1.CredentialSource{
+			Sources: v1beta1.CredentialSources{
+				ClientCA: v1beta1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "client-ca"),
 				},
-				ServerCA: v1alpha1.CredentialSource{
+				ServerCA: v1beta1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "server-ca"),
 				},
-				ETCDServerCA: v1alpha1.CredentialSource{
+				ETCDServerCA: v1beta1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-server-ca"),
 				},
-				ETCDPeerCA: v1alpha1.CredentialSource{
+				ETCDPeerCA: v1beta1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-peer-ca"),
 				},
-				RequestHeaderCA: v1alpha1.CredentialSource{
+				RequestHeaderCA: v1beta1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "request-header-ca"),
 				},
-				ServiceAccountToken: v1alpha1.CredentialSource{
+				ServiceAccountToken: v1beta1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "service-account-token"),
 				},
 			},
@@ -256,7 +256,7 @@ func env(envSlice []string) []v1.EnvVar {
 	return envVars
 }
 
-func waitForCluster(ctx context.Context, k8sClient client.Client, cluster *v1alpha1.Cluster) error {
+func waitForCluster(ctx context.Context, k8sClient client.Client, cluster *v1beta1.Cluster) error {
 	interval := 5 * time.Second
 	timeout := 2 * time.Minute
 
@@ -267,12 +267,12 @@ func waitForCluster(ctx context.Context, k8sClient client.Client, cluster *v1alp
 		}
 
 		// If resource ready -> stop polling
-		if cluster.Status.Phase == v1alpha1.ClusterReady {
+		if cluster.Status.Phase == v1beta1.ClusterReady {
 			return true, nil
 		}
 
 		// If resource failed -> stop polling with an error
-		if cluster.Status.Phase == v1alpha1.ClusterFailed {
+		if cluster.Status.Phase == v1beta1.ClusterFailed {
 			return true, fmt.Errorf("cluster creation failed: %s", cluster.Status.Phase)
 		}
 

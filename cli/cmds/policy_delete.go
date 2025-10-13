@@ -8,7 +8,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 func NewPolicyDeleteCmd(appCtx *AppContext) *cobra.Command {
@@ -27,7 +27,7 @@ func policyDeleteAction(appCtx *AppContext) func(cmd *cobra.Command, args []stri
 		client := appCtx.Client
 		name := args[0]
 
-		policy := &v1alpha1.VirtualClusterPolicy{}
+		policy := &v1beta1.VirtualClusterPolicy{}
 		policy.Name = name
 
 		if err := client.Delete(ctx, policy); err != nil {

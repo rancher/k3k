@@ -83,7 +83,7 @@ generate:	## Generate the CRDs specs
 docs:	## Build the CRDs and CLI docs
 	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml \
 		--renderer=markdown \
-		--source-path=./pkg/apis/k3k.io/v1alpha1 \
+		--source-path=./pkg/apis/k3k.io/v1beta1 \
 		--output-path=./docs/crds/crd-docs.md
 	@go run ./docs/cli/genclidoc.go
 

@@ -37,7 +37,7 @@ If you create a `VirtualClusterPolicy` without specifying any `spec` fields (e.g
 
 ```yaml
 # Example of a minimal VCP (after creation with defaults)
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: VirtualClusterPolicy
 metadata:
   name: my-default-policy
@@ -56,7 +56,7 @@ You can restrict the `mode` (e.g., "shared" or "virtual") in which K3k `Cluster`
 **Example:** Allow only "shared" mode clusters.
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: VirtualClusterPolicy
 metadata:
   name: shared-only-policy
@@ -74,7 +74,7 @@ You can define resource consumption limits for bound Namespaces by specifying a 
 **Example:** Set CPU, memory, and pod limits.
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: VirtualClusterPolicy
 metadata:
   name: quota-policy
@@ -93,7 +93,7 @@ You can define default resource requests/limits and min/max constraints for cont
 **Example:** Define default CPU requests/limits and min/max CPU.
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: VirtualClusterPolicy
 metadata:
   name: limit-policy
@@ -118,7 +118,7 @@ By default, K3k creates a `NetworkPolicy` in bound Namespaces to provide network
 **Example:** Disable the default NetworkPolicy.
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: VirtualClusterPolicy
 metadata:
   name: no-default-netpol-policy
@@ -133,7 +133,7 @@ You can enforce Pod Security Standards (PSS) by specifying a Pod Security Admiss
 **Example:** Enforce the "baseline" PSS level.
 
 ```yaml
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: VirtualClusterPolicy
 metadata:
   name: baseline-psa-policy

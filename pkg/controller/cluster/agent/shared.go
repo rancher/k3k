@@ -19,7 +19,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/certs"
 )
@@ -99,7 +99,7 @@ func (s *SharedAgent) config(ctx context.Context) error {
 	return s.ensureObject(ctx, configSecret)
 }
 
-func sharedAgentData(cluster *v1alpha1.Cluster, serviceName, token, ip string, kubeletPort, webhookPort int) string {
+func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, kubeletPort, webhookPort int) string {
 	version := cluster.Spec.Version
 	if cluster.Spec.Version == "" {
 		version = cluster.Status.HostVersion

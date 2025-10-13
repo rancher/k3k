@@ -12,7 +12,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 
@@ -38,7 +38,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 		When("creating a Cluster", func() {
 			It("will be created with some defaults", func() {
-				cluster := &v1alpha1.Cluster{
+				cluster := &v1beta1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
 						Namespace:    namespace,
@@ -48,15 +48,15 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				err := k8sClient.Create(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
 
-				Expect(cluster.Spec.Mode).To(Equal(v1alpha1.SharedClusterMode))
+				Expect(cluster.Spec.Mode).To(Equal(v1beta1.SharedClusterMode))
 				Expect(cluster.Spec.Agents).To(Equal(ptr.To[int32](0)))
 				Expect(cluster.Spec.Servers).To(Equal(ptr.To[int32](1)))
 				Expect(cluster.Spec.Version).To(BeEmpty())
 
-				Expect(cluster.Spec.Persistence.Type).To(Equal(v1alpha1.DynamicPersistenceMode))
+				Expect(cluster.Spec.Persistence.Type).To(Equal(v1beta1.DynamicPersistenceMode))
 				Expect(cluster.Spec.Persistence.StorageRequestSize).To(Equal("2G"))
 
-				Expect(cluster.Status.Phase).To(Equal(v1alpha1.ClusterUnknown))
+				Expect(cluster.Status.Phase).To(Equal(v1beta1.ClusterUnknown))
 
 				serverVersion, err := k8s.ServerVersion()
 				Expect(err).To(Not(HaveOccurred()))
@@ -92,14 +92,14 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 			When("exposing the cluster with nodePort", func() {
 				It("will have a NodePort service", func() {
-					cluster := &v1alpha1.Cluster{
+					cluster := &v1beta1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{
 							GenerateName: "cluster-",
 							Namespace:    namespace,
 						},
-						Spec: v1alpha1.ClusterSpec{
-							Expose: &v1alpha1.ExposeConfig{
-								NodePort: &v1alpha1.NodePortConfig{},
+						Spec: v1beta1.ClusterSpec{
+							Expose: &v1beta1.ExposeConfig{
+								NodePort: &v1beta1.NodePortConfig{},
 							},
 						},
 					}
@@ -124,14 +124,14 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				})
 
 				It("will have the specified ports exposed when specified", func() {
-					cluster := &v1alpha1.Cluster{
+					cluster := &v1beta1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{
 							GenerateName: "cluster-",
 							Namespace:    namespace,
 						},
-						Spec: v1alpha1.ClusterSpec{
-							Expose: &v1alpha1.ExposeConfig{
-								NodePort: &v1alpha1.NodePortConfig{
+						Spec: v1beta1.ClusterSpec{
+							Expose: &v1beta1.ExposeConfig{
+								NodePort: &v1beta1.NodePortConfig{
 									ServerPort: ptr.To[int32](30010),
 									ETCDPort:   ptr.To[int32](30011),
 								},
@@ -173,14 +173,14 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				})
 
 				It("will not expose the port when out of range", func() {
-					cluster := &v1alpha1.Cluster{
+					cluster := &v1beta1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{
 							GenerateName: "cluster-",
 							Namespace:    namespace,
 						},
-						Spec: v1alpha1.ClusterSpec{
-							Expose: &v1alpha1.ExposeConfig{
-								NodePort: &v1alpha1.NodePortConfig{
+						Spec: v1beta1.ClusterSpec{
+							Expose: &v1beta1.ExposeConfig{
+								NodePort: &v1beta1.NodePortConfig{
 									ETCDPort: ptr.To[int32](2222),
 								},
 							},
@@ -218,14 +218,14 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 			When("exposing the cluster with loadbalancer", func() {
 				It("will have a LoadBalancer service with the default ports exposed", func() {
-					cluster := &v1alpha1.Cluster{
+					cluster := &v1beta1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{
 							GenerateName: "cluster-",
 							Namespace:    namespace,
 						},
-						Spec: v1alpha1.ClusterSpec{
-							Expose: &v1alpha1.ExposeConfig{
-								LoadBalancer: &v1alpha1.LoadBalancerConfig{},
+						Spec: v1beta1.ClusterSpec{
+							Expose: &v1beta1.ExposeConfig{
+								LoadBalancer: &v1beta1.LoadBalancerConfig{},
 							},
 						},
 					}
@@ -266,15 +266,15 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 			When("exposing the cluster with nodePort and loadbalancer", func() {
 				It("will fail", func() {
-					cluster := &v1alpha1.Cluster{
+					cluster := &v1beta1.Cluster{
 						ObjectMeta: metav1.ObjectMeta{
 							GenerateName: "cluster-",
 							Namespace:    namespace,
 						},
-						Spec: v1alpha1.ClusterSpec{
-							Expose: &v1alpha1.ExposeConfig{
-								LoadBalancer: &v1alpha1.LoadBalancerConfig{},
-								NodePort:     &v1alpha1.NodePortConfig{},
+						Spec: v1beta1.ClusterSpec{
+							Expose: &v1beta1.ExposeConfig{
+								LoadBalancer: &v1beta1.LoadBalancerConfig{},
+								NodePort:     &v1beta1.NodePortConfig{},
 							},
 						},
 					}

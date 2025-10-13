@@ -7,7 +7,7 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -56,25 +56,25 @@ var _ = When("a cluster with custom certificates is installed with individual ce
 
 		cluster := NewCluster(namespace.Name)
 
-		cluster.Spec.CustomCAs = v1alpha1.CustomCAs{
+		cluster.Spec.CustomCAs = v1beta1.CustomCAs{
 			Enabled: true,
-			Sources: v1alpha1.CredentialSources{
-				ServerCA: v1alpha1.CredentialSource{
+			Sources: v1beta1.CredentialSources{
+				ServerCA: v1beta1.CredentialSource{
 					SecretName: "server-ca",
 				},
-				ClientCA: v1alpha1.CredentialSource{
+				ClientCA: v1beta1.CredentialSource{
 					SecretName: "client-ca",
 				},
-				ETCDServerCA: v1alpha1.CredentialSource{
+				ETCDServerCA: v1beta1.CredentialSource{
 					SecretName: "etcd-server-ca",
 				},
-				ETCDPeerCA: v1alpha1.CredentialSource{
+				ETCDPeerCA: v1beta1.CredentialSource{
 					SecretName: "etcd-peer-ca",
 				},
-				RequestHeaderCA: v1alpha1.CredentialSource{
+				RequestHeaderCA: v1beta1.CredentialSource{
 					SecretName: "request-header-ca",
 				},
-				ServiceAccountToken: v1alpha1.CredentialSource{
+				ServiceAccountToken: v1beta1.CredentialSource{
 					SecretName: "service",
 				},
 			},

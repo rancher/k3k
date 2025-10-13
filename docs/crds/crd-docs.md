@@ -1,10 +1,10 @@
 # API Reference
 
 ## Packages
-- [k3k.io/v1alpha1](#k3kiov1alpha1)
+- [k3k.io/v1beta1](#k3kiov1beta1)
 
 
-## k3k.io/v1alpha1
+## k3k.io/v1beta1
 
 
 ### Resource Types
@@ -47,7 +47,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `apiVersion` _string_ | `k3k.io/v1alpha1` | | |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
 | `kind` _string_ | `Cluster` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[ClusterSpec](#clusterspec)_ | Spec defines the desired state of the Cluster. | \{  \} |  |
@@ -65,7 +65,7 @@ ClusterList is a list of Cluster resources.
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `apiVersion` _string_ | `k3k.io/v1alpha1` | | |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
 | `kind` _string_ | `ClusterList` | | |
 | `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[Cluster](#cluster) array_ |  |  |  |
@@ -447,7 +447,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `apiVersion` _string_ | `k3k.io/v1alpha1` | | |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
 | `kind` _string_ | `VirtualClusterPolicy` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[VirtualClusterPolicySpec](#virtualclusterpolicyspec)_ | Spec defines the desired state of the VirtualClusterPolicy. | \{  \} |  |
@@ -465,7 +465,7 @@ VirtualClusterPolicyList is a list of VirtualClusterPolicy resources.
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `apiVersion` _string_ | `k3k.io/v1alpha1` | | |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
 | `kind` _string_ | `VirtualClusterPolicyList` | | |
 | `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[VirtualClusterPolicy](#virtualclusterpolicy) array_ |  |  |  |

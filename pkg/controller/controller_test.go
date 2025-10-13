@@ -7,12 +7,12 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 func Test_K3S_Image(t *testing.T) {
 	type args struct {
-		cluster  *v1alpha1.Cluster
+		cluster  *v1beta1.Cluster
 		k3sImage string
 	}
 
@@ -25,12 +25,12 @@ func Test_K3S_Image(t *testing.T) {
 			name: "cluster with assigned version spec",
 			args: args{
 				k3sImage: "rancher/k3s",
-				cluster: &v1alpha1.Cluster{
+				cluster: &v1beta1.Cluster{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
-					Spec: v1alpha1.ClusterSpec{
+					Spec: v1beta1.ClusterSpec{
 						Version: "v1.2.3",
 					},
 				},
@@ -41,12 +41,12 @@ func Test_K3S_Image(t *testing.T) {
 			name: "cluster with empty version spec and assigned hostVersion status",
 			args: args{
 				k3sImage: "rancher/k3s",
-				cluster: &v1alpha1.Cluster{
+				cluster: &v1beta1.Cluster{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
-					Status: v1alpha1.ClusterStatus{
+					Status: v1beta1.ClusterStatus{
 						HostVersion: "v4.5.6",
 					},
 				},
@@ -57,7 +57,7 @@ func Test_K3S_Image(t *testing.T) {
 			name: "cluster with empty version spec and empty hostVersion status",
 			args: args{
 				k3sImage: "rancher/k3s",
-				cluster: &v1alpha1.Cluster{
+				cluster: &v1beta1.Cluster{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",

@@ -9,7 +9,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 const (
@@ -28,7 +28,7 @@ var Backoff = wait.Backoff{
 // Image returns the rancher/k3s image tagged with the specified Version.
 // If Version is empty it will use with the same k8s version of the host cluster,
 // stored in the Status object. It will return the latest version as last fallback.
-func K3SImage(cluster *v1alpha1.Cluster, k3SImage string) string {
+func K3SImage(cluster *v1beta1.Cluster, k3SImage string) string {
 	image := k3SImage
 
 	imageVersion := "latest"

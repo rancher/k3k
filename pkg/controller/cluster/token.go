@@ -15,11 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 )
 
-func (c *ClusterReconciler) token(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
+func (c *ClusterReconciler) token(ctx context.Context, cluster *v1beta1.Cluster) (string, error) {
 	if cluster.Spec.TokenSecretRef == nil {
 		return c.ensureTokenSecret(ctx, cluster)
 	}
@@ -42,7 +42,7 @@ func (c *ClusterReconciler) token(ctx context.Context, cluster *v1alpha1.Cluster
 	return string(tokenSecret.Data["token"]), nil
 }
 
-func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1alpha1.Cluster) (string, error) {
+func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1beta1.Cluster) (string, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	// check if the secret is already created

@@ -16,17 +16,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1alpha1"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
 
-func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1alpha1.Cluster) (reconcile.Result, error) {
+func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1beta1.Cluster) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("finalizing Cluster")
 
 	// Set the Terminating phase and condition
-	cluster.Status.Phase = v1alpha1.ClusterTerminating
+	cluster.Status.Phase = v1beta1.ClusterTerminating
 	meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 		Type:    ConditionReady,
 		Status:  metav1.ConditionFalse,
@@ -39,7 +39,7 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1alph
 	}
 
 	// Deallocate ports for kubelet and webhook if used
-	if cluster.Spec.Mode == v1alpha1.SharedClusterMode && cluster.Spec.MirrorHostNodes {
+	if cluster.Spec.Mode == v1beta1.SharedClusterMode && cluster.Spec.MirrorHostNodes {
 		log.Info("dellocating ports for kubelet and webhook")
 
 		if err := c.PortAllocator.DeallocateKubeletPort(ctx, cluster.Name, cluster.Namespace, cluster.Status.KubeletPort); err != nil {
@@ -61,7 +61,7 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1alph
 	return reconcile.Result{}, nil
 }
 
-func (c *ClusterReconciler) unbindClusterRoles(ctx context.Context, cluster *v1alpha1.Cluster) error {
+func (c *ClusterReconciler) unbindClusterRoles(ctx context.Context, cluster *v1beta1.Cluster) error {
 	clusterRoles := []string{"k3k-kubelet-node", "k3k-priorityclass"}
 
 	var err error

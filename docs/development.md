@@ -130,7 +130,7 @@ Create then the virtual cluster exposing through NodePort one of the ports that 
 
 ```bash
 cat <<EOF | kubectl apply -f -
-apiVersion: k3k.io/v1alpha1
+apiVersion: k3k.io/v1beta1
 kind: Cluster
 metadata:
   name: mycluster

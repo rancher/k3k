@@ -29,10 +29,10 @@ spec:
           - --cluster-cidr={{ .Values.host.clusterCIDR }}
           - --k3s-server-image={{- include "server.registry" .}}{{ .Values.server.image.repository }}
           - --k3s-server-image-pull-policy={{ .Values.server.image.pullPolicy }}
-          - --shared-agent-image={{- include "agent.shared.registry" .}}{{ .Values.agent.shared.image.repository }}:{{ default .Chart.AppVersion .Values.agent.shared.image.tag }}
-          - --shared-agent-image-pull-policy={{ .Values.agent.shared.image.pullPolicy }}
-          - --virtual-agent-image={{- include "agent.virtual.registry" .}}{{ .Values.agent.virtual.image.repository }}
-          - --virtual-agent-image-pull-policy={{ .Values.agent.virtual.image.pullPolicy }}
+          - --agent-shared-image={{- include "agent.shared.registry" .}}{{ .Values.agent.shared.image.repository }}:{{ default .Chart.AppVersion .Values.agent.shared.image.tag }}
+          - --agent-shared-image-pull-policy={{ .Values.agent.shared.image.pullPolicy }}
+          - --agent-virtual-image={{- include "agent.virtual.registry" .}}{{ .Values.agent.virtual.image.repository }}
+          - --agent-virtual-image-pull-policy={{ .Values.agent.virtual.image.pullPolicy }}
           - --kubelet-port-range={{ .Values.agent.shared.kubeletPortRange }}
           - --webhook-port-range={{ .Values.agent.shared.webhookPortRange }}
           {{- range $key, $value := include "image.pullSecrets" (concat .Values.agent.imagePullSecrets .Values.global.imagePullSecrets) | fromYamlArray }}

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/utils/ptr"
 
 	v1 "k8s.io/api/core/v1"
@@ -406,8 +407,8 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
 	)
-	ctx := context.Background()
 	BeforeEach(func() {
+		ctx := context.Background()
 		namespace := NewNamespace()
 
 		cluster := NewCluster(namespace.Name)
@@ -438,24 +439,26 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 		nginxPod, _ = virtualCluster.NewNginxPod("")
 	})
 	It("will update server version when version spec is updated", func() {
+		var cluster v1alpha1.Cluster
+		ctx := context.Background()
+
+		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		// update cluster version
+		cluster.Spec.Version = "v1.32.8-k3s1"
+
+		err = k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
 		Eventually(func(g Gomega) {
-			var cluster v1alpha1.Cluster
-
-			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
-			g.Expect(err).NotTo(HaveOccurred())
-
-			// update cluster version
-			cluster.Spec.Version = "v1.32.8-k3s1"
-
-			err = k8sClient.Update(ctx, &cluster)
-			g.Expect(err).NotTo(HaveOccurred())
-
 			// server pods
 			serverPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			cond := findPodCondition(serverPod.Status.Conditions, v1.PodReady)
+			condIndex, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			g.Expect(condIndex).NotTo(Equal(-1))
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -467,8 +470,8 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 
 			_, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-
-			cond = findPodCondition(nginxPod.Status.Conditions, v1.PodReady)
+			condIndex, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			g.Expect(condIndex).NotTo(Equal(-1))
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -483,8 +486,8 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
 	)
-	ctx := context.Background()
 	BeforeEach(func() {
+		ctx := context.Background()
 		namespace := NewNamespace()
 
 		cluster := NewCluster(namespace.Name)
@@ -524,24 +527,25 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 		nginxPod, _ = virtualCluster.NewNginxPod("")
 	})
 	It("will update server version when version spec is updated", func() {
+		var cluster v1alpha1.Cluster
+		ctx := context.Background()
+
+		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		// update cluster version
+		cluster.Spec.Version = "v1.32.8-k3s1"
+
+		err = k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
 		Eventually(func(g Gomega) {
-			var cluster v1alpha1.Cluster
-
-			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
-			g.Expect(err).NotTo(HaveOccurred())
-
-			// update cluster version
-			cluster.Spec.Version = "v1.32.8-k3s1"
-
-			err = k8sClient.Update(ctx, &cluster)
-			g.Expect(err).NotTo(HaveOccurred())
-
 			// server pods
 			serverPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			cond := findPodCondition(serverPod.Status.Conditions, v1.PodReady)
+			condIndex, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			g.Expect(condIndex).NotTo(Equal(-1))
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -552,7 +556,8 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 			g.Expect(len(agentPods)).To(Equal(1))
 
 			agentPod := agentPods[0]
-			cond = findPodCondition(agentPod.Status.Conditions, v1.PodReady)
+			condIndex, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
+			g.Expect(condIndex).NotTo(Equal(-1))
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -565,7 +570,8 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
 
-			cond = findPodCondition(nginxPod.Status.Conditions, v1.PodReady)
+			condIndex, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			g.Expect(condIndex).NotTo(Equal(-1))
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).

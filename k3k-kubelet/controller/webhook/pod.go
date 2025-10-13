@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	webhookName    = "podmutator.k3k.io"
+	webhookName    = "podmutating.k3k.io"
 	webhookTimeout = int32(10)
 	webhookPath    = "/mutate--v1-pod"
 	FieldpathField = "k3k.io/fieldpath"
@@ -40,10 +40,10 @@ type webhookHandler struct {
 	webhookPort      int
 }
 
-// AddPodMutatorWebhook will add a mutator webhook to the virtual cluster to
+// AddPodMutatingWebhook will add a mutating webhook to the virtual cluster to
 // modify the nodeName of the created pods with the name of the virtual kubelet node name
 // as well as remove any status fields of the downward apis env fields
-func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, serviceName string, logger logr.Logger, webhookPort int) error {
+func AddPodMutatingWebhook(ctx context.Context, mgr manager.Manager, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, serviceName string, logger logr.Logger, webhookPort int) error {
 	handler := webhookHandler{
 		client:           mgr.GetClient(),
 		scheme:           mgr.GetScheme(),
@@ -54,7 +54,7 @@ func AddPodMutatorWebhook(ctx context.Context, mgr manager.Manager, hostClient c
 		webhookPort:      webhookPort,
 	}
 
-	// create mutator webhook configuration to the cluster
+	// create mutating webhook configuration to the cluster
 	config, err := handler.configuration(ctx, hostClient)
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error 
 		return fmt.Errorf("invalid request: object was type %t not cluster", obj)
 	}
 
-	w.logger.Info("mutator webhook request", "pod", pod.Name, "namespace", pod.Namespace)
+	w.logger.Info("mutating webhook request", "pod", pod.Name, "namespace", pod.Namespace)
 	// look for status.* fields in the env
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)

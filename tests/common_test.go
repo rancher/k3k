@@ -140,6 +140,9 @@ func NewCluster(namespace string) *v1alpha1.Cluster {
 			Persistence: v1alpha1.PersistenceConfig{
 				Type: v1alpha1.EphemeralPersistenceMode,
 			},
+			ServerArgs: []string{
+				"--disable-network-policy",
+			},
 		},
 	}
 }
@@ -261,6 +264,10 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {
 
 	var podIP string
 
+	// only check the pod on the host cluster if the mode is shared mode
+	if c.Cluster.Spec.Mode != v1alpha1.SharedClusterMode {
+		return nginxPod, ""
+	}
 	// check that the nginx Pod is up and running in the host cluster
 	Eventually(func() bool {
 		podList, err := k8s.CoreV1().Pods(c.Cluster.Namespace).List(ctx, v1.ListOptions{})

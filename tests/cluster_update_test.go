@@ -437,7 +437,12 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 		Expect(serverPod.Spec.Containers[0].Image).To(Equal("rancher/k3s:" + cluster.Spec.Version))
 
 		nginxPod, _ = virtualCluster.NewNginxPod("")
+
+		DeferCleanup(func() {
+			DeleteNamespaces(virtualCluster.Cluster.Namespace)
+		})
 	})
+
 	It("will update server version when version spec is updated", func() {
 		var cluster v1beta1.Cluster
 		ctx := context.Background()
@@ -468,14 +473,15 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 			g.Expect(err).To(BeNil())
 			g.Expect(clusterVersion.String()).To(Equal(strings.ReplaceAll(cluster.Spec.Version, "-", "+")))
 
-			_, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
+			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
+
 			condIndex, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(condIndex).NotTo(Equal(-1))
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
-			WithPolling(time.Second * 2).
+			WithPolling(time.Second * 5).
 			WithTimeout(time.Minute * 3).
 			Should(Succeed())
 	})

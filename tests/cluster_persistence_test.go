@@ -25,10 +25,10 @@ var _ = When("an ephemeral cluster is installed", Label("e2e"), func() {
 
 	BeforeEach(func() {
 		virtualCluster = NewVirtualCluster()
-	})
 
-	AfterEach(func() {
-		DeleteNamespaces(virtualCluster.Cluster.Namespace)
+		DeferCleanup(func() {
+			DeleteNamespaces(virtualCluster.Cluster.Namespace)
+		})
 	})
 
 	It("can create a nginx pod", func() {

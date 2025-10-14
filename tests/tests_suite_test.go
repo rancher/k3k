@@ -26,10 +26,12 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -233,7 +235,7 @@ func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
 	}
 
 	_, err := clientset.CoreV1().PersistentVolumeClaims(k3kNamespace).Create(ctx, pvc, metav1.CreateOptions{})
-	Expect(err).To(Not(HaveOccurred()))
+	Expect(client.IgnoreAlreadyExists(err)).To(Not(HaveOccurred()))
 
 	patchData := []byte(`
 {
@@ -340,7 +342,7 @@ var _ = AfterSuite(func() {
 // dumpK3kCoverageData will kill the K3k controller container to force it to dump the coverage data.
 // It will then download the files with kubectl cp into the specified folder. If the folder doesn't exists it will be created.
 func dumpK3kCoverageData(ctx context.Context, folder string) {
-	GinkgoWriter.Println("Restarting k3k controller...")
+	By("Restarting k3k controller")
 
 	var podList corev1.PodList
 
@@ -353,26 +355,31 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 	output, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred(), string(output))
 
-	Eventually(func() corev1.PodPhase {
-		var pod corev1.Pod
+	By("Waiting to be ready again")
 
+	Eventually(func(g Gomega) {
 		key := types.NamespacedName{
 			Namespace: k3kNamespace,
 			Name:      k3kPod.Name,
 		}
-		err = k8sClient.Get(ctx, key, &pod)
-		Expect(err).To(Not(HaveOccurred()))
 
-		GinkgoWriter.Printf("K3k controller status: %s\n", pod.Status.Phase)
+		var controllerPod corev1.Pod
 
-		return pod.Status.Phase
+		err = k8sClient.Get(ctx, key, &controllerPod)
+		g.Expect(err).To(Not(HaveOccurred()))
+
+		_, cond := pod.GetPodCondition(&controllerPod.Status, v1.PodReady)
+		g.Expect(cond).NotTo(BeNil())
+		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).
 		MustPassRepeatedly(5).
 		WithPolling(time.Second * 2).
-		WithTimeout(time.Minute).
-		Should(Equal(corev1.PodRunning))
+		WithTimeout(time.Minute * 2).
+		Should(Succeed())
 
-	GinkgoWriter.Printf("Downloading covdata from k3k controller to %s\n", folder)
+	By("Controller is ready again, dumping coverage data")
+
+	GinkgoWriter.Printf("Downloading covdata from k3k controller %s/%s to %s\n", k3kNamespace, k3kPod.Name, folder)
 
 	cmd = exec.Command("kubectl", "cp", fmt.Sprintf("%s/%s:/tmp/covdata", k3kNamespace, k3kPod.Name), folder)
 	output, err = cmd.CombinedOutput()

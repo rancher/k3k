@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -118,7 +117,7 @@ func initKubernetesClient(ctx context.Context) {
 func buildScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 
-	err := corev1.AddToScheme(scheme)
+	err := v1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = v1beta1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
@@ -217,18 +216,18 @@ func installK3kChart() {
 }
 
 func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
-	pvc := &corev1.PersistentVolumeClaim{
+	pvc := &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "coverage-data-pvc",
 			Namespace: k3kNamespace,
 		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{
-				corev1.ReadWriteOnce,
+		Spec: v1.PersistentVolumeClaimSpec{
+			AccessModes: []v1.PersistentVolumeAccessMode{
+				v1.ReadWriteOnce,
 			},
-			Resources: corev1.VolumeResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse("100M"),
+			Resources: v1.VolumeResourceRequirements{
+				Requests: v1.ResourceList{
+					v1.ResourceStorage: resource.MustParse("100M"),
 				},
 			},
 		},
@@ -344,7 +343,7 @@ var _ = AfterSuite(func() {
 func dumpK3kCoverageData(ctx context.Context, folder string) {
 	By("Restarting k3k controller")
 
-	var podList corev1.PodList
+	var podList v1.PodList
 
 	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
 	Expect(err).To(Not(HaveOccurred()))
@@ -363,7 +362,7 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 			Name:      k3kPod.Name,
 		}
 
-		var controllerPod corev1.Pod
+		var controllerPod v1.Pod
 
 		err = k8sClient.Get(ctx, key, &controllerPod)
 		g.Expect(err).To(Not(HaveOccurred()))
@@ -387,13 +386,13 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 }
 
 func getK3kLogs(ctx context.Context) io.ReadCloser {
-	var podList corev1.PodList
+	var podList v1.PodList
 
 	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
 	Expect(err).To(Not(HaveOccurred()))
 
 	k3kPod := podList.Items[0]
-	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &corev1.PodLogOptions{Previous: true})
+	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &v1.PodLogOptions{Previous: true})
 	podLogs, err := req.Stream(ctx)
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -434,13 +433,13 @@ func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.
 		SubResource("exec")
 	scheme := runtime.NewScheme()
 
-	if err := corev1.AddToScheme(scheme); err != nil {
+	if err := v1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("error adding to scheme: %v", err)
 	}
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
 
-	req.VersionedParams(&corev1.PodExecOptions{
+	req.VersionedParams(&v1.PodExecOptions{
 		Command: command,
 		Stdin:   stdin != nil,
 		Stdout:  stdout != nil,
@@ -468,8 +467,8 @@ func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.
 	return stderr.Bytes(), nil
 }
 
-func caCertSecret(name, namespace string, crt, key []byte) *corev1.Secret {
-	return &corev1.Secret{
+func caCertSecret(name, namespace string, crt, key []byte) *v1.Secret {
+	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,

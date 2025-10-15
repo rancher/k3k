@@ -26,10 +26,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -116,7 +117,7 @@ func initKubernetesClient(ctx context.Context) {
 func buildScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 
-	err := corev1.AddToScheme(scheme)
+	err := v1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = v1beta1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
@@ -215,25 +216,25 @@ func installK3kChart() {
 }
 
 func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
-	pvc := &corev1.PersistentVolumeClaim{
+	pvc := &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "coverage-data-pvc",
 			Namespace: k3kNamespace,
 		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{
-				corev1.ReadWriteOnce,
+		Spec: v1.PersistentVolumeClaimSpec{
+			AccessModes: []v1.PersistentVolumeAccessMode{
+				v1.ReadWriteOnce,
 			},
-			Resources: corev1.VolumeResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse("100M"),
+			Resources: v1.VolumeResourceRequirements{
+				Requests: v1.ResourceList{
+					v1.ResourceStorage: resource.MustParse("100M"),
 				},
 			},
 		},
 	}
 
 	_, err := clientset.CoreV1().PersistentVolumeClaims(k3kNamespace).Create(ctx, pvc, metav1.CreateOptions{})
-	Expect(err).To(Not(HaveOccurred()))
+	Expect(client.IgnoreAlreadyExists(err)).To(Not(HaveOccurred()))
 
 	patchData := []byte(`
 {
@@ -340,9 +341,9 @@ var _ = AfterSuite(func() {
 // dumpK3kCoverageData will kill the K3k controller container to force it to dump the coverage data.
 // It will then download the files with kubectl cp into the specified folder. If the folder doesn't exists it will be created.
 func dumpK3kCoverageData(ctx context.Context, folder string) {
-	GinkgoWriter.Println("Restarting k3k controller...")
+	By("Restarting k3k controller")
 
-	var podList corev1.PodList
+	var podList v1.PodList
 
 	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
 	Expect(err).To(Not(HaveOccurred()))
@@ -353,26 +354,31 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 	output, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred(), string(output))
 
-	Eventually(func() corev1.PodPhase {
-		var pod corev1.Pod
+	By("Waiting to be ready again")
 
+	Eventually(func(g Gomega) {
 		key := types.NamespacedName{
 			Namespace: k3kNamespace,
 			Name:      k3kPod.Name,
 		}
-		err = k8sClient.Get(ctx, key, &pod)
-		Expect(err).To(Not(HaveOccurred()))
 
-		GinkgoWriter.Printf("K3k controller status: %s\n", pod.Status.Phase)
+		var controllerPod v1.Pod
 
-		return pod.Status.Phase
+		err = k8sClient.Get(ctx, key, &controllerPod)
+		g.Expect(err).To(Not(HaveOccurred()))
+
+		_, cond := pod.GetPodCondition(&controllerPod.Status, v1.PodReady)
+		g.Expect(cond).NotTo(BeNil())
+		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).
 		MustPassRepeatedly(5).
 		WithPolling(time.Second * 2).
-		WithTimeout(time.Minute).
-		Should(Equal(corev1.PodRunning))
+		WithTimeout(time.Minute * 2).
+		Should(Succeed())
 
-	GinkgoWriter.Printf("Downloading covdata from k3k controller to %s\n", folder)
+	By("Controller is ready again, dumping coverage data")
+
+	GinkgoWriter.Printf("Downloading covdata from k3k controller %s/%s to %s\n", k3kNamespace, k3kPod.Name, folder)
 
 	cmd = exec.Command("kubectl", "cp", fmt.Sprintf("%s/%s:/tmp/covdata", k3kNamespace, k3kPod.Name), folder)
 	output, err = cmd.CombinedOutput()
@@ -380,13 +386,13 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 }
 
 func getK3kLogs(ctx context.Context) io.ReadCloser {
-	var podList corev1.PodList
+	var podList v1.PodList
 
 	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
 	Expect(err).To(Not(HaveOccurred()))
 
 	k3kPod := podList.Items[0]
-	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &corev1.PodLogOptions{Previous: true})
+	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &v1.PodLogOptions{Previous: true})
 	podLogs, err := req.Stream(ctx)
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -427,13 +433,13 @@ func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.
 		SubResource("exec")
 	scheme := runtime.NewScheme()
 
-	if err := corev1.AddToScheme(scheme); err != nil {
+	if err := v1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("error adding to scheme: %v", err)
 	}
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
 
-	req.VersionedParams(&corev1.PodExecOptions{
+	req.VersionedParams(&v1.PodExecOptions{
 		Command: command,
 		Stdin:   stdin != nil,
 		Stdout:  stdout != nil,
@@ -461,8 +467,8 @@ func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.
 	return stderr.Bytes(), nil
 }
 
-func caCertSecret(name, namespace string, crt, key []byte) *corev1.Secret {
-	return &corev1.Secret{
+func caCertSecret(name, namespace string, crt, key []byte) *v1.Secret {
+	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,

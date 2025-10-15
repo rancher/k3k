@@ -72,7 +72,7 @@ test-kubelet-controller:	## Run the controller tests (pkg/controller)
 
 .PHONY: test-e2e
 test-e2e:	## Run the e2e tests
-	$(GINKGO) $(GINKGO_FLAGS) --label-filter=(E2E_LABEL_FILTER) tests
+	$(GINKGO) $(GINKGO_FLAGS) --label-filter="$(E2E_LABEL_FILTER)" tests
 
 .PHONY: test-cli
 test-cli:	## Run the cli tests

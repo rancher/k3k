@@ -24,6 +24,10 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), func() {
 	BeforeEach(func() {
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		cluster := NewCluster(namespace.Name)
 
 		// Add initial environment variables for server
@@ -158,6 +162,10 @@ var _ = When("a shared mode cluster update its server args", Label("e2e"), func(
 	BeforeEach(func() {
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		cluster := NewCluster(namespace.Name)
 
 		// Add initial args for server
@@ -213,6 +221,10 @@ var _ = When("a virtual mode cluster update its envs", Label("e2e"), func() {
 	BeforeEach(func() {
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		cluster := NewCluster(namespace.Name)
 
 		// Add initial environment variables for server
@@ -239,7 +251,7 @@ var _ = When("a virtual mode cluster update its envs", Label("e2e"), func() {
 		}
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
-		cluster.Spec.Agents = ptr.To(int32(1))
+		cluster.Spec.Agents = ptr.To[int32](1)
 
 		CreateCluster(cluster)
 
@@ -358,7 +370,7 @@ var _ = When("a virtual mode cluster update its server args", Label("e2e"), func
 		}
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
-		cluster.Spec.Agents = ptr.To(int32(1))
+		cluster.Spec.Agents = ptr.To[int32](1)
 
 		CreateCluster(cluster)
 
@@ -411,6 +423,10 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		cluster := NewCluster(namespace.Name)
 
 		// Add initial version
@@ -462,8 +478,7 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			condIndex, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -475,9 +490,7 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-
-			condIndex, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -496,13 +509,17 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		cluster := NewCluster(namespace.Name)
 
 		// Add initial version
 		cluster.Spec.Version = "v1.31.13-k3s1"
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
-		cluster.Spec.Agents = ptr.To(int32(1))
+		cluster.Spec.Agents = ptr.To[int32](1)
 
 		// need to enable persistence for this
 		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
@@ -550,8 +567,7 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			condIndex, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -562,8 +578,7 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 			g.Expect(len(agentPods)).To(Equal(1))
 
 			agentPod := agentPods[0]
-			condIndex, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -576,8 +591,7 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
 
-			condIndex, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -595,6 +609,10 @@ var _ = When("a shared mode cluster scales up servers", Label("e2e"), Label("SLO
 	BeforeEach(func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
 
 		cluster := NewCluster(namespace.Name)
 
@@ -636,7 +654,7 @@ var _ = When("a shared mode cluster scales up servers", Label("e2e"), Label("SLO
 		Expect(err).NotTo(HaveOccurred())
 
 		// scale cluster servers to 3 nodes
-		cluster.Spec.Servers = ptr.To(int32(3))
+		cluster.Spec.Servers = ptr.To[int32](3)
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -647,8 +665,7 @@ var _ = When("a shared mode cluster scales up servers", Label("e2e"), Label("SLO
 			g.Expect(len(serverPods)).To(Equal(3))
 
 			for _, serverPod := range serverPods {
-				condIndex, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
-				g.Expect(condIndex).NotTo(Equal(-1))
+				_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 			}
@@ -659,8 +676,7 @@ var _ = When("a shared mode cluster scales up servers", Label("e2e"), Label("SLO
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-			condIndex, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -679,10 +695,14 @@ var _ = When("a shared mode cluster scales down servers", Label("e2e"), Label("S
 		ctx := context.Background()
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		cluster := NewCluster(namespace.Name)
 
 		// start cluster with 3 servers
-		cluster.Spec.Servers = ptr.To(int32(3))
+		cluster.Spec.Servers = ptr.To[int32](3)
 
 		// need to enable persistence for this
 		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
@@ -723,7 +743,7 @@ var _ = When("a shared mode cluster scales down servers", Label("e2e"), Label("S
 		Expect(err).NotTo(HaveOccurred())
 
 		// scale down cluster servers to 1 node
-		cluster.Spec.Servers = ptr.To(int32(1))
+		cluster.Spec.Servers = ptr.To[int32](1)
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -733,8 +753,7 @@ var _ = When("a shared mode cluster scales down servers", Label("e2e"), Label("S
 			serverPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(serverPods)).To(Equal(1))
 
-			condIndex, cond := pod.GetPodCondition(&serverPods[0].Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond := pod.GetPodCondition(&serverPods[0].Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -744,8 +763,7 @@ var _ = When("a shared mode cluster scales down servers", Label("e2e"), Label("S
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-			condIndex, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -763,6 +781,10 @@ var _ = When("a virtual mode cluster scales up servers", Label("e2e"), Label("SL
 	BeforeEach(func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
 
 		cluster := NewCluster(namespace.Name)
 
@@ -804,7 +826,7 @@ var _ = When("a virtual mode cluster scales up servers", Label("e2e"), Label("SL
 		Expect(err).NotTo(HaveOccurred())
 
 		// scale cluster servers to 3 nodes
-		cluster.Spec.Servers = ptr.To(int32(3))
+		cluster.Spec.Servers = ptr.To[int32](3)
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -815,8 +837,7 @@ var _ = When("a virtual mode cluster scales up servers", Label("e2e"), Label("SL
 			g.Expect(len(serverPods)).To(Equal(3))
 
 			for _, serverPod := range serverPods {
-				condIndex, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
-				g.Expect(condIndex).NotTo(Equal(-1))
+				_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 			}
@@ -827,8 +848,7 @@ var _ = When("a virtual mode cluster scales up servers", Label("e2e"), Label("SL
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-			condIndex, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -847,12 +867,16 @@ var _ = When("a virtual mode cluster scales down servers", Label("e2e"), Label("
 		ctx := context.Background()
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		cluster := NewCluster(namespace.Name)
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
 
 		// start cluster with 3 servers
-		cluster.Spec.Servers = ptr.To(int32(3))
+		cluster.Spec.Servers = ptr.To[int32](3)
 
 		// need to enable persistence for this
 		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
@@ -891,7 +915,7 @@ var _ = When("a virtual mode cluster scales down servers", Label("e2e"), Label("
 		Expect(err).NotTo(HaveOccurred())
 
 		// scale down cluster servers to 1 node
-		cluster.Spec.Servers = ptr.To(int32(1))
+		cluster.Spec.Servers = ptr.To[int32](1)
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -901,8 +925,7 @@ var _ = When("a virtual mode cluster scales down servers", Label("e2e"), Label("
 			serverPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(serverPods)).To(Equal(1))
 
-			condIndex, cond := pod.GetPodCondition(&serverPods[0].Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond := pod.GetPodCondition(&serverPods[0].Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -913,8 +936,7 @@ var _ = When("a virtual mode cluster scales down servers", Label("e2e"), Label("
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-			condIndex, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).

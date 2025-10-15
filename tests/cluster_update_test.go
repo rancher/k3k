@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = When("a shared mode cluster update its envs", Label("e2e"), func() {
+var _ = When("a shared mode cluster update its envs", Label("e2e"), Label("update"), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {
@@ -156,7 +156,7 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), func() {
 	})
 })
 
-var _ = When("a shared mode cluster update its server args", Label("e2e"), func() {
+var _ = When("a shared mode cluster update its server args", Label("e2e"), Label("update"), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {
@@ -215,7 +215,7 @@ var _ = When("a shared mode cluster update its server args", Label("e2e"), func(
 	})
 })
 
-var _ = When("a virtual mode cluster update its envs", Label("e2e"), func() {
+var _ = When("a virtual mode cluster update its envs", Label("e2e"), Label("update"), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {
@@ -356,7 +356,7 @@ var _ = When("a virtual mode cluster update its envs", Label("e2e"), func() {
 	})
 })
 
-var _ = When("a virtual mode cluster update its server args", Label("e2e"), func() {
+var _ = When("a virtual mode cluster update its server args", Label("e2e"), Label("update"), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {
@@ -414,7 +414,7 @@ var _ = When("a virtual mode cluster update its server args", Label("e2e"), func
 	})
 })
 
-var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
+var _ = When("a shared mode cluster update its version", Label("e2e"), Label("update"), func() {
 	var (
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
@@ -500,7 +500,7 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 	})
 })
 
-var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
+var _ = When("a virtual mode cluster update its version", Label("e2e"), Label("update"), func() {
 	var (
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
@@ -601,7 +601,7 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 	})
 })
 
-var _ = When("a shared mode cluster scales up servers", Label("e2e"), Label("SLOW"), func() {
+var _ = When("a shared mode cluster scales up servers", Label("e2e"), Label("update"), func() {
 	var (
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
@@ -686,7 +686,7 @@ var _ = When("a shared mode cluster scales up servers", Label("e2e"), Label("SLO
 	})
 })
 
-var _ = When("a shared mode cluster scales down servers", Label("e2e"), Label("SLOW"), func() {
+var _ = When("a shared mode cluster scales down servers", Label("e2e"), Label("update"), func() {
 	var (
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
@@ -773,7 +773,7 @@ var _ = When("a shared mode cluster scales down servers", Label("e2e"), Label("S
 	})
 })
 
-var _ = When("a virtual mode cluster scales up servers", Label("e2e"), Label("SLOW"), func() {
+var _ = When("a virtual mode cluster scales up servers", Label("e2e"), Label("update"), func() {
 	var (
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
@@ -858,7 +858,7 @@ var _ = When("a virtual mode cluster scales up servers", Label("e2e"), Label("SL
 	})
 })
 
-var _ = When("a virtual mode cluster scales down servers", Label("e2e"), Label("SLOW"), func() {
+var _ = When("a virtual mode cluster scales down servers", Label("e2e"), Label("update"), func() {
 	var (
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
@@ -936,6 +936,7 @@ var _ = When("a virtual mode cluster scales down servers", Label("e2e"), Label("
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
+
 			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))

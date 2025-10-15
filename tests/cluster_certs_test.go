@@ -13,7 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = When("a cluster with custom certificates is installed with individual cert secrets", Label("e2e"), func() {
+var _ = When("a cluster with custom certificates is installed with individual cert secrets", Label("e2e"), Label(certificatesTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 
 	BeforeEach(func() {

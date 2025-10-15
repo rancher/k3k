@@ -18,11 +18,15 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = When("a shared mode cluster update its envs", Label("e2e"), func() {
+var _ = When("a shared mode cluster update its envs", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {
 		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
 
 		cluster := NewCluster(namespace.Name)
 
@@ -152,11 +156,15 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), func() {
 	})
 })
 
-var _ = When("a shared mode cluster update its server args", Label("e2e"), func() {
+var _ = When("a shared mode cluster update its server args", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {
 		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
 
 		cluster := NewCluster(namespace.Name)
 
@@ -207,11 +215,15 @@ var _ = When("a shared mode cluster update its server args", Label("e2e"), func(
 	})
 })
 
-var _ = When("a virtual mode cluster update its envs", Label("e2e"), func() {
+var _ = When("a virtual mode cluster update its envs", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {
 		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
 
 		cluster := NewCluster(namespace.Name)
 
@@ -239,7 +251,7 @@ var _ = When("a virtual mode cluster update its envs", Label("e2e"), func() {
 		}
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
-		cluster.Spec.Agents = ptr.To(int32(1))
+		cluster.Spec.Agents = ptr.To[int32](1)
 
 		CreateCluster(cluster)
 
@@ -344,7 +356,7 @@ var _ = When("a virtual mode cluster update its envs", Label("e2e"), func() {
 	})
 })
 
-var _ = When("a virtual mode cluster update its server args", Label("e2e"), func() {
+var _ = When("a virtual mode cluster update its server args", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 	ctx := context.Background()
 	BeforeEach(func() {
@@ -358,7 +370,7 @@ var _ = When("a virtual mode cluster update its server args", Label("e2e"), func
 		}
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
-		cluster.Spec.Agents = ptr.To(int32(1))
+		cluster.Spec.Agents = ptr.To[int32](1)
 
 		CreateCluster(cluster)
 
@@ -402,7 +414,7 @@ var _ = When("a virtual mode cluster update its server args", Label("e2e"), func
 	})
 })
 
-var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
+var _ = When("a shared mode cluster update its version", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var (
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
@@ -410,6 +422,10 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 	BeforeEach(func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
 
 		cluster := NewCluster(namespace.Name)
 
@@ -462,8 +478,7 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			condIndex, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -475,9 +490,7 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-
-			condIndex, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -487,7 +500,7 @@ var _ = When("a shared mode cluster update its version", Label("e2e"), func() {
 	})
 })
 
-var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
+var _ = When("a virtual mode cluster update its version", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var (
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
@@ -496,13 +509,17 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		cluster := NewCluster(namespace.Name)
 
 		// Add initial version
 		cluster.Spec.Version = "v1.31.13-k3s1"
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
-		cluster.Spec.Agents = ptr.To(int32(1))
+		cluster.Spec.Agents = ptr.To[int32](1)
 
 		// need to enable persistence for this
 		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
@@ -550,8 +567,7 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			condIndex, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -562,8 +578,7 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 			g.Expect(len(agentPods)).To(Equal(1))
 
 			agentPod := agentPods[0]
-			condIndex, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -576,13 +591,358 @@ var _ = When("a virtual mode cluster update its version", Label("e2e"), func() {
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
 
-			condIndex, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
-			g.Expect(condIndex).NotTo(Equal(-1))
+			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
 			WithPolling(time.Second * 2).
 			WithTimeout(time.Minute * 3).
+			Should(Succeed())
+	})
+})
+
+var _ = When("a shared mode cluster scales up servers", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
+	var (
+		virtualCluster *VirtualCluster
+		nginxPod       *v1.Pod
+	)
+	BeforeEach(func() {
+		ctx := context.Background()
+		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
+		cluster := NewCluster(namespace.Name)
+
+		// need to enable persistence for this
+		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
+			Type: v1beta1.DynamicPersistenceMode,
+		}
+
+		CreateCluster(cluster)
+
+		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     client,
+		}
+		sPods := listServerPods(ctx, virtualCluster)
+		Expect(len(sPods)).To(Equal(1))
+
+		Eventually(func(g Gomega) {
+			// since there is no way to check nodes in shared mode
+			// we can check if the endpoints are registered to N nodes
+			k8sEndpointSlices, err := virtualCluster.Client.DiscoveryV1().EndpointSlices("default").Get(ctx, "kubernetes", metav1.GetOptions{})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(len(k8sEndpointSlices.Endpoints)).To(Equal(1))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 3).
+			Should(Succeed())
+
+		nginxPod, _ = virtualCluster.NewNginxPod("")
+	})
+	It("will scale up server pods", func() {
+		var cluster v1beta1.Cluster
+		ctx := context.Background()
+
+		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		// scale cluster servers to 3 nodes
+		cluster.Spec.Servers = ptr.To[int32](3)
+
+		err = k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func(g Gomega) {
+			// server pods
+			serverPods := listServerPods(ctx, virtualCluster)
+			g.Expect(len(serverPods)).To(Equal(3))
+
+			for _, serverPod := range serverPods {
+				_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+				g.Expect(cond).NotTo(BeNil())
+				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+			}
+
+			k8sEndpointSlices, err := virtualCluster.Client.DiscoveryV1().EndpointSlices("default").Get(ctx, "kubernetes", metav1.GetOptions{})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(len(k8sEndpointSlices.Endpoints)).To(Equal(3))
+
+			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
+			g.Expect(err).To(BeNil())
+			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 3).
+			Should(Succeed())
+	})
+})
+
+var _ = When("a shared mode cluster scales down servers", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
+	var (
+		virtualCluster *VirtualCluster
+		nginxPod       *v1.Pod
+	)
+	BeforeEach(func() {
+		ctx := context.Background()
+		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
+		cluster := NewCluster(namespace.Name)
+
+		// start cluster with 3 servers
+		cluster.Spec.Servers = ptr.To[int32](3)
+
+		// need to enable persistence for this
+		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
+			Type: v1beta1.DynamicPersistenceMode,
+		}
+
+		CreateCluster(cluster)
+
+		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     client,
+		}
+		// no need to check servers status since createCluster() will wait until all servers are in ready state
+		sPods := listServerPods(ctx, virtualCluster)
+		Expect(len(sPods)).To(Equal(3))
+
+		Eventually(func(g Gomega) {
+			// since there is no way to check nodes in shared mode
+			// we can check if the endpoints are registered to N nodes
+			k8sEndpointSlices, err := virtualCluster.Client.DiscoveryV1().EndpointSlices("default").Get(ctx, "kubernetes", metav1.GetOptions{})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(len(k8sEndpointSlices.Endpoints)).To(Equal(3))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 3).
+			Should(Succeed())
+
+		nginxPod, _ = virtualCluster.NewNginxPod("")
+	})
+	It("will scale down server pods", func() {
+		var cluster v1beta1.Cluster
+		ctx := context.Background()
+
+		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		// scale down cluster servers to 1 node
+		cluster.Spec.Servers = ptr.To[int32](1)
+
+		err = k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func(g Gomega) {
+			// server pods
+			serverPods := listServerPods(ctx, virtualCluster)
+			g.Expect(len(serverPods)).To(Equal(1))
+
+			_, cond := pod.GetPodCondition(&serverPods[0].Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+
+			k8sEndpointSlices, err := virtualCluster.Client.DiscoveryV1().EndpointSlices("default").Get(ctx, "kubernetes", metav1.GetOptions{})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(len(k8sEndpointSlices.Endpoints)).To(Equal(1))
+
+			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
+			g.Expect(err).To(BeNil())
+			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 3).
+			Should(Succeed())
+	})
+})
+
+var _ = When("a virtual mode cluster scales up servers", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
+	var (
+		virtualCluster *VirtualCluster
+		nginxPod       *v1.Pod
+	)
+	BeforeEach(func() {
+		ctx := context.Background()
+		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
+		cluster := NewCluster(namespace.Name)
+
+		cluster.Spec.Mode = v1beta1.VirtualClusterMode
+
+		// need to enable persistence for this
+		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
+			Type: v1beta1.DynamicPersistenceMode,
+		}
+
+		CreateCluster(cluster)
+
+		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     client,
+		}
+		sPods := listServerPods(ctx, virtualCluster)
+		Expect(len(sPods)).To(Equal(1))
+
+		Eventually(func(g Gomega) {
+			nodes, err := virtualCluster.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(len(nodes.Items)).To(Equal(1))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 5).
+			Should(Succeed())
+
+		nginxPod, _ = virtualCluster.NewNginxPod("")
+	})
+	It("will scale up server pods", func() {
+		var cluster v1beta1.Cluster
+		ctx := context.Background()
+
+		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		// scale cluster servers to 3 nodes
+		cluster.Spec.Servers = ptr.To[int32](3)
+
+		err = k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func(g Gomega) {
+			// server pods
+			serverPods := listServerPods(ctx, virtualCluster)
+			g.Expect(len(serverPods)).To(Equal(3))
+
+			for _, serverPod := range serverPods {
+				_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+				g.Expect(cond).NotTo(BeNil())
+				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+			}
+
+			nodes, err := virtualCluster.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(len(nodes.Items)).To(Equal(3))
+
+			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
+			g.Expect(err).To(BeNil())
+			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 5).
+			Should(Succeed())
+	})
+})
+
+var _ = When("a virtual mode cluster scales down servers", Label("e2e"), Label(updateTestsLabel), Label(slowTestsLabel), func() {
+	var (
+		virtualCluster *VirtualCluster
+		nginxPod       *v1.Pod
+	)
+	BeforeEach(func() {
+		ctx := context.Background()
+		namespace := NewNamespace()
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
+		cluster := NewCluster(namespace.Name)
+
+		cluster.Spec.Mode = v1beta1.VirtualClusterMode
+
+		// start cluster with 3 servers
+		cluster.Spec.Servers = ptr.To[int32](3)
+
+		// need to enable persistence for this
+		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
+			Type: v1beta1.DynamicPersistenceMode,
+		}
+
+		CreateCluster(cluster)
+
+		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     client,
+		}
+		// no need to check servers status since createCluster() will wait until all servers are in ready state
+		sPods := listServerPods(ctx, virtualCluster)
+		Expect(len(sPods)).To(Equal(3))
+
+		Eventually(func(g Gomega) {
+			nodes, err := virtualCluster.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(len(nodes.Items)).To(Equal(3))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 5).
+			Should(Succeed())
+
+		nginxPod, _ = virtualCluster.NewNginxPod("")
+	})
+	It("will scale down server pods", func() {
+		var cluster v1beta1.Cluster
+		ctx := context.Background()
+
+		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		// scale down cluster servers to 1 node
+		cluster.Spec.Servers = ptr.To[int32](1)
+
+		err = k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func(g Gomega) {
+			// server pods
+			serverPods := listServerPods(ctx, virtualCluster)
+			g.Expect(len(serverPods)).To(Equal(1))
+
+			_, cond := pod.GetPodCondition(&serverPods[0].Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+
+			// we can't check for number of nodes in scale down because the nodes will be there but in a non-ready state
+			k8sEndpointSlices, err := virtualCluster.Client.DiscoveryV1().EndpointSlices("default").Get(ctx, "kubernetes", metav1.GetOptions{})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(len(k8sEndpointSlices.Endpoints)).To(Equal(1))
+
+			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
+			g.Expect(err).To(BeNil())
+
+			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+		}).
+			WithPolling(time.Second * 2).
+			WithTimeout(time.Minute * 5).
 			Should(Succeed())
 	})
 })

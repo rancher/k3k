@@ -42,6 +42,13 @@ import (
 const (
 	k3kNamespace = "k3k-system"
 	k3kName      = "k3k"
+
+	slowTestsLabel         = "slow"
+	updateTestsLabel       = "update"
+	persistenceTestsLabel  = "persistence"
+	networkingTestsLabel   = "networking"
+	statusTestsLabel       = "status"
+	certificatesTestsLabel = "certificates"
 )
 
 func TestTests(t *testing.T) {

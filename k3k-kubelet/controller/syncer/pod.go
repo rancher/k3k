@@ -113,13 +113,15 @@ func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pv
 	if err := r.VirtualClient.Get(ctx, key, &pvc); err != nil {
 		return ctrlruntimeclient.IgnoreNotFound(err)
 	}
+
 	pv := r.pseudoPV(&pvc)
 
 	if pod.DeletionTimestamp != nil {
-		return r.handlePodDeletion(ctx, pod, pv)
+		return r.handlePodDeletion(ctx, pv)
 	}
 
 	log.Info("Creating pseudo Persistent Volume")
+
 	if err := r.VirtualClient.Create(ctx, pv); err != nil {
 		return ctrlruntimeclient.IgnoreAlreadyExists(err)
 	}
@@ -193,7 +195,7 @@ func (r *PodReconciler) pseudoPV(obj *v1.PersistentVolumeClaim) *v1.PersistentVo
 	}
 }
 
-func (r *PodReconciler) handlePodDeletion(ctx context.Context, pod *v1.Pod, pv *v1.PersistentVolume) error {
+func (r *PodReconciler) handlePodDeletion(ctx context.Context, pv *v1.PersistentVolume) error {
 	var currentPV v1.PersistentVolume
 	if err := r.VirtualClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(pv), &currentPV); err != nil {
 		return ctrlruntimeclient.IgnoreNotFound(err)

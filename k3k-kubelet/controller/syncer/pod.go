@@ -5,6 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/component-helpers/storage/volume"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -113,9 +114,14 @@ func (r *PodReconciler) reconcilePodWithPVC(ctx context.Context, pod *v1.Pod, pv
 		return ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
+	pv := r.pseudoPV(&pvc)
+
+	if pod.DeletionTimestamp != nil {
+		return r.handlePodDeletion(ctx, pv)
+	}
+
 	log.Info("Creating pseudo Persistent Volume")
 
-	pv := r.pseudoPV(&pvc)
 	if err := r.VirtualClient.Create(ctx, pv); err != nil {
 		return ctrlruntimeclient.IgnoreAlreadyExists(err)
 	}
@@ -187,4 +193,23 @@ func (r *PodReconciler) pseudoPV(obj *v1.PersistentVolumeClaim) *v1.PersistentVo
 			},
 		},
 	}
+}
+
+func (r *PodReconciler) handlePodDeletion(ctx context.Context, pv *v1.PersistentVolume) error {
+	var currentPV v1.PersistentVolume
+	if err := r.VirtualClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(pv), &currentPV); err != nil {
+		return ctrlruntimeclient.IgnoreNotFound(err)
+	}
+
+	pvPatch := currentPV.DeepCopy()
+	pvPatch.Spec.ClaimRef = nil
+	pvPatch.Status.Phase = v1.VolumeReleased
+
+	controllerutil.RemoveFinalizer(pvPatch, "kubernetes.io/pv-protection")
+
+	if err := r.VirtualClient.Status().Update(ctx, pvPatch); err != nil {
+		return err
+	}
+
+	return ctrlruntimeclient.IgnoreNotFound(r.VirtualClient.Delete(ctx, &currentPV))
 }

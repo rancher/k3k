@@ -211,5 +211,5 @@ func (r *PodReconciler) handlePodDeletion(ctx context.Context, pv *v1.Persistent
 		return err
 	}
 
-	return ctrlruntimeclient.IgnoreNotFound(r.VirtualClient.Delete(ctx, pv))
+	return ctrlruntimeclient.IgnoreNotFound(r.VirtualClient.Delete(ctx, &currentPV))
 }

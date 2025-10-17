@@ -33,6 +33,7 @@ k3kcli cluster create [command options] NAME
       --service-cidr string           service CIDR
       --storage-class-name string     storage class name for dynamic persistence type
       --storage-request-size string   storage size for dynamic persistence type
+      --timeout duration              The timeout for waiting for the cluster to become ready (e.g., 10s, 5m, 1h). (default 3m0s)
       --token string                  token of the cluster
       --version string                k3s version
 ```

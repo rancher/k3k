@@ -46,6 +46,7 @@ type CreateConfig struct {
 	policy               string
 	mirrorHostNodes      bool
 	customCertsPath      string
+	timeout              time.Duration
 }
 
 func NewClusterCreateCmd(appCtx *AppContext) *cobra.Command {
@@ -141,7 +142,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 
 		logrus.Infof("Waiting for cluster to be available..")
 
-		if err := waitForCluster(ctx, client, cluster); err != nil {
+		if err := waitForCluster(ctx, client, cluster, config.timeout); err != nil {
 			return fmt.Errorf("failed to wait for cluster to become ready (status: %s): %w", cluster.Status.Phase, err)
 		}
 
@@ -256,9 +257,8 @@ func env(envSlice []string) []v1.EnvVar {
 	return envVars
 }
 
-func waitForCluster(ctx context.Context, k8sClient client.Client, cluster *v1beta1.Cluster) error {
+func waitForCluster(ctx context.Context, k8sClient client.Client, cluster *v1beta1.Cluster, timeout time.Duration) error {
 	interval := 5 * time.Second
-	timeout := 2 * time.Minute
 
 	return wait.PollUntilContextTimeout(ctx, interval, timeout, true, func(ctx context.Context) (bool, error) {
 		key := client.ObjectKeyFromObject(cluster)

@@ -1,12 +1,14 @@
 package cluster
 
 import (
+	"context"
 	"errors"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
@@ -24,7 +26,10 @@ const (
 	ReasonTerminating        = "Terminating"
 )
 
-func (c *ClusterReconciler) updateStatus(cluster *v1beta1.Cluster, reconcileErr error) {
+func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.Cluster, reconcileErr error) {
+	log := ctrl.LoggerFrom(ctx)
+	log.V(1).Info("Updating Cluster Conditions")
+
 	if !cluster.DeletionTimestamp.IsZero() {
 		cluster.Status.Phase = v1beta1.ClusterTerminating
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{

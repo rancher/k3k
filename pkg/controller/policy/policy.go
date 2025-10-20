@@ -248,7 +248,7 @@ func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 
 func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling VirtualClusterPolicy")
+	log.Info("Reconciling VirtualClusterPolicy")
 
 	var policy v1beta1.VirtualClusterPolicy
 	if err := c.Client.Get(ctx, req.NamespacedName, &policy); err != nil {
@@ -261,6 +261,8 @@ func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reco
 
 	// update Status if needed
 	if !reflect.DeepEqual(orig.Status, policy.Status) {
+		log.Info("Updating VirtualClusterPolicy Status")
+
 		if err := c.Client.Status().Update(ctx, &policy); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -273,6 +275,8 @@ func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reco
 
 	// update VirtualClusterPolicy if needed
 	if !reflect.DeepEqual(orig, policy) {
+		log.Info("Updating VirtualClusterPolicy")
+
 		if err := c.Client.Update(ctx, &policy); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -295,7 +299,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileVirtualClusterPolicy(ctx conte
 
 func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context.Context, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling matching Namespaces")
+	log.V(1).Info("Reconciling matching Namespaces")
 
 	listOpts := client.MatchingLabels{
 		PolicyNameLabelKey: policy.Name,
@@ -307,8 +311,10 @@ func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context
 	}
 
 	for _, ns := range namespaces.Items {
-		ctx = ctrl.LoggerInto(ctx, log.WithValues("namespace", ns.Name))
-		log.Info("reconciling Namespace")
+		log = log.WithValues("namespace", ns.Name)
+		ctx = ctrl.LoggerInto(ctx, log)
+
+		log.V(1).Info("Reconciling Namespace")
 
 		orig := ns.DeepCopy()
 
@@ -331,6 +337,8 @@ func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context
 		c.reconcileNamespacePodSecurityLabels(ctx, &ns, policy)
 
 		if !reflect.DeepEqual(orig, &ns) {
+			log.Info("Updating Namespace")
+
 			if err := c.Client.Update(ctx, &ns); err != nil {
 				return err
 			}
@@ -342,7 +350,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context
 
 func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, namespace string, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling ResourceQuota")
+	log.V(1).Info("Reconciling ResourceQuota")
 
 	if policy.Spec.Quota == nil {
 		// check if resourceQuota object exists and deletes it.
@@ -356,6 +364,8 @@ func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, nam
 		if err := c.Client.Get(ctx, key, &toDeleteResourceQuota); err != nil {
 			return client.IgnoreNotFound(err)
 		}
+
+		log.V(1).Info("Deleting ResourceQuota")
 
 		return c.Client.Delete(ctx, &toDeleteResourceQuota)
 	}
@@ -381,8 +391,12 @@ func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, nam
 		return err
 	}
 
+	log.V(1).Info("Creating ResourceQuota")
+
 	err := c.Client.Create(ctx, resourceQuota)
 	if apierrors.IsAlreadyExists(err) {
+		log.V(1).Info("ResourceQuota already exists, updating.")
+
 		return c.Client.Update(ctx, resourceQuota)
 	}
 
@@ -391,7 +405,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, nam
 
 func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, namespace string, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling LimitRange")
+	log.V(1).Info("Reconciling LimitRange")
 
 	// delete limitrange if spec.limits isnt specified.
 	if policy.Spec.Limit == nil {
@@ -405,6 +419,8 @@ func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, nam
 		if err := c.Client.Get(ctx, key, &toDeleteLimitRange); err != nil {
 			return client.IgnoreNotFound(err)
 		}
+
+		log.V(1).Info("Deleting LimitRange")
 
 		return c.Client.Delete(ctx, &toDeleteLimitRange)
 	}
@@ -429,8 +445,12 @@ func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, nam
 		return err
 	}
 
+	log.V(1).Info("Creating LimitRange")
+
 	err := c.Client.Create(ctx, limitRange)
 	if apierrors.IsAlreadyExists(err) {
+		log.V(1).Info("LimitRange already exists, updating.")
+
 		return c.Client.Update(ctx, limitRange)
 	}
 
@@ -439,7 +459,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, nam
 
 func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, namespace *v1.Namespace, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling Clusters")
+	log.V(1).Info("Reconciling Clusters")
 
 	var clusters v1beta1.ClusterList
 	if err := c.Client.List(ctx, &clusters, client.InNamespace(namespace.Name)); err != nil {
@@ -455,6 +475,8 @@ func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, 
 		cluster.Spec.NodeSelector = policy.Spec.DefaultNodeSelector
 
 		if !reflect.DeepEqual(orig, cluster) {
+			log.V(1).Info("Updating Cluster", "cluster", cluster.Name, "namespace", namespace.Name)
+
 			// continue updating also the other clusters even if an error occurred
 			clusterUpdateErrs = append(clusterUpdateErrs, c.Client.Update(ctx, &cluster))
 		}

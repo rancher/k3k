@@ -62,7 +62,7 @@ func AddStatefulSetController(ctx context.Context, mgr manager.Manager, maxConcu
 
 func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling statefulset")
+	log.Info("Reconciling StatefulSet")
 
 	var sts apps.StatefulSet
 	if err := p.Client.Get(ctx, req.NamespacedName, &sts); err != nil {
@@ -116,10 +116,12 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 
 func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1beta1.Cluster, pod *v1.Pod) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("handling server pod")
+	log.V(1).Info("Handling Server Pod")
 
 	if pod.DeletionTimestamp.IsZero() {
 		if controllerutil.AddFinalizer(pod, etcdPodFinalizerName) {
+			log.V(1).Info("Server Pod is being deleted. Removing finalizer", "pod", pod.Name, "namespace", pod.Namespace)
+
 			return p.Client.Update(ctx, pod)
 		}
 
@@ -131,6 +133,8 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1b
 	// check if cluster is deleted then remove the finalizer from the pod
 	if cluster.Name == "" {
 		if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
+			log.V(1).Info("Cluster was deleted. Deleting Server Pod removing finalizer", "pod", pod.Name, "namespace", pod.Namespace)
+
 			if err := p.Client.Update(ctx, pod); err != nil {
 				return err
 			}
@@ -161,6 +165,8 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1b
 
 	// remove our finalizer from the list and update it.
 	if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
+		log.V(1).Info("Deleting Server Pod removing finalizer", "pod", pod.Name, "namespace", pod.Namespace)
+
 		if err := p.Client.Update(ctx, pod); err != nil {
 			return err
 		}
@@ -171,7 +177,7 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1b
 
 func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1.Cluster) (*tls.Config, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("generating etcd TLS client certificate", "cluster", cluster)
+	log.V(1).Info("Generating ETCD TLS client certificate", "cluster", cluster)
 
 	token, err := p.clusterToken(ctx, cluster)
 	if err != nil {
@@ -219,7 +225,7 @@ func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1
 // removePeer removes a peer from the cluster. The peer name and IP address must both match.
 func removePeer(ctx context.Context, client *clientv3.Client, name, address string) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("removing peer from cluster", "name", name, "address", address)
+	log.V(1).Info("Removing peer from cluster", "name", name, "address", address)
 
 	ctx, cancel := context.WithTimeout(ctx, memberRemovalTimeout)
 	defer cancel()
@@ -241,7 +247,7 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 			}
 
 			if u.Hostname() == address {
-				log.Info("removing member from etcd", "name", member.Name, "id", member.ID, "address", address)
+				log.V(1).Info("Removing member from ETCD", "name", member.Name, "id", member.ID, "address", address)
 
 				_, err := client.MemberRemove(ctx, member.ID)
 				if errors.Is(err, rpctypes.ErrGRPCMemberNotFound) {
@@ -280,6 +286,8 @@ func (p *StatefulSetReconciler) clusterToken(ctx context.Context, cluster *v1bet
 }
 
 func (p *StatefulSetReconciler) handleDeletion(ctx context.Context, sts *apps.StatefulSet) (ctrl.Result, error) {
+	log := ctrl.LoggerFrom(ctx)
+
 	podList, err := p.listPods(ctx, sts)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -287,6 +295,8 @@ func (p *StatefulSetReconciler) handleDeletion(ctx context.Context, sts *apps.St
 
 	for _, pod := range podList.Items {
 		if controllerutil.RemoveFinalizer(&pod, etcdPodFinalizerName) {
+			log.V(1).Info("Updating Server Pod removing finalizer", "name", pod.Name, "namespace", pod.Namespace)
+
 			if err := p.Client.Update(ctx, &pod); err != nil {
 				return reconcile.Result{}, err
 			}

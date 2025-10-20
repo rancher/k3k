@@ -17,7 +17,7 @@ import (
 
 func (c *VirtualClusterPolicyReconciler) reconcileNetworkPolicy(ctx context.Context, namespace string, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling NetworkPolicy")
+	log.V(1).Info("Reconciling NetworkPolicy")
 
 	var cidrList []string
 
@@ -46,13 +46,18 @@ func (c *VirtualClusterPolicyReconciler) reconcileNetworkPolicy(ctx context.Cont
 
 	// if disabled then delete the existing network policy
 	if policy.Spec.DisableNetworkPolicy {
-		err := c.Client.Delete(ctx, networkPolicy)
-		return client.IgnoreNotFound(err)
+		log.V(1).Info("Deleting NetworkPolicy")
+
+		return client.IgnoreNotFound(c.Client.Delete(ctx, networkPolicy))
 	}
+
+	log.V(1).Info("Creating NetworkPolicy")
 
 	// otherwise try to create/update
 	err := c.Client.Create(ctx, networkPolicy)
 	if apierrors.IsAlreadyExists(err) {
+		log.V(1).Info("NetworkPolicy already exists, updating.")
+
 		return c.Client.Update(ctx, networkPolicy)
 	}
 

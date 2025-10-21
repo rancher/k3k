@@ -960,15 +960,18 @@ var _ = When("a virtual mode cluster scales down servers", Label("e2e"), Label(u
 		By("Checking that Nginx Pod is Running")
 
 		Eventually(func(g Gomega) {
-			nginxPod, err := virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
+			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
 
-			// TODO: there is a possible issues where the Pod is not being marked as Ready
+			// TODO: there is a possible issue where the Pod is not being marked as Ready
 			// if the kubelet lost the sync with the API server.
-			// We check for the Running status, but this is to investigate.
+			// We check for the ContainersReady status (all containers in the pod are ready),
+			// but this is probably to investigate.
 			// Related issue (?): https://github.com/kubernetes/kubernetes/issues/82346
 
-			g.Expect(nginxPod.Status.Phase).To(BeEquivalentTo(v1.PodRunning))
+			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.ContainersReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
 			WithPolling(time.Second * 2).
 			WithTimeout(time.Minute).

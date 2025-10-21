@@ -248,7 +248,6 @@ func NewVirtualK8sClientAndConfig(cluster *v1beta1.Cluster) (*kubernetes.Clients
 
 func (c *VirtualCluster) NewNginxPod(namespace string) (*v1.Pod, string) {
 	GinkgoHelper()
-	var err error
 
 	if namespace == "" {
 		namespace = "default"
@@ -270,6 +269,8 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*v1.Pod, string) {
 	By("Creating Nginx Pod and waiting for it to be Ready")
 
 	ctx := context.Background()
+
+	var err error
 
 	nginxPod, err = c.Client.CoreV1().Pods(nginxPod.Namespace).Create(ctx, nginxPod, metav1.CreateOptions{})
 	Expect(err).To(Not(HaveOccurred()))

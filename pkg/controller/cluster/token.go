@@ -62,7 +62,7 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1be
 		return string(tokenSecret.Data["token"]), nil
 	}
 
-	log.Info("Token secret is not specified, creating a random token")
+	log.V(1).Info("Token secret is not specified, creating a random token")
 
 	token, err := random(16)
 	if err != nil {
@@ -77,7 +77,7 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1be
 	})
 
 	if result != controllerutil.OperationResultNone {
-		log.Info("ensuring tokenSecret", "key", key, "result", result)
+		log.V(1).Info("Ensuring tokenSecret", "key", key, "result", result)
 	}
 
 	return token, err

@@ -42,11 +42,8 @@ func configSecretName(clusterName string) string {
 }
 
 func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object) error {
-	log := ctrl.LoggerFrom(ctx)
-
 	key := ctrlruntimeclient.ObjectKeyFromObject(obj)
-
-	log.Info(fmt.Sprintf("ensuring %T", obj), "key", key)
+	log := ctrl.LoggerFrom(ctx).WithValues("key", key)
 
 	if err := controllerutil.SetControllerReference(cfg.cluster, obj, cfg.scheme); err != nil {
 		return err
@@ -54,11 +51,15 @@ func ensureObject(ctx context.Context, cfg *Config, obj ctrlruntimeclient.Object
 
 	if err := cfg.client.Create(ctx, obj); err != nil {
 		if apierrors.IsAlreadyExists(err) {
+			log.V(1).Info(fmt.Sprintf("Resource %T already exists, updating.", obj))
+
 			return cfg.client.Update(ctx, obj)
 		}
 
 		return err
 	}
+
+	log.V(1).Info(fmt.Sprintf("Creating %T.", obj))
 
 	return nil
 }

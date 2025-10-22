@@ -9,7 +9,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,14 +43,10 @@ func AddPodController(ctx context.Context, mgr manager.Manager, maxConcurrentRec
 
 func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("reconciling pod")
+	log.V(1).Info("Reconciling Pod")
 
 	var pod v1.Pod
 	if err := r.Client.Get(ctx, req.NamespacedName, &pod); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return reconcile.Result{}, err
-		}
-
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
@@ -73,6 +68,8 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 				Namespace: virtNamespace,
 			},
 		}
+
+		log.V(1).Info("Deleting Virtual Pod", "name", virtName, "namespace", virtNamespace)
 
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(virtualClient.Delete(ctx, &virtPod))
 	}

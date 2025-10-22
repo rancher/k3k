@@ -39,7 +39,7 @@ func AddServiceController(ctx context.Context, mgr manager.Manager, maxConcurren
 
 func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("ensuring service status to virtual cluster")
+	log.V(1).Info("Reconciling Service")
 
 	var hostService v1.Service
 	if err := r.HostClient.Get(ctx, req.NamespacedName, &hostService); err != nil {
@@ -53,7 +53,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	virtualServiceNamespace, virtualServiceNamespaceFound := hostService.Annotations[translate.ResourceNamespaceAnnotation]
 
 	if !virtualServiceNameFound || !virtualServiceNamespaceFound {
-		log.V(1).Info(fmt.Sprintf("service %s/%s does not have virtual service annotations, skipping", hostService.Namespace, hostService.Name))
+		log.V(1).Info(fmt.Sprintf("Service %s/%s does not have virtual service annotations, skipping", hostService.Namespace, hostService.Name))
 		return reconcile.Result{}, nil
 	}
 
@@ -80,7 +80,10 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	if !equality.Semantic.DeepEqual(virtualService.Status.LoadBalancer, hostService.Status.LoadBalancer) {
+		log.V(1).Info("Updating Virtual Service Status", "name", virtualServiceName, "namespace", virtualServiceNamespace)
+
 		virtualService.Status.LoadBalancer = hostService.Status.LoadBalancer
+
 		if err := virtualClient.Status().Update(ctx, &virtualService); err != nil {
 			return reconcile.Result{}, err
 		}

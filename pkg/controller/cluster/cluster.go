@@ -161,10 +161,8 @@ func namespaceEventHandler(r *ClusterReconciler) handler.Funcs {
 }
 
 func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("cluster", req.NamespacedName)
-	ctx = ctrl.LoggerInto(ctx, log) // enrich the current logger
-
-	log.Info("reconciling cluster")
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Reconciling Cluster")
 
 	var cluster v1beta1.Cluster
 	if err := c.Client.Get(ctx, req.NamespacedName, &cluster); err != nil {
@@ -178,6 +176,8 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	// Set initial status if not already set
 	if cluster.Status.Phase == "" || cluster.Status.Phase == v1beta1.ClusterUnknown {
+		log.V(1).Info("Updating Cluster status phase")
+
 		cluster.Status.Phase = v1beta1.ClusterProvisioning
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 			Type:    ConditionReady,
@@ -195,6 +195,8 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	// add finalizer
 	if controllerutil.AddFinalizer(&cluster, clusterFinalizerName) {
+		log.V(1).Info("Updating Cluster adding finalizer")
+
 		if err := c.Client.Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -207,6 +209,8 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	reconcilerErr := c.reconcileCluster(ctx, &cluster)
 
 	if !equality.Semantic.DeepEqual(orig.Status, cluster.Status) {
+		log.Info("Updating Cluster status")
+
 		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -215,7 +219,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	// if there was an error during the reconciliation, return
 	if reconcilerErr != nil {
 		if errors.Is(reconcilerErr, bootstrap.ErrServerNotReady) {
-			log.Info("server not ready, requeueing")
+			log.V(1).Info("Server not ready, requeueing")
 			return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 		}
 
@@ -224,6 +228,8 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	// update Cluster if needed
 	if !equality.Semantic.DeepEqual(orig.Spec, cluster.Spec) {
+		log.Info("Updating Cluster")
+
 		if err := c.Client.Update(ctx, &cluster); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -234,7 +240,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1beta1.Cluster) error {
 	err := c.reconcile(ctx, cluster)
-	c.updateStatus(cluster, err)
+	c.updateStatus(ctx, cluster, err)
 
 	return err
 }
@@ -264,7 +270,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
 	// This version is stored in the Status object, and it will not be updated if already set.
 	if cluster.Spec.Version == "" && cluster.Status.HostVersion == "" {
-		log.Info("cluster version not set")
+		log.V(1).Info("Cluster version not set. Using host version.")
 
 		hostVersion, err := c.DiscoveryClient.ServerVersion()
 		if err != nil {
@@ -295,7 +301,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 	if cluster.Status.ServiceCIDR == "" {
 		// in shared mode try to lookup the serviceCIDR
 		if cluster.Spec.Mode == v1beta1.SharedClusterMode {
-			log.Info("looking up Service CIDR for shared mode")
+			log.V(1).Info("Looking up Service CIDR for shared mode")
 
 			cluster.Status.ServiceCIDR, err = c.lookupServiceCIDR(ctx)
 			if err != nil {
@@ -307,7 +313,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 
 		// in virtual mode assign a default serviceCIDR
 		if cluster.Spec.Mode == v1beta1.VirtualClusterMode {
-			log.Info("assign default service CIDR for virtual mode")
+			log.V(1).Info("assign default service CIDR for virtual mode")
 
 			cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
 		}
@@ -354,7 +360,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 // ensureBootstrapSecret will create or update the Secret containing the bootstrap data from the k3s server
 func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("ensuring bootstrap secret")
+	log.V(1).Info("Ensuring bootstrap secret")
 
 	bootstrapData, err := bootstrap.GenerateBootstrapData(ctx, cluster, serviceIP, token)
 	if err != nil {
@@ -386,7 +392,7 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 // ensureKubeconfigSecret will create or update the Secret containing the kubeconfig data from the k3s server
 func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP string, port int) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("ensuring kubeconfig secret")
+	log.V(1).Info("Ensuring Kubeconfig Secret")
 
 	adminKubeconfig := kubeconfig.New()
 
@@ -460,7 +466,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 
 func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("ensuring network policy")
+	log.V(1).Info("Ensuring network policy")
 
 	networkPolicyName := controller.SafeConcatNameWithPrefix(cluster.Name)
 
@@ -544,7 +550,7 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 
 	key := client.ObjectKeyFromObject(currentNetworkPolicy)
 	if result != controllerutil.OperationResultNone {
-		log.Info("cluster network policy updated", "key", key, "result", result)
+		log.V(1).Info("Cluster network policy updated", "key", key, "result", result)
 	}
 
 	return nil
@@ -552,7 +558,7 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 
 func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v1beta1.Cluster) (*v1.Service, error) {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("ensuring cluster service")
+	log.V(1).Info("Ensuring Cluster Service")
 
 	expectedService := server.Service(cluster)
 	currentService := expectedService.DeepCopy()
@@ -572,7 +578,7 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 
 	key := client.ObjectKeyFromObject(currentService)
 	if result != controllerutil.OperationResultNone {
-		log.Info("cluster service updated", "key", key, "result", result)
+		log.V(1).Info("Cluster service updated", "key", key, "result", result)
 	}
 
 	return currentService, nil
@@ -580,7 +586,7 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 
 func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
-	log.Info("ensuring cluster ingress")
+	log.V(1).Info("Ensuring cluster ingress")
 
 	expectedServerIngress := server.Ingress(ctx, cluster)
 
@@ -608,7 +614,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1beta1.
 
 	key := client.ObjectKeyFromObject(currentServerIngress)
 	if result != controllerutil.OperationResultNone {
-		log.Info("cluster ingress updated", "key", key, "result", result)
+		log.V(1).Info("Cluster ingress updated", "key", key, "result", result)
 	}
 
 	return nil
@@ -650,7 +656,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1beta1.Cluster
 
 	if result != controllerutil.OperationResultNone {
 		key := client.ObjectKeyFromObject(currentServerStatefulSet)
-		log.Info("ensuring serverStatefulSet", "key", key, "result", result)
+		log.V(1).Info("Ensuring server StatefulSet", "key", key, "result", result)
 	}
 
 	return err
@@ -753,7 +759,7 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 	// Try to look for the serviceCIDR creating a failing service.
 	// The error should contain the expected serviceCIDR
 
-	log.Info("looking up serviceCIDR from a failing service creation")
+	log.V(1).Info("Looking up Service CIDR from a failing service creation")
 
 	failingSvc := v1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "fail", Namespace: "default"},
@@ -765,7 +771,7 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 
 		if len(splittedErrMsg) > 1 {
 			serviceCIDR := strings.TrimSpace(splittedErrMsg[1])
-			log.Info("found serviceCIDR from failing service creation: " + serviceCIDR)
+			log.V(1).Info("Found Service CIDR from failing service creation: " + serviceCIDR)
 
 			// validate serviceCIDR
 			_, serviceCIDRAddr, err := net.ParseCIDR(serviceCIDR)
@@ -779,7 +785,7 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 
 	// Try to look for the the kube-apiserver Pod, and look for the '--service-cluster-ip-range' flag.
 
-	log.Info("looking up serviceCIDR from kube-apiserver pod")
+	log.V(1).Info("Looking up Service CIDR from kube-apiserver pod")
 
 	matchingLabels := client.MatchingLabels(map[string]string{
 		"component": "kube-apiserver",
@@ -802,12 +808,12 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 		for _, arg := range apiServerArgs {
 			if strings.HasPrefix(arg, "--service-cluster-ip-range=") {
 				serviceCIDR := strings.TrimPrefix(arg, "--service-cluster-ip-range=")
-				log.Info("found serviceCIDR from kube-apiserver pod: " + serviceCIDR)
+				log.V(1).Info("Found Service CIDR from kube-apiserver pod: " + serviceCIDR)
 
 				// validate serviceCIDR
 				_, serviceCIDRAddr, err := net.ParseCIDR(serviceCIDR)
 				if err != nil {
-					log.Error(err, "serviceCIDR is not valid")
+					log.Error(err, "Service CIDR is not valid")
 					break
 				}
 

@@ -349,7 +349,7 @@ spec:
                           use for the Ingress.
                         type: string
                     type: object
-                  loadbalancer:
+                  loadBalancer:
                     description: LoadBalancer specifies options for exposing the API
                       server through a LoadBalancer service.
                     properties:
@@ -391,7 +391,7 @@ spec:
                 x-kubernetes-validations:
                 - message: ingress, loadbalancer and nodePort are mutually exclusive;
                     only one can be set
-                  rule: '[has(self.ingress), has(self.loadbalancer), has(self.nodePort)].filter(x,
+                  rule: '[has(self.ingress), has(self.loadBalancer), has(self.nodePort)].filter(x,
                     x).size() <= 1'
               mirrorHostNodes:
                 description: |-

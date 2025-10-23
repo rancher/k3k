@@ -226,7 +226,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `ingress` _[IngressConfig](#ingressconfig)_ | Ingress specifies options for exposing the API server through an Ingress. |  |  |
-| `loadbalancer` _[LoadBalancerConfig](#loadbalancerconfig)_ | LoadBalancer specifies options for exposing the API server through a LoadBalancer service. |  |  |
+| `loadBalancer` _[LoadBalancerConfig](#loadbalancerconfig)_ | LoadBalancer specifies options for exposing the API server through a LoadBalancer service. |  |  |
 | `nodePort` _[NodePortConfig](#nodeportconfig)_ | NodePort specifies options for exposing the API server through NodePort. |  |  |
 
 

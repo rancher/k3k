@@ -211,7 +211,7 @@ func newCluster(name, namespace string, config *CreateConfig) *v1beta1.Cluster {
 	}
 
 	if config.customCertsPath != "" {
-		cluster.Spec.CustomCAs = v1beta1.CustomCAs{
+		cluster.Spec.CustomCAs = &v1beta1.CustomCAs{
 			Enabled: true,
 			Sources: v1beta1.CredentialSources{
 				ClientCA: v1beta1.CredentialSource{

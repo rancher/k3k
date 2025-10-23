@@ -304,7 +304,16 @@ spec:
                               - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
                         type: object
+                    required:
+                    - clientCA
+                    - etcdPeerCA
+                    - etcdServerCA
+                    - requestHeaderCA
+                    - serverCA
+                    - serviceAccountToken
                     type: object
+                required:
+                - sources
                 type: object
               expose:
                 description: |-

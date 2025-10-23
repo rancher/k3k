@@ -163,7 +163,11 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*out)[key] = val.DeepCopy()
 		}
 	}
-	out.CustomCAs = in.CustomCAs
+	if in.CustomCAs != nil {
+		in, out := &in.CustomCAs, &out.CustomCAs
+		*out = new(CustomCAs)
+		**out = **in
+	}
 	if in.Sync != nil {
 		in, out := &in.Sync, &out.Sync
 		*out = new(SyncConfig)

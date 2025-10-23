@@ -176,7 +176,7 @@ type ClusterSpec struct {
 	// CustomCAs specifies the cert/key pairs for custom CA certificates.
 	//
 	// +optional
-	CustomCAs CustomCAs `json:"customCAs,omitempty"`
+	CustomCAs *CustomCAs `json:"customCAs,omitempty"`
 
 	// Sync specifies the resources types that will be synced from virtual cluster to host cluster.
 	//
@@ -419,29 +419,29 @@ type CustomCAs struct {
 	Enabled bool `json:"enabled,omitempty"`
 
 	// Sources defines the sources for all required custom CA certificates.
-	Sources CredentialSources `json:"sources,omitempty"`
+	Sources CredentialSources `json:"sources"`
 }
 
 // CredentialSources lists all the required credentials, including both
 // TLS key pairs and single signing keys.
 type CredentialSources struct {
 	// ServerCA specifies the server-ca cert/key pair.
-	ServerCA CredentialSource `json:"serverCA,omitempty"`
+	ServerCA CredentialSource `json:"serverCA"`
 
 	// ClientCA specifies the client-ca cert/key pair.
-	ClientCA CredentialSource `json:"clientCA,omitempty"`
+	ClientCA CredentialSource `json:"clientCA"`
 
 	// RequestHeaderCA specifies the request-header-ca cert/key pair.
-	RequestHeaderCA CredentialSource `json:"requestHeaderCA,omitempty"`
+	RequestHeaderCA CredentialSource `json:"requestHeaderCA"`
 
 	// ETCDServerCA specifies the etcd-server-ca cert/key pair.
-	ETCDServerCA CredentialSource `json:"etcdServerCA,omitempty"`
+	ETCDServerCA CredentialSource `json:"etcdServerCA"`
 
 	// ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
-	ETCDPeerCA CredentialSource `json:"etcdPeerCA,omitempty"`
+	ETCDPeerCA CredentialSource `json:"etcdPeerCA"`
 
 	// ServiceAccountToken specifies the service-account-token key.
-	ServiceAccountToken CredentialSource `json:"serviceAccountToken,omitempty"`
+	ServiceAccountToken CredentialSource `json:"serviceAccountToken"`
 }
 
 // CredentialSource defines where to get a credential from.

@@ -55,6 +55,17 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 				Expect(cluster.Spec.CustomCAs).To(BeNil())
 
+				// sync
+				// enabled by default
+				Expect(cluster.Spec.Sync).To(Not(BeNil()))
+				Expect(cluster.Spec.Sync.ConfigMaps.Enabled).To(BeTrue())
+				Expect(cluster.Spec.Sync.PersistentVolumeClaims.Enabled).To(BeTrue())
+				Expect(cluster.Spec.Sync.Secrets.Enabled).To(BeTrue())
+				Expect(cluster.Spec.Sync.Services.Enabled).To(BeTrue())
+				// disabled by default
+				Expect(cluster.Spec.Sync.Ingresses.Enabled).To(BeFalse())
+				Expect(cluster.Spec.Sync.PriorityClasses.Enabled).To(BeFalse())
+
 				Expect(cluster.Spec.Persistence.Type).To(Equal(v1beta1.DynamicPersistenceMode))
 				Expect(cluster.Spec.Persistence.StorageRequestSize).To(Equal("2G"))
 

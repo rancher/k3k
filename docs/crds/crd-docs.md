@@ -152,7 +152,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
@@ -260,7 +260,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
@@ -342,7 +342,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
@@ -373,7 +373,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
@@ -390,7 +390,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
@@ -407,7 +407,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
@@ -426,7 +426,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `services` _[ServiceSyncConfig](#servicesyncconfig)_ | Services resources sync configuration. | \{ enabled:true \} |  |
-| `configmaps` _[ConfigMapSyncConfig](#configmapsyncconfig)_ | ConfigMaps resources sync configuration. | \{ enabled:true \} |  |
+| `configMaps` _[ConfigMapSyncConfig](#configmapsyncconfig)_ | ConfigMaps resources sync configuration. | \{ enabled:true \} |  |
 | `secrets` _[SecretSyncConfig](#secretsyncconfig)_ | Secrets resources sync configuration. | \{ enabled:true \} |  |
 | `ingresses` _[IngressSyncConfig](#ingresssyncconfig)_ | Ingresses resources sync configuration. | \{ enabled:false \} |  |
 | `persistentVolumeClaims` _[PersistentVolumeClaimSyncConfig](#persistentvolumeclaimsyncconfig)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:true \} |  |

@@ -43,7 +43,7 @@ var IngressTests = func() {
 				Namespace:    namespace,
 			},
 			Spec: v1beta1.ClusterSpec{
-				Sync: &v1beta1.SyncConfig{
+				Sync: v1beta1.SyncConfig{
 					Ingresses: v1beta1.IngressSyncConfig{
 						Enabled: true,
 					},

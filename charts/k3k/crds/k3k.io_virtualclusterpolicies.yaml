@@ -230,12 +230,13 @@ spec:
                 description: Sync specifies the resources types that will be synced
                   from virtual cluster to host cluster.
                 properties:
-                  configmaps:
+                  configMaps:
                     default:
                       enabled: true
                     description: ConfigMaps resources sync configuration.
                     properties:
                       enabled:
+                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -252,6 +253,7 @@ spec:
                     description: Ingresses resources sync configuration.
                     properties:
                       enabled:
+                        default: false
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -268,6 +270,7 @@ spec:
                     description: PersistentVolumeClaims resources sync configuration.
                     properties:
                       enabled:
+                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -284,6 +287,7 @@ spec:
                     description: PriorityClasses resources sync configuration.
                     properties:
                       enabled:
+                        default: false
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -300,6 +304,7 @@ spec:
                     description: Secrets resources sync configuration.
                     properties:
                       enabled:
+                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -316,6 +321,7 @@ spec:
                     description: Services resources sync configuration.
                     properties:
                       enabled:
+                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:

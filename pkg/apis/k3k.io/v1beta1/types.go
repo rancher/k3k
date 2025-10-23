@@ -416,7 +416,9 @@ type NodePortConfig struct {
 // CustomCAs specifies the cert/key pairs for custom CA certificates.
 type CustomCAs struct {
 	// Enabled toggles this feature on or off.
-	Enabled bool `json:"enabled,omitempty"`
+	//
+	// +kubebuilder:default=true
+	Enabled bool `json:"enabled"`
 
 	// Sources defines the sources for all required custom CA certificates.
 	Sources CredentialSources `json:"sources"`
@@ -451,8 +453,7 @@ type CredentialSource struct {
 	// The controller expects specific keys inside based on the credential type:
 	// - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
 	// - For ServiceAccountTokenKey: 'tls.key'.
-	// +optional
-	SecretName string `json:"secretName,omitempty"`
+	SecretName string `json:"secretName"`
 }
 
 // ClusterStatus reflects the observed state of a Cluster.

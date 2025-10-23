@@ -228,6 +228,7 @@ spec:
                   certificates.
                 properties:
                   enabled:
+                    default: true
                     description: Enabled toggles this feature on or off.
                     type: boolean
                   sources:
@@ -244,6 +245,8 @@ spec:
                               - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
                               - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
+                        required:
+                        - secretName
                         type: object
                       etcdPeerCA:
                         description: ETCDPeerCA specifies the etcd-peer-ca cert/key
@@ -256,6 +259,8 @@ spec:
                               - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
                               - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
+                        required:
+                        - secretName
                         type: object
                       etcdServerCA:
                         description: ETCDServerCA specifies the etcd-server-ca cert/key
@@ -268,6 +273,8 @@ spec:
                               - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
                               - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
+                        required:
+                        - secretName
                         type: object
                       requestHeaderCA:
                         description: RequestHeaderCA specifies the request-header-ca
@@ -280,6 +287,8 @@ spec:
                               - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
                               - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
+                        required:
+                        - secretName
                         type: object
                       serverCA:
                         description: ServerCA specifies the server-ca cert/key pair.
@@ -291,6 +300,8 @@ spec:
                               - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
                               - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
+                        required:
+                        - secretName
                         type: object
                       serviceAccountToken:
                         description: ServiceAccountToken specifies the service-account-token
@@ -303,6 +314,8 @@ spec:
                               - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
                               - For ServiceAccountTokenKey: 'tls.key'.
                             type: string
+                        required:
+                        - secretName
                         type: object
                     required:
                     - clientCA
@@ -313,6 +326,7 @@ spec:
                     - serviceAccountToken
                     type: object
                 required:
+                - enabled
                 - sources
                 type: object
               expose:

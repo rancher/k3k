@@ -56,7 +56,7 @@ var _ = When("a cluster with custom certificates is installed with individual ce
 
 		cluster := NewCluster(namespace.Name)
 
-		cluster.Spec.CustomCAs = v1beta1.CustomCAs{
+		cluster.Spec.CustomCAs = &v1beta1.CustomCAs{
 			Enabled: true,
 			Sources: v1beta1.CredentialSources{
 				ServerCA: v1beta1.CredentialSource{

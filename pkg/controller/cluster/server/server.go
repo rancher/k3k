@@ -330,7 +330,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
-	if s.cluster.Spec.CustomCAs.Enabled {
+	if s.cluster.Spec.CustomCAs != nil && s.cluster.Spec.CustomCAs.Enabled {
 		vols, mounts, err := s.loadCACertBundle(ctx)
 		if err != nil {
 			return nil, err
@@ -434,6 +434,10 @@ func (s *Server) setupStartCommand() (string, error) {
 }
 
 func (s *Server) loadCACertBundle(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
+	if s.cluster.Spec.CustomCAs == nil {
+		return nil, nil, fmt.Errorf("customCAs not found")
+	}
+
 	customCerts := s.cluster.Spec.CustomCAs.Sources
 	caCertMap := map[string]string{
 		"server-ca":         customCerts.ServerCA.SecretName,

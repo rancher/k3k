@@ -736,8 +736,8 @@ func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy v1beta1.Vi
 		return fmt.Errorf("%w: mode %q is not allowed by the policy %q", ErrClusterValidation, cluster.Spec.Mode, policy.Name)
 	}
 
-	if cluster.Spec.CustomCAs.Enabled {
-		if err := c.validateCustomCACerts(cluster); err != nil {
+	if cluster.Spec.CustomCAs != nil && cluster.Spec.CustomCAs.Enabled {
+		if err := c.validateCustomCACerts(cluster.Spec.CustomCAs.Sources); err != nil {
 			return fmt.Errorf("%w: %w", ErrClusterValidation, err)
 		}
 	}
@@ -828,8 +828,7 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 }
 
 // validateCustomCACerts will make sure that all the cert secrets exists
-func (c *ClusterReconciler) validateCustomCACerts(cluster *v1beta1.Cluster) error {
-	credentialSources := cluster.Spec.CustomCAs.Sources
+func (c *ClusterReconciler) validateCustomCACerts(credentialSources v1beta1.CredentialSources) error {
 	if credentialSources.ClientCA.SecretName == "" ||
 		credentialSources.ServerCA.SecretName == "" ||
 		credentialSources.ETCDPeerCA.SecretName == "" ||

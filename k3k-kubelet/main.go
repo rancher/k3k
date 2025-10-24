@@ -43,8 +43,8 @@ func main() {
 		RunE: run,
 	}
 
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug logging")
-	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "json", "Log format (json or console)")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Enable debug logging")
+	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "text", "Log format (text or json)")
 	rootCmd.PersistentFlags().StringVar(&cfg.ClusterName, "cluster-name", "", "Name of the k3k cluster")
 	rootCmd.PersistentFlags().StringVar(&cfg.ClusterNamespace, "cluster-namespace", "", "Namespace of the k3k cluster")
 	rootCmd.PersistentFlags().StringVar(&cfg.Token, "token", "", "K3S token of the k3k cluster")

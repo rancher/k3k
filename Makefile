@@ -108,9 +108,8 @@ validate: generate docs fmt ## Validate the project checking for any dependency 
 .PHONY: install
 install:	## Install K3k with Helm on the targeted Kubernetes cluster
 	helm upgrade --install --namespace k3k-system --create-namespace \
-		--set controller.extraEnv[0].name=LOG_FORMAT \
-		--set controller.extraEnv[0].value=console \
-		--set controller.extraEnv[1].name=DEBUG \
+		--set controller.extraEnv[0].name=DEBUG \
+		--set-string controller.extraEnv[0].value=true \
 		--set controller.image.repository=$(REPO)/k3k \
 		--set controller.image.tag=$(VERSION) \
 		--set agent.shared.image.repository=$(REPO)/k3k-kubelet \

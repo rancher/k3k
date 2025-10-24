@@ -40,13 +40,6 @@ var SecretTests = func() {
 				GenerateName: "cluster-",
 				Namespace:    namespace,
 			},
-			Spec: v1beta1.ClusterSpec{
-				Sync: &v1beta1.SyncConfig{
-					Secrets: v1beta1.SecretSyncConfig{
-						Enabled: true,
-					},
-				},
-			},
 		}
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())

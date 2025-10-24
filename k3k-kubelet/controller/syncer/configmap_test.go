@@ -40,13 +40,6 @@ var ConfigMapTests = func() {
 				GenerateName: "cluster-",
 				Namespace:    namespace,
 			},
-			Spec: v1beta1.ClusterSpec{
-				Sync: &v1beta1.SyncConfig{
-					ConfigMaps: v1beta1.ConfigMapSyncConfig{
-						Enabled: true,
-					},
-				},
-			},
 		}
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())

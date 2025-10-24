@@ -103,7 +103,7 @@ type ClusterSpec struct {
 	// Expose specifies options for exposing the API server.
 	// By default, it's only exposed as a ClusterIP.
 	//
-	// +kubebuilder:validation:XValidation:rule="[has(self.ingress), has(self.loadbalancer), has(self.nodePort)].filter(x, x).size() <= 1",message="ingress, loadbalancer and nodePort are mutually exclusive; only one can be set"
+	// +kubebuilder:validation:XValidation:rule="[has(self.ingress), has(self.loadBalancer), has(self.nodePort)].filter(x, x).size() <= 1",message="ingress, loadbalancer and nodePort are mutually exclusive; only one can be set"
 	// +optional
 	Expose *ExposeConfig `json:"expose,omitempty"`
 
@@ -190,32 +190,40 @@ type SyncConfig struct {
 	// Services resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
-	Services ServiceSyncConfig `json:"services,omitempty"`
+	// +optional
+	Services ServiceSyncConfig `json:"services"`
 	// ConfigMaps resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
-	ConfigMaps ConfigMapSyncConfig `json:"configmaps,omitempty"`
+	// +optional
+	ConfigMaps ConfigMapSyncConfig `json:"configMaps"`
 	// Secrets resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
-	Secrets SecretSyncConfig `json:"secrets,omitempty"`
+	// +optional
+	Secrets SecretSyncConfig `json:"secrets"`
 	// Ingresses resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": false}
-	Ingresses IngressSyncConfig `json:"ingresses,omitempty"`
+	// +optional
+	Ingresses IngressSyncConfig `json:"ingresses"`
 	// PersistentVolumeClaims resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
-	PersistentVolumeClaims PersistentVolumeClaimSyncConfig `json:"persistentVolumeClaims,omitempty"`
+	// +optional
+	PersistentVolumeClaims PersistentVolumeClaimSyncConfig `json:"persistentVolumeClaims"`
 	// PriorityClasses resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": false}
-	PriorityClasses PriorityClassSyncConfig `json:"priorityClasses,omitempty"`
+	// +optional
+	PriorityClasses PriorityClassSyncConfig `json:"priorityClasses"`
 }
 
 // SecretSyncConfig specifies the sync options for services.
 type SecretSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
+	//
+	// +kubebuilder:default=true
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
@@ -229,8 +237,10 @@ type SecretSyncConfig struct {
 // ServiceSyncConfig specifies the sync options for services.
 type ServiceSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	//
+	// +kubebuilder:default=true
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -242,8 +252,10 @@ type ServiceSyncConfig struct {
 // ConfigMapSyncConfig specifies the sync options for services.
 type ConfigMapSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	//
+	// +kubebuilder:default=true
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -255,8 +267,10 @@ type ConfigMapSyncConfig struct {
 // IngressSyncConfig specifies the sync options for services.
 type IngressSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	//
+	// +kubebuilder:default=false
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -268,8 +282,10 @@ type IngressSyncConfig struct {
 // PersistentVolumeClaimSyncConfig specifies the sync options for services.
 type PersistentVolumeClaimSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	//
+	// +kubebuilder:default=true
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -281,8 +297,10 @@ type PersistentVolumeClaimSyncConfig struct {
 // PriorityClassSyncConfig specifies the sync options for services.
 type PriorityClassSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	//
+	// +kubebuilder:default=false
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -358,7 +376,7 @@ type ExposeConfig struct {
 	// LoadBalancer specifies options for exposing the API server through a LoadBalancer service.
 	//
 	// +optional
-	LoadBalancer *LoadBalancerConfig `json:"loadbalancer,omitempty"`
+	LoadBalancer *LoadBalancerConfig `json:"loadBalancer,omitempty"`
 
 	// NodePort specifies options for exposing the API server through NodePort.
 	//

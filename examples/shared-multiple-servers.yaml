@@ -1,0 +1,15 @@
+apiVersion: k3k.io/v1beta1
+kind: Cluster
+metadata:
+  name: shared-multiple-servers
+spec:
+  mode: shared
+  servers: 3
+  agents: 3
+  version: v1.33.1-k3s1
+  serverArgs:
+  - "--write-kubeconfig-mode=777"
+  tlsSANs:
+  - myserver.app
+  expose:
+    nodePort: {}

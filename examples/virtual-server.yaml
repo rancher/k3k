@@ -1,0 +1,13 @@
+apiVersion: k3k.io/v1beta1
+kind: Cluster
+metadata:
+  name: virtual-server
+spec:
+  mode: virtual
+  servers: 3
+  agents: 3
+  version: v1.33.1-k3s1
+  tlsSANs:
+  - myserver.app
+  expose:
+    nodePort: {}

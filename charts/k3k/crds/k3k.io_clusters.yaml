@@ -349,7 +349,7 @@ spec:
                           use for the Ingress.
                         type: string
                     type: object
-                  loadbalancer:
+                  loadBalancer:
                     description: LoadBalancer specifies options for exposing the API
                       server through a LoadBalancer service.
                     properties:
@@ -391,7 +391,7 @@ spec:
                 x-kubernetes-validations:
                 - message: ingress, loadbalancer and nodePort are mutually exclusive;
                     only one can be set
-                  rule: '[has(self.ingress), has(self.loadbalancer), has(self.nodePort)].filter(x,
+                  rule: '[has(self.ingress), has(self.loadBalancer), has(self.nodePort)].filter(x,
                     x).size() <= 1'
               mirrorHostNodes:
                 description: |-
@@ -607,12 +607,13 @@ spec:
                 description: Sync specifies the resources types that will be synced
                   from virtual cluster to host cluster.
                 properties:
-                  configmaps:
+                  configMaps:
                     default:
                       enabled: true
                     description: ConfigMaps resources sync configuration.
                     properties:
                       enabled:
+                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -622,6 +623,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                   ingresses:
                     default:
@@ -629,6 +632,7 @@ spec:
                     description: Ingresses resources sync configuration.
                     properties:
                       enabled:
+                        default: false
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -638,6 +642,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                   persistentVolumeClaims:
                     default:
@@ -645,6 +651,7 @@ spec:
                     description: PersistentVolumeClaims resources sync configuration.
                     properties:
                       enabled:
+                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -654,6 +661,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                   priorityClasses:
                     default:
@@ -661,6 +670,7 @@ spec:
                     description: PriorityClasses resources sync configuration.
                     properties:
                       enabled:
+                        default: false
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -670,6 +680,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                   secrets:
                     default:
@@ -677,6 +689,7 @@ spec:
                     description: Secrets resources sync configuration.
                     properties:
                       enabled:
+                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -693,6 +706,7 @@ spec:
                     description: Services resources sync configuration.
                     properties:
                       enabled:
+                        default: true
                         description: Enabled is an on/off switch for syncing resources.
                         type: boolean
                       selector:
@@ -702,6 +716,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                 type: object
               tlsSANs:

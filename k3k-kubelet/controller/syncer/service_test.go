@@ -41,13 +41,6 @@ var ServiceTests = func() {
 				GenerateName: "cluster-",
 				Namespace:    namespace,
 			},
-			Spec: v1beta1.ClusterSpec{
-				Sync: &v1beta1.SyncConfig{
-					Services: v1beta1.ServiceSyncConfig{
-						Enabled: true,
-					},
-				},
-			},
 		}
 		err = hostTestEnv.k8sClient.Create(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())

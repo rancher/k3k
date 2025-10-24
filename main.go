@@ -62,8 +62,8 @@ func main() {
 		RunE: run,
 	}
 
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Debug level logging")
-	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "json", "Log format (json or console)")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "", false, "Debug level logging")
+	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "text", "Log format (text or json)")
 	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig path")
 	rootCmd.PersistentFlags().StringVar(&config.ClusterCIDR, "cluster-cidr", "", "Cluster CIDR to be added to the networkpolicy")
 	rootCmd.PersistentFlags().StringVar(&config.SharedAgentImage, "agent-shared-image", "rancher/k3k-kubelet", "K3K Virtual Kubelet image")

@@ -27,7 +27,7 @@ func newEncoder(format string) zapcore.Encoder {
 	encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	var encoder zapcore.Encoder
-	if format == "console" {
+	if format == "text" {
 		encCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		encoder = zapcore.NewConsoleEncoder(encCfg)
 	} else {

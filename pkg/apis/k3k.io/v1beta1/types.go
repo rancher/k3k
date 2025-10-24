@@ -182,7 +182,7 @@ type ClusterSpec struct {
 	//
 	// +kubebuilder:default={}
 	// +optional
-	Sync SyncConfig `json:"sync"`
+	Sync *SyncConfig `json:"sync,omitempty"`
 }
 
 // SyncConfig will contain the resources that should be synced from virtual cluster to host cluster.
@@ -239,8 +239,8 @@ type ServiceSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
 	// +kubebuilder:default=true
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -254,8 +254,8 @@ type ConfigMapSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
 	// +kubebuilder:default=true
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -269,8 +269,8 @@ type IngressSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
 	// +kubebuilder:default=false
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -284,8 +284,8 @@ type PersistentVolumeClaimSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
 	// +kubebuilder:default=true
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -299,8 +299,8 @@ type PriorityClassSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
 	// +kubebuilder:default=false
-	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	// +required
+	Enabled bool `json:"enabled"`
 
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
@@ -621,7 +621,7 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +kubebuilder:default={}
 	// +optional
-	Sync SyncConfig `json:"sync,omitempty"`
+	Sync *SyncConfig `json:"sync,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

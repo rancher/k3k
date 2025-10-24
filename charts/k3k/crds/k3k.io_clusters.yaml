@@ -623,6 +623,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                   ingresses:
                     default:
@@ -640,6 +642,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                   persistentVolumeClaims:
                     default:
@@ -657,6 +661,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                   priorityClasses:
                     default:
@@ -674,6 +680,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                   secrets:
                     default:
@@ -708,6 +716,8 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                    required:
+                    - enabled
                     type: object
                 type: object
               tlsSANs:

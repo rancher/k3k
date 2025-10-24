@@ -2,8 +2,8 @@ apiVersion: k3k.io/v1beta1
 kind: VirtualClusterPolicy
 metadata:
   name: policy-example
-# spec:
-  # disableNetworkPolicy: false
-  # allowedMode: "shared"
+spec:
+  allowedMode: shared
+  disableNetworkPolicy: true
   # podSecurityAdmissionLevel: "baseline"
   # defaultPriorityClass: "lowpriority"

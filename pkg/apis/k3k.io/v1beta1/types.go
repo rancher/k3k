@@ -621,7 +621,7 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +kubebuilder:default={}
 	// +optional
-	Sync *SyncConfig `json:"sync,omitempty"`
+	Sync SyncConfig `json:"sync,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

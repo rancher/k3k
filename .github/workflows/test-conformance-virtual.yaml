@@ -36,16 +36,10 @@ jobs:
     - name: Install hydrophone
       run: go install sigs.k8s.io/hydrophone@latest
 
-    - name: Setup environment
-      run: |
-        echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
-        echo "VERSION=4h" >> $GITHUB_ENV
-        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
-
     - name: Install k3s
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-        K3S_HOST_VERSION: ${{ env.K3S_HOST_VERSION }}
+        K3S_HOST_VERSION: v1.32.1+k3s1
       run: |
         curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -
 
@@ -55,9 +49,10 @@ jobs:
     - name: Build, package and setup K3k
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-        REPO: ${{ env.REPO }}
-        VERSION: ${{ env.VERSION }}
       run: |
+        export REPO=ttl.sh/$(uuidgen)
+        export VERSION=4h
+
         make build
         make package
         make push

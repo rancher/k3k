@@ -91,6 +91,8 @@ jobs:
       run: k3kcli -v
 
     - name: Create virtual cluster
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
         k3kcli cluster create --mode=virtual mycluster
 
@@ -212,6 +214,8 @@ jobs:
       run: k3kcli -v
 
     - name: Create virtual cluster
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
         k3kcli cluster create --mode=virtual mycluster
 

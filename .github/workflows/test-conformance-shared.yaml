@@ -103,7 +103,7 @@ jobs:
       run: |
         # Run conformance tests in parallel mode (skipping serial)
         hydrophone --conformance --parallel 4 --skip='\[Serial\]' \
-          --skip "should have at least two untainted nodes" \ # skip 2 nodes test
+          --skip "should have at least two untainted nodes" \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
 
@@ -112,7 +112,7 @@ jobs:
       run: |        
         # Run serial conformance tests
         hydrophone --focus='\[Serial\].*\[Conformance\]' \
-          --skip 'should rollback without unnecessary restarts' \ # skip 2 nodes test
+          --skip 'should rollback without unnecessary restarts' \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
     

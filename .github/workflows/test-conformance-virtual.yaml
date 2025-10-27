@@ -94,7 +94,7 @@ jobs:
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
-        k3kcli cluster create --mode=virtual mycluster
+        k3kcli cluster create --mode=virtual mycluster || true
 
         echo "Wait for bootstrap secret to be available"
         kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m
@@ -222,7 +222,7 @@ jobs:
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
-        k3kcli cluster create --mode=virtual mycluster
+        k3kcli cluster create --mode=virtual mycluster || true
 
         echo "Wait for bootstrap secret to be available"
         kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m

@@ -1,4 +1,4 @@
-name: Conformance Tests - Virtual Mode
+name: Conformance Tests - Shared Mode
 
 on:
   schedule:
@@ -68,12 +68,31 @@ jobs:
       run: k3kcli -v
 
     - name: Create virtual cluster
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
-        k3kcli cluster create --mode=virtual mycluster
+        kubectl create namespace k3k-mycluster
 
-        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml        
+        cat <<EOF | kubectl apply -f -
+        apiVersion: k3k.io/v1beta1
+        kind: Cluster
+        metadata:
+          name: mycluster
+          namespace: k3k-mycluster
+        spec:
+          servers: 2
+          mirrorHostNodes: true
+          tlsSANs:
+            - "127.0.0.1"
+          expose:
+            nodePort:
+              serverPort: 30001
+        EOF
+
+        echo "Wait for bootstrap secret to be available"
+        kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m
+
+        k3kcli kubeconfig generate --name mycluster
+
+        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
         
         kubectl cluster-info
         kubectl get nodes

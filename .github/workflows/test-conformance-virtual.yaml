@@ -1,0 +1,238 @@
+name: Conformance Tests
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Run specific test"
+        type: choice
+        options:
+          - conformance
+          - sig-api-machinery
+          - sig-apps
+          - sig-architecture
+          - sig-auth
+          - sig-cli
+          - sig-instrumentation
+          - sig-network
+          - sig-node
+          - sig-scheduling
+          - sig-storage
+
+permissions:
+    contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    if: inputs.test == '' || inputs.test == 'conformance'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        type:
+        - parallel
+        - serial
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Install helm
+      uses: azure/setup-helm@v4.3.0
+    
+    - name: Install hydrophone
+      run: go install sigs.k8s.io/hydrophone@latest
+
+    - name: Setup environment
+      run: |
+        echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
+        echo "VERSION=4h" >> $GITHUB_ENV
+        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
+
+    - name: Install k3s and kubectl
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${{ env.K3S_HOST_VERSION }} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -
+
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Build, package and setup K3k
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        REPO: ${{ env.REPO }}
+        VERSION: ${{ env.VERSION }}
+      run: |
+        make build
+        make package
+        make push
+        make install
+
+        # add k3kcli to $PATH
+        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+        
+        echo "Wait for K3k controller to be available"
+        kubectl wait -n k3k-system pod --for condition=Ready -l "app.kubernetes.io/name=k3k" --timeout=5m
+
+    - name: Check k3kcli
+      run: k3kcli -v
+
+    - name: Create virtual cluster
+      run: |
+        k3kcli cluster create --mode=virtual mycluster
+
+        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml        
+        
+        kubectl cluster-info
+        kubectl get nodes
+        kubectl get pods -A
+    
+    - name: Run conformance tests (parallel)
+      if: matrix.type == 'parallel'
+      run: |
+        # Run conformance tests in parallel mode (skipping serial)
+        hydrophone --conformance --parallel 4 --skip='\[Serial\]' \
+          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
+          --output-dir /tmp
+
+    - name: Run conformance tests (serial)
+      if: matrix.type == 'serial'
+      run: |        
+        # Run serial conformance tests
+        hydrophone --focus='\[Serial\].*\[Conformance\]' \
+          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
+          --output-dir /tmp 
+
+    - name: Archive conformance logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: conformance-${{ matrix.type }}-logs
+        path: /tmp/e2e.log
+
+  sigs:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        tests:
+          - name: sig-api-machinery
+            focus: '\[sig-api-machinery\].*\[Conformance\]'
+          - name: sig-apps
+            focus: '\[sig-apps\].*\[Conformance\]'
+          - name: sig-architecture
+            focus: '\[sig-architecture\].*\[Conformance\]'
+          - name: sig-auth
+            focus: '\[sig-auth\].*\[Conformance\]'
+          - name: sig-cli
+            focus: '\[sig-cli\].*\[Conformance\]'
+          - name: sig-instrumentation
+            focus: '\[sig-instrumentation\].*\[Conformance\]'
+          - name: sig-network
+            focus: '\[sig-network\].*\[Conformance\]'
+          - name: sig-node
+            focus: '\[sig-node\].*\[Conformance\]'
+          - name: sig-scheduling
+            focus: '\[sig-scheduling\].*\[Conformance\]'
+          - name: sig-storage
+            focus: '\[sig-storage\].*\[Conformance\]'
+
+    steps:
+    - name: Validate input and fail fast
+      if: inputs.test != '' && inputs.test != matrix.tests.name
+      run: |
+        echo "Failing this job as it's not the intended target."
+        exit 1
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Install helm
+      uses: azure/setup-helm@v4.3.0
+    
+    - name: Install hydrophone
+      run: go install sigs.k8s.io/hydrophone@latest
+
+    - name: Setup environment
+      run: |
+        echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
+        echo "VERSION=4h" >> $GITHUB_ENV
+        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
+
+    - name: Install k3s and kubectl
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${{ env.K3S_HOST_VERSION }} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -
+
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Build, package and setup K3k
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        REPO: ${{ env.REPO }}
+        VERSION: ${{ env.VERSION }}
+      run: |
+        make build
+        make package
+        make push
+        make install
+
+        # add k3kcli to $PATH
+        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+        
+        echo "Wait for K3k controller to be available"
+        kubectl wait -n k3k-system pod --for condition=Ready -l "app.kubernetes.io/name=k3k" --timeout=5m
+
+    - name: Check k3kcli
+      run: k3kcli -v
+
+    - name: Create virtual cluster
+      run: |
+        k3kcli cluster create --mode=virtual mycluster
+
+        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml        
+        
+        kubectl cluster-info
+        kubectl get nodes
+        kubectl get pods -A
+
+    - name: Run sigs tests
+      run: |
+        FOCUS="${{ matrix.tests.focus }}"
+        echo "Running with --focus=${FOCUS}"
+
+        hydrophone --focus "${FOCUS}" \
+          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
+          --output-dir /tmp
+
+    - name: Archive conformance logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ${{ matrix.tests.name }}-logs
+        path: /tmp/e2e.log

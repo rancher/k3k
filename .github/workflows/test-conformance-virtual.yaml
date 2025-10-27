@@ -1,4 +1,4 @@
-name: Conformance Tests
+name: Conformance Tests - Virtual Mode
 
 on:
   schedule:

@@ -3,7 +3,8 @@
 [![Experimental](https://img.shields.io/badge/status-experimental-orange.svg)](https://shields.io/)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rancher/k3k)](https://goreportcard.com/report/github.com/rancher/k3k)
 ![Tests](https://github.com/rancher/k3k/actions/workflows/test.yaml/badge.svg)
-![Build](https://github.com/rancher/k3k/actions/workflows/build.yml/badge.svg)
+![Build](https://github.com/rancher/k3k/actions/workflows/build.yml/badge.svg)  
+[![Conformance Tests - Virtual Mode](https://github.com/rancher/k3k/actions/workflows/test-conformance-virtual.yaml/badge.svg)](https://github.com/rancher/k3k/actions/workflows/test-conformance-virtual.yaml)
 
 
 K3k, Kubernetes in Kubernetes, is a tool that empowers you to create and manage isolated K3s clusters within your existing Kubernetes environment.  It enables efficient multi-tenancy, streamlined experimentation, and robust resource isolation, minimizing infrastructure costs by allowing you to run multiple lightweight Kubernetes clusters on the same physical host. K3k offers both "shared" mode, optimizing resource utilization, and "virtual" mode, providing complete isolation with dedicated K3s server pods. This allows you to access a full Kubernetes experience without the overhead of managing separate physical resources. 

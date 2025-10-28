@@ -1,0 +1,125 @@
+name: Conformance Tests - Virtual Mode
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        type:
+        - parallel
+        - serial
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Install helm
+      uses: azure/setup-helm@v4.3.0
+    
+    - name: Install hydrophone
+      run: go install sigs.k8s.io/hydrophone@latest
+
+    - name: Install k3s
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        K3S_HOST_VERSION: v1.32.1+k3s1
+      run: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -
+
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Build, package and setup K3k
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        export REPO=ttl.sh/$(uuidgen)
+        export VERSION=1h
+
+        make build
+        make package
+        make push
+        make install
+
+        # add k3kcli to $PATH
+        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+        
+        echo "Wait for K3k controller to be available"
+        kubectl wait -n k3k-system pod --for condition=Ready -l "app.kubernetes.io/name=k3k" --timeout=5m
+
+    - name: Check k3kcli
+      run: k3kcli -v
+
+    - name: Create virtual cluster
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        k3kcli cluster create --mode=virtual --servers=2 mycluster
+
+        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml        
+        
+        kubectl cluster-info
+        kubectl get nodes
+        kubectl get pods -A
+    
+    - name: Run conformance tests (parallel)
+      if: matrix.type == 'parallel'
+      run: |
+        # Run conformance tests in parallel mode (skipping serial)
+        hydrophone --conformance --parallel 4 --skip='\[Serial\]' \
+          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
+          --output-dir /tmp
+
+    - name: Run conformance tests (serial)
+      if: matrix.type == 'serial'
+      run: |        
+        # Run serial conformance tests
+        hydrophone --focus='\[Serial\].*\[Conformance\]' \
+          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
+          --output-dir /tmp
+    
+    - name: Export logs
+      if: always()
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        journalctl -u k3s -o cat --no-pager > /tmp/k3s.log
+        kubectl logs -n k3k-system -l "app.kubernetes.io/name=k3k" --tail=-1 > /tmp/k3k.log
+
+    - name: Archive K3s logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: k3s-${{ matrix.type }}-logs
+        path: /tmp/k3s.log
+
+    - name: Archive K3k logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: k3k-${{ matrix.type }}-logs
+        path: /tmp/k3k.log
+
+    - name: Archive conformance logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: conformance-${{ matrix.type }}-logs
+        path: /tmp/e2e.log

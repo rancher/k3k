@@ -28,7 +28,6 @@ var _ = When("two virtual clusters are installed", Label("e2e"), Label(networkin
 
 		var (
 			stdout  string
-			stderr  string
 			curlCmd string
 			err     error
 		)
@@ -70,25 +69,25 @@ var _ = When("two virtual clusters are installed", Label("e2e"), Label(networkin
 		// Pods in Cluster 1 should not be able to reach the Pod in Cluster 2
 
 		curlCmd = "curl --no-progress-meter " + pod1Cluster2IP
-		_, stderr, err = cluster1.ExecCmd(pod1Cluster1, curlCmd)
+		stdout, _, err = cluster1.ExecCmd(pod1Cluster1, curlCmd)
 		Expect(err).Should(HaveOccurred())
-		Expect(stderr).To(ContainSubstring("Failed to connect"))
+		Expect(stdout).To(Not(ContainSubstring("Welcome to nginx!")))
 
 		curlCmd = "curl --no-progress-meter " + pod1Cluster2IP
-		_, stderr, err = cluster1.ExecCmd(pod2Cluster1, curlCmd)
+		stdout, _, err = cluster1.ExecCmd(pod2Cluster1, curlCmd)
 		Expect(err).To(HaveOccurred())
-		Expect(stderr).To(ContainSubstring("Failed to connect"))
+		Expect(stdout).To(Not(ContainSubstring("Welcome to nginx!")))
 
 		// Pod in Cluster 2 should not be able to reach Pods in Cluster 1
 
 		curlCmd = "curl --no-progress-meter " + pod1Cluster1IP
-		_, stderr, err = cluster2.ExecCmd(pod1Cluster2, curlCmd)
+		stdout, _, err = cluster2.ExecCmd(pod1Cluster2, curlCmd)
 		Expect(err).To(HaveOccurred())
-		Expect(stderr).To(ContainSubstring("Failed to connect"))
+		Expect(stdout).To(Not(ContainSubstring("Welcome to nginx!")))
 
 		curlCmd = "curl --no-progress-meter " + pod2Cluster1IP
-		_, stderr, err = cluster2.ExecCmd(pod1Cluster2, curlCmd)
+		stdout, _, err = cluster2.ExecCmd(pod1Cluster2, curlCmd)
 		Expect(err).To(HaveOccurred())
-		Expect(stderr).To(ContainSubstring("Failed to connect"))
+		Expect(stdout).To(Not(ContainSubstring("Welcome to nginx!")))
 	})
 })

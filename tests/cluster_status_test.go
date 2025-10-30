@@ -27,7 +27,6 @@ var _ = When("a cluster's status is tracked", Label("e2e"), Label(statusTestsLab
 	// This BeforeEach/AfterEach will create a new namespace and a default policy for each test.
 	BeforeEach(func() {
 		ctx := context.Background()
-		namespace = NewNamespace()
 
 		vcp = &v1beta1.VirtualClusterPolicy{
 			ObjectMeta: metav1.ObjectMeta{
@@ -35,6 +34,11 @@ var _ = When("a cluster's status is tracked", Label("e2e"), Label(statusTestsLab
 			},
 		}
 		Expect(k8sClient.Create(ctx, vcp)).To(Succeed())
+
+		namespace = NewNamespace()
+
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
+		Expect(err).To(Not(HaveOccurred()))
 
 		namespace.Labels = map[string]string{
 			policy.PolicyNameLabelKey: vcp.Name,

@@ -41,7 +41,6 @@ import (
 
 const (
 	k3kNamespace = "k3k-system"
-	k3kName      = "k3k"
 
 	slowTestsLabel         = "slow"
 	updateTestsLabel       = "update"
@@ -194,7 +193,7 @@ func installK3kChart() {
 	Expect(err).To(Not(HaveOccurred()))
 
 	iCli := action.NewInstall(helmActionConfig)
-	iCli.ReleaseName = k3kName
+	iCli.ReleaseName = "k3k"
 	iCli.Namespace = k3kNamespace
 	iCli.CreateNamespace = true
 	iCli.Timeout = time.Minute
@@ -223,6 +222,12 @@ func installK3kChart() {
 }
 
 func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
+	deployments, err := clientset.AppsV1().Deployments(k3kNamespace).List(ctx, metav1.ListOptions{})
+	Expect(err).To(Not(HaveOccurred()))
+	Expect(deployments.Items).To(HaveLen(1))
+
+	k3kDeployment := &deployments.Items[0]
+
 	pvc := &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "coverage-data-pvc",
@@ -240,59 +245,46 @@ func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
 		},
 	}
 
-	_, err := clientset.CoreV1().PersistentVolumeClaims(k3kNamespace).Create(ctx, pvc, metav1.CreateOptions{})
+	_, err = clientset.CoreV1().PersistentVolumeClaims(k3kNamespace).Create(ctx, pvc, metav1.CreateOptions{})
 	Expect(client.IgnoreAlreadyExists(err)).To(Not(HaveOccurred()))
 
-	patchData := []byte(`
-{
-    "spec": {
-        "template": {
-            "spec": {
-                "volumes": [
-                    {
-                        "name": "tmp-covdata",
-                        "persistentVolumeClaim": {
-                            "claimName": "coverage-data-pvc"
-                        }
-                    }
-                ],
-                "containers": [
-                    {
-                        "name": "k3k",
-                        "volumeMounts": [
-                            {
-                                "name": "tmp-covdata",
-                                "mountPath": "/tmp/covdata"
-                            }
-                        ],
-                        "env": [
-                            {
-                                "name": "GOCOVERDIR",
-                                "value": "/tmp/covdata"
-                            }
-                        ]
-                    }
-                ]
-            }
-        }
-    }
-}`)
+	k3kSpec := k3kDeployment.Spec.Template.Spec
 
-	GinkgoWriter.Printf("Applying patch to deployment '%s' in namespace '%s'...\n", k3kName, k3kNamespace)
+	// check if the Deployment has already the volume for the coverage
+	for _, volumes := range k3kSpec.Volumes {
+		if volumes.Name == "tmp-covdata" {
+			return
+		}
+	}
 
-	_, err = clientset.AppsV1().Deployments(k3kNamespace).Patch(
-		ctx,
-		k3kName,
-		types.StrategicMergePatchType,
-		patchData,
-		metav1.PatchOptions{},
-	)
+	k3kSpec.Volumes = append(k3kSpec.Volumes, v1.Volume{
+		Name: "tmp-covdata",
+		VolumeSource: v1.VolumeSource{
+			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+				ClaimName: "coverage-data-pvc",
+			},
+		},
+	})
+
+	k3kSpec.Containers[0].VolumeMounts = append(k3kSpec.Containers[0].VolumeMounts, v1.VolumeMount{
+		Name:      "tmp-covdata",
+		MountPath: "/tmp/covdata",
+	})
+
+	k3kSpec.Containers[0].Env = append(k3kSpec.Containers[0].Env, v1.EnvVar{
+		Name:  "GOCOVERDIR",
+		Value: "/tmp/covdata",
+	})
+
+	k3kDeployment.Spec.Template.Spec = k3kSpec
+
+	_, err = clientset.AppsV1().Deployments(k3kNamespace).Update(ctx, k3kDeployment, metav1.UpdateOptions{})
 	Expect(err).To(Not(HaveOccurred()))
 
 	Eventually(func() bool {
 		GinkgoWriter.Println("Checking K3k deployment status")
 
-		dep, err := clientset.AppsV1().Deployments(k3kNamespace).Get(ctx, k3kName, metav1.GetOptions{})
+		dep, err := clientset.AppsV1().Deployments(k3kNamespace).Get(ctx, k3kDeployment.Name, metav1.GetOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 
 		// 1. Check if the controller has observed the latest generation
@@ -309,7 +301,7 @@ func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
 
 		// 3. Check if all updated replicas are available
 		if dep.Status.AvailableReplicas < dep.Status.UpdatedReplicas {
-			GinkgoWriter.Printf("K3k deployment availabl replicas: %d, updated replicas: %d\n", dep.Status.AvailableReplicas, dep.Status.UpdatedReplicas)
+			GinkgoWriter.Printf("K3k deployment available replicas: %d, updated replicas: %d\n", dep.Status.AvailableReplicas, dep.Status.UpdatedReplicas)
 			return false
 		}
 

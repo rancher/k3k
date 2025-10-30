@@ -348,8 +348,11 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 	Expect(err).To(Not(HaveOccurred()))
 
 	k3kPod := podList.Items[0]
+	k3kContainerName := k3kPod.Spec.Containers[0].Name
 
-	cmd := exec.Command("kubectl", "exec", "-n", k3kNamespace, k3kPod.Name, "-c", "k3k", "--", "kill", "1")
+	By("Restarting k3k controller " + k3kPod.Name + "/" + k3kContainerName)
+
+	cmd := exec.Command("kubectl", "exec", "-n", k3kNamespace, k3kPod.Name, "-c", k3kContainerName, "--", "/bin/sh", "-c", "kill 1")
 	output, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred(), string(output))
 
@@ -379,9 +382,56 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 
 	GinkgoWriter.Printf("Downloading covdata from k3k controller %s/%s to %s\n", k3kNamespace, k3kPod.Name, folder)
 
-	cmd = exec.Command("kubectl", "cp", fmt.Sprintf("%s/%s:/tmp/covdata", k3kNamespace, k3kPod.Name), folder)
+	tarPod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tar",
+			Namespace: k3kNamespace,
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{{
+				Name:    "tar",
+				Image:   "busybox",
+				Command: []string{"/bin/sh", "-c", "sleep 3600"},
+				VolumeMounts: []v1.VolumeMount{{
+					Name:      "tmp-covdata",
+					MountPath: "/tmp/covdata",
+				}},
+			}},
+			Volumes: []v1.Volume{{
+				Name: "tmp-covdata",
+				VolumeSource: v1.VolumeSource{
+					PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+						ClaimName: "coverage-data-pvc",
+					},
+				},
+			}},
+		},
+	}
+
+	_, err = k8s.CoreV1().Pods(k3kNamespace).Create(ctx, tarPod, metav1.CreateOptions{})
+	Expect(err).To(Not(HaveOccurred()))
+
+	By("Waiting for tar pod to be ready")
+
+	Eventually(func(g Gomega) {
+		err = k8sClient.Get(ctx, client.ObjectKeyFromObject(tarPod), tarPod)
+		g.Expect(err).To(Not(HaveOccurred()))
+
+		_, cond := pod.GetPodCondition(&tarPod.Status, v1.PodReady)
+		g.Expect(cond).NotTo(BeNil())
+		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+	}).
+		WithPolling(time.Second).
+		WithTimeout(time.Minute).
+		Should(Succeed())
+
+	By("Copying covdata from tar pod")
+
+	cmd = exec.Command("kubectl", "cp", fmt.Sprintf("%s/%s:/tmp/covdata", k3kNamespace, tarPod.Name), folder)
 	output, err = cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred(), string(output))
+
+	Expect(k8sClient.Delete(ctx, tarPod)).To(Succeed())
 }
 
 func getK3kLogs(ctx context.Context) io.ReadCloser {

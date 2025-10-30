@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
-	"fmt"
 	"time"
 
 	"k8s.io/utils/ptr"
@@ -154,7 +153,9 @@ var _ = When("a dynamic cluster is installed", Label("e2e"), Label(persistenceTe
 
 		namespace := NewNamespace()
 
-		By(fmt.Sprintf("Creating new virtual cluster in namespace %s", namespace.Name))
+		DeferCleanup(func() {
+			DeleteNamespaces(virtualCluster.Cluster.Namespace)
+		})
 
 		cluster := NewCluster(namespace.Name)
 		cluster.Spec.Persistence.Type = v1beta1.DynamicPersistenceMode
@@ -163,8 +164,6 @@ var _ = When("a dynamic cluster is installed", Label("e2e"), Label(persistenceTe
 		CreateCluster(cluster)
 
 		client, restConfig := NewVirtualK8sClientAndConfig(cluster)
-
-		By(fmt.Sprintf("Created virtual cluster %s/%s", cluster.Namespace, cluster.Name))
 
 		virtualCluster := &VirtualCluster{
 			Cluster:    cluster,

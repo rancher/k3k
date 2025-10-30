@@ -21,6 +21,10 @@ var _ = When("a cluster with custom certificates is installed with individual ce
 
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		// create custom cert secret
 		customCertDir := "testdata/customcerts/"
 

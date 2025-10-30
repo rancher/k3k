@@ -362,6 +362,10 @@ var _ = When("a virtual mode cluster update its server args", Label("e2e"), Labe
 	BeforeEach(func() {
 		namespace := NewNamespace()
 
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
 		cluster := NewCluster(namespace.Name)
 
 		// Add initial args for server

@@ -47,8 +47,6 @@ func NewVirtualClusterWithType(persistenceType v1beta1.PersistenceMode) *Virtual
 
 	namespace := NewNamespace()
 
-	By(fmt.Sprintf("Creating new virtual cluster in namespace %s", namespace.Name))
-
 	cluster := NewCluster(namespace.Name)
 	cluster.Spec.Persistence.Type = persistenceType
 
@@ -151,6 +149,8 @@ func NewCluster(namespace string) *v1beta1.Cluster {
 func CreateCluster(cluster *v1beta1.Cluster) {
 	GinkgoHelper()
 
+	By(fmt.Sprintf("Creating new virtual cluster in namespace %s", cluster.Namespace))
+
 	ctx := context.Background()
 	err := k8sClient.Create(ctx, cluster)
 	Expect(err).To(Not(HaveOccurred()))
@@ -158,7 +158,7 @@ func CreateCluster(cluster *v1beta1.Cluster) {
 	expectedServers := int(*cluster.Spec.Servers)
 	expectedAgents := int(*cluster.Spec.Agents)
 
-	By(fmt.Sprintf("Waiting for cluster to be ready. Expected servers: %d. Expected agents: %d", expectedServers, expectedAgents))
+	By(fmt.Sprintf("Waiting for cluster %s to be ready. Expected servers: %d. Expected agents: %d", cluster.Name, expectedServers, expectedAgents))
 
 	// track the Eventually status to log for changes
 	prev := -1

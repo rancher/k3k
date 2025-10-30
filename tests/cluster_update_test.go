@@ -75,8 +75,11 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label(update
 		Expect(ok).To(BeTrue())
 		Expect(serverEnv2).To(Equal("toBeRemoved"))
 
+		var nodes v1.NodeList
+		Expect(k8sClient.List(ctx, &nodes)).To(Succeed())
+
 		aPods := listAgentPods(ctx, virtualCluster)
-		Expect(len(aPods)).To(Equal(1))
+		Expect(aPods).To(HaveLen(len(nodes.Items)))
 
 		agentPod := aPods[0]
 
@@ -136,8 +139,11 @@ var _ = When("a shared mode cluster update its envs", Label("e2e"), Label(update
 			g.Expect(serverEnv3).To(Equal("new"))
 
 			// agent pods
+			var nodes v1.NodeList
+			g.Expect(k8sClient.List(ctx, &nodes)).To(Succeed())
+
 			aPods := listAgentPods(ctx, virtualCluster)
-			g.Expect(len(aPods)).To(Equal(1))
+			g.Expect(aPods).To(HaveLen(len(nodes.Items)))
 
 			agentEnv1, ok := getEnv(&aPods[0], "TEST_AGENT_ENV_1")
 			g.Expect(ok).To(BeTrue())

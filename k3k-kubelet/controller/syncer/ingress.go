@@ -97,6 +97,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	syncedIngress := r.ingress(&virtIngress)
+
 	if err := controllerutil.SetControllerReference(&cluster, syncedIngress, r.HostClient.Scheme()); err != nil {
 		return reconcile.Result{}, err
 	}

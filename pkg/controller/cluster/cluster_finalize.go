@@ -12,7 +12,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	coordinationv1 "k8s.io/api/coordination/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -49,6 +51,21 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1beta
 		if err := c.PortAllocator.DeallocateWebhookPort(ctx, cluster.Name, cluster.Namespace, cluster.Status.WebhookPort); err != nil {
 			return reconcile.Result{}, err
 		}
+	}
+
+	// delete API server lease
+	lease := &coordinationv1.Lease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Lease",
+			APIVersion: "coordination.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cluster.Name,
+			Namespace: cluster.Namespace,
+		},
+	}
+	if err := c.Client.Delete(ctx, lease); err != nil && !apierrors.IsNotFound(err) {
+		return reconcile.Result{}, err
 	}
 
 	// Remove finalizer from the cluster and update it only when all resources are cleaned up

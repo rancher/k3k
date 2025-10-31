@@ -100,6 +100,10 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	syncedConfigMap := c.translateConfigMap(&virtualConfigMap)
 
+	if err := controllerutil.SetControllerReference(&cluster, syncedConfigMap, c.HostClient.Scheme()); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// handle deletion
 	if !virtualConfigMap.DeletionTimestamp.IsZero() {
 		// deleting the synced configMap if exist

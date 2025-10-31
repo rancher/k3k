@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -268,6 +269,10 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	if s.cluster.Spec.Persistence.Type == v1beta1.DynamicPersistenceMode {
 		persistent = true
 		pvClaim = s.setupDynamicPersistence()
+
+		if err := controllerutil.SetControllerReference(s.cluster, &pvClaim, s.client.Scheme()); err != nil {
+			return nil, err
+		}
 	}
 
 	var (

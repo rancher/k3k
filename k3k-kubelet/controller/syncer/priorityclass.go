@@ -117,6 +117,10 @@ func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Reque
 
 	hostPriorityClass := r.translatePriorityClass(priorityClass)
 
+	if err := controllerutil.SetControllerReference(&cluster, hostPriorityClass, r.HostClient.Scheme()); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// handle deletion
 	if !priorityClass.DeletionTimestamp.IsZero() {
 		// deleting the synced service if exists

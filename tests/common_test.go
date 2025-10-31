@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -46,8 +47,6 @@ func NewVirtualClusterWithType(persistenceType v1beta1.PersistenceMode) *Virtual
 	GinkgoHelper()
 
 	namespace := NewNamespace()
-
-	By(fmt.Sprintf("Creating new virtual cluster in namespace %s", namespace.Name))
 
 	cluster := NewCluster(namespace.Name)
 	cluster.Spec.Persistence.Type = persistenceType
@@ -101,6 +100,11 @@ func NewNamespace() *v1.Namespace {
 func DeleteNamespaces(names ...string) {
 	GinkgoHelper()
 
+	if _, found := os.LookupEnv("KEEP_NAMESPACES"); found {
+		By(fmt.Sprintf("Keeping namespace %v", names))
+		return
+	}
+
 	wg := sync.WaitGroup{}
 	wg.Add(len(names))
 
@@ -151,6 +155,8 @@ func NewCluster(namespace string) *v1beta1.Cluster {
 func CreateCluster(cluster *v1beta1.Cluster) {
 	GinkgoHelper()
 
+	By(fmt.Sprintf("Creating new virtual cluster in namespace %s", cluster.Namespace))
+
 	ctx := context.Background()
 	err := k8sClient.Create(ctx, cluster)
 	Expect(err).To(Not(HaveOccurred()))
@@ -158,7 +164,7 @@ func CreateCluster(cluster *v1beta1.Cluster) {
 	expectedServers := int(*cluster.Spec.Servers)
 	expectedAgents := int(*cluster.Spec.Agents)
 
-	By(fmt.Sprintf("Waiting for cluster to be ready. Expected servers: %d. Expected agents: %d", expectedServers, expectedAgents))
+	By(fmt.Sprintf("Waiting for cluster %s to be ready in namespace %s. Expected servers: %d. Expected agents: %d", cluster.Name, cluster.Namespace, expectedServers, expectedAgents))
 
 	// track the Eventually status to log for changes
 	prev := -1
@@ -189,7 +195,11 @@ func CreateCluster(cluster *v1beta1.Cluster) {
 		}
 
 		if prev != (serversReady + agentsReady) {
-			GinkgoLogr.Info("Waiting for pods to be Ready", "servers", serversReady, "agents", agentsReady, "time", time.Now().Format(time.DateTime))
+			GinkgoLogr.Info("Waiting for pods to be Ready",
+				"servers", serversReady, "agents", agentsReady,
+				"name", cluster.Name, "namespace", cluster.Namespace,
+				"time", time.Now().Format(time.DateTime),
+			)
 			prev = (serversReady + agentsReady)
 		}
 

@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 
@@ -55,7 +54,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label("e2e"), func() {
 
 			// check that the ConfigMap is synced in the host cluster
 			Eventually(func(g Gomega) {
-				_, err := k8s.CoreV1().ConfigMaps(namespacedName.Namespace).Get(ctx, namespacedName.Name, v1.GetOptions{})
+				_, err := k8s.CoreV1().ConfigMaps(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
 				g.Expect(err).To(Not(HaveOccurred()))
 			}).
 				WithTimeout(time.Minute).
@@ -92,7 +91,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label("e2e"), func() {
 
 			// check that the ConfigMap is synced in the host cluster
 			Eventually(func(g Gomega) {
-				_, err := k8s.CoreV1().Services(namespacedName.Namespace).Get(ctx, namespacedName.Name, v1.GetOptions{})
+				_, err := k8s.CoreV1().Services(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
 				g.Expect(err).To(Not(HaveOccurred()))
 			}).
 				WithTimeout(time.Minute).
@@ -119,7 +118,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label("e2e"), func() {
 
 			// check that the ConfigMap is deleted from the host cluster
 			Eventually(func(g Gomega) {
-				_, err := k8s.CoreV1().ConfigMaps(namespacedName.Namespace).Get(ctx, namespacedName.Name, v1.GetOptions{})
+				_, err := k8s.CoreV1().ConfigMaps(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}).
 				WithTimeout(time.Minute).
@@ -135,7 +134,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label("e2e"), func() {
 
 			// check that the Service is deleted from the host cluster
 			Eventually(func(g Gomega) {
-				_, err := k8s.CoreV1().Services(namespacedName.Namespace).Get(ctx, namespacedName.Name, v1.GetOptions{})
+				_, err := k8s.CoreV1().Services(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}).
 				WithTimeout(time.Minute).

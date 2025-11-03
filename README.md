@@ -1,6 +1,5 @@
 # K3k: Kubernetes in Kubernetes
 
-[![Experimental](https://img.shields.io/badge/status-experimental-orange.svg)](https://shields.io/)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rancher/k3k)](https://goreportcard.com/report/github.com/rancher/k3k)
 ![Tests](https://github.com/rancher/k3k/actions/workflows/test.yaml/badge.svg)
 ![Build](https://github.com/rancher/k3k/actions/workflows/build.yml/badge.svg)  
@@ -11,10 +10,6 @@ K3k, Kubernetes in Kubernetes, is a tool that empowers you to create and manage 
 
 K3k integrates seamlessly with Rancher for simplified management of your embedded clusters.
 
-
-**Experimental Tool**
-
-This project is still under development and is considered experimental. It may have limitations, bugs, or changes. Please use with caution and report any issues you encounter. We appreciate your feedback as we continue to refine and improve this tool.
 
 
 ## Features and Benefits
@@ -60,7 +55,7 @@ This section provides instructions on how to install K3k and the `k3kcli`.
    helm install --namespace k3k-system --create-namespace k3k k3k/k3k
    ```
 
-**NOTE:** K3k is currently under development. We recommend using the latest released version when possible.
+We recommend using the latest released version when possible.
 
 
 ### Install the `k3kcli`
@@ -72,7 +67,7 @@ To install it, simply download the latest available version for your architectur
 For example, you can download the Linux amd64 version with:
 
 ```
-wget -qO k3kcli https://github.com/rancher/k3k/releases/download/v0.3.5/k3kcli-linux-amd64 && \
+wget -qO k3kcli https://github.com/rancher/k3k/releases/download/v1.0.0/k3kcli-linux-amd64 && \
   chmod +x k3kcli && \
   sudo mv k3kcli /usr/local/bin
 ```
@@ -80,7 +75,7 @@ wget -qO k3kcli https://github.com/rancher/k3k/releases/download/v0.3.5/k3kcli-l
 You should now be able to run:
 ```bash
 -> % k3kcli --version
-k3kcli version v0.3.5
+k3kcli version v1.0.0
 ```
 
 

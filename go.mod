@@ -1,6 +1,6 @@
 module github.com/rancher/k3k
 
-go 1.24.2
+go 1.24.10
 
 replace (
 	github.com/google/cel-go => github.com/google/cel-go v0.20.1

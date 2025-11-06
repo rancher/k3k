@@ -34,4 +34,51 @@ jobs:
       env:
         REPO: ${{ github.repository }}
         REGISTRY: ""
-        
+
+    - name: Run Trivy vulnerability scanner (k3kcli)
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        ignore-unfixed: true
+        severity: 'MEDIUM,HIGH,CRITICAL'
+        scan-type: 'fs'
+        scan-ref: 'dist/k3kcli_linux_amd64_v1/k3kcli'
+        format: 'sarif'
+        output: 'trivy-results-k3kcli.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab (k3kcli)
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-results-k3kcli.sarif
+        category: k3kcli
+
+    - name: Run Trivy vulnerability scanner (k3k)
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        ignore-unfixed: true
+        severity: 'MEDIUM,HIGH,CRITICAL'
+        scan-type: 'image'
+        scan-ref: '${{ github.repository }}:v0.0.0-amd64'
+        format: 'sarif'
+        output: 'trivy-results-k3k.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab (k3k)
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-results-k3k.sarif
+        category: k3k
+
+    - name: Run Trivy vulnerability scanner (k3k-kubelet)
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        ignore-unfixed: true
+        severity: 'MEDIUM,HIGH,CRITICAL'
+        scan-type: 'image'
+        scan-ref: '${{ github.repository }}-kubelet:v0.0.0-amd64'
+        format: 'sarif'
+        output: 'trivy-results-k3k-kubelet.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab (k3k-kubelet)
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-results-k3k-kubelet.sarif
+        category: k3k-kubelet

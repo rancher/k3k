@@ -10,4 +10,11 @@ CONTROLLER_TOOLS_VERSION=v0.16.0
 go run sigs.k8s.io/controller-tools/cmd/controller-gen@${CONTROLLER_TOOLS_VERSION} \
     crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=false \
     object paths=./pkg/apis/... \
-    output:crd:dir=./charts/k3k/crds
+    output:crd:dir=./charts/k3k/templates/crds
+
+# add the 'helm.sh/resource-policy: keep' annotation to the CRDs
+for f in ./charts/k3k/templates/crds/*.yaml; do
+    sed -i '0,/^[[:space:]]*annotations:/s/^[[:space:]]*annotations:/&\n    helm.sh\/resource-policy: keep/' "$f"
+    echo "Validating $f"
+    yq . "$f" > /dev/null
+done

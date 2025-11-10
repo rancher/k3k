@@ -127,10 +127,16 @@ jobs:
     - name: Job Summary
       if: always()
       run: |
-        echo '### 📊 Conformance Tests Results (${{ matrix.type }})'  >> $GITHUB_STEP_SUMMARY
+        echo '## 📊 Conformance Tests Results (${{ matrix.type }})'  >> $GITHUB_STEP_SUMMARY
         echo '| Passed | Failed | Pending | Skipped |'                >> $GITHUB_STEP_SUMMARY
         echo '|---|---|---|---|'                                      >> $GITHUB_STEP_SUMMARY
 
         RESULTS=$(tail -10 /tmp/e2e.log | grep -E "Passed .* Failed .* Pending .* Skipped" | cut -d '-' -f 3)
         RESULTS=$(echo $RESULTS | grep -oE '[0-9]+' | xargs | sed 's/ / | /g')
         echo "| $RESULTS |" >> $GITHUB_STEP_SUMMARY
+
+        echo ''                 >> $GITHUB_STEP_SUMMARY
+        echo '### Failed Tests' >> $GITHUB_STEP_SUMMARY
+        echo '```'              >> $GITHUB_STEP_SUMMARY
+        grep '\[FAIL\]' e2e.log >> $GITHUB_STEP_SUMMARY
+        echo '```'              >> $GITHUB_STEP_SUMMARY

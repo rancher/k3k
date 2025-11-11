@@ -108,25 +108,25 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1bet
 	ip := k3kService.Spec.ClusterIP
 	port := int32(443)
 
+	if len(k3kService.Spec.Ports) == 0 {
+		logrus.Warn("No ports exposed by the cluster service.")
+	}
+
 	switch k3kService.Spec.Type {
 	case v1.ServiceTypeNodePort:
 		ip = hostServerIP
 
-		if len(k3kService.Spec.Ports) == 0 {
-			logrus.Warn("No exposed port in NodePort service.")
-		} else {
+		if len(k3kService.Spec.Ports) > 0 {
 			port = k3kService.Spec.Ports[0].NodePort
 		}
 	case v1.ServiceTypeLoadBalancer:
-		if len(k3kService.Status.LoadBalancer.Ingress) == 0 {
-			logrus.Warn("No ingress found in LoadBalancer service.")
-		} else {
+		if len(k3kService.Status.LoadBalancer.Ingress) > 0 {
 			ip = k3kService.Status.LoadBalancer.Ingress[0].IP
+		} else {
+			logrus.Warn("No ingress found in LoadBalancer service.")
 		}
 
-		if len(k3kService.Spec.Ports) == 0 {
-			logrus.Warn("No exposed port in LoadBalancer service.")
-		} else {
+		if len(k3kService.Spec.Ports) > 0 {
 			port = k3kService.Spec.Ports[0].Port
 		}
 	}

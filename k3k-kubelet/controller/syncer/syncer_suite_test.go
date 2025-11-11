@@ -92,7 +92,7 @@ func NewTestEnv() *TestEnv {
 	By("bootstrapping test environment")
 
 	testEnv := &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "charts", "k3k", "crds")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "charts", "k3k", "templates", "crds")},
 		ErrorIfCRDPathMissing: true,
 		BinaryAssetsDirectory: tempDir,
 		Scheme:                buildScheme(),

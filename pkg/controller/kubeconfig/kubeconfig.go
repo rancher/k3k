@@ -108,13 +108,27 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1bet
 	ip := k3kService.Spec.ClusterIP
 	port := int32(443)
 
+	if len(k3kService.Spec.Ports) == 0 {
+		logrus.Warn("No ports exposed by the cluster service.")
+	}
+
 	switch k3kService.Spec.Type {
 	case v1.ServiceTypeNodePort:
 		ip = hostServerIP
-		port = k3kService.Spec.Ports[0].NodePort
+
+		if len(k3kService.Spec.Ports) > 0 {
+			port = k3kService.Spec.Ports[0].NodePort
+		}
 	case v1.ServiceTypeLoadBalancer:
-		ip = k3kService.Status.LoadBalancer.Ingress[0].IP
-		port = k3kService.Spec.Ports[0].Port
+		if len(k3kService.Status.LoadBalancer.Ingress) > 0 {
+			ip = k3kService.Status.LoadBalancer.Ingress[0].IP
+		} else {
+			logrus.Warn("No ingress found in LoadBalancer service.")
+		}
+
+		if len(k3kService.Spec.Ports) > 0 {
+			port = k3kService.Spec.Ports[0].Port
+		}
 	}
 
 	if serverPort != 0 {
@@ -122,7 +136,7 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1bet
 	}
 
 	if !slices.Contains(cluster.Status.TLSSANs, ip) {
-		logrus.Warnf("ip %s not in tlsSANs", ip)
+		logrus.Warnf("IP %s not in tlsSANs.", ip)
 
 		if len(cluster.Spec.TLSSANs) > 0 {
 			logrus.Warnf("Using the first TLS SAN in the spec as a fallback: %s", cluster.Spec.TLSSANs[0])
@@ -133,7 +147,7 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1bet
 
 			ip = cluster.Status.TLSSANs[0]
 		} else {
-			logrus.Warn("ip not found in tlsSANs. This could cause issue with the certificate validation.")
+			logrus.Warn("IP not found in tlsSANs. This could cause issue with the certificate validation.")
 		}
 	}
 

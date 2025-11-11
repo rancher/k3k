@@ -1,4 +1,4 @@
-name: Conformance Tests - Virtual Mode
+name: Conformance Tests - Shared Mode
 
 on:
   schedule:
@@ -36,30 +36,47 @@ jobs:
     - name: Install hydrophone
       run: go install sigs.k8s.io/hydrophone@latest
 
-    - name: Install k3s
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-        K3S_HOST_VERSION: v1.32.1+k3s1
+    - name: Install k3d and kubectl
       run: |
-        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -
+        wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+        k3d version
 
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+    - name: Setup Kubernetes (k3d)
+      env:
+        REPO_NAME: k3k-registry
+        REPO_PORT: 12345
+      run: |
+        echo "127.0.0.1 ${REPO_NAME}" | sudo tee -a /etc/hosts
+
+        k3d registry create ${REPO_NAME} --port ${REPO_PORT}
+        
+        k3d cluster create k3k --servers 2 \
+          -p "30000-30010:30000-30010@server:0" \
+          --registry-use k3d-${REPO_NAME}:${REPO_PORT}
+        
         kubectl cluster-info
         kubectl get nodes
 
-    - name: Build, package and setup K3k
+    - name: Setup K3k
       env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        REPO: k3k-registry:12345
       run: |
-        export REPO=ttl.sh/$(uuidgen)
-        export VERSION=1h
+        echo "127.0.0.1 k3k-registry" | sudo tee -a /etc/hosts
 
         make build
         make package
         make push
-        make install
 
         # add k3kcli to $PATH
         echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+        VERSION=$(make version)
+        k3d image import ${REPO}/k3k:${VERSION} -c k3k --verbose
+        k3d image import ${REPO}/k3k-kubelet:${VERSION} -c k3k --verbose
+
+        make install
         
         echo "Wait for K3k controller to be available"
         kubectl wait -n k3k-system pod --for condition=Ready -l "app.kubernetes.io/name=k3k" --timeout=5m
@@ -68,12 +85,30 @@ jobs:
       run: k3kcli -v
 
     - name: Create virtual cluster
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
-        k3kcli cluster create --mode=virtual --servers=2 mycluster
+        kubectl create namespace k3k-mycluster
 
-        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml        
+        cat <<EOF | kubectl apply -f -
+        apiVersion: k3k.io/v1beta1
+        kind: Cluster
+        metadata:
+          name: mycluster
+          namespace: k3k-mycluster
+        spec:
+          mirrorHostNodes: true
+          tlsSANs:
+            - "127.0.0.1"
+          expose:
+            nodePort:
+              serverPort: 30001
+        EOF
+
+        echo "Wait for bootstrap secret to be available"
+        kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m
+
+        k3kcli kubeconfig generate --name mycluster
+
+        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
         
         kubectl cluster-info
         kubectl get nodes
@@ -93,29 +128,7 @@ jobs:
         # Run serial conformance tests
         hydrophone --focus='\[Serial\].*\[Conformance\]' \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
-          --output-dir /tmp
-    
-    - name: Export logs
-      if: always()
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      run: |
-        journalctl -u k3s -o cat --no-pager > /tmp/k3s.log
-        kubectl logs -n k3k-system -l "app.kubernetes.io/name=k3k" --tail=-1 > /tmp/k3k.log
-
-    - name: Archive K3s logs
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: k3s-${{ matrix.type }}-logs
-        path: /tmp/k3s.log
-
-    - name: Archive K3k logs
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: k3k-${{ matrix.type }}-logs
-        path: /tmp/k3k.log
+          --output-dir /tmp 
 
     - name: Archive conformance logs
       uses: actions/upload-artifact@v4

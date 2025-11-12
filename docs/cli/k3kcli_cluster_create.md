@@ -25,7 +25,7 @@ k3kcli cluster create [command options] NAME
       --mirror-host-nodes             Mirror Host Cluster Nodes
       --mode string                   k3k mode type (shared, virtual) (default "shared")
   -n, --namespace string              namespace of the k3k cluster
-      --persistence-type string       persistence mode for the nodes (dynamic, ephemeral, static) (default "dynamic")
+      --persistence-type string       persistence mode for the nodes (dynamic, ephemeral) (default "dynamic")
       --policy string                 The policy to create the cluster in
       --server-args strings           servers extra arguments
       --server-envs strings           servers extra Envs

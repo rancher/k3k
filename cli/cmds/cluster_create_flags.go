@@ -17,7 +17,7 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 	cmd.Flags().StringVar(&cfg.clusterCIDR, "cluster-cidr", "", "cluster CIDR")
 	cmd.Flags().StringVar(&cfg.serviceCIDR, "service-cidr", "", "service CIDR")
 	cmd.Flags().BoolVar(&cfg.mirrorHostNodes, "mirror-host-nodes", false, "Mirror Host Cluster Nodes")
-	cmd.Flags().StringVar(&cfg.persistenceType, "persistence-type", string(v1beta1.DynamicPersistenceMode), "persistence mode for the nodes (dynamic, ephemeral, static)")
+	cmd.Flags().StringVar(&cfg.persistenceType, "persistence-type", string(v1beta1.DynamicPersistenceMode), "persistence mode for the nodes (dynamic, ephemeral)")
 	cmd.Flags().StringVar(&cfg.storageClassName, "storage-class-name", "", "storage class name for dynamic persistence type")
 	cmd.Flags().StringVar(&cfg.storageRequestSize, "storage-request-size", "", "storage size for dynamic persistence type")
 	cmd.Flags().StringSliceVar(&cfg.serverArgs, "server-args", []string{}, "servers extra arguments")
@@ -42,7 +42,7 @@ func validateCreateConfig(cfg *CreateConfig) error {
 		case v1beta1.EphemeralPersistenceMode, v1beta1.DynamicPersistenceMode:
 			return nil
 		default:
-			return errors.New(`persistence-type should be one of "dynamic", "ephemeral" or "static"`)
+			return errors.New(`persistence-type should be one of "dynamic" or "ephemeral"`)
 		}
 	}
 

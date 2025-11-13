@@ -36,6 +36,7 @@ func policyDeleteAction(appCtx *AppContext) func(cmd *cobra.Command, args []stri
 			}
 
 			logrus.Warnf("Policy %q not found", name)
+
 			return nil
 		}
 

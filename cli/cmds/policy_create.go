@@ -63,6 +63,7 @@ func policyCreateAction(appCtx *AppContext, config *VirtualClusterPolicyCreateCo
 		}
 
 		var errs []error
+
 		for _, namespace := range config.namespaces {
 			var ns v1.Namespace
 			if err := client.Get(ctx, types.NamespacedName{Name: namespace}, &ns); err != nil {

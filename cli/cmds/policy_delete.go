@@ -31,12 +31,15 @@ func policyDeleteAction(appCtx *AppContext) func(cmd *cobra.Command, args []stri
 		policy.Name = name
 
 		if err := client.Delete(ctx, policy); err != nil {
-			if apierrors.IsNotFound(err) {
-				logrus.Warnf("Policy not found")
-			} else {
+			if !apierrors.IsNotFound(err) {
 				return err
 			}
+
+			logrus.Warnf("Policy %q not found", name)
+			return nil
 		}
+
+		logrus.Infof("Policy %q deleted", name)
 
 		return nil
 	}

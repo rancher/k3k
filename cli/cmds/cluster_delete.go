@@ -48,7 +48,7 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 
 		namespace := appCtx.Namespace(name)
 
-		logrus.Infof("Deleting [%s] cluster in namespace [%s]", name, namespace)
+		logrus.Infof("Deleting %q cluster in namespace %q", name, namespace)
 
 		cluster := v1beta1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{

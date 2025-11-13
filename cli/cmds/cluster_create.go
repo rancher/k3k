@@ -115,7 +115,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			}
 		}
 
-		logrus.Infof("Creating cluster [%s] in namespace [%s]", name, namespace)
+		logrus.Infof("Creating cluster %q in namespace %q", name, namespace)
 
 		cluster := newCluster(name, namespace, config)
 
@@ -138,7 +138,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 
 		if err := client.Create(ctx, cluster); err != nil {
 			if apierrors.IsAlreadyExists(err) {
-				logrus.Infof("Cluster [%s] already exists", name)
+				logrus.Infof("Cluster %q already exists", name)
 			} else {
 				return err
 			}
@@ -161,7 +161,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return fmt.Errorf("failed to wait for cluster to become ready (status: %s): %w", cluster.Status.Phase, err)
 		}
 
-		logrus.Infof("Extracting Kubeconfig for [%s] cluster", name)
+		logrus.Infof("Extracting Kubeconfig for %q cluster", name)
 
 		// retry every 5s for at most 2m, or 25 times
 		availableBackoff := wait.Backoff{

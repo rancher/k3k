@@ -82,7 +82,7 @@ func createNamespace(ctx context.Context, client client.Client, name, policyName
 			return err
 		}
 
-		logrus.Infof(`Creating namespace %q`, name)
+		logrus.Infof(`Creating namespace '%s'`, name)
 
 		if err := client.Create(ctx, ns); err != nil {
 			return err
@@ -93,7 +93,7 @@ func createNamespace(ctx context.Context, client client.Client, name, policyName
 }
 
 func createPolicy(ctx context.Context, client client.Client, config *VirtualClusterPolicyCreateConfig, policyName string) (*v1beta1.VirtualClusterPolicy, error) {
-	logrus.Infof("Creating policy %q", policyName)
+	logrus.Infof("Creating policy '%s'", policyName)
 
 	policy := &v1beta1.VirtualClusterPolicy{
 		ObjectMeta: metav1.ObjectMeta{
@@ -115,7 +115,7 @@ func createPolicy(ctx context.Context, client client.Client, config *VirtualClus
 			return nil, err
 		}
 
-		logrus.Infof("Policy %q already exists", policyName)
+		logrus.Infof("Policy '%s' already exists", policyName)
 	}
 
 	return policy, nil
@@ -128,7 +128,7 @@ func bindPolicyToNamespaces(ctx context.Context, client client.Client, config *V
 		var ns v1.Namespace
 		if err := client.Get(ctx, types.NamespacedName{Name: namespace}, &ns); err != nil {
 			if apierrors.IsNotFound(err) {
-				logrus.Warnf(`Namespace %q not found, skipping`, namespace)
+				logrus.Warnf(`Namespace '%s' not found, skipping`, namespace)
 			} else {
 				errs = append(errs, err)
 			}
@@ -144,7 +144,7 @@ func bindPolicyToNamespaces(ctx context.Context, client client.Client, config *V
 
 		// same policy found, no need to update
 		if oldPolicy == policyName {
-			logrus.Debugf(`Policy %q already bound to namespace %q`, policyName, namespace)
+			logrus.Debugf(`Policy '%s' already bound to namespace '%s'`, policyName, namespace)
 			continue
 		}
 
@@ -153,7 +153,7 @@ func bindPolicyToNamespaces(ctx context.Context, client client.Client, config *V
 			if err := client.Update(ctx, &ns); err != nil {
 				errs = append(errs, err)
 			} else {
-				logrus.Infof(`Added policy %q to namespace %q`, policyName, namespace)
+				logrus.Infof(`Added policy '%s' to namespace '%s'`, policyName, namespace)
 			}
 
 			continue
@@ -162,17 +162,17 @@ func bindPolicyToNamespaces(ctx context.Context, client client.Client, config *V
 		// different policy, warn or check for overwrite flag
 		if oldPolicy != policyName {
 			if config.overwrite {
-				logrus.Infof(`Found policy %q bound to namespace %q. Overwriting it with %q`, oldPolicy, namespace, policyName)
+				logrus.Infof(`Found policy '%s' bound to namespace '%s'. Overwriting it with '%s'`, oldPolicy, namespace, policyName)
 
 				ns.Labels[policy.PolicyNameLabelKey] = policyName
 
 				if err := client.Update(ctx, &ns); err != nil {
 					errs = append(errs, err)
 				} else {
-					logrus.Infof(`Added policy %q to namespace %q`, policyName, namespace)
+					logrus.Infof(`Added policy '%s' to namespace '%s'`, policyName, namespace)
 				}
 			} else {
-				logrus.Warnf(`Found policy %q bound to namespace %q. Skipping. To overwrite it use the --overwrite flag`, oldPolicy, namespace)
+				logrus.Warnf(`Found policy '%s' bound to namespace '%s'. Skipping. To overwrite it use the --overwrite flag`, oldPolicy, namespace)
 			}
 		}
 	}

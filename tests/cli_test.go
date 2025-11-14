@@ -66,7 +66,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			_, stderr, err = K3kcli("cluster", "delete", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stderr).To(ContainSubstring(`Deleting %q cluster in namespace %q`, clusterName, clusterNamespace))
+			Expect(stderr).To(ContainSubstring(`Deleting '%s' cluster in namespace '%s'`, clusterName, clusterNamespace))
 
 			// The deletion could take a bit
 			Eventually(func() string {
@@ -92,7 +92,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			_, stderr, err = K3kcli("policy", "create", policyName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stderr).To(ContainSubstring(`Creating policy %q`, policyName))
+			Expect(stderr).To(ContainSubstring(`Creating policy '%s'`, policyName))
 
 			stdout, stderr, err = K3kcli("policy", "list")
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
@@ -140,7 +140,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			_, stderr, err = K3kcli("cluster", "delete", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stderr).To(ContainSubstring(`Deleting %q cluster in namespace %q`, clusterName, clusterNamespace))
+			Expect(stderr).To(ContainSubstring(`Deleting '%s' cluster in namespace '%s'`, clusterName, clusterNamespace))
 		})
 	})
 })

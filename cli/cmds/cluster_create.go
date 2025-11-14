@@ -1,12 +1,14 @@
 package cmds
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -140,9 +142,20 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			}
 		}
 
+		if err := waitForClusterReconciled(ctx, client, cluster, config.timeout); err != nil {
+			return fmt.Errorf("failed to wait for cluster to be reconciled: %w", err)
+		}
+
+		clusterDetails, err := printClusterDetails(cluster)
+		if err != nil {
+			return fmt.Errorf("failed to print cluster details: %w", err)
+		}
+
+		logrus.Info(clusterDetails)
+
 		logrus.Infof("Waiting for cluster to be available..")
 
-		if err := waitForCluster(ctx, client, cluster, config.timeout); err != nil {
+		if err := waitForClusterReady(ctx, client, cluster, config.timeout); err != nil {
 			return fmt.Errorf("failed to wait for cluster to become ready (status: %s): %w", cluster.Status.Phase, err)
 		}
 
@@ -257,7 +270,18 @@ func env(envSlice []string) []v1.EnvVar {
 	return envVars
 }
 
-func waitForCluster(ctx context.Context, k8sClient client.Client, cluster *v1beta1.Cluster, timeout time.Duration) error {
+func waitForClusterReconciled(ctx context.Context, k8sClient client.Client, cluster *v1beta1.Cluster, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, false, func(ctx context.Context) (bool, error) {
+		key := client.ObjectKeyFromObject(cluster)
+		if err := k8sClient.Get(ctx, key, cluster); err != nil {
+			return false, fmt.Errorf("failed to get resource: %w", err)
+		}
+
+		return cluster.Status.HostVersion != "", nil
+	})
+}
+
+func waitForClusterReady(ctx context.Context, k8sClient client.Client, cluster *v1beta1.Cluster, timeout time.Duration) error {
 	interval := 5 * time.Second
 
 	return wait.PollUntilContextTimeout(ctx, interval, timeout, true, func(ctx context.Context) (bool, error) {
@@ -340,4 +364,53 @@ func caCertSecret(certName, clusterName, clusterNamespace string, cert, key []by
 			v1.TLSPrivateKeyKey: key,
 		},
 	}
+}
+
+const clusterDetailsTemplate = `Cluster details:
+  Mode: {{ .Mode }}
+  Servers: {{ .Servers }}{{ if .Agents }}
+  Agents: {{ .Agents }}{{ end }}
+  Version: {{ if .Version }}{{ .Version }}{{ else }}{{ .HostVersion }}{{ end }} (Host: {{ .HostVersion }})
+  Persistence:
+    Type: {{.Persistence.Type}}{{ if .Persistence.StorageClassName }}
+    StorageClass: {{ .Persistence.StorageClassName }}{{ end }}{{ if .Persistence.StorageRequestSize }}
+    Size: {{ .Persistence.StorageRequestSize }}{{ end }}`
+
+func printClusterDetails(cluster *v1beta1.Cluster) (string, error) {
+	type templateData struct {
+		Mode        v1beta1.ClusterMode
+		Servers     int32
+		Agents      int32
+		Version     string
+		HostVersion string
+		Persistence struct {
+			Type               v1beta1.PersistenceMode
+			StorageClassName   string
+			StorageRequestSize string
+		}
+	}
+
+	data := templateData{
+		Mode:        cluster.Spec.Mode,
+		Servers:     ptr.Deref(cluster.Spec.Servers, 0),
+		Agents:      ptr.Deref(cluster.Spec.Agents, 0),
+		Version:     cluster.Spec.Version,
+		HostVersion: cluster.Status.HostVersion,
+	}
+
+	data.Persistence.Type = cluster.Spec.Persistence.Type
+	data.Persistence.StorageClassName = ptr.Deref(cluster.Spec.Persistence.StorageClassName, "")
+	data.Persistence.StorageRequestSize = cluster.Spec.Persistence.StorageRequestSize
+
+	tmpl, err := template.New("clusterDetails").Parse(clusterDetailsTemplate)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	if err = tmpl.Execute(&buf, data); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }

@@ -34,9 +34,10 @@ func NewRootCmd() *cobra.Command {
 	appCtx := &AppContext{}
 
 	rootCmd := &cobra.Command{
-		Use:     "k3kcli",
-		Short:   "CLI for K3K",
-		Version: buildinfo.Version,
+		SilenceUsage: true,
+		Use:          "k3kcli",
+		Short:        "CLI for K3K",
+		Version:      buildinfo.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			InitializeConfig(cmd)
 

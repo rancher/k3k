@@ -102,7 +102,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			stdout, stderr, err = K3kcli("policy", "delete", policyName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stdout).To(BeEmpty())
-			Expect(stderr).To(BeEmpty())
+			Expect(stderr).To(ContainSubstring(`Policy '%s' deleted`, policyName))
 
 			stdout, stderr, err = K3kcli("policy", "list")
 			Expect(err).To(Not(HaveOccurred()), string(stderr))

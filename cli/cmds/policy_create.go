@@ -18,7 +18,9 @@ import (
 )
 
 type VirtualClusterPolicyCreateConfig struct {
-	mode string
+	mode        string
+	labels      []string
+	annotations []string
 }
 
 func NewPolicyCreateCmd(appCtx *AppContext) *cobra.Command {
@@ -41,6 +43,8 @@ func NewPolicyCreateCmd(appCtx *AppContext) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&config.mode, "mode", "shared", "The allowed mode type of the policy")
+	cmd.Flags().StringArrayVar(&config.labels, "labels", []string{}, "Labels to add to the policy object (e.g. key=value)")
+	cmd.Flags().StringArrayVar(&config.annotations, "annotations", []string{}, "Annotations to add to the policy object (e.g. key=value)")
 
 	return cmd
 }
@@ -51,7 +55,7 @@ func policyCreateAction(appCtx *AppContext, config *VirtualClusterPolicyCreateCo
 		client := appCtx.Client
 		policyName := args[0]
 
-		_, err := createPolicy(ctx, client, v1beta1.ClusterMode(config.mode), policyName)
+		_, err := createPolicy(ctx, client, config, policyName)
 
 		return err
 	}
@@ -81,19 +85,21 @@ func createNamespace(ctx context.Context, client client.Client, name, policyName
 	return nil
 }
 
-func createPolicy(ctx context.Context, client client.Client, mode v1beta1.ClusterMode, policyName string) (*v1beta1.VirtualClusterPolicy, error) {
+func createPolicy(ctx context.Context, client client.Client, config *VirtualClusterPolicyCreateConfig, policyName string) (*v1beta1.VirtualClusterPolicy, error) {
 	logrus.Infof("Creating policy [%s]", policyName)
 
 	policy := &v1beta1.VirtualClusterPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: policyName,
+			Name:        policyName,
+			Labels:      parseKeyValuePairs(config.labels, "label"),
+			Annotations: parseKeyValuePairs(config.annotations, "annotation"),
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "VirtualClusterPolicy",
 			APIVersion: "k3k.io/v1beta1",
 		},
 		Spec: v1beta1.VirtualClusterPolicySpec{
-			AllowedMode: mode,
+			AllowedMode: v1beta1.ClusterMode(config.mode),
 		},
 	}
 

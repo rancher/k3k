@@ -39,6 +39,8 @@ type CreateConfig struct {
 	agentArgs            []string
 	serverEnvs           []string
 	agentEnvs            []string
+	labels               []string
+	annotations          []string
 	persistenceType      string
 	storageClassName     string
 	storageRequestSize   string
@@ -186,8 +188,10 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 func newCluster(name, namespace string, config *CreateConfig) *v1beta1.Cluster {
 	cluster := &v1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:        name,
+			Namespace:   namespace,
+			Labels:      parseKeyValuePairs(config.labels, "label"),
+			Annotations: parseKeyValuePairs(config.annotations, "annotation"),
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Cluster",
@@ -364,6 +368,27 @@ func caCertSecret(certName, clusterName, clusterNamespace string, cert, key []by
 			v1.TLSPrivateKeyKey: key,
 		},
 	}
+}
+
+func parseKeyValuePairs(pairs []string, pairType string) map[string]string {
+	resultMap := make(map[string]string)
+
+	for _, p := range pairs {
+		var k, v string
+
+		keyValue := strings.SplitN(p, "=", 2)
+
+		k = keyValue[0]
+		if len(keyValue) == 2 {
+			v = keyValue[1]
+		}
+
+		resultMap[k] = v
+
+		logrus.Debugf("Adding '%s=%s' %s to Cluster", k, v, pairType)
+	}
+
+	return resultMap
 }
 
 const clusterDetailsTemplate = `Cluster details:

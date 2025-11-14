@@ -15,8 +15,10 @@ k3kcli policy create [command options] NAME
 ### Options
 
 ```
-  -h, --help          help for create
-      --mode string   The allowed mode type of the policy (default "shared")
+      --annotations stringArray   Annotations to add to the policy object (e.g. key=value)
+  -h, --help                      help for create
+      --labels stringArray        Labels to add to the policy object (e.g. key=value)
+      --mode string               The allowed mode type of the policy (default "shared")
 ```
 
 ### Options inherited from parent commands

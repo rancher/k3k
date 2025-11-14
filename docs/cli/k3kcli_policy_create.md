@@ -19,6 +19,8 @@ k3kcli policy create [command options] NAME
   -h, --help                      help for create
       --labels stringArray        Labels to add to the policy object (e.g. key=value)
       --mode string               The allowed mode type of the policy (default "shared")
+      --namespace strings         The namespaces where to bind the policy
+      --overwrite                 Overwrite namespace binding of existing policy
 ```
 
 ### Options inherited from parent commands

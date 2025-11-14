@@ -186,15 +186,12 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 }
 
 func newCluster(name, namespace string, config *CreateConfig) *v1beta1.Cluster {
-	labels := parseKeyValuePairs(config.labels, "label")
-	annotations := parseKeyValuePairs(config.annotations, "annotation")
-
 	cluster := &v1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Namespace:   namespace,
-			Labels:      labels,
-			Annotations: annotations,
+			Labels:      parseKeyValuePairs(config.labels, "label"),
+			Annotations: parseKeyValuePairs(config.annotations, "annotation"),
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Cluster",

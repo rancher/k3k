@@ -24,6 +24,8 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 	cmd.Flags().StringSliceVar(&cfg.agentArgs, "agent-args", []string{}, "agents extra arguments")
 	cmd.Flags().StringSliceVar(&cfg.serverEnvs, "server-envs", []string{}, "servers extra Envs")
 	cmd.Flags().StringSliceVar(&cfg.agentEnvs, "agent-envs", []string{}, "agents extra Envs")
+	cmd.Flags().StringArrayVar(&cfg.labels, "labels", []string{}, "Labels to add to the cluster object (e.g. key=value)")
+	cmd.Flags().StringArrayVar(&cfg.annotations, "annotations", []string{}, "Annotations to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringVar(&cfg.version, "version", "", "k3s version")
 	cmd.Flags().StringVar(&cfg.mode, "mode", "shared", "k3k mode type (shared, virtual)")
 	cmd.Flags().StringVar(&cfg.kubeconfigServerHost, "kubeconfig-server", "", "override the kubeconfig server host")

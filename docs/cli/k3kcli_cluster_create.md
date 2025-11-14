@@ -18,10 +18,12 @@ k3kcli cluster create [command options] NAME
       --agent-args strings            agents extra arguments
       --agent-envs strings            agents extra Envs
       --agents int                    number of agents
+      --annotations stringArray       Annotations to add to the cluster object (e.g. key=value)
       --cluster-cidr string           cluster CIDR
       --custom-certs string           The path for custom certificate directory
   -h, --help                          help for create
       --kubeconfig-server string      override the kubeconfig server host
+      --labels stringArray            Labels to add to the cluster object (e.g. key=value)
       --mirror-host-nodes             Mirror Host Cluster Nodes
       --mode string                   k3k mode type (shared, virtual) (default "shared")
   -n, --namespace string              namespace of the k3k cluster

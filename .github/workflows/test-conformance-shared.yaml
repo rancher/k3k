@@ -148,8 +148,11 @@ jobs:
         RESULTS=$(echo $RESULTS | grep -oE '[0-9]+' | xargs | sed 's/ / | /g')
         echo "| $RESULTS |" >> $GITHUB_STEP_SUMMARY
 
-        echo ''                       >> $GITHUB_STEP_SUMMARY
-        echo '### Failed Tests'       >> $GITHUB_STEP_SUMMARY
-        echo '```'                    >> $GITHUB_STEP_SUMMARY
-        grep '\[FAIL\]' /tmp/e2e.log  >> $GITHUB_STEP_SUMMARY
-        echo '```'                    >> $GITHUB_STEP_SUMMARY
+        # only include failed tests section if there are any
+        if grep -q '\[FAIL\]' /tmp/e2e.log; then
+          echo ''                       >> $GITHUB_STEP_SUMMARY
+          echo '### Failed Tests'       >> $GITHUB_STEP_SUMMARY
+          echo '```'                    >> $GITHUB_STEP_SUMMARY
+          grep '\[FAIL\]' /tmp/e2e.log  >> $GITHUB_STEP_SUMMARY
+          echo '```'                    >> $GITHUB_STEP_SUMMARY
+        fi

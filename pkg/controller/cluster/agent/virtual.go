@@ -86,6 +86,7 @@ func virtualAgentData(serviceIP, token, privateRegistrySecretName string) string
 	if privateRegistrySecretName != "" {
 		privateRegistryPath = "/opt/rancher/k3s/registry/registries.yaml"
 	}
+
 	return fmt.Sprintf(`server: https://%s
 token: %s
 private-registry: %s

@@ -42,8 +42,10 @@ func BuildRegistryConfigVolumes(ctx context.Context, cluster *v1beta1.Cluster, c
 	if len(tlsSecretsMap) > 0 {
 		var projectedVolSources []v1.VolumeProjection
 		sortedTLSKeys := sortedKeys(tlsSecretsMap)
+
 		for _, tlsSecret := range sortedTLSKeys {
 			var privRegistrySecret v1.Secret
+
 			secretKey := types.NamespacedName{
 				Name:      tlsSecretsMap[tlsSecret].SecretName,
 				Namespace: cluster.Namespace,
@@ -56,6 +58,7 @@ func BuildRegistryConfigVolumes(ctx context.Context, cluster *v1beta1.Cluster, c
 			if privRegistrySecret.Type != v1.SecretTypeTLS {
 				return nil, nil, fmt.Errorf("TLS secret specified for private registry is not TLS type")
 			}
+
 			projectedVolSources = append(projectedVolSources, v1.VolumeProjection{
 				Secret: &v1.SecretProjection{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -74,6 +77,7 @@ func BuildRegistryConfigVolumes(ctx context.Context, cluster *v1beta1.Cluster, c
 				},
 			})
 		}
+
 		vols = append(vols, v1.Volume{
 			Name: "tls-vol",
 			VolumeSource: v1.VolumeSource{
@@ -88,6 +92,7 @@ func BuildRegistryConfigVolumes(ctx context.Context, cluster *v1beta1.Cluster, c
 			MountPath: "/opt/rancher/k3s/registry/ssl",
 		})
 	}
+
 	return vols, volMounts, nil
 }
 

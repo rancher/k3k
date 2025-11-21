@@ -25,9 +25,10 @@ func Test_virtualAgentData(t *testing.T) {
 				token:     "dnjklsdjnksd892389238",
 			},
 			expectedData: map[string]string{
-				"server":       "https://10.0.0.21",
-				"token":        "dnjklsdjnksd892389238",
-				"with-node-id": "true",
+				"server":           "https://10.0.0.21",
+				"token":            "dnjklsdjnksd892389238",
+				"private-registry": "/etc/rancher/k3s/registries.yaml",
+				"with-node-id":     "true",
 			},
 		},
 	}

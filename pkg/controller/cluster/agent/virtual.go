@@ -90,7 +90,7 @@ func virtualAgentData(serviceIP, token, privateRegistrySecretName string) string
 	return fmt.Sprintf(`server: https://%s
 token: %s
 private-registry: %s
-with-node-id: true`, serviceIP, privateRegistryPath, token)
+with-node-id: true`, serviceIP, token, privateRegistryPath)
 }
 
 func (v *VirtualAgent) deployment(ctx context.Context) error {

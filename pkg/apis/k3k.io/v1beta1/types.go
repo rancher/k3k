@@ -183,6 +183,26 @@ type ClusterSpec struct {
 	// +kubebuilder:default={}
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
+
+	// PrivateRegistry specifies a list private registry configuration for servers and agents via the
+	// registries.yaml file and node selectors.
+	//
+	// +kubebuilder:default={}
+	// +optional
+	PrivateRegistry PrivateRegistryConfig `json:"privateRegistry,omitempty"`
+}
+
+// PrivateRegistryConfig will contain the private registry config for servers and agents.
+// PrivateRegistryConfig represent the registries.yaml file.
+type PrivateRegistryConfig struct {
+	// SecretName specifies the name of an existing secret to use.
+	// The controller expects an item called registries.yaml in the secret.
+	//
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
+	// TLSSecrets specifies a map of credential sources where each item represent a TLS certificate key
+	// pair to be used by the private registry configuration, and will be deployed within pods with their names.
+	TLSSecrets map[string]CredentialSource `json:"tlsSecrets,omitempty"`
 }
 
 // SyncConfig will contain the resources that should be synced from virtual cluster to host cluster.
@@ -468,9 +488,10 @@ type CredentialSources struct {
 // It can represent either a TLS key pair or a single private key.
 type CredentialSource struct {
 	// SecretName specifies the name of an existing secret to use.
-	// The controller expects specific keys inside based on the credential type:
+	// The custom certificate controller expects specific keys inside based on the credential type:
 	// - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
 	// - For ServiceAccountTokenKey: 'tls.key'.
+	// The type is also used for private registries certificates
 	SecretName string `json:"secretName"`
 }
 

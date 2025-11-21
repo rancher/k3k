@@ -34,7 +34,7 @@ func Test_virtualAgentData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := virtualAgentData(tt.args.serviceIP, tt.args.token)
+			config := virtualAgentData(tt.args.serviceIP, tt.args.token, "")
 
 			data := make(map[string]string)
 			err := yaml.Unmarshal([]byte(config), data)

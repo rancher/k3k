@@ -21,7 +21,6 @@ var _ = When("a cluster creates a pod with an invalid configuration", Label(e2eT
 		virtualPod     *v1.Pod
 	)
 
-	// This BeforeEach/AfterEach will create a new namespace and a default policy for each test.
 	BeforeEach(func() {
 		virtualCluster = NewVirtualCluster()
 

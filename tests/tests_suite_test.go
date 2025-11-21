@@ -42,6 +42,7 @@ import (
 const (
 	k3kNamespace = "k3k-system"
 
+	e2eTestLabel           = "e2e"
 	slowTestsLabel         = "slow"
 	updateTestsLabel       = "update"
 	persistenceTestsLabel  = "persistence"

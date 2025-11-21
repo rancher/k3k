@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = When("a cluster's status is tracked", Label("e2e"), Label(statusTestsLabel), func() {
+var _ = When("a cluster's status is tracked", Label(e2eTestLabel), Label(statusTestsLabel), func() {
 	var (
 		namespace *corev1.Namespace
 		vcp       *v1beta1.VirtualClusterPolicy

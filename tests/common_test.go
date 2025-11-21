@@ -113,22 +113,16 @@ func DeleteNamespaces(names ...string) {
 			defer wg.Done()
 			defer GinkgoRecover()
 
-			deleteNamespace(name)
+			By(fmt.Sprintf("Deleting namespace %s", name))
+
+			err := k8s.CoreV1().Namespaces().Delete(context.Background(), name, metav1.DeleteOptions{
+				GracePeriodSeconds: ptr.To[int64](0),
+			})
+			Expect(err).To(Not(HaveOccurred()))
 		}()
 	}
 
 	wg.Wait()
-}
-
-func deleteNamespace(name string) {
-	GinkgoHelper()
-
-	By(fmt.Sprintf("Deleting namespace %s", name))
-
-	err := k8s.CoreV1().Namespaces().Delete(context.Background(), name, metav1.DeleteOptions{
-		GracePeriodSeconds: ptr.To[int64](0),
-	})
-	Expect(err).To(Not(HaveOccurred()))
 }
 
 func NewCluster(namespace string) *v1beta1.Cluster {

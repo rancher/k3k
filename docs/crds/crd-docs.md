@@ -135,6 +135,7 @@ _Appears in:_
 | `mirrorHostNodes` _boolean_ | MirrorHostNodes controls whether node objects from the host cluster<br />are mirrored into the virtual cluster. |  |  |
 | `customCAs` _[CustomCAs](#customcas)_ | CustomCAs specifies the cert/key pairs for custom CA certificates. |  |  |
 | `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |
+| `privateRegistry` _[PrivateRegistryConfig](#privateregistryconfig)_ | PrivateRegistry specifies a list private registry configuration for servers and agents via the<br />registries.yaml file and node selectors. | \{  \} |  |
 
 
 
@@ -167,10 +168,11 @@ It can represent either a TLS key pair or a single private key.
 
 _Appears in:_
 - [CredentialSources](#credentialsources)
+- [PrivateRegistryConfig](#privateregistryconfig)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `secretName` _string_ | SecretName specifies the name of an existing secret to use.<br />The controller expects specific keys inside based on the credential type:<br />- For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.<br />- For ServiceAccountTokenKey: 'tls.key'. |  |  |
+| `secretName` _string_ | SecretName specifies the name of an existing secret to use.<br />The custom certificate controller expects specific keys inside based on the credential type:<br />- For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.<br />- For ServiceAccountTokenKey: 'tls.key'.<br />The type is also used for private registries certificates |  |  |
 
 
 #### CredentialSources
@@ -375,6 +377,24 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+
+
+#### PrivateRegistryConfig
+
+
+
+PrivateRegistryConfig will contain the private registry config for servers and agents.
+PrivateRegistryConfig represent the registries.yaml file.
+
+
+
+_Appears in:_
+- [ClusterSpec](#clusterspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `secretName` _string_ | SecretName specifies the name of an existing secret to use.<br />The controller expects an item called registries.yaml in the secret. |  |  |
+| `tlsSecrets` _object (keys:string, values:[CredentialSource](#credentialsource))_ | TLSSecrets specifies a map of credential sources where each item represent a TLS certificate key<br />pair to be used by the private registry configuration, and will be deployed within pods with their names. |  |  |
 
 
 #### SecretSyncConfig

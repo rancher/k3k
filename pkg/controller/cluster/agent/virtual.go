@@ -112,6 +112,7 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+
 		podSpec.Volumes = append(podSpec.Volumes, vols...)
 
 		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volMounts...)

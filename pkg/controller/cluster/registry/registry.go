@@ -18,6 +18,7 @@ func BuildRegistryConfigVolumes(ctx context.Context, cluster *v1beta1.Cluster, c
 		vols      []v1.Volume
 		volMounts []v1.VolumeMount
 	)
+
 	vols = append(vols, v1.Volume{
 		Name: "private-registries",
 		VolumeSource: v1.VolumeSource{
@@ -32,6 +33,7 @@ func BuildRegistryConfigVolumes(ctx context.Context, cluster *v1beta1.Cluster, c
 			},
 		},
 	})
+
 	volMounts = append(volMounts, v1.VolumeMount{
 		Name:      "private-registries",
 		MountPath: "/opt/rancher/k3s/registry",
@@ -41,6 +43,7 @@ func BuildRegistryConfigVolumes(ctx context.Context, cluster *v1beta1.Cluster, c
 	tlsSecretsMap := cluster.Spec.PrivateRegistry.TLSSecrets
 	if len(tlsSecretsMap) > 0 {
 		var projectedVolSources []v1.VolumeProjection
+
 		sortedTLSKeys := sortedKeys(tlsSecretsMap)
 
 		for _, tlsSecret := range sortedTLSKeys {

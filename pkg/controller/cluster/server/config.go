@@ -113,21 +113,19 @@ func requiresNetworkPolicyDisable(cluster *v1beta1.Cluster) bool {
 	} else if cluster.Status.HostVersion != "" {
 		imageVersion = cluster.Status.HostVersion
 	}
-	fmt.Printf("image version 1 %s\n", imageVersion)
+
 	if imageVersion == "latest" {
 		return false
 	}
 
 	for _, fixedVersion := range k3sNetpolVersions {
 		if semver.MajorMinor(imageVersion) == semver.MajorMinor(fixedVersion) {
-
 			// if the major and minor match then check if the patch version is less than fixed version
 			version, _ := strings.CutSuffix(imageVersion, "-k3s1")
-			if semver.Compare(version, fixedVersion) == -1 {
-				return true
-			}
-			return false
+
+			return semver.Compare(version, fixedVersion) == -1
 		}
 	}
+
 	return false
 }

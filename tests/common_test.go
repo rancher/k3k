@@ -139,9 +139,6 @@ func NewCluster(namespace string) *v1beta1.Cluster {
 			Persistence: v1beta1.PersistenceConfig{
 				Type: v1beta1.EphemeralPersistenceMode,
 			},
-			ServerArgs: []string{
-				"--disable-network-policy",
-			},
 		},
 	}
 }

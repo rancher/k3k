@@ -18,7 +18,7 @@ import (
 var k3sNetpolVersions = []string{"v1.31.14", "v1.32.10", "v1.33.6", "v1.34.2"}
 
 func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
-	name := configSecretName(s.cluster.Name, init)
+	name := ConfigSecretName(s.cluster.Name, init)
 
 	sans := sets.NewString(s.cluster.Spec.TLSSANs...)
 	sans.Insert(
@@ -97,7 +97,7 @@ func serverOptions(cluster *v1beta1.Cluster, token string) string {
 	return opts
 }
 
-func configSecretName(clusterName string, init bool) string {
+func ConfigSecretName(clusterName string, init bool) string {
 	if !init {
 		return controller.SafeConcatNameWithPrefix(clusterName, configName)
 	}

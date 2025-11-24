@@ -2,7 +2,9 @@ package server
 
 import (
 	"fmt"
+	"strings"
 
+	"golang.org/x/mod/semver"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "k8s.io/api/core/v1"
@@ -12,6 +14,8 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
+
+var k3sNetpolVersions = []string{"v1.31.14", "v1.32.10", "v1.33.6", "v1.34.2"}
 
 func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
 	name := configSecretName(s.cluster.Name, init)
@@ -81,9 +85,14 @@ func serverOptions(cluster *v1beta1.Cluster, token string) string {
 	}
 
 	if cluster.Spec.Mode != agent.VirtualNodeMode {
-		opts = opts + "disable-agent: true\negress-selector-mode: disabled\ndisable:\n- servicelb\n- traefik\n- metrics-server\n- local-storage"
+		opts = opts + "disable-agent: true\negress-selector-mode: disabled\ndisable:\n- servicelb\n- traefik\n- metrics-server\n- local-storage\n"
 	}
-	// TODO: Add extra args to the options
+
+	// Adding a check for the version here to workaround issue https://github.com/rancher/k3k/issues/477
+	// in older versions of k3s
+	if requiresNetworkPolicyDisable(cluster) {
+		opts = opts + "disable-network-policy: true\n"
+	}
 
 	return opts
 }
@@ -94,4 +103,31 @@ func configSecretName(clusterName string, init bool) string {
 	}
 
 	return controller.SafeConcatNameWithPrefix(clusterName, initConfigName)
+}
+
+func requiresNetworkPolicyDisable(cluster *v1beta1.Cluster) bool {
+	imageVersion := "latest"
+
+	if cluster.Spec.Version != "" {
+		imageVersion = cluster.Spec.Version
+	} else if cluster.Status.HostVersion != "" {
+		imageVersion = cluster.Status.HostVersion
+	}
+	fmt.Printf("image version 1 %s\n", imageVersion)
+	if imageVersion == "latest" {
+		return false
+	}
+
+	for _, fixedVersion := range k3sNetpolVersions {
+		if semver.MajorMinor(imageVersion) == semver.MajorMinor(fixedVersion) {
+
+			// if the major and minor match then check if the patch version is less than fixed version
+			version, _ := strings.CutSuffix(imageVersion, "-k3s1")
+			if semver.Compare(version, fixedVersion) == -1 {
+				return true
+			}
+			return false
+		}
+	}
+	return false
 }

@@ -661,19 +661,6 @@ func updateContainerImages(dst, src []corev1.Container) {
 	}
 }
 
-// updateContainerImages will update the images of the original container images with the same name
-func updateEphemeralContainerImages(dst, src []corev1.EphemeralContainer) {
-	images := make(map[string]string)
-
-	for _, container := range src {
-		images[container.Name] = container.Image
-	}
-
-	for i, container := range dst {
-		dst[i].Image = images[container.Name]
-	}
-}
-
 // DeletePod executes deletePod with retry
 func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 	return p.withRetry(ctx, p.deletePod, pod)

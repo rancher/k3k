@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"k8s.io/apimachinery/pkg/labels"
@@ -552,27 +553,18 @@ func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 	return p.withRetry(ctx, p.updatePod, pod)
 }
 
-// UpdatePod executes updatePod with retry
 func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
+	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
+	// See: https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
+
 	hostPodName := p.Translator.TranslateName(pod.Namespace, pod.Name)
 
 	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name, "pod", hostPodName)
 	logger.V(1).Info("UpdatePod")
 
-	// get Pod from Virtual Cluster
-	key := types.NamespacedName{
-		Name:      pod.Name,
-		Namespace: pod.Namespace,
-	}
-
-	var virtualPod corev1.Pod
-	if err := p.VirtualClient.Get(ctx, key, &virtualPod); err != nil {
-		logger.Error(err, "Unable to get pod to update from virtual cluster")
-		return err
-	}
-
-	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
-	// See: https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
+	//
+	//	Host Pod update
+	//
 
 	hostKey := types.NamespacedName{
 		Namespace: p.ClusterNamespace,
@@ -592,14 +584,52 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 		return err
 	}
 
+	// Ephemeral containers update (subresource)
+	if !cmp.Equal(hostPod.Spec.EphemeralContainers, pod.Spec.EphemeralContainers) {
+		logger.V(1).Info("Updating ephemeral containers in host pod")
+
+		hostPod.Spec.EphemeralContainers = pod.Spec.EphemeralContainers
+
+		if _, err := p.CoreClient.Pods(p.ClusterNamespace).UpdateEphemeralContainers(ctx, hostPod.Name, &hostPod, metav1.UpdateOptions{}); err != nil {
+			logger.Error(err, "Error when updating ephemeral containers in host pod")
+			return err
+		}
+	}
+
 	logger.Info("Pod updated in host cluster")
 
 	//
+	//	Virtual Pod update
+	//
+
+	key := types.NamespacedName{
+		Name:      pod.Name,
+		Namespace: pod.Namespace,
+	}
+
+	var virtualPod corev1.Pod
+	if err := p.VirtualClient.Get(ctx, key, &virtualPod); err != nil {
+		logger.Error(err, "Unable to get pod to update from virtual cluster")
+		return err
+	}
+
 	updatePod(&virtualPod, pod)
 
 	if err := p.VirtualClient.Update(ctx, &virtualPod); err != nil {
 		logger.Error(err, "Unable to update Pod in virtual cluster")
 		return err
+	}
+
+	// Ephemeral containers update (subresource)
+	if !cmp.Equal(virtualPod.Spec.EphemeralContainers, pod.Spec.EphemeralContainers) {
+		logger.V(1).Info("Updating ephemeral containers in virtual pod")
+
+		virtualPod.Spec.EphemeralContainers = pod.Spec.EphemeralContainers
+
+		if _, err := p.CoreClient.Pods(p.ClusterNamespace).UpdateEphemeralContainers(ctx, virtualPod.Name, &virtualPod, metav1.UpdateOptions{}); err != nil {
+			logger.Error(err, "Error when updating ephemeral containers in virtual pod")
+			return err
+		}
 	}
 
 	logger.Info("Pod updated in virtual and host cluster")
@@ -610,7 +640,6 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 func updatePod(dst, src *corev1.Pod) {
 	updateContainerImages(dst.Spec.Containers, src.Spec.Containers)
 	updateContainerImages(dst.Spec.InitContainers, src.Spec.InitContainers)
-	updateEphemeralContainerImages(dst.Spec.EphemeralContainers, src.Spec.EphemeralContainers)
 
 	dst.Spec.ActiveDeadlineSeconds = src.Spec.ActiveDeadlineSeconds
 	dst.Spec.Tolerations = src.Spec.Tolerations

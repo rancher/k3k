@@ -46,8 +46,12 @@ var _ = When("a cluster creates a pod with an invalid configuration", Label(e2eT
 						Image: "nginx",
 						Env: []v1.EnvVar{
 							{
-								Name:  "POD_NAME",
-								Value: "nginx",
+								Name: "POD_NAME",
+								ValueFrom: &v1.EnvVarSource{
+									FieldRef: &v1.ObjectFieldSelector{
+										FieldPath: "metadata.name",
+									},
+								},
 							},
 							{
 								Name: "ANNOTATION",
@@ -96,6 +100,22 @@ var _ = When("a cluster creates a pod with an invalid configuration", Label(e2eT
 
 			g.Expect(pod.Status.Phase).To(Equal(v1.PodPending))
 
+			envVars := pod.Spec.Containers[0].Env
+			g.Expect(envVars).NotTo(BeEmpty())
+
+			var found bool
+			for _, envVar := range envVars {
+				if envVar.Name == "POD_NAME" {
+					found = true
+
+					g.Expect(envVars[0].ValueFrom).NotTo(BeNil())
+					g.Expect(envVars[0].ValueFrom.FieldRef).NotTo(BeNil())
+					g.Expect(envVars[0].ValueFrom.FieldRef.FieldPath).To(Equal("metadata.name"))
+					break
+				}
+			}
+			g.Expect(found).To(BeTrue())
+
 			containerStatuses := pod.Status.ContainerStatuses
 			g.Expect(containerStatuses).To(HaveLen(1))
 
@@ -117,6 +137,21 @@ var _ = When("a cluster creates a pod with an invalid configuration", Label(e2eT
 			g.Expect(err).NotTo(HaveOccurred())
 
 			g.Expect(pod.Status.Phase).To(Equal(v1.PodPending))
+
+			envVars := pod.Spec.Containers[0].Env
+			g.Expect(envVars).NotTo(BeEmpty())
+
+			var found bool
+			for _, envVar := range envVars {
+				if envVar.Name == "POD_NAME" {
+					found = true
+
+					g.Expect(envVar.ValueFrom).To(BeNil())
+					g.Expect(envVar.Value).To(Equal(virtualPod.Name))
+					break
+				}
+			}
+			g.Expect(found).To(BeTrue())
 
 			containerStatuses := pod.Status.ContainerStatuses
 			g.Expect(containerStatuses).To(HaveLen(1))

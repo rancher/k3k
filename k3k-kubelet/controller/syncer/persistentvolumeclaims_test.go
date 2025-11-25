@@ -55,7 +55,7 @@ var PVCTests = func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	It("creates a pvc on the host cluster", func() {
+	It("creates a pvc on the host cluster and pseudo pv in virtual cluster", func() {
 		ctx := context.Background()
 
 		pvc := &v1.PersistentVolumeClaim{
@@ -100,5 +100,11 @@ var PVCTests = func() {
 		Expect(*hostPVC.Spec.StorageClassName).To(Equal("test-sc"))
 
 		GinkgoWriter.Printf("labels: %v\n", hostPVC.Labels)
+
+		var pseudoPV v1.PersistentVolume
+		key := client.ObjectKey{Name: pvc.Name}
+
+		err = virtTestEnv.k8sClient.Get(ctx, key, &pseudoPV)
+		Expect(err).NotTo(HaveOccurred())
 	})
 }

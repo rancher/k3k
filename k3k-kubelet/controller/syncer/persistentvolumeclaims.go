@@ -3,8 +3,10 @@ package syncer
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/component-helpers/storage/volume"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -12,6 +14,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -22,6 +25,7 @@ import (
 const (
 	pvcControllerName = "pvc-syncer-controller"
 	pvcFinalizerName  = "pvc.k3k.io/finalizer"
+	pseudoPVLabel     = "pod.k3k.io/pseudoPV"
 )
 
 type PVCReconciler struct {
@@ -105,6 +109,12 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		if err := r.HostClient.Delete(ctx, syncedPVC); err != nil && !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
+
+		// delete the synced pseudo PV
+		if err := r.VirtualClient.Delete(ctx, r.pv(&virtPVC)); err != nil {
+			return reconcile.Result{}, err
+		}
+
 		// remove the finalizer after cleaning up the synced pvc
 		if controllerutil.RemoveFinalizer(&virtPVC, pvcFinalizerName) {
 			if err := r.VirtualClient.Update(ctx, &virtPVC); err != nil {
@@ -127,7 +137,13 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 
 	// note that we dont need to update the PVC on the host cluster, only syncing the PVC to allow being
 	// handled by the host cluster.
-	return reconcile.Result{}, ctrlruntimeclient.IgnoreAlreadyExists(r.HostClient.Create(ctx, syncedPVC))
+	if err := ctrlruntimeclient.IgnoreAlreadyExists(r.HostClient.Create(ctx, syncedPVC)); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// Creating a pseudo PV to bound the existing PVC in the virtual cluster - needed for scheduling of
+	// the consumer pods
+	return reconcile.Result{}, r.pseudoPV(ctx, virtPVC, log)
 }
 
 func (r *PVCReconciler) pvc(obj *v1.PersistentVolumeClaim) *v1.PersistentVolumeClaim {
@@ -135,4 +151,82 @@ func (r *PVCReconciler) pvc(obj *v1.PersistentVolumeClaim) *v1.PersistentVolumeC
 	r.Translator.TranslateTo(hostPVC)
 
 	return hostPVC
+}
+
+func (r *PVCReconciler) pseudoPV(ctx context.Context, pvc v1.PersistentVolumeClaim, log logr.Logger) error {
+	log.Info("Creating pseudo Persistent Volume")
+
+	pv := r.pv(&pvc)
+
+	if err := r.VirtualClient.Create(ctx, pv); err != nil {
+		return ctrlruntimeclient.IgnoreAlreadyExists(err)
+	}
+
+	orig := pv.DeepCopy()
+	pv.Status = v1.PersistentVolumeStatus{
+		Phase: v1.VolumeBound,
+	}
+
+	if err := r.VirtualClient.Status().Patch(ctx, pv, ctrlruntimeclient.MergeFrom(orig)); err != nil {
+		return err
+	}
+
+	log.Info("Patch the status of PersistentVolumeClaim to Bound")
+
+	pvcPatch := pvc.DeepCopy()
+	if pvcPatch.Annotations == nil {
+		pvcPatch.Annotations = make(map[string]string)
+	}
+
+	pvcPatch.Annotations[volume.AnnBoundByController] = "yes"
+	pvcPatch.Annotations[volume.AnnBindCompleted] = "yes"
+	pvcPatch.Status.Phase = v1.ClaimBound
+	pvcPatch.Status.AccessModes = pvcPatch.Spec.AccessModes
+
+	return r.VirtualClient.Status().Update(ctx, pvcPatch)
+}
+
+func (r *PVCReconciler) pv(obj *v1.PersistentVolumeClaim) *v1.PersistentVolume {
+	var storageClass string
+
+	if obj.Spec.StorageClassName != nil {
+		storageClass = *obj.Spec.StorageClassName
+	}
+
+	return &v1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: obj.Name,
+			Labels: map[string]string{
+				pseudoPVLabel: "true",
+			},
+			Annotations: map[string]string{
+				volume.AnnBoundByController:      "true",
+				volume.AnnDynamicallyProvisioned: "k3k-kubelet",
+			},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "PersistentVolume",
+			APIVersion: "v1",
+		},
+		Spec: v1.PersistentVolumeSpec{
+			PersistentVolumeSource: v1.PersistentVolumeSource{
+				FlexVolume: &v1.FlexPersistentVolumeSource{
+					Driver: "pseudopv",
+				},
+			},
+			StorageClassName:              storageClass,
+			VolumeMode:                    obj.Spec.VolumeMode,
+			PersistentVolumeReclaimPolicy: v1.PersistentVolumeReclaimDelete,
+			AccessModes:                   obj.Spec.AccessModes,
+			Capacity:                      obj.Spec.Resources.Requests,
+			ClaimRef: &v1.ObjectReference{
+				APIVersion:      obj.APIVersion,
+				UID:             obj.UID,
+				ResourceVersion: obj.ResourceVersion,
+				Kind:            obj.Kind,
+				Namespace:       obj.Namespace,
+				Name:            obj.Name,
+			},
+		},
+	}
 }

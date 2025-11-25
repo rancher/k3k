@@ -668,6 +668,7 @@ func (p *Provider) deletePod(ctx context.Context, pod *corev1.Pod) error {
 		}
 
 		logger.Error(err, "Error trying to delete pod from host cluster")
+
 		return err
 	}
 
@@ -686,21 +687,13 @@ func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.
 	logger := p.logger.WithValues("namespace", namespace, "name", name, "pod", hostPodName)
 	logger.V(1).Info("GetPod")
 
-	hostNamespaceName := types.NamespacedName{
-		Namespace: p.ClusterNamespace,
-		Name:      hostPodName,
-	}
-
-	var pod corev1.Pod
-
-	if err := p.HostClient.Get(ctx, hostNamespaceName, &pod); err != nil {
-		logger.Error(err, "Error getting pod from host cluster")
+	pod, err := p.getPodFromHostCluster(ctx, hostPodName)
+	if err != nil {
+		logger.Error(err, "Error getting pod from host cluster for GetPod")
 		return nil, err
 	}
 
-	p.Translator.TranslateFrom(&pod)
-
-	return &pod, nil
+	return pod, nil
 }
 
 // GetPodStatus retrieves the status of a pod by name from the provider.
@@ -713,13 +706,29 @@ func (p *Provider) GetPodStatus(ctx context.Context, namespace, name string) (*c
 	logger := p.logger.WithValues("namespace", namespace, "name", name, "pod", hostPodName)
 	logger.V(1).Info("GetPodStatus")
 
-	pod, err := p.GetPod(ctx, namespace, name)
+	pod, err := p.getPodFromHostCluster(ctx, hostPodName)
 	if err != nil {
-		logger.Error(err, "Error getting pod for status")
+		logger.Error(err, "Error getting pod from host cluster for PodStatus")
 		return nil, err
 	}
 
 	return pod.Status.DeepCopy(), nil
+}
+
+func (p *Provider) getPodFromHostCluster(ctx context.Context, hostPodName string) (*corev1.Pod, error) {
+	key := types.NamespacedName{
+		Namespace: p.ClusterNamespace,
+		Name:      hostPodName,
+	}
+
+	var pod corev1.Pod
+	if err := p.HostClient.Get(ctx, key, &pod); err != nil {
+		return nil, err
+	}
+
+	p.Translator.TranslateFrom(&pod)
+
+	return &pod, nil
 }
 
 // GetPods retrieves a list of all pods running on the provider (can be cached).

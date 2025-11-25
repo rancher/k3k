@@ -6,14 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/google/go-cmp/cmp"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"k8s.io/apimachinery/pkg/labels"
@@ -370,11 +368,6 @@ func (p *Provider) PortForward(ctx context.Context, namespace, name string, port
 
 // CreatePod executes createPod with retry
 func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
-	return p.withRetry(ctx, p.createPod, pod)
-}
-
-// createPod takes a Kubernetes Pod and deploys it within the provider.
-func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name)
 	logger.V(1).Info("CreatePod")
 
@@ -398,43 +391,60 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	var cluster v1beta1.Cluster
-
 	if err := p.HostClient.Get(ctx, clusterKey, &cluster); err != nil {
 		logger.Error(err, "Error getting Virtual Cluster definition")
 		return err
 	}
 
-	// these values shouldn't be set on create
-	tPod.UID = ""
-	tPod.ResourceVersion = ""
+	// get Pod from Virtual Cluster
+	key := types.NamespacedName{
+		Name:      pod.Name,
+		Namespace: pod.Namespace,
+	}
+
+	var virtualPod corev1.Pod
+	if err := p.VirtualClient.Get(ctx, key, &virtualPod); err != nil {
+		logger.Error(err, "Getting Pod from Virtual Cluster")
+		return err
+	}
+
+	// Copy the virtual Pod and use it as a baseline for the hostPod
+	// do some basic translation and clearing some values (UID, ResourceVersion, ...)
+
+	hostPod := virtualPod.DeepCopy()
+	p.Translator.TranslateTo(hostPod)
+
+	logger = logger.WithValues("host_namespace", hostPod.Namespace, "host_name", hostPod.Name)
 
 	// the node was scheduled on the virtual kubelet, but leaving it this way will make it pending indefinitely
-	tPod.Spec.NodeName = ""
+	hostPod.Spec.NodeName = ""
 
-	tPod.Spec.NodeSelector = cluster.Spec.NodeSelector
+	hostPod.Spec.NodeSelector = cluster.Spec.NodeSelector
 
 	// setting the hostname for the pod if its not set
-	if pod.Spec.Hostname == "" {
-		tPod.Spec.Hostname = k3kcontroller.SafeConcatName(pod.Name)
+	if virtualPod.Spec.Hostname == "" {
+		hostPod.Spec.Hostname = k3kcontroller.SafeConcatName(virtualPod.Name)
 	}
 
 	// if the priorityClass for the virtual cluster is set then override the provided value
 	// Note: the core-dns and local-path-provisioner pod are scheduled by k3s with the
 	// 'system-cluster-critical' and 'system-node-critical' default priority classes.
-	if !strings.HasPrefix(tPod.Spec.PriorityClassName, "system-") {
-		if tPod.Spec.PriorityClassName != "" {
-			tPriorityClassName := p.Translator.TranslateName("", tPod.Spec.PriorityClassName)
-			tPod.Spec.PriorityClassName = tPriorityClassName
+	if !strings.HasPrefix(hostPod.Spec.PriorityClassName, "system-") {
+		if hostPod.Spec.PriorityClassName != "" {
+			tPriorityClassName := p.Translator.TranslateName("", hostPod.Spec.PriorityClassName)
+			hostPod.Spec.PriorityClassName = tPriorityClassName
 		}
 
 		if cluster.Spec.PriorityClass != "" {
-			tPod.Spec.PriorityClassName = cluster.Spec.PriorityClass
-			tPod.Spec.Priority = nil
+			hostPod.Spec.PriorityClassName = cluster.Spec.PriorityClass
+			hostPod.Spec.Priority = nil
 		}
 	}
 
+	configurePodEnvs(hostPod, &virtualPod)
+
 	// fieldpath annotations
-	if err := p.configureFieldPathEnv(&sourcePod, tPod); err != nil {
+	if err := p.configureFieldPathEnv(&sourcePod, hostPod); err != nil {
 		logger.Error(err, "Unable to fetch fieldpath annotations for pod")
 		return err
 	}
@@ -444,25 +454,25 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	p.transformVolumes(pod.Namespace, tPod.Spec.Volumes)
 
 	// sync serviceaccount token to a the host cluster
-	if err := p.transformTokens(ctx, pod, tPod); err != nil {
+	if err := p.transformTokens(ctx, &virtualPod, hostPod); err != nil {
 		logger.Error(err, "Unable to transform tokens for pod")
 		return err
 	}
 
-	for i, imagePullSecret := range tPod.Spec.ImagePullSecrets {
-		tPod.Spec.ImagePullSecrets[i].Name = p.Translator.TranslateName(pod.Namespace, imagePullSecret.Name)
+	for i, imagePullSecret := range hostPod.Spec.ImagePullSecrets {
+		hostPod.Spec.ImagePullSecrets[i].Name = p.Translator.TranslateName(virtualPod.Namespace, imagePullSecret.Name)
 	}
 
 	// inject networking information to the pod including the virtual cluster controlplane endpoint
-	configureNetworking(tPod, pod.Name, pod.Namespace, p.serverIP, p.dnsIP)
+	configureNetworking(hostPod, virtualPod.Name, virtualPod.Namespace, p.serverIP, p.dnsIP)
 
 	// set ownerReference to the cluster object
-	if err := controllerutil.SetControllerReference(&cluster, tPod, p.HostClient.Scheme()); err != nil {
+	if err := controllerutil.SetControllerReference(&cluster, hostPod, p.HostClient.Scheme()); err != nil {
 		logger.Error(err, "Unable to set owner reference for pod")
 		return err
 	}
 
-	if err := p.HostClient.Create(ctx, tPod); err != nil {
+	if err := p.HostClient.Create(ctx, hostPod); err != nil {
 		logger.Error(err, "Error creating pod on host cluster")
 		return err
 	}
@@ -475,7 +485,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 // withRetry retries passed function with interval and timeout
 func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *corev1.Pod) error, pod *corev1.Pod) error {
 	const (
-		interval = 2 * time.Second
+		interval = time.Second
 		timeout  = 10 * time.Second
 	)
 
@@ -542,85 +552,53 @@ func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 	return p.withRetry(ctx, p.updatePod, pod)
 }
 
+// UpdatePod executes updatePod with retry
 func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 	hostPodName := p.Translator.TranslateName(pod.Namespace, pod.Name)
 
 	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name, "pod", hostPodName)
 	logger.V(1).Info("UpdatePod")
 
-	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
-	// See: https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
+	// get Pod from Virtual Cluster
+	key := types.NamespacedName{
+		Name:      pod.Name,
+		Namespace: pod.Namespace,
+	}
 
-	// Update Pod in the virtual cluster
-
-	var currentVirtualPod corev1.Pod
-	if err := p.VirtualClient.Get(ctx, client.ObjectKeyFromObject(pod), &currentVirtualPod); err != nil {
+	var virtualPod corev1.Pod
+	if err := p.VirtualClient.Get(ctx, key, &virtualPod); err != nil {
 		logger.Error(err, "Unable to get pod to update from virtual cluster")
 		return err
 	}
 
-	hostNamespaceName := types.NamespacedName{
+	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
+	// See: https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
+
+	hostKey := types.NamespacedName{
 		Namespace: p.ClusterNamespace,
 		Name:      hostPodName,
 	}
 
-	logger = logger.WithValues()
-
-	var currentHostPod corev1.Pod
-	if err := p.HostClient.Get(ctx, hostNamespaceName, &currentHostPod); err != nil {
+	var hostPod corev1.Pod
+	if err := p.HostClient.Get(ctx, hostKey, &hostPod); err != nil {
 		logger.Error(err, "Unable to get Pod to update from host cluster")
 		return err
 	}
 
-	// Handle ephemeral containers
-	if !cmp.Equal(currentHostPod.Spec.EphemeralContainers, pod.Spec.EphemeralContainers) {
-		logger.V(1).Info("Updating ephemeral containers")
+	updatePod(&hostPod, pod)
 
-		currentHostPod.Spec.EphemeralContainers = pod.Spec.EphemeralContainers
-
-		if _, err := p.CoreClient.Pods(p.ClusterNamespace).UpdateEphemeralContainers(ctx, currentHostPod.Name, &currentHostPod, metav1.UpdateOptions{}); err != nil {
-			logger.Error(err, "error when updating ephemeral containers")
-			return err
-		}
-
-		return nil
-	}
-
-	// fieldpath annotations
-	if err := p.configureFieldPathEnv(&currentVirtualPod, &currentHostPod); err != nil {
-		logger.Error(err, "Unable to fetch fieldpath annotations for Pod")
-		return err
-	}
-
-	currentVirtualPod.Spec.Containers = updateContainerImages(currentVirtualPod.Spec.Containers, pod.Spec.Containers)
-	currentVirtualPod.Spec.InitContainers = updateContainerImages(currentVirtualPod.Spec.InitContainers, pod.Spec.InitContainers)
-
-	currentVirtualPod.Spec.ActiveDeadlineSeconds = pod.Spec.ActiveDeadlineSeconds
-	currentVirtualPod.Spec.Tolerations = pod.Spec.Tolerations
-
-	// in the virtual cluster we can update also the labels and annotations
-	currentVirtualPod.Annotations = pod.Annotations
-	currentVirtualPod.Labels = pod.Labels
-
-	if err := p.VirtualClient.Update(ctx, &currentVirtualPod); err != nil {
-		logger.Error(err, "Unable to update Pod in virtual cluster")
-		return err
-	}
-
-	// Update Pod in the host cluster
-	currentHostPod.Spec.Containers = updateContainerImages(currentHostPod.Spec.Containers, pod.Spec.Containers)
-	currentHostPod.Spec.InitContainers = updateContainerImages(currentHostPod.Spec.InitContainers, pod.Spec.InitContainers)
-
-	// update ActiveDeadlineSeconds and Tolerations
-	currentHostPod.Spec.ActiveDeadlineSeconds = pod.Spec.ActiveDeadlineSeconds
-	currentHostPod.Spec.Tolerations = pod.Spec.Tolerations
-
-	// in the virtual cluster we can update also the labels and annotations
-	maps.Copy(currentHostPod.Annotations, pod.Annotations)
-	maps.Copy(currentHostPod.Labels, pod.Labels)
-
-	if err := p.HostClient.Update(ctx, &currentHostPod); err != nil {
+	if err := p.HostClient.Update(ctx, &hostPod); err != nil {
 		logger.Error(err, "Unable to update Pod in host cluster")
+		return err
+	}
+
+	logger.Info("Pod updated in host cluster")
+
+	//
+	updatePod(&virtualPod, pod)
+
+	if err := p.VirtualClient.Update(ctx, &virtualPod); err != nil {
+		logger.Error(err, "Unable to update Pod in virtual cluster")
 		return err
 	}
 
@@ -629,21 +607,42 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 	return nil
 }
 
+func updatePod(dst, src *corev1.Pod) {
+	updateContainerImages(dst.Spec.Containers, src.Spec.Containers)
+	updateContainerImages(dst.Spec.InitContainers, src.Spec.InitContainers)
+	updateEphemeralContainerImages(dst.Spec.EphemeralContainers, src.Spec.EphemeralContainers)
+
+	dst.Spec.ActiveDeadlineSeconds = src.Spec.ActiveDeadlineSeconds
+	dst.Spec.Tolerations = src.Spec.Tolerations
+
+	dst.Annotations = src.Annotations
+	dst.Labels = src.Labels
+}
+
 // updateContainerImages will update the images of the original container images with the same name
-func updateContainerImages(original, updated []corev1.Container) []corev1.Container {
-	newImages := make(map[string]string)
+func updateContainerImages(dst, src []corev1.Container) {
+	images := make(map[string]string)
 
-	for _, c := range updated {
-		newImages[c.Name] = c.Image
+	for _, container := range src {
+		images[container.Name] = container.Image
 	}
 
-	for i, c := range original {
-		if updatedImage, found := newImages[c.Name]; found {
-			original[i].Image = updatedImage
-		}
+	for i, container := range dst {
+		dst[i].Image = images[container.Name]
+	}
+}
+
+// updateContainerImages will update the images of the original container images with the same name
+func updateEphemeralContainerImages(dst, src []corev1.EphemeralContainer) {
+	images := make(map[string]string)
+
+	for _, container := range src {
+		images[container.Name] = container.Image
 	}
 
-	return original
+	for i, container := range dst {
+		dst[i].Image = images[container.Name]
+	}
 }
 
 // DeletePod executes deletePod with retry
@@ -854,22 +853,57 @@ func mergeEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 	return orig
 }
 
+func configurePodEnvs(hostPod, virtualPod *corev1.Pod) {
+	for i := range hostPod.Spec.Containers {
+		// todo check container name
+		hostPod.Spec.Containers[i].Env = configureEnv(virtualPod, virtualPod.Spec.Containers[i].Env)
+	}
+
+	for i := range hostPod.Spec.InitContainers {
+		// todo check container name
+		hostPod.Spec.InitContainers[i].Env = configureEnv(virtualPod, virtualPod.Spec.InitContainers[i].Env)
+	}
+
+	for i := range hostPod.Spec.EphemeralContainers {
+		// todo check container name
+		hostPod.Spec.EphemeralContainers[i].Env = configureEnv(virtualPod, virtualPod.Spec.EphemeralContainers[i].Env)
+	}
+}
+
+func configureEnv(virtualPod *corev1.Pod, envs []corev1.EnvVar) []corev1.EnvVar {
+	resultingEnvVars := make([]corev1.EnvVar, 0, len(envs))
+
+	for _, envVar := range envs {
+		resultingEnvVar := envVar
+
+		if envVar.ValueFrom != nil {
+			if envVar.ValueFrom.FieldRef != nil {
+				fieldRef := envVar.ValueFrom.FieldRef
+
+				// for name and namespace we need to hardcode the virtual cluster values, and clear the FieldRef
+				switch fieldRef.FieldPath {
+				case "metadata.name":
+					resultingEnvVar.Value = virtualPod.Name
+					resultingEnvVar.ValueFrom = nil
+				case "metadata.namespace":
+					resultingEnvVar.Value = virtualPod.Namespace
+					resultingEnvVar.ValueFrom = nil
+				}
+			}
+
+			// TODO we need to handle also ConfigMaps and Secrets
+		}
+
+		resultingEnvVars = append(resultingEnvVars, resultingEnvVar)
+	}
+
+	return resultingEnvVars
+}
+
 // configureFieldPathEnv will retrieve all annotations created by the pod mutating webhook
 // to assign env fieldpaths to pods, it will also make sure to change the metadata.name and metadata.namespace to the
 // assigned annotations
 func (p *Provider) configureFieldPathEnv(pod, tPod *corev1.Pod) error {
-	for _, container := range pod.Spec.EphemeralContainers {
-		addFieldPathAnnotationToEnv(container.Env)
-	}
-	// override metadata.name and metadata.namespace with pod annotations
-	for _, container := range pod.Spec.InitContainers {
-		addFieldPathAnnotationToEnv(container.Env)
-	}
-
-	for _, container := range pod.Spec.Containers {
-		addFieldPathAnnotationToEnv(container.Env)
-	}
-
 	for name, value := range pod.Annotations {
 		if strings.Contains(name, webhook.FieldpathField) {
 			containerIndex, envName, err := webhook.ParseFieldPathAnnotationKey(name)
@@ -893,21 +927,8 @@ func (p *Provider) configureFieldPathEnv(pod, tPod *corev1.Pod) error {
 	return nil
 }
 
-func addFieldPathAnnotationToEnv(envVars []corev1.EnvVar) {
-	for j, envVar := range envVars {
-		if envVar.ValueFrom == nil || envVar.ValueFrom.FieldRef == nil {
-			continue
-		}
+func printPod(pod corev1.Pod) {
+	resK, _ := json.MarshalIndent(pod, "", "  ")
 
-		fieldPath := envVar.ValueFrom.FieldRef.FieldPath
-		if fieldPath == translate.MetadataNameField {
-			envVar.ValueFrom.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
-			envVars[j] = envVar
-		}
-
-		if fieldPath == translate.MetadataNamespaceField {
-			envVar.ValueFrom.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNamespaceAnnotation)
-			envVars[j] = envVar
-		}
-	}
+	fmt.Printf("\n### Pod %s/%s\n\n%#v\n\n", pod.Namespace, pod.Name, string(resK))
 }

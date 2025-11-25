@@ -376,19 +376,6 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name)
 	logger.V(1).Info("CreatePod")
 
-	// fieldPath envs are not being translated correctly using the virtual kubelet pod controller
-	// as a workaround we will try to fetch the pod from the virtual cluster and copy over the envSource
-	var sourcePod corev1.Pod
-	if err := p.VirtualClient.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, &sourcePod); err != nil {
-		logger.Error(err, "Error getting Pod from Virtual Cluster")
-		return err
-	}
-
-	tPod := sourcePod.DeepCopy()
-	p.Translator.TranslateTo(tPod)
-
-	logger = p.logger.WithValues("pod", tPod.Name)
-
 	// get Cluster definition
 	clusterKey := types.NamespacedName{
 		Namespace: p.ClusterNamespace,
@@ -409,7 +396,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 
 	var virtualPod corev1.Pod
 	if err := p.VirtualClient.Get(ctx, key, &virtualPod); err != nil {
-		logger.Error(err, "Getting Pod from Virtual Cluster")
+		logger.Error(err, "Error getting Pod from Virtual Cluster")
 		return err
 	}
 
@@ -419,7 +406,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	hostPod := virtualPod.DeepCopy()
 	p.Translator.TranslateTo(hostPod)
 
-	logger = logger.WithValues("host_namespace", hostPod.Namespace, "host_name", hostPod.Name)
+	logger = logger.WithValues("pod", hostPod.Name)
 
 	// the node was scheduled on the virtual kubelet, but leaving it this way will make it pending indefinitely
 	hostPod.Spec.NodeName = ""
@@ -449,14 +436,14 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	configurePodEnvs(hostPod, &virtualPod)
 
 	// fieldpath annotations
-	if err := p.configureFieldPathEnv(&sourcePod, hostPod); err != nil {
+	if err := p.configureFieldPathEnv(&virtualPod, hostPod); err != nil {
 		logger.Error(err, "Unable to fetch fieldpath annotations for pod")
 		return err
 	}
 
 	// volumes will often refer to resources in the virtual cluster
 	// but instead need to refer to the synced host cluster version
-	p.transformVolumes(pod.Namespace, tPod.Spec.Volumes)
+	p.transformVolumes(pod.Namespace, hostPod.Spec.Volumes)
 
 	// sync serviceaccount token to a the host cluster
 	if err := p.transformTokens(ctx, &virtualPod, hostPod); err != nil {
@@ -514,36 +501,43 @@ func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *corev
 	return nil
 }
 
-// transformVolumes changes the volumes to the representation in the host cluster. Will return an error
-// if one/more volumes couldn't be transformed
+// transformVolumes changes the volumes to the representation in the host cluster
 func (p *Provider) transformVolumes(podNamespace string, volumes []corev1.Volume) {
-	for _, volume := range volumes {
+	for i := range volumes {
+		volume := &volumes[i]
+
+		// Skip volumes related to Kube API access
 		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
 			continue
 		}
-		// note: this needs to handle downward api volumes as well, but more thought is needed on how to do that
-		if volume.ConfigMap != nil {
+
+		switch {
+		case volume.ConfigMap != nil:
 			volume.ConfigMap.Name = p.Translator.TranslateName(podNamespace, volume.ConfigMap.Name)
-		} else if volume.Secret != nil {
+
+		case volume.Secret != nil:
 			volume.Secret.SecretName = p.Translator.TranslateName(podNamespace, volume.Secret.SecretName)
-		} else if volume.Projected != nil {
+
+		case volume.PersistentVolumeClaim != nil:
+			volume.PersistentVolumeClaim.ClaimName = p.Translator.TranslateName(podNamespace, volume.PersistentVolumeClaim.ClaimName)
+
+		case volume.Projected != nil:
 			for _, source := range volume.Projected.Sources {
-				if source.ConfigMap != nil {
+				switch {
+				case source.ConfigMap != nil:
 					source.ConfigMap.Name = p.Translator.TranslateName(podNamespace, source.ConfigMap.Name)
-				} else if source.Secret != nil {
+				case source.Secret != nil:
 					source.Secret.Name = p.Translator.TranslateName(podNamespace, source.Secret.Name)
 				}
 			}
-		} else if volume.PersistentVolumeClaim != nil {
-			volume.PersistentVolumeClaim.ClaimName = p.Translator.TranslateName(podNamespace, volume.PersistentVolumeClaim.ClaimName)
-		} else if volume.DownwardAPI != nil {
+
+		case volume.DownwardAPI != nil:
 			for _, downwardAPI := range volume.DownwardAPI.Items {
 				if downwardAPI.FieldRef != nil {
-					if downwardAPI.FieldRef.FieldPath == translate.MetadataNameField {
+					switch downwardAPI.FieldRef.FieldPath {
+					case translate.MetadataNameField:
 						downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
-					}
-
-					if downwardAPI.FieldRef.FieldPath == translate.MetadataNamespaceField {
+					case translate.MetadataNamespaceField:
 						downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNamespaceAnnotation)
 					}
 				}

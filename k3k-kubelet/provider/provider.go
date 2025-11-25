@@ -927,8 +927,8 @@ func (p *Provider) configureFieldPathEnv(pod, tPod *corev1.Pod) error {
 	return nil
 }
 
-func printPod(pod corev1.Pod) {
-	resK, _ := json.MarshalIndent(pod, "", "  ")
+// func printPod(pod corev1.Pod) {
+// 	resK, _ := json.MarshalIndent(pod, "", "  ")
 
-	fmt.Printf("\n### Pod %s/%s\n\n%#v\n\n", pod.Namespace, pod.Name, string(resK))
-}
+// 	fmt.Printf("\n### Pod %s/%s\n\n%#v\n\n", pod.Namespace, pod.Name, string(resK))
+// }

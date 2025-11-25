@@ -458,12 +458,6 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 		return errors.New("failed to add pvc syncer controller: " + err.Error())
 	}
 
-	logger.Info("adding pod pvc controller")
-
-	if err := syncer.AddPodPVCController(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return errors.New("failed to add pod pvc controller: " + err.Error())
-	}
-
 	logger.Info("adding priorityclass controller")
 
 	if err := syncer.AddPriorityClassSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {

@@ -369,6 +369,10 @@ func (p *Provider) PortForward(ctx context.Context, namespace, name string, port
 
 // CreatePod executes createPod with retry
 func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
+	return p.withRetry(ctx, p.createPod, pod)
+}
+
+func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name)
 	logger.V(1).Info("CreatePod")
 
@@ -556,7 +560,6 @@ func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
 	// See: https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
-
 	hostPodName := p.Translator.TranslateName(pod.Namespace, pod.Name)
 
 	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name, "pod", hostPodName)

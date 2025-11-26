@@ -242,7 +242,7 @@ func (k *kubelet) start(ctx context.Context) {
 	// run the node async so that we can wait for it to be ready in another call
 
 	go func() {
-		klog.SetLogger(k.logger)
+		klog.SetLogger(k.logger.V(1))
 
 		ctx = log.WithLogger(ctx, klogv2.New(nil))
 		if err := k.node.Run(ctx); err != nil {

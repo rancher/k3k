@@ -8,6 +8,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/k3k/k3k-kubelet/translate"
 )
 
 func Test_mergeEnvVars(t *testing.T) {
@@ -179,7 +181,7 @@ func Test_configureEnv(t *testing.T) {
 					Name: "SECRET_VAR",
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "my-secret"},
+							LocalObjectReference: corev1.LocalObjectReference{Name: "my-secret-my-namespace-c-test-6d792d7365637265742b6d792d6-887db"},
 							Key:                  "my-key",
 						},
 					},
@@ -205,7 +207,7 @@ func Test_configureEnv(t *testing.T) {
 					Name: "CONFIG_VAR",
 					ValueFrom: &corev1.EnvVarSource{
 						ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "my-configmap"},
+							LocalObjectReference: corev1.LocalObjectReference{Name: "my-configmap-my-namespace-c-test-6d792d636f6e6669676d6170-301f6"},
 							Key:                  "my-key",
 						},
 					},
@@ -284,9 +286,16 @@ func Test_configureEnv(t *testing.T) {
 		},
 	}
 
+	p := Provider{
+		Translator: translate.ToHostTranslator{
+			ClusterName:      "c-test",
+			ClusterNamespace: "ns-test",
+		},
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := configureEnv(tt.virtualPod, tt.envs)
+			got := p.configureEnv(tt.virtualPod, tt.envs)
 			assert.Equal(t, tt.want, got)
 		})
 	}

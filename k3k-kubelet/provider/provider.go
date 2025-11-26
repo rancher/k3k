@@ -433,7 +433,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 		}
 	}
 
-	configurePodEnvs(hostPod, &virtualPod)
+	p.configurePodEnvs(hostPod, &virtualPod)
 
 	// fieldpath annotations
 	if err := p.configureFieldPathEnv(&virtualPod, hostPod); err != nil {
@@ -866,32 +866,35 @@ func mergeEnvVars(orig, updated []corev1.EnvVar) []corev1.EnvVar {
 	return orig
 }
 
-func configurePodEnvs(hostPod, virtualPod *corev1.Pod) {
+func (p *Provider) configurePodEnvs(hostPod, virtualPod *corev1.Pod) {
 	for i := range hostPod.Spec.Containers {
-		// todo check container name
-		hostPod.Spec.Containers[i].Env = configureEnv(virtualPod, virtualPod.Spec.Containers[i].Env)
+		hostPod.Spec.Containers[i].Env = p.configureEnv(virtualPod, virtualPod.Spec.Containers[i].Env)
+		hostPod.Spec.Containers[i].EnvFrom = p.configureEnvFrom(virtualPod, virtualPod.Spec.Containers[i].EnvFrom)
 	}
 
 	for i := range hostPod.Spec.InitContainers {
-		// todo check container name
-		hostPod.Spec.InitContainers[i].Env = configureEnv(virtualPod, virtualPod.Spec.InitContainers[i].Env)
+		hostPod.Spec.InitContainers[i].Env = p.configureEnv(virtualPod, virtualPod.Spec.InitContainers[i].Env)
+		hostPod.Spec.InitContainers[i].EnvFrom = p.configureEnvFrom(virtualPod, virtualPod.Spec.InitContainers[i].EnvFrom)
 	}
 
 	for i := range hostPod.Spec.EphemeralContainers {
-		// todo check container name
-		hostPod.Spec.EphemeralContainers[i].Env = configureEnv(virtualPod, virtualPod.Spec.EphemeralContainers[i].Env)
+		hostPod.Spec.EphemeralContainers[i].Env = p.configureEnv(virtualPod, virtualPod.Spec.EphemeralContainers[i].Env)
+		hostPod.Spec.EphemeralContainers[i].EnvFrom = p.configureEnvFrom(virtualPod, virtualPod.Spec.EphemeralContainers[i].EnvFrom)
 	}
 }
 
-func configureEnv(virtualPod *corev1.Pod, envs []corev1.EnvVar) []corev1.EnvVar {
+func (p *Provider) configureEnv(virtualPod *corev1.Pod, envs []corev1.EnvVar) []corev1.EnvVar {
 	resultingEnvVars := make([]corev1.EnvVar, 0, len(envs))
 
 	for _, envVar := range envs {
 		resultingEnvVar := envVar
 
 		if envVar.ValueFrom != nil {
-			if envVar.ValueFrom.FieldRef != nil {
-				fieldRef := envVar.ValueFrom.FieldRef
+			from := envVar.ValueFrom
+
+			switch {
+			case from.FieldRef != nil:
+				fieldRef := from.FieldRef
 
 				// for name and namespace we need to hardcode the virtual cluster values, and clear the FieldRef
 				switch fieldRef.FieldPath {
@@ -902,9 +905,33 @@ func configureEnv(virtualPod *corev1.Pod, envs []corev1.EnvVar) []corev1.EnvVar 
 					resultingEnvVar.Value = virtualPod.Namespace
 					resultingEnvVar.ValueFrom = nil
 				}
-			}
 
-			// TODO we need to handle also ConfigMaps and Secrets
+			case from.ConfigMapKeyRef != nil:
+				resultingEnvVar.ValueFrom.ConfigMapKeyRef.Name = p.Translator.TranslateName(virtualPod.Namespace, resultingEnvVar.ValueFrom.ConfigMapKeyRef.Name)
+
+			case from.SecretKeyRef != nil:
+				resultingEnvVar.ValueFrom.SecretKeyRef.Name = p.Translator.TranslateName(virtualPod.Namespace, resultingEnvVar.ValueFrom.SecretKeyRef.Name)
+			}
+		}
+
+		resultingEnvVars = append(resultingEnvVars, resultingEnvVar)
+	}
+
+	return resultingEnvVars
+}
+
+func (p *Provider) configureEnvFrom(virtualPod *corev1.Pod, envs []corev1.EnvFromSource) []corev1.EnvFromSource {
+	resultingEnvVars := make([]corev1.EnvFromSource, 0, len(envs))
+
+	for _, envVar := range envs {
+		resultingEnvVar := envVar
+
+		if envVar.ConfigMapRef != nil {
+			resultingEnvVar.ConfigMapRef.Name = p.Translator.TranslateName(virtualPod.Namespace, envVar.ConfigMapRef.Name)
+		}
+
+		if envVar.SecretRef != nil {
+			resultingEnvVar.SecretRef.Name = p.Translator.TranslateName(virtualPod.Namespace, envVar.SecretRef.Name)
 		}
 
 		resultingEnvVars = append(resultingEnvVars, resultingEnvVar)

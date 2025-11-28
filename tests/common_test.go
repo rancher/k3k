@@ -36,6 +36,7 @@ type VirtualCluster struct {
 	Cluster    *v1beta1.Cluster
 	RestConfig *rest.Config
 	Client     *kubernetes.Clientset
+	Kubeconfig []byte
 }
 
 func NewVirtualCluster() *VirtualCluster { // By default, create an ephemeral cluster
@@ -54,7 +55,7 @@ func NewVirtualClusterWithType(persistenceType v1beta1.PersistenceMode) *Virtual
 
 	CreateCluster(cluster)
 
-	client, restConfig := NewVirtualK8sClientAndConfig(cluster)
+	client, restConfig, kubeconfig := NewVirtualK8sClientAndKubeconfig(cluster)
 
 	By(fmt.Sprintf("Created virtual cluster %s/%s", cluster.Namespace, cluster.Name))
 
@@ -62,6 +63,7 @@ func NewVirtualClusterWithType(persistenceType v1beta1.PersistenceMode) *Virtual
 		Cluster:    cluster,
 		RestConfig: restConfig,
 		Client:     client,
+		Kubeconfig: kubeconfig,
 	}
 }
 
@@ -249,6 +251,39 @@ func NewVirtualK8sClientAndConfig(cluster *v1beta1.Cluster) (*kubernetes.Clients
 	Expect(err).To(Not(HaveOccurred()))
 
 	return virtualK8sClient, restcfg
+}
+
+// NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
+func NewVirtualK8sClientAndKubeconfig(cluster *v1beta1.Cluster) (*kubernetes.Clientset, *rest.Config, []byte) {
+	GinkgoHelper()
+
+	var (
+		err    error
+		config *clientcmdapi.Config
+	)
+
+	ctx := context.Background()
+
+	Eventually(func() error {
+		vKubeconfig := kubeconfig.New()
+		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
+		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
+		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP, 0)
+		return err
+	}).
+		WithTimeout(time.Minute * 2).
+		WithPolling(time.Second * 5).
+		Should(BeNil())
+
+	configData, err := clientcmd.Write(*config)
+	Expect(err).To(Not(HaveOccurred()))
+
+	restcfg, err := clientcmd.RESTConfigFromKubeConfig(configData)
+	Expect(err).To(Not(HaveOccurred()))
+	virtualK8sClient, err := kubernetes.NewForConfig(restcfg)
+	Expect(err).To(Not(HaveOccurred()))
+
+	return virtualK8sClient, restcfg, configData
 }
 
 func (c *VirtualCluster) NewNginxPod(namespace string) (*v1.Pod, string) {

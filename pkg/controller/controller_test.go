@@ -51,7 +51,7 @@ func Test_K3S_Image(t *testing.T) {
 					},
 				},
 			},
-			expectedData: "rancher/k3s:v4.5.6",
+			expectedData: "rancher/k3s:v4.5.6-k3s1",
 		},
 		{
 			name: "cluster with empty version spec and empty hostVersion status",

@@ -2,7 +2,6 @@ package cluster_test
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"k8s.io/utils/ptr"
@@ -73,7 +72,6 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 				serverVersion, err := k8s.ServerVersion()
 				Expect(err).To(Not(HaveOccurred()))
-				expectedHostVersion := fmt.Sprintf("%s-k3s1", serverVersion.GitVersion)
 
 				Eventually(func() string {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)
@@ -82,7 +80,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				}).
 					WithTimeout(time.Second * 30).
 					WithPolling(time.Second).
-					Should(Equal(expectedHostVersion))
+					Should(Equal(serverVersion.GitVersion))
 
 				// check NetworkPolicy
 				expectedNetworkPolicy := &networkingv1.NetworkPolicy{

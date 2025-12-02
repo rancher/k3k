@@ -269,8 +269,8 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
 	// This version is stored in the Status object, and it will not be updated if already set.
-	if cluster.Spec.Version == "" && cluster.Status.HostVersion == "" {
-		log.V(1).Info("Cluster version not set. Using host version.")
+	if cluster.Status.HostVersion == "" {
+		log.V(1).Info("Cluster host version not set.")
 
 		hostVersion, err := c.DiscoveryClient.ServerVersion()
 		if err != nil {
@@ -278,8 +278,9 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 		}
 
 		// update Status HostVersion
-		k8sVersion := strings.Split(hostVersion.GitVersion, "+")[0]
-		cluster.Status.HostVersion = k8sVersion + "-k3s1"
+		k8sVersion, _, _ := strings.Cut(hostVersion.GitVersion, "+")
+		k8sVersion, _, _ = strings.Cut(k8sVersion, "-")
+		cluster.Status.HostVersion = k8sVersion
 	}
 
 	token, err := c.token(ctx, cluster)

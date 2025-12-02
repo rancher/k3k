@@ -17,6 +17,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,7 +119,7 @@ func DeleteNamespaces(names ...string) {
 			err := k8s.CoreV1().Namespaces().Delete(context.Background(), name, metav1.DeleteOptions{
 				GracePeriodSeconds: ptr.To[int64](0),
 			})
-			Expect(err).To(Not(HaveOccurred()))
+			Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
 		}()
 	}
 

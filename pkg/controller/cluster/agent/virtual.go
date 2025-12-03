@@ -13,6 +13,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/cluster/registry"
 )
 
 const (
@@ -61,7 +62,7 @@ func (v *VirtualAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.O
 }
 
 func (v *VirtualAgent) config(ctx context.Context) error {
-	config := virtualAgentData(v.serviceIP, v.token)
+	config := virtualAgentData(v.serviceIP, v.token, v.cluster.Spec.PrivateRegistry.SecretName)
 
 	configSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -80,10 +81,16 @@ func (v *VirtualAgent) config(ctx context.Context) error {
 	return v.ensureObject(ctx, configSecret)
 }
 
-func virtualAgentData(serviceIP, token string) string {
+func virtualAgentData(serviceIP, token, privateRegistrySecretName string) string {
+	privateRegistryPath := "/etc/rancher/k3s/registries.yaml"
+	if privateRegistrySecretName != "" {
+		privateRegistryPath = "/opt/rancher/k3s/registry/registries.yaml"
+	}
+
 	return fmt.Sprintf(`server: https://%s
 token: %s
-with-node-id: true`, serviceIP, token)
+private-registry: %s
+with-node-id: true`, serviceIP, token, privateRegistryPath)
 }
 
 func (v *VirtualAgent) deployment(ctx context.Context) error {
@@ -97,6 +104,18 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 			"type":    "agent",
 			"mode":    "virtual",
 		},
+	}
+	podSpec := v.podSpec(image, name, v.cluster.Spec.AgentArgs, &selector)
+
+	if v.cluster.Spec.PrivateRegistry.SecretName != "" {
+		vols, volMounts, err := registry.BuildRegistryConfigVolumes(ctx, v.cluster, v.client)
+		if err != nil {
+			return err
+		}
+
+		podSpec.Volumes = append(podSpec.Volumes, vols...)
+
+		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volMounts...)
 	}
 
 	deployment := &apps.Deployment{
@@ -116,7 +135,7 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector.MatchLabels,
 				},
-				Spec: v.podSpec(image, name, v.cluster.Spec.AgentArgs, &selector),
+				Spec: podSpec,
 			},
 		},
 	}

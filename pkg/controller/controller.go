@@ -25,21 +25,24 @@ var Backoff = wait.Backoff{
 	Jitter:   0.1,
 }
 
-// Image returns the rancher/k3s image tagged with the specified Version.
-// If Version is empty it will use with the same k8s version of the host cluster,
-// stored in the Status object. It will return the latest version as last fallback.
+// K3SImage returns the rancher/k3s image tagged with the found K3SVersion.
 func K3SImage(cluster *v1beta1.Cluster, k3SImage string) string {
-	image := k3SImage
+	return k3SImage + ":" + K3SVersion(cluster)
+}
 
-	imageVersion := "latest"
-
+// K3SVersion returns the rancher/k3s specified version.
+// If empty it will return the k3s version of the Kubernetes version of the host cluster, stored in the Status object.
+// Returns the latest version as fallback.
+func K3SVersion(cluster *v1beta1.Cluster) string {
 	if cluster.Spec.Version != "" {
-		imageVersion = cluster.Spec.Version
-	} else if cluster.Status.HostVersion != "" {
-		imageVersion = cluster.Status.HostVersion
+		return cluster.Spec.Version
 	}
 
-	return image + ":" + imageVersion
+	if cluster.Status.HostVersion != "" {
+		return cluster.Status.HostVersion + "-k3s1"
+	}
+
+	return "latest"
 }
 
 // SafeConcatNameWithPrefix runs the SafeConcatName with extra prefix.

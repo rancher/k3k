@@ -7,10 +7,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/rand"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -47,12 +43,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			clusterNamespace := "k3k-" + clusterName
 
 			DeferCleanup(func() {
-				err := k8sClient.Delete(context.Background(), &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: clusterNamespace,
-					},
-				})
-				Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
+				DeleteNamespaces(clusterNamespace)
 			})
 
 			_, stderr, err = K3kcli("cluster", "create", clusterName)
@@ -77,6 +68,24 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				WithTimeout(time.Second * 5).
 				WithPolling(time.Second).
 				Should(BeEmpty())
+		})
+
+		It("can create a cluster with the specified kubernetes version", func() {
+			var (
+				stderr string
+				err    error
+			)
+
+			clusterName := "cluster-" + rand.String(5)
+			clusterNamespace := "k3k-" + clusterName
+
+			DeferCleanup(func() {
+				DeleteNamespaces(clusterNamespace)
+			})
+
+			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.33.6-k3s1", clusterName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 		})
 	})
 
@@ -122,12 +131,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			clusterNamespace := "k3k-" + clusterName
 
 			DeferCleanup(func() {
-				err := k8sClient.Delete(context.Background(), &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: clusterNamespace,
-					},
-				})
-				Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
+				DeleteNamespaces(clusterNamespace)
 			})
 
 			_, stderr, err = K3kcli("cluster", "create", clusterName)

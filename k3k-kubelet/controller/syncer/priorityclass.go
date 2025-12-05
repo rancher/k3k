@@ -146,19 +146,7 @@ func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 	}
 
-	// create the priorityClass on the host
-	log.Info("creating the priorityClass for the first time on the host cluster")
-
-	err := r.HostClient.Create(ctx, hostPriorityClass)
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return reconcile.Result{}, err
-		}
-
-		return reconcile.Result{}, r.HostClient.Update(ctx, hostPriorityClass)
-	}
-
-	return reconcile.Result{}, nil
+	return createOrUpdate(ctx, log, r.HostClient, hostPriorityClass)
 }
 
 func (r *PriorityClassSyncer) translatePriorityClass(priorityClass schedulingv1.PriorityClass) *schedulingv1.PriorityClass {

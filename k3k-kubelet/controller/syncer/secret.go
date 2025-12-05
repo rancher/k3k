@@ -128,20 +128,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 		}
 	}
 
-	var hostSecret v1.Secret
-	if err := s.HostClient.Get(ctx, types.NamespacedName{Name: syncedSecret.Name, Namespace: syncedSecret.Namespace}, &hostSecret); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Info("creating the Secret for the first time on the host cluster")
-			return reconcile.Result{}, s.HostClient.Create(ctx, syncedSecret)
-		}
-
-		return reconcile.Result{}, err
-	}
-
-	// TODO: Add option to keep labels/annotation set by the host cluster
-	log.Info("updating Secret on the host cluster")
-
-	return reconcile.Result{}, s.HostClient.Update(ctx, syncedSecret)
+	return createOrUpdate(ctx, log, s.HostClient, syncedSecret)
 }
 
 // translateSecret will translate a given secret created in the virtual cluster and

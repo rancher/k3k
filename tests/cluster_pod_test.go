@@ -222,7 +222,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			Expect(os.WriteFile("vk-kubeconfig.yaml", virtualCluster.Kubeconfig, 0o644)).To(Succeed())
 
-			ingressNginx := "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/baremetal/deploy.yaml"
+			ingressNginx := "testdata/resources/ingress-nginx-v1.14.1.yaml"
 			cmd := exec.Command("kubectl", "apply", "--kubeconfig", "vk-kubeconfig.yaml", "-f", ingressNginx)
 			output, err := cmd.CombinedOutput()
 

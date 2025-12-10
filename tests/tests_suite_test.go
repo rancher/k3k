@@ -410,7 +410,7 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 	}
 
 	_, err = k8s.CoreV1().Pods(k3kNamespace).Create(ctx, tarPod, metav1.CreateOptions{})
-	Expect(err).To(Not(HaveOccurred()))
+	Expect(client.IgnoreAlreadyExists(err)).To(Not(HaveOccurred()))
 
 	By("Waiting for tar pod to be ready")
 

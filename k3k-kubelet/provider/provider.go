@@ -950,6 +950,7 @@ func (p *Provider) configureFieldPathEnv(pod, tPod *corev1.Pod) error {
 			if err != nil {
 				return err
 			}
+
 			// re-adding these envs to the pod
 			tPod.Spec.Containers[containerIndex].Env = append(tPod.Spec.Containers[containerIndex].Env, corev1.EnvVar{
 				Name: envName,
@@ -959,6 +960,7 @@ func (p *Provider) configureFieldPathEnv(pod, tPod *corev1.Pod) error {
 					},
 				},
 			})
+
 			// removing the annotation from the pod
 			delete(tPod.Annotations, name)
 		}
@@ -966,9 +968,3 @@ func (p *Provider) configureFieldPathEnv(pod, tPod *corev1.Pod) error {
 
 	return nil
 }
-
-// func printPod(pod corev1.Pod) {
-// 	resK, _ := json.MarshalIndent(pod, "", "  ")
-
-// 	fmt.Printf("\n### Pod %s/%s\n\n%#v\n\n", pod.Namespace, pod.Name, string(resK))
-// }

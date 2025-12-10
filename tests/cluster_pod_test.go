@@ -272,7 +272,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				desiredReplicas := *deployment.Spec.Replicas
 
 				status := deployment.Status
-				g.Expect(status.ObservedGeneration).To(BeNumerically(">=", deployment.ObjectMeta.Generation))
+				g.Expect(status.ObservedGeneration).To(BeNumerically(">=", deployment.Generation))
 				g.Expect(status.UpdatedReplicas).To(BeNumerically("==", desiredReplicas))
 				g.Expect(status.AvailableReplicas).To(BeNumerically("==", desiredReplicas))
 			})

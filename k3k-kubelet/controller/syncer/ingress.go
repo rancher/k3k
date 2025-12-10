@@ -11,7 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1 "k8s.io/api/networking/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -127,20 +126,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 	}
 
-	// create or update the ingress on host
-	var hostIngress networkingv1.Ingress
-	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: syncedIngress.Name, Namespace: r.ClusterNamespace}, &hostIngress); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Info("creating the ingress for the first time on the host cluster")
-			return reconcile.Result{}, r.HostClient.Create(ctx, syncedIngress)
-		}
-
-		return reconcile.Result{}, err
-	}
-
-	log.Info("updating ingress on the host cluster")
-
-	return reconcile.Result{}, r.HostClient.Update(ctx, syncedIngress)
+	return createOrUpdate(ctx, log, r.HostClient, syncedIngress)
 }
 
 func (s *IngressReconciler) ingress(obj *networkingv1.Ingress) *networkingv1.Ingress {

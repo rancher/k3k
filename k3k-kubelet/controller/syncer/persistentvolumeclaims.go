@@ -3,7 +3,6 @@ package syncer
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/component-helpers/storage/volume"
@@ -107,11 +106,11 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	if !virtPVC.DeletionTimestamp.IsZero() {
 		// deleting the synced pvc if exists
 		if err := r.HostClient.Delete(ctx, syncedPVC); err != nil && !apierrors.IsNotFound(err) {
-			return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+			return reconcile.Result{}, err
 		}
 
-		// delete the synced pseudo PV
-		if err := r.VirtualClient.Delete(ctx, r.pv(&virtPVC)); err != nil && !apierrors.IsNotFound(err) {
+		// delete the synced virtual PV
+		if err := r.VirtualClient.Delete(ctx, newPersistentVolume(&virtPVC)); err != nil && !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 
@@ -137,13 +136,13 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 
 	// note that we dont need to update the PVC on the host cluster, only syncing the PVC to allow being
 	// handled by the host cluster.
-	if err := ctrlruntimeclient.IgnoreAlreadyExists(r.HostClient.Create(ctx, syncedPVC)); err != nil {
+	if err := r.HostClient.Create(ctx, syncedPVC); err != nil && !apierrors.IsAlreadyExists(err) {
 		return reconcile.Result{}, err
 	}
 
-	// Creating a pseudo PV to bound the existing PVC in the virtual cluster - needed for scheduling of
+	// Creating a virtual PV to bound the existing PVC in the virtual cluster - needed for scheduling of
 	// the consumer pods
-	return reconcile.Result{}, r.pseudoPV(ctx, virtPVC, log)
+	return reconcile.Result{}, r.createVirtualPersistentVolume(ctx, virtPVC)
 }
 
 func (r *PVCReconciler) pvc(obj *v1.PersistentVolumeClaim) *v1.PersistentVolumeClaim {
@@ -153,10 +152,11 @@ func (r *PVCReconciler) pvc(obj *v1.PersistentVolumeClaim) *v1.PersistentVolumeC
 	return hostPVC
 }
 
-func (r *PVCReconciler) pseudoPV(ctx context.Context, pvc v1.PersistentVolumeClaim, log logr.Logger) error {
-	log.Info("Creating pseudo Persistent Volume")
+func (r *PVCReconciler) createVirtualPersistentVolume(ctx context.Context, pvc v1.PersistentVolumeClaim) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.V(1).Info("Creating virtual PersistentVolume")
 
-	pv := r.pv(&pvc)
+	pv := newPersistentVolume(&pvc)
 
 	if err := r.VirtualClient.Create(ctx, pv); err != nil {
 		return ctrlruntimeclient.IgnoreAlreadyExists(err)
@@ -171,7 +171,7 @@ func (r *PVCReconciler) pseudoPV(ctx context.Context, pvc v1.PersistentVolumeCla
 		return err
 	}
 
-	log.Info("Patch the status of PersistentVolumeClaim to Bound")
+	log.V(1).Info("Patch the status of PersistentVolumeClaim to Bound")
 
 	pvcPatch := pvc.DeepCopy()
 	if pvcPatch.Annotations == nil {
@@ -186,7 +186,7 @@ func (r *PVCReconciler) pseudoPV(ctx context.Context, pvc v1.PersistentVolumeCla
 	return r.VirtualClient.Status().Update(ctx, pvcPatch)
 }
 
-func (r *PVCReconciler) pv(obj *v1.PersistentVolumeClaim) *v1.PersistentVolume {
+func newPersistentVolume(obj *v1.PersistentVolumeClaim) *v1.PersistentVolume {
 	var storageClass string
 
 	if obj.Spec.StorageClassName != nil {

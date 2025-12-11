@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/utils/ptr"
 
@@ -13,6 +14,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	"github.com/rancher/k3k/pkg/controller/cluster/server"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -557,6 +559,19 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 		agentPod := aPods[0]
 		Expect(agentPod.Spec.Containers[0].Image).To(Equal("rancher/k3s:" + cluster.Spec.Version))
 
+		// check for network-policy-controller
+		var configSecret v1.Secret
+		secretKey := types.NamespacedName{
+			Name:      server.ConfigSecretName(cluster.Name, true),
+			Namespace: cluster.Namespace,
+		}
+
+		err := k8sClient.Get(ctx, secretKey, &configSecret)
+		Expect(err).ToNot(HaveOccurred())
+
+		config := string(configSecret.Data["config.yaml"])
+		Expect(strings.Contains(config, "disable-network-policy: true")).To(BeTrue())
+
 		nginxPod, _ = virtualCluster.NewNginxPod("")
 	})
 	It("will update server version when version spec is updated", func() {
@@ -567,7 +582,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 		Expect(err).NotTo(HaveOccurred())
 
 		// update cluster version
-		cluster.Spec.Version = "v1.32.8-k3s1"
+		cluster.Spec.Version = "v1.32.10-k3s1"
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -604,6 +619,19 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+
+			// --disable-network-policy should be deleted from the config
+			var configSecret v1.Secret
+			secretKey := types.NamespacedName{
+				Name:      server.ConfigSecretName(cluster.Name, true),
+				Namespace: cluster.Namespace,
+			}
+
+			err = k8sClient.Get(ctx, secretKey, &configSecret)
+			Expect(err).ToNot(HaveOccurred())
+
+			config := string(configSecret.Data["config.yaml"])
+			Expect(strings.Contains(config, "disable-network-policy: true")).To(BeFalse())
 		}).
 			WithPolling(time.Second * 2).
 			WithTimeout(time.Minute * 3).

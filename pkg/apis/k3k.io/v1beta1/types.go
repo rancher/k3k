@@ -201,12 +201,12 @@ type SecretMount struct {
 	// secret contents will be mounted.
 	//
 	// +optional
-	MountDirPath string `json:"mountPath,omitempty"`
+	MountDirPath string `json:"mountDirPath,omitempty"`
 	// KeysToPaths is a list of keys to paths for the secret to be applied
 	// when mounted to the pods.
 	//
 	// +optional
-	KeysToPaths []v1.KeyToPath `json:"overrideItemsNames,omitempty"`
+	KeysToPaths []v1.KeyToPath `json:"keysToPaths,omitempty"`
 }
 
 // SyncConfig will contain the resources that should be synced from virtual cluster to host cluster.

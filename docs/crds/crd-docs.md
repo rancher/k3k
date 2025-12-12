@@ -392,8 +392,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `secretName` _string_ | SecretName will specify the secret name that will be mounted to the server/agent pods. |  |  |
-| `mountPath` _string_ | MountDirPath is the directory path within server and agent pods where the<br />secret contents will be mounted. |  |  |
-| `overrideItemsNames` _[KeyToPath](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#keytopath-v1-core) array_ | KeysToPaths is a list of keys to paths for the secret to be applied<br />when mounted to the pods. |  |  |
+| `mountDirPath` _string_ | MountDirPath is the directory path within server and agent pods where the<br />secret contents will be mounted. |  |  |
+| `keysToPaths` _[KeyToPath](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#keytopath-v1-core) array_ | KeysToPaths is a list of keys to paths for the secret to be applied<br />when mounted to the pods. |  |  |
 
 
 #### SecretSyncConfig

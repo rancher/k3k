@@ -457,12 +457,7 @@ spec:
                   description: SecretMount represent any extra mount that the user
                     will specify
                   properties:
-                    mountPath:
-                      description: |-
-                        MountDirPath is the directory path within server and agent pods where the
-                        secret contents will be mounted.
-                      type: string
-                    overrideItemsNames:
+                    keysToPaths:
                       description: |-
                         KeysToPaths is a list of keys to paths for the secret to be applied
                         when mounted to the pods.
@@ -494,6 +489,11 @@ spec:
                         - path
                         type: object
                       type: array
+                    mountDirPath:
+                      description: |-
+                        MountDirPath is the directory path within server and agent pods where the
+                        secret contents will be mounted.
+                      type: string
                     secretName:
                       description: SecretName will specify the secret name that will
                         be mounted to the server/agent pods.

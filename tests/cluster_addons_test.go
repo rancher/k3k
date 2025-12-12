@@ -20,7 +20,7 @@ const (
 	addonManifestMountPath = "/var/lib/rancher/k3s/server/manifests/nginx.yaml"
 )
 
-var _ = When("a cluster with addon configuration is used", Label(addonsTestsLabel), func() {
+var _ = When("a cluster with addon configuration is used", Label("e2e"), Label(addonsTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 
 	BeforeEach(func() {

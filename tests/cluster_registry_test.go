@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = When("a cluster with private registry configuration is used", Label(registryTestsLabel), func() {
+var _ = When("a cluster with private registry configuration is used", Label("e2e"), Label(registryTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 	BeforeEach(func() {
 		ctx := context.Background()

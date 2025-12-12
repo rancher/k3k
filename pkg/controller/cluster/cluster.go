@@ -262,7 +262,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 			return err
 		}
 
-		if err := c.validate(cluster, policy); err != nil {
+		if err := c.validate(ctx, cluster, policy); err != nil {
 			return err
 		}
 	}
@@ -728,7 +728,9 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cl
 	return agentEnsurer.EnsureResources(ctx)
 }
 
-func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy v1beta1.VirtualClusterPolicy) error {
+func (c *ClusterReconciler) validate(ctx context.Context, cluster *v1beta1.Cluster, policy v1beta1.VirtualClusterPolicy) error {
+	log := ctrl.LoggerFrom(ctx)
+
 	if cluster.Name == ClusterInvalidName {
 		return fmt.Errorf("%w: invalid cluster name %q", ErrClusterValidation, cluster.Name)
 	}
@@ -746,6 +748,11 @@ func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy v1beta1.Vi
 	// validate sync policy
 	if !equality.Semantic.DeepEqual(cluster.Spec.Sync, policy.Spec.Sync) {
 		return fmt.Errorf("sync configuration %v is not allowed by the policy %q", cluster.Spec.Sync, policy.Name)
+	}
+
+	// Deprecations
+	if len(cluster.Spec.Addons) > 0 {
+		log.V(1).Info("Cluster Addons is deprecated in v1.0.2+ and will be removed in future versions, please use cluster.Spec.SecretMounts instead.")
 	}
 
 	return nil

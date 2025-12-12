@@ -1,0 +1,28 @@
+version: 0.1
+
+log:
+  fields:
+    service: registry
+
+storage:
+  filesystem:
+    rootdirectory: /var/lib/registry
+  delete:
+    enabled: true
+
+http:
+  addr: :5000
+
+  # TLS configuration
+  tls:
+    certificate: /etc/docker/registry/ssl/registry/tls.crt
+    key: /etc/docker/registry/ssl/registry/tls.key
+
+  # Health endpoint
+  headers:
+    X-Content-Type-Options: [nosniff]
+
+# Using mirror registry to avoid pushing to it in the test
+proxy:
+  remoteurl: https://registry-1.docker.io
+  ttl: 0

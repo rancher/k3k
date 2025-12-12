@@ -489,14 +489,20 @@ spec:
                         - path
                         type: object
                       type: array
-                    mountDirPath:
+                    mountPath:
                       description: |-
-                        MountDirPath is the directory path within server and agent pods where the
+                        MountPath is the path within server and agent pods where the
                         secret contents will be mounted.
                       type: string
                     secretName:
                       description: SecretName will specify the secret name that will
                         be mounted to the server/agent pods.
+                      type: string
+                    subPath:
+                      description: |-
+                        SubPath is an optional path within the secret to mount instead of the root.
+                        When specified, only the specified key from the secret will be mounted as a file
+                        at MountPath, keeping the parent directory writable.
                       type: string
                   type: object
                 type: array

@@ -44,10 +44,10 @@ var _ = When("a cluster with private registry configuration is used", Label(regi
 		}
 		Expect(k8sClient.Update(ctx, namespace)).To(Succeed())
 
-		// DeferCleanup(func() {
-		// 	DeleteNamespaces(namespace.Name)
-		// 	Expect(k8sClient.Delete(ctx, vcp)).To(Succeed())
-		// })
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+			Expect(k8sClient.Delete(ctx, vcp)).To(Succeed())
+		})
 
 		err = privateRegistry(ctx, namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
@@ -55,26 +55,17 @@ var _ = When("a cluster with private registry configuration is used", Label(regi
 		cluster := NewCluster(namespace.Name)
 
 		// configure the cluster with the private registry secrets using SecretMounts
+		// Using subPath allows mounting individual files while keeping parent directories writable
 		cluster.Spec.SecretMounts = []v1beta1.SecretMount{
 			{
-				SecretName:   "k3s-registry-config",
-				MountDirPath: "/opt/rancher/k3s/registry/",
-				KeysToPaths: []v1.KeyToPath{
-					{
-						Key:  "registries.yaml",
-						Path: "registries.yaml",
-					},
-				},
+				SecretName: "k3s-registry-config",
+				MountPath:  "/etc/rancher/k3s/registries.yaml",
+				SubPath:    "registries.yaml",
 			},
 			{
-				SecretName:   "private-registry-ca-cert",
-				MountDirPath: "/opt/rancher/k3s/registry/ssl",
-				KeysToPaths: []v1.KeyToPath{
-					{
-						Key:  "tls.crt",
-						Path: "ca.crt",
-					},
-				},
+				SecretName: "private-registry-ca-cert",
+				MountPath:  "/etc/rancher/k3s/tls/ca.crt",
+				SubPath:    "tls.crt",
 			},
 		}
 
@@ -106,7 +97,7 @@ var _ = When("a cluster with private registry configuration is used", Label(regi
 		serverPod := serverPods.Items[0]
 
 		// check registries.yaml
-		registriesConfigPath := "/opt/rancher/k3s/registry/registries.yaml"
+		registriesConfigPath := "/etc/rancher/k3s/registries.yaml"
 		registriesConfig, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, registriesConfigPath)
 		Expect(err).To(Not(HaveOccurred()))
 
@@ -115,7 +106,7 @@ var _ = When("a cluster with private registry configuration is used", Label(regi
 		Expect(registriesConfig).To(Equal(registriesConfigTestFile))
 
 		// check ca.crt
-		CACrtPath := "/opt/rancher/k3s/registry/ssl/ca.crt"
+		CACrtPath := "/etc/rancher/k3s/tls/ca.crt"
 		CACrt, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, CACrtPath)
 		Expect(err).To(Not(HaveOccurred()))
 

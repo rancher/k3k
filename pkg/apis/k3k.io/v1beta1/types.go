@@ -197,11 +197,17 @@ type SecretMount struct {
 	//
 	// +optional
 	SecretName string `json:"secretName,omitempty"`
-	// MountDirPath is the directory path within server and agent pods where the
+	// MountPath is the path within server and agent pods where the
 	// secret contents will be mounted.
 	//
 	// +optional
-	MountDirPath string `json:"mountDirPath,omitempty"`
+	MountPath string `json:"mountPath,omitempty"`
+	// SubPath is an optional path within the secret to mount instead of the root.
+	// When specified, only the specified key from the secret will be mounted as a file
+	// at MountPath, keeping the parent directory writable.
+	//
+	// +optional
+	SubPath string `json:"subPath,omitempty"`
 	// KeysToPaths is a list of keys to paths for the secret to be applied
 	// when mounted to the pods.
 	//

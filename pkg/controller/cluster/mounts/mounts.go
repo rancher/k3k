@@ -21,7 +21,7 @@ func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount) ([]v1.Volume,
 	sortedSecretMounts := sortedMounts(secretMounts)
 
 	for _, secretMount := range sortedSecretMounts {
-		if secretMount.SecretName == "" || secretMount.MountDirPath == "" {
+		if secretMount.SecretName == "" || secretMount.MountPath == "" {
 			continue
 		}
 
@@ -48,7 +48,8 @@ func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount) ([]v1.Volume,
 		})
 		volMounts = append(volMounts, v1.VolumeMount{
 			Name:      secretMount.SecretName,
-			MountPath: secretMount.MountDirPath,
+			MountPath: secretMount.MountPath,
+			SubPath:   secretMount.SubPath,
 		})
 	}
 

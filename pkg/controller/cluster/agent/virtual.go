@@ -84,7 +84,6 @@ func (v *VirtualAgent) config(ctx context.Context) error {
 func virtualAgentData(serviceIP, token string) string {
 	return fmt.Sprintf(`server: https://%s
 token: %s
-private-registry: /opt/rancher/k3s/registry/registries.yaml
 with-node-id: true`, serviceIP, token)
 }
 

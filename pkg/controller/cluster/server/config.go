@@ -85,9 +85,6 @@ func serverOptions(cluster *v1beta1.Cluster, token string) string {
 	}
 	// TODO: Add extra args to the options
 
-	// adding an alternative path for private registry other than /etc/rancher/k3s/registries.yaml
-	opts = opts + "private-registry: /opt/rancher/k3s/registry/registries.yaml\n"
-
 	return opts
 }
 

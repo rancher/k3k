@@ -392,7 +392,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `secretName` _string_ | SecretName will specify the secret name that will be mounted to the server/agent pods. |  |  |
-| `mountDirPath` _string_ | MountDirPath is the directory path within server and agent pods where the<br />secret contents will be mounted. |  |  |
+| `mountPath` _string_ | MountPath is the path within server and agent pods where the<br />secret contents will be mounted. |  |  |
+| `subPath` _string_ | SubPath is an optional path within the secret to mount instead of the root.<br />When specified, only the specified key from the secret will be mounted as a file<br />at MountPath, keeping the parent directory writable. |  |  |
 | `keysToPaths` _[KeyToPath](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#keytopath-v1-core) array_ | KeysToPaths is a list of keys to paths for the secret to be applied<br />when mounted to the pods. |  |  |
 
 

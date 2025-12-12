@@ -81,9 +81,12 @@ func serverOptions(cluster *v1beta1.Cluster, token string) string {
 	}
 
 	if cluster.Spec.Mode != agent.VirtualNodeMode {
-		opts = opts + "disable-agent: true\negress-selector-mode: disabled\ndisable:\n- servicelb\n- traefik\n- metrics-server\n- local-storage"
+		opts = opts + "disable-agent: true\negress-selector-mode: disabled\ndisable:\n- servicelb\n- traefik\n- metrics-server\n- local-storage\n"
 	}
 	// TODO: Add extra args to the options
+
+	// adding an alternative path for private registry other than /etc/rancher/k3s/registries.yaml
+	opts = opts + "private-registry: /opt/rancher/k3s/registry/registries.yaml\n"
 
 	return opts
 }

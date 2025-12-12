@@ -22,6 +22,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
+	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
 )
 
 const (
@@ -336,10 +337,18 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	}
 
 	if s.cluster.Spec.CustomCAs != nil && s.cluster.Spec.CustomCAs.Enabled {
-		vols, mounts, err := s.loadCACertBundle(ctx)
+		vols, mounts, err := s.buildCABundleVolumes(ctx)
 		if err != nil {
 			return nil, err
 		}
+
+		volumes = append(volumes, vols...)
+
+		volumeMounts = append(volumeMounts, mounts...)
+	}
+
+	if len(s.cluster.Spec.SecretMounts) > 0 {
+		vols, mounts := mounts.BuildSecretsMountsVolumes(s.cluster.Spec.SecretMounts)
 
 		volumes = append(volumes, vols...)
 
@@ -438,7 +447,7 @@ func (s *Server) setupStartCommand() (string, error) {
 	return output.String(), nil
 }
 
-func (s *Server) loadCACertBundle(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
+func (s *Server) buildCABundleVolumes(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
 	if s.cluster.Spec.CustomCAs == nil {
 		return nil, nil, fmt.Errorf("customCAs not found")
 	}

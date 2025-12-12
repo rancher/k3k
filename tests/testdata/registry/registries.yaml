@@ -1,0 +1,8 @@
+mirrors:
+  docker.io:
+    endpoint:
+      - "https://private-registry:5000"
+configs:
+  "private-registry:5000":
+    tls:
+      ca_file: /opt/rancher/k3s/registry/ssl/ca.crt

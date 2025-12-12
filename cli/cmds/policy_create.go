@@ -150,6 +150,8 @@ func bindPolicyToNamespaces(ctx context.Context, client client.Client, config *V
 
 		// no old policy, safe to update
 		if oldPolicy == "" {
+			ns.Labels[policy.PolicyNameLabelKey] = policyName
+
 			if err := client.Update(ctx, &ns); err != nil {
 				errs = append(errs, err)
 			} else {

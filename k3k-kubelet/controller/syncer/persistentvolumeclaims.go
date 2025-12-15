@@ -158,8 +158,8 @@ func (r *PVCReconciler) createVirtualPersistentVolume(ctx context.Context, pvc v
 
 	pv := newPersistentVolume(&pvc)
 
-	if err := r.VirtualClient.Create(ctx, pv); err != nil {
-		return ctrlruntimeclient.IgnoreAlreadyExists(err)
+	if err := r.VirtualClient.Create(ctx, pv); err != nil && !apierrors.IsAlreadyExists(err) {
+		return err
 	}
 
 	orig := pv.DeepCopy()

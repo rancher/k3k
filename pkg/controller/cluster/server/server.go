@@ -287,6 +287,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		if err != nil {
 			return nil, err
 		}
+
 		volumes = append(volumes, addonsVols...)
 
 		volumeMounts = append(volumeMounts, addonsMounts...)

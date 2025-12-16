@@ -128,20 +128,7 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 		}
 	}
 
-	var hostConfigMap corev1.ConfigMap
-	if err := c.HostClient.Get(ctx, types.NamespacedName{Name: syncedConfigMap.Name, Namespace: syncedConfigMap.Namespace}, &hostConfigMap); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Info("creating the ConfigMap for the first time on the host cluster")
-			return reconcile.Result{}, c.HostClient.Create(ctx, syncedConfigMap)
-		}
-
-		return reconcile.Result{}, err
-	}
-
-	// TODO: Add option to keep labels/annotation set by the host cluster
-	log.Info("updating ConfigMap on the host cluster")
-
-	return reconcile.Result{}, c.HostClient.Update(ctx, syncedConfigMap)
+	return createOrUpdate(ctx, log, c.HostClient, syncedConfigMap)
 }
 
 // translateConfigMap will translate a given configMap created in the virtual cluster and

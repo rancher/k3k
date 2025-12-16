@@ -11,7 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -104,20 +103,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 	}
 
-	// create or update the service on host
-	var hostService v1.Service
-	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: syncedService.Name, Namespace: r.ClusterNamespace}, &hostService); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Info("creating the service for the first time on the host cluster")
-			return reconcile.Result{}, r.HostClient.Create(ctx, syncedService)
-		}
-
-		return reconcile.Result{}, err
-	}
-
-	log.Info("updating service on the host cluster")
-
-	return reconcile.Result{}, r.HostClient.Update(ctx, syncedService)
+	return createOrUpdate(ctx, log, r.HostClient, syncedService)
 }
 
 func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) bool {

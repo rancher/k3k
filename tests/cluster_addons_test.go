@@ -15,12 +15,13 @@ import (
 )
 
 const (
-	addonsTestsLabel       = "addons"
-	addonsSecretName       = "k3s-addons"
-	addonManifestMountPath = "/var/lib/rancher/k3s/server/manifests/nginx.yaml"
+	addonsTestsLabel             = "addons"
+	addonsSecretName             = "k3s-addons"
+	secretMountManifestMountPath = "/var/lib/rancher/k3s/server/manifests/nginx.yaml"
+	addonManifestMountPath       = "/var/lib/rancher/k3s/server/manifests/k3s-addons/nginx.yaml"
 )
 
-var _ = When("a cluster with addon configuration is used", Label("e2e"), Label(addonsTestsLabel), func() {
+var _ = When("a cluster with secretMounts configuration is used to load addons", Label("e2e"), Label(addonsTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 
 	BeforeEach(func() {
@@ -41,7 +42,7 @@ var _ = When("a cluster with addon configuration is used", Label("e2e"), Label(a
 		cluster.Spec.SecretMounts = []v1beta1.SecretMount{
 			{
 				SecretName: addonsSecretName,
-				MountPath:  addonManifestMountPath,
+				MountPath:  secretMountManifestMountPath,
 				SubPath:    "nginx.yaml",
 			},
 		}
@@ -67,7 +68,7 @@ var _ = When("a cluster with addon configuration is used", Label("e2e"), Label(a
 		Expect(len(serverPods.Items)).To(Equal(1))
 		serverPod := serverPods.Items[0]
 
-		addonContent, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, addonManifestMountPath)
+		addonContent, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, secretMountManifestMountPath)
 		Expect(err).To(Not(HaveOccurred()))
 
 		addonTestFile, err := os.ReadFile("testdata/addons/nginx.yaml")
@@ -83,7 +84,132 @@ var _ = When("a cluster with addon configuration is used", Label("e2e"), Label(a
 			g.Expect(err).To(Not(HaveOccurred()))
 			g.Expect(nginxPod.Status.Phase).To(Equal(v1.PodRunning))
 		}).
-			WithTimeout(time.Minute * 2).
+			WithTimeout(time.Minute * 3).
+			WithPolling(time.Second * 5).
+			Should(Succeed())
+	})
+})
+
+var _ = When("a cluster with addon configuration is used with addons secret in the same namespace", Label("e2e"), Label(addonsTestsLabel), func() {
+	var virtualCluster *VirtualCluster
+
+	BeforeEach(func() {
+		ctx := context.Background()
+
+		namespace := NewNamespace()
+
+		// Create the addon secret
+		err := createAddonSecret(ctx, namespace.Name)
+		Expect(err).ToNot(HaveOccurred())
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name)
+		})
+
+		cluster := NewCluster(namespace.Name)
+
+		cluster.Spec.Addons = []v1beta1.Addon{
+			{
+				SecretNamespace: namespace.Name,
+				SecretRef:       addonsSecretName,
+			},
+		}
+
+		CreateCluster(cluster)
+
+		virtualClient, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     virtualClient,
+		}
+
+		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
+		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+		Expect(err).To(Not(HaveOccurred()))
+
+		Expect(len(serverPods.Items)).To(Equal(1))
+		serverPod := serverPods.Items[0]
+
+		addonContent, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, addonManifestMountPath)
+		Expect(err).To(Not(HaveOccurred()))
+
+		addonTestFile, err := os.ReadFile("testdata/addons/nginx.yaml")
+		Expect(err).To(Not(HaveOccurred()))
+		Expect(addonContent).To(Equal(addonTestFile))
+
+		Eventually(func(g Gomega) {
+			nginxPod, err := virtualCluster.Client.CoreV1().Pods("default").Get(ctx, "nginx-addon", metav1.GetOptions{})
+			g.Expect(err).To(Not(HaveOccurred()))
+			g.Expect(nginxPod.Status.Phase).To(Equal(v1.PodRunning))
+		}).
+			WithTimeout(time.Minute * 3).
+			WithPolling(time.Second * 5).
+			Should(Succeed())
+	})
+})
+
+var _ = When("a cluster with addon configuration is used with addons secret in the different namespace", Label("e2e"), Label(addonsTestsLabel), func() {
+	var virtualCluster *VirtualCluster
+
+	BeforeEach(func() {
+		ctx := context.Background()
+
+		namespace := NewNamespace()
+		secretNamespace := NewNamespace()
+
+		// Create the addon secret
+		err := createAddonSecret(ctx, secretNamespace.Name)
+		Expect(err).ToNot(HaveOccurred())
+
+		DeferCleanup(func() {
+			DeleteNamespaces(namespace.Name, secretNamespace.Name)
+		})
+
+		cluster := NewCluster(namespace.Name)
+
+		cluster.Spec.Addons = []v1beta1.Addon{
+			{
+				SecretNamespace: secretNamespace.Name,
+				SecretRef:       addonsSecretName,
+			},
+		}
+
+		CreateCluster(cluster)
+
+		virtualClient, restConfig := NewVirtualK8sClientAndConfig(cluster)
+
+		virtualCluster = &VirtualCluster{
+			Cluster:    cluster,
+			RestConfig: restConfig,
+			Client:     virtualClient,
+		}
+	})
+
+	It("will load the addon manifest in server pod and deploys the pod", func() {
+		ctx := context.Background()
+
+		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
+		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+		Expect(err).To(Not(HaveOccurred()))
+
+		Expect(len(serverPods.Items)).To(Equal(1))
+		serverPod := serverPods.Items[0]
+
+		addonContent, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, addonManifestMountPath)
+		Expect(err).To(Not(HaveOccurred()))
+
+		addonTestFile, err := os.ReadFile("testdata/addons/nginx.yaml")
+		Expect(err).To(Not(HaveOccurred()))
+		Expect(addonContent).To(Equal(addonTestFile))
+
+		Eventually(func(g Gomega) {
+			nginxPod, err := virtualCluster.Client.CoreV1().Pods("default").Get(ctx, "nginx-addon", metav1.GetOptions{})
+			g.Expect(err).To(Not(HaveOccurred()))
+			g.Expect(nginxPod.Status.Phase).To(Equal(v1.PodRunning))
+		}).
+			WithTimeout(time.Minute * 3).
 			WithPolling(time.Second * 5).
 			Should(Succeed())
 	})

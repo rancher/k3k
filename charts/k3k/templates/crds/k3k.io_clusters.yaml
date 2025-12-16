@@ -457,9 +457,9 @@ spec:
                   description: SecretMount represent any extra mount that the user
                     will specify
                   properties:
-                    keysToPaths:
+                    items:
                       description: |-
-                        KeysToPaths is a list of keys to paths for the secret to be applied
+                        KeysToPaths is a list of keys to paths for the secret to be mapped
                         when mounted to the pods.
                       items:
                         description: Maps a string key to a path within a volume.

@@ -6,16 +6,29 @@ import (
 	"os/exec"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
+
+	v1 "k8s.io/api/core/v1"
+
+	"github.com/rancher/k3k/pkg/controller/policy"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 func K3kcli(args ...string) (string, string, error) {
+	return runCmd("k3kcli", args...)
+}
+
+func Kubectl(args ...string) (string, string, error) {
+	return runCmd("kubectl", args...)
+}
+
+func runCmd(cmdName string, args ...string) (string, string, error) {
 	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
 
-	cmd := exec.CommandContext(context.Background(), "k3kcli", args...)
+	cmd := exec.CommandContext(context.Background(), cmdName, args...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
@@ -115,8 +128,76 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			stdout, stderr, err = K3kcli("policy", "list")
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stdout).To(BeEmpty())
-			Expect(stderr).To(BeEmpty())
+			Expect(stdout).To(Not(ContainSubstring(policyName)))
+		})
+
+		It("can bound a policy to a namespace", func() {
+			var (
+				stdout string
+				stderr string
+				err    error
+			)
+
+			namespaceName := "ns-" + rand.String(5)
+
+			_, _, err = Kubectl("create", "namespace", namespaceName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+
+			DeferCleanup(func() {
+				DeleteNamespaces(namespaceName)
+			})
+
+			By("Creating a policy and binding to a namespace")
+
+			policy1Name := "policy-" + rand.String(5)
+
+			_, stderr, err = K3kcli("policy", "create", "--namespace", namespaceName, policy1Name)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring(`Creating policy '%s'`, policy1Name))
+
+			DeferCleanup(func() {
+				stdout, stderr, err = K3kcli("policy", "delete", policy1Name)
+				Expect(err).To(Not(HaveOccurred()), string(stderr))
+				Expect(stdout).To(BeEmpty())
+				Expect(stderr).To(ContainSubstring(`Policy '%s' deleted`, policy1Name))
+			})
+
+			var ns v1.Namespace
+			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: namespaceName}, &ns)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(ns.Name).To(Equal(namespaceName))
+			Expect(ns.Labels).To(HaveKeyWithValue(policy.PolicyNameLabelKey, policy1Name))
+
+			By("Creating another policy and binding to the same namespace without the --overwrite flag")
+
+			policy2Name := "policy-" + rand.String(5)
+
+			stdout, stderr, err = K3kcli("policy", "create", "--namespace", namespaceName, policy2Name)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring(`Creating policy '%s'`, policy2Name))
+
+			DeferCleanup(func() {
+				stdout, stderr, err = K3kcli("policy", "delete", policy2Name)
+				Expect(err).To(Not(HaveOccurred()), string(stderr))
+				Expect(stdout).To(BeEmpty())
+				Expect(stderr).To(ContainSubstring(`Policy '%s' deleted`, policy2Name))
+			})
+
+			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: namespaceName}, &ns)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(ns.Name).To(Equal(namespaceName))
+			Expect(ns.Labels).To(HaveKeyWithValue(policy.PolicyNameLabelKey, policy1Name))
+
+			By("Forcing the other policy binding with the overwrite flag")
+
+			stdout, stderr, err = K3kcli("policy", "create", "--namespace", namespaceName, "--overwrite", policy2Name)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring(`Creating policy '%s'`, policy2Name))
+
+			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: namespaceName}, &ns)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(ns.Name).To(Equal(namespaceName))
+			Expect(ns.Labels).To(HaveKeyWithValue(policy.PolicyNameLabelKey, policy2Name))
 		})
 	})
 

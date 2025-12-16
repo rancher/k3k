@@ -13,6 +13,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
 )
 
 const (
@@ -98,6 +99,15 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 			"mode":    "virtual",
 		},
 	}
+	podSpec := v.podSpec(image, name, v.cluster.Spec.AgentArgs, &selector)
+
+	if len(v.cluster.Spec.SecretMounts) > 0 {
+		vols, volMounts := mounts.BuildSecretsMountsVolumes(v.cluster.Spec.SecretMounts)
+
+		podSpec.Volumes = append(podSpec.Volumes, vols...)
+
+		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volMounts...)
+	}
 
 	deployment := &apps.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -116,7 +126,7 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector.MatchLabels,
 				},
-				Spec: v.podSpec(image, name, v.cluster.Spec.AgentArgs, &selector),
+				Spec: podSpec,
 			},
 		},
 	}

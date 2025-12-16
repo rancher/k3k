@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -22,15 +23,19 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -49,6 +54,13 @@ const (
 	networkingTestsLabel   = "networking"
 	statusTestsLabel       = "status"
 	certificatesTestsLabel = "certificates"
+	registryTestsLabel     = "registry"
+
+	registryImage               = "registry:2"
+	registryCACertSecretName    = "private-registry-ca-cert"
+	registryCertSecretName      = "private-registry-cert"
+	registryConfigSecretName    = "private-registry-config"
+	k3sRegistryConfigSecretName = "k3s-registry-config"
 )
 
 func TestTests(t *testing.T) {
@@ -125,6 +137,10 @@ func buildScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 
 	err := v1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = appsv1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = networkingv1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = v1beta1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
@@ -532,4 +548,228 @@ func caCertSecret(name, namespace string, crt, key []byte) *v1.Secret {
 			"tls.key": key,
 		},
 	}
+}
+
+func privateRegistry(ctx context.Context, namespace string) error {
+	caCrtMap := map[string]string{
+		"tls.crt": filepath.Join("testdata", "registry", "certs", "ca.crt"),
+		"tls.key": filepath.Join("testdata", "registry", "certs", "ca.key"),
+	}
+
+	caSecret, err := buildRegistryConfigSecret(caCrtMap, namespace, registryCACertSecretName, true)
+	if err != nil {
+		return err
+	}
+
+	if err := k8sClient.Create(ctx, caSecret); err != nil {
+		return err
+	}
+
+	registryCrtMap := map[string]string{
+		"tls.crt": filepath.Join("testdata", "registry", "certs", "registry.crt"),
+		"tls.key": filepath.Join("testdata", "registry", "certs", "registry.key"),
+	}
+
+	registrySecret, err := buildRegistryConfigSecret(registryCrtMap, namespace, registryCertSecretName, true)
+	if err != nil {
+		return err
+	}
+
+	if err := k8sClient.Create(ctx, registrySecret); err != nil {
+		return err
+	}
+
+	configMap := map[string]string{
+		"config.yml": filepath.Join("testdata", "registry", "config.yml"),
+	}
+
+	configSecret, err := buildRegistryConfigSecret(configMap, namespace, registryConfigSecretName, false)
+	if err != nil {
+		return err
+	}
+
+	if err := k8sClient.Create(ctx, configSecret); err != nil {
+		return err
+	}
+
+	k3sRegistryConfig := map[string]string{
+		"registries.yaml": filepath.Join("testdata", "registry", "registries.yaml"),
+	}
+
+	k3sRegistrySecret, err := buildRegistryConfigSecret(k3sRegistryConfig, namespace, k3sRegistryConfigSecretName, false)
+	if err != nil {
+		return err
+	}
+
+	if err := k8sClient.Create(ctx, k3sRegistrySecret); err != nil {
+		return err
+	}
+
+	registryDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "private-registry",
+			Namespace: namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: ptr.To(int32(1)),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "private-registry",
+				},
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "private-registry",
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "private-registry",
+							Image: registryImage,
+							VolumeMounts: []v1.VolumeMount{
+								{
+									Name:      "config",
+									MountPath: "/etc/docker/registry/",
+								},
+								{
+									Name:      "ca-cert",
+									MountPath: "/etc/docker/registry/ssl/ca",
+								},
+								{
+									Name:      "registry-cert",
+									MountPath: "/etc/docker/registry/ssl/registry",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "config",
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: "private-registry-config",
+								},
+							},
+						},
+						{
+							Name: "ca-cert",
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: "private-registry-ca-cert",
+								},
+							},
+						},
+						{
+							Name: "registry-cert",
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: "private-registry-cert",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if err := k8sClient.Create(ctx, registryDeployment); err != nil {
+		return err
+	}
+
+	registryService := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "private-registry",
+			Namespace: namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		Spec: v1.ServiceSpec{
+			Selector: map[string]string{
+				"app": "private-registry",
+			},
+			Ports: []v1.ServicePort{
+				{
+					Name:       "registry-port",
+					Port:       5000,
+					TargetPort: intstr.FromInt(5000),
+				},
+			},
+		},
+	}
+
+	return k8sClient.Create(ctx, registryService)
+}
+
+func buildRegistryNetPolicy(ctx context.Context, namespace string) error {
+	np := networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "private-registry-test-netpol",
+			Namespace: namespace,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"role": "server",
+				},
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeEgress,
+			},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				{
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							IPBlock: &networkingv1.IPBlock{
+								CIDR: "10.0.0.0/8",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return k8sClient.Create(ctx, &np)
+}
+
+func buildRegistryConfigSecret(tlsMap map[string]string, namespace, name string, tlsSecret bool) (*v1.Secret, error) {
+	secretType := v1.SecretTypeOpaque
+	if tlsSecret {
+		secretType = v1.SecretTypeTLS
+	}
+
+	data := make(map[string][]byte)
+
+	for key, path := range tlsMap {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+
+		data[key] = b
+	}
+
+	secret := &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Type: secretType,
+		Data: data,
+	}
+
+	return secret, nil
 }

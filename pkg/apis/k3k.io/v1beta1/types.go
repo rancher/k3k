@@ -183,6 +183,36 @@ type ClusterSpec struct {
 	// +kubebuilder:default={}
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
+
+	// SecretMounts specifies a list of secrets to mount into server and agent pods.
+	// Each entry defines a secret and its mount path within the pods.
+	//
+	// +optional
+	SecretMounts []SecretMount `json:"secretMounts,omitempty"`
+}
+
+// SecretMount represent any extra mount that the user will specify
+type SecretMount struct {
+	// SecretName will specify the secret name that will be mounted to the server/agent pods.
+	//
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
+	// MountPath is the path within server and agent pods where the
+	// secret contents will be mounted.
+	//
+	// +optional
+	MountPath string `json:"mountPath,omitempty"`
+	// SubPath is an optional path within the secret to mount instead of the root.
+	// When specified, only the specified key from the secret will be mounted as a file
+	// at MountPath, keeping the parent directory writable.
+	//
+	// +optional
+	SubPath string `json:"subPath,omitempty"`
+	// KeysToPaths is a list of keys to paths for the secret to be mapped
+	// when mounted to the pods.
+	//
+	// +optional
+	KeysToPaths []v1.KeyToPath `json:"items,omitempty"`
 }
 
 // SyncConfig will contain the resources that should be synced from virtual cluster to host cluster.
@@ -468,7 +498,7 @@ type CredentialSources struct {
 // It can represent either a TLS key pair or a single private key.
 type CredentialSource struct {
 	// SecretName specifies the name of an existing secret to use.
-	// The controller expects specific keys inside based on the credential type:
+	// The custom certificate controller expects specific keys inside based on the credential type:
 	// - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
 	// - For ServiceAccountTokenKey: 'tls.key'.
 	SecretName string `json:"secretName"`

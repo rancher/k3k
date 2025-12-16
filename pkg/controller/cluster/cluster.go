@@ -43,7 +43,6 @@ import (
 )
 
 const (
-	namePrefix           = "k3k"
 	clusterController    = "k3k-cluster-controller"
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
 	ClusterInvalidName   = "system"

@@ -63,7 +63,7 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 				Name: "initconfig",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: configSecretName(s.cluster.Name, true),
+						SecretName: ConfigSecretName(s.cluster.Name, true),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",
@@ -77,7 +77,7 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 				Name: "config",
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: configSecretName(s.cluster.Name, false),
+						SecretName: ConfigSecretName(s.cluster.Name, false),
 						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",

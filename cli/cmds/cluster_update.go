@@ -74,10 +74,12 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 		namespace := appCtx.Namespace(name)
 
 		var virtualCluster v1beta1.Cluster
+
 		clusterKey := types.NamespacedName{Name: name, Namespace: appCtx.namespace}
 		if err := appCtx.Client.Get(ctx, clusterKey, &virtualCluster); err != nil {
 			return fmt.Errorf("failed to fetch existing cluster: %w", err)
 		}
+
 		if config.version != "" {
 			currentVersion := virtualCluster.Spec.Version
 			if currentVersion == "" {

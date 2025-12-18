@@ -208,14 +208,6 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	reconcilerErr := c.reconcileCluster(ctx, &cluster)
 
-	if !equality.Semantic.DeepEqual(orig.Status, cluster.Status) {
-		log.Info("Updating Cluster status")
-
-		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-
 	// if there was an error during the reconciliation, return
 	if reconcilerErr != nil {
 		if errors.Is(reconcilerErr, bootstrap.ErrServerNotReady) {
@@ -224,6 +216,14 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 
 		return reconcile.Result{}, reconcilerErr
+	}
+
+	if !equality.Semantic.DeepEqual(orig.Status, cluster.Status) {
+		log.Info("Updating Cluster status")
+
+		if err := c.Client.Status().Update(ctx, &cluster); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
 	// update Cluster if needed

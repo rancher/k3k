@@ -202,7 +202,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 		})
 	})
 
-	When("trying the cluster update commands", Label("updatecli"), func() {
+	When("trying the cluster update commands", func() {
 		It("can update a cluster's server count", func() {
 			var (
 				stderr string

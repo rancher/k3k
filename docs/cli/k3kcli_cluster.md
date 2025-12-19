@@ -21,4 +21,5 @@ cluster command
 * [k3kcli cluster create](k3kcli_cluster_create.md)	 - Create new cluster
 * [k3kcli cluster delete](k3kcli_cluster_delete.md)	 - Delete an existing cluster
 * [k3kcli cluster list](k3kcli_cluster_list.md)	 - List all the existing cluster
+* [k3kcli cluster update](k3kcli_cluster_update.md)	 - Update existing cluster
 

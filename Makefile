@@ -83,12 +83,18 @@ generate:	## Generate the CRDs specs
 	go generate ./...
 
 .PHONY: docs
-docs:	## Build the CRDs and CLI docs
+docs: docs-crds docs-cli	## Build the CRDs and CLI docs
+
+.PHONY: docs-crds
+docs-crds:	## Build the CRDs docs
 	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml \
 		--renderer=markdown \
 		--source-path=./pkg/apis/k3k.io/v1beta1 \
 		--output-path=./docs/crds/crd-docs.md
-	@go run ./docs/cli/genclidoc.go
+
+.PHONY: docs-cli
+docs-cli:	## Build the CLI docs	
+	@./scripts/generate-cli-docs
 
 .PHONY: lint
 lint:	## Find any linting issues in the project

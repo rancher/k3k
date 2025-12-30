@@ -93,6 +93,10 @@ docs-crds:	## Build the CRDs docs
 		--source-path=./pkg/apis/k3k.io/v1beta1 \
 		--output-path=./docs/crds/crd-docs.md
 
+	$(PANDOC) --from markdown --to asciidoc \
+		--lua-filter=./docs/crds/convert.lua \
+		./docs/crds/crd-docs.md > ./docs/crds/crds.adoc
+
 .PHONY: docs-cli
 docs-cli:	## Build the CLI docs
 ifeq (, $(PANDOC))

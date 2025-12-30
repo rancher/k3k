@@ -7,7 +7,7 @@ import (
 func NewPolicyCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
-		Short: "policy command",
+		Short: "K3k policy command.",
 	}
 
 	cmd.AddCommand(

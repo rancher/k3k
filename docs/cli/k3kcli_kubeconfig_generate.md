@@ -1,6 +1,6 @@
 ## k3kcli kubeconfig generate
 
-Generate kubeconfig for clusters
+Generate kubeconfig for clusters.
 
 ```
 k3kcli kubeconfig generate [flags]
@@ -29,5 +29,5 @@ k3kcli kubeconfig generate [flags]
 
 ### SEE ALSO
 
-* [k3kcli kubeconfig](k3kcli_kubeconfig.md)	 - Manage kubeconfig for clusters
+* [k3kcli kubeconfig](k3kcli_kubeconfig.md)	 - Manage kubeconfig for clusters.
 

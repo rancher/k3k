@@ -1,6 +1,6 @@
 ## k3kcli cluster create
 
-Create new cluster
+Create a new cluster.
 
 ```
 k3kcli cluster create [flags]
@@ -49,5 +49,5 @@ k3kcli cluster create [command options] NAME
 
 ### SEE ALSO
 
-* [k3kcli cluster](k3kcli_cluster.md)	 - cluster command
+* [k3kcli cluster](k3kcli_cluster.md)	 - K3k cluster command.
 

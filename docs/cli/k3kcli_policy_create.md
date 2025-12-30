@@ -1,6 +1,6 @@
 ## k3kcli policy create
 
-Create new policy
+Create a new policy.
 
 ```
 k3kcli policy create [flags]
@@ -32,5 +32,5 @@ k3kcli policy create [command options] NAME
 
 ### SEE ALSO
 
-* [k3kcli policy](k3kcli_policy.md)	 - policy command
+* [k3kcli policy](k3kcli_policy.md)	 - K3k policy command.
 

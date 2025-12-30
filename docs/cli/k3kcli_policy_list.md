@@ -1,6 +1,6 @@
 ## k3kcli policy list
 
-List all the existing policies
+List all existing policies.
 
 ```
 k3kcli policy list [flags]
@@ -27,5 +27,5 @@ k3kcli policy list [command options]
 
 ### SEE ALSO
 
-* [k3kcli policy](k3kcli_policy.md)	 - policy command
+* [k3kcli policy](k3kcli_policy.md)	 - K3k policy command.
 

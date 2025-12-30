@@ -350,6 +350,7 @@ func (p *StatefulSetReconciler) updateNodeIp(ctx context.Context, cluster *v1bet
 	}
 
 	var nodeAddress string
+
 	for i, address := range virtualNode.Status.Addresses {
 		if address.Type == v1.NodeInternalIP {
 			nodeAddress = address.Address
@@ -357,12 +358,14 @@ func (p *StatefulSetReconciler) updateNodeIp(ctx context.Context, cluster *v1bet
 			virtualNode.Status.Addresses[i].Address = pod.Status.PodIP
 		}
 	}
+
 	if nodeAddress == "" || pod.Status.PodIP == "" {
 		return nil
 	}
 
 	if pod.Status.PodIP != nodeAddress {
 		log.V(1).Info("Updating the node's addresses with the new pod address", "cluster", cluster, "podIP", pod.Status.PodIP)
+
 		if err := virtualClient.Status().Update(ctx, &virtualNode); err != nil {
 			return fmt.Errorf("failed to patch node status: %w", err)
 		}

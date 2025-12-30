@@ -24,7 +24,7 @@ var keepData bool
 func NewClusterDeleteCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
-		Short:   "Delete an existing cluster",
+		Short:   "Delete an existing cluster.",
 		Example: "k3kcli cluster delete [command options] NAME",
 		RunE:    delete(appCtx),
 		Args:    cobra.ExactArgs(1),

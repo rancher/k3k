@@ -15,6 +15,7 @@ CRD_REF_DOCS_VER ?= v0.1.0
 GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GINKGO ?= go run github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
 CRD_REF_DOCS := go run github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VER)
+PANDOC := $(shell which pandoc 2> /dev/null)
 
 ENVTEST ?= go run sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
 ENVTEST_DIR ?= $(shell pwd)/.envtest
@@ -83,12 +84,21 @@ generate:	## Generate the CRDs specs
 	go generate ./...
 
 .PHONY: docs
-docs:	## Build the CRDs and CLI docs
+docs: docs-crds docs-cli	## Build the CRDs and CLI docs
+
+.PHONY: docs-crds
+docs-crds:	## Build the CRDs docs
 	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml \
 		--renderer=markdown \
 		--source-path=./pkg/apis/k3k.io/v1beta1 \
 		--output-path=./docs/crds/crd-docs.md
-	@go run ./docs/cli/genclidoc.go
+
+.PHONY: docs-cli
+docs-cli:	## Build the CLI docs
+ifeq (, $(PANDOC))
+	$(error "pandoc not found in PATH.")
+endif
+	@./scripts/generate-cli-docs
 
 .PHONY: lint
 lint:	## Find any linting issues in the project

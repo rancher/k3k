@@ -37,7 +37,7 @@ type GenerateKubeconfigConfig struct {
 func NewKubeconfigCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "kubeconfig",
-		Short: "Manage kubeconfig for clusters",
+		Short: "Manage kubeconfig for clusters.",
 	}
 
 	cmd.AddCommand(
@@ -52,7 +52,7 @@ func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "generate",
-		Short: "Generate kubeconfig for clusters",
+		Short: "Generate kubeconfig for clusters.",
 		RunE:  generate(appCtx, cfg),
 		Args:  cobra.NoArgs,
 	}

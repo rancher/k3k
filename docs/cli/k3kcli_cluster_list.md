@@ -1,6 +1,6 @@
 ## k3kcli cluster list
 
-List all the existing cluster
+List all existing clusters.
 
 ```
 k3kcli cluster list [flags]
@@ -28,5 +28,5 @@ k3kcli cluster list [command options]
 
 ### SEE ALSO
 
-* [k3kcli cluster](k3kcli_cluster.md)	 - cluster command
+* [k3kcli cluster](k3kcli_cluster.md)	 - K3k cluster command.
 

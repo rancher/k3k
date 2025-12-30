@@ -16,7 +16,7 @@ import (
 func NewClusterListCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
-		Short:   "List all the existing cluster",
+		Short:   "List all existing clusters.",
 		Example: "k3kcli cluster list [command options]",
 		RunE:    list(appCtx),
 		Args:    cobra.NoArgs,

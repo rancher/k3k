@@ -4,13 +4,39 @@ set -eou pipefail
 
 DOCS_DIR=./docs/cli
 
-
+# Generate the raw markdown files
 go run $DOCS_DIR/genclidoc.go
 
 echo "Converting Markdown documentation to asciidoc"
 
 pandoc --from markdown --to asciidoc --lua-filter=$DOCS_DIR/convert.lua $DOCS_DIR/k3kcli.md > $DOCS_DIR/k3kcli.adoc
 echo "" >> $DOCS_DIR/k3kcli.adoc
-pandoc --from markdown --to asciidoc --lua-filter=$DOCS_DIR/convert.lua $DOCS_DIR/k3kcli_*.md >> $DOCS_DIR/k3kcli.adoc
+
+# We use an explicit list of files to keep a stable ordering
+SUBCOMMAND_FILES=(
+    "$DOCS_DIR/k3kcli_cluster.md"
+    "$DOCS_DIR/k3kcli_cluster_create.md"
+    "$DOCS_DIR/k3kcli_cluster_delete.md"
+    "$DOCS_DIR/k3kcli_cluster_list.md"
+    "$DOCS_DIR/k3kcli_kubeconfig.md"
+    "$DOCS_DIR/k3kcli_kubeconfig_generate.md"
+    "$DOCS_DIR/k3kcli_policy.md"
+    "$DOCS_DIR/k3kcli_policy_create.md"
+    "$DOCS_DIR/k3kcli_policy_delete.md"
+    "$DOCS_DIR/k3kcli_policy_list.md"
+)
+
+# Check for newly added doc files
+EXPECTED_COUNT=${#SUBCOMMAND_FILES[@]}
+ACTUAL_COUNT=$(ls -1 $DOCS_DIR/k3kcli_*.md | wc -l)
+
+if [ "$EXPECTED_COUNT" -ne "$ACTUAL_COUNT" ]; then
+    echo "ERROR: File count mismatch!"
+    echo "Expected $EXPECTED_COUNT files in the array, but found $ACTUAL_COUNT on disk."
+    echo "Please update the SUBCOMMAND_FILES array in $0"
+    exit 1
+fi
+
+pandoc --from markdown --to asciidoc --lua-filter=$DOCS_DIR/convert.lua "${SUBCOMMAND_FILES[@]}">> $DOCS_DIR/k3kcli.adoc
 
 echo "Asciidoc documentation generated at $DOCS_DIR/k3kcli.adoc"

@@ -10,6 +10,23 @@ CLI for K3K.
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
+== k3kcli cluster
+
+K3k cluster command.
+
+=== Options
+
+----
+  -h, --help   help for cluster
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
 == k3kcli cluster create
 
 Create a new cluster.
@@ -116,14 +133,14 @@ k3kcli cluster list [command options]
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli cluster
+== k3kcli kubeconfig
 
-K3k cluster command.
+Manage kubeconfig for clusters.
 
 === Options
 
 ----
-  -h, --help   help for cluster
+  -h, --help   help for kubeconfig
 ----
 
 === Options inherited from parent commands
@@ -162,14 +179,14 @@ k3kcli kubeconfig generate [flags]
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli kubeconfig
+== k3kcli policy
 
-Manage kubeconfig for clusters.
+K3k policy command.
 
 === Options
 
 ----
-  -h, --help   help for kubeconfig
+  -h, --help   help for policy
 ----
 
 === Options inherited from parent commands
@@ -256,23 +273,6 @@ k3kcli policy list [command options]
 
 ----
   -h, --help   help for list
-----
-
-=== Options inherited from parent commands
-
-----
-      --debug               Turn on debug logs
-      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
-----
-
-== k3kcli policy
-
-K3k policy command.
-
-=== Options
-
-----
-  -h, --help   help for policy
 ----
 
 === Options inherited from parent commands

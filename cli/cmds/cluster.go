@@ -7,7 +7,7 @@ import (
 func NewClusterCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cluster",
-		Short: "cluster command",
+		Short: "K3k cluster command.",
 	}
 
 	cmd.AddCommand(

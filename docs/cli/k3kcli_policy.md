@@ -1,6 +1,6 @@
 ## k3kcli policy
 
-policy command
+K3k policy command.
 
 ### Options
 
@@ -17,8 +17,8 @@ policy command
 
 ### SEE ALSO
 
-* [k3kcli](k3kcli.md)	 - CLI for K3K
-* [k3kcli policy create](k3kcli_policy_create.md)	 - Create new policy
-* [k3kcli policy delete](k3kcli_policy_delete.md)	 - Delete an existing policy
-* [k3kcli policy list](k3kcli_policy_list.md)	 - List all the existing policies
+* [k3kcli](k3kcli.md)	 - CLI for K3K.
+* [k3kcli policy create](k3kcli_policy_create.md)	 - Create a new policy.
+* [k3kcli policy delete](k3kcli_policy_delete.md)	 - Delete an existing policy.
+* [k3kcli policy list](k3kcli_policy_list.md)	 - List all existing policies.
 

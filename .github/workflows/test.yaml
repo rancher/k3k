@@ -37,6 +37,9 @@ jobs:
       with:
         go-version-file: go.mod
 
+    - name: Install Pandoc
+      run: sudo apt-get install pandoc
+
     - name: Validate
       run: make validate
 

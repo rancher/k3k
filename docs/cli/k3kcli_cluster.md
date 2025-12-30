@@ -1,6 +1,6 @@
 ## k3kcli cluster
 
-cluster command
+K3k cluster command.
 
 ### Options
 
@@ -17,8 +17,8 @@ cluster command
 
 ### SEE ALSO
 
-* [k3kcli](k3kcli.md)	 - CLI for K3K
-* [k3kcli cluster create](k3kcli_cluster_create.md)	 - Create new cluster
-* [k3kcli cluster delete](k3kcli_cluster_delete.md)	 - Delete an existing cluster
-* [k3kcli cluster list](k3kcli_cluster_list.md)	 - List all the existing cluster
+* [k3kcli](k3kcli.md)	 - CLI for K3K.
+* [k3kcli cluster create](k3kcli_cluster_create.md)	 - Create a new cluster.
+* [k3kcli cluster delete](k3kcli_cluster_delete.md)	 - Delete an existing cluster.
+* [k3kcli cluster list](k3kcli_cluster_list.md)	 - List all existing clusters.
 

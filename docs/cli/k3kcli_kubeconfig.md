@@ -1,6 +1,6 @@
 ## k3kcli kubeconfig
 
-Manage kubeconfig for clusters
+Manage kubeconfig for clusters.
 
 ### Options
 
@@ -17,6 +17,6 @@ Manage kubeconfig for clusters
 
 ### SEE ALSO
 
-* [k3kcli](k3kcli.md)	 - CLI for K3K
-* [k3kcli kubeconfig generate](k3kcli_kubeconfig_generate.md)	 - Generate kubeconfig for clusters
+* [k3kcli](k3kcli.md)	 - CLI for K3K.
+* [k3kcli kubeconfig generate](k3kcli_kubeconfig_generate.md)	 - Generate kubeconfig for clusters.
 

@@ -15,7 +15,7 @@ import (
 func NewPolicyListCmd(appCtx *AppContext) *cobra.Command {
 	return &cobra.Command{
 		Use:     "list",
-		Short:   "List all the existing policies",
+		Short:   "List all existing policies.",
 		Example: "k3kcli policy list [command options]",
 		RunE:    policyList(appCtx),
 		Args:    cobra.NoArgs,

@@ -119,10 +119,6 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1b
 	log.V(1).Info("Handling Server Pod")
 
 	if pod.DeletionTimestamp.IsZero() {
-		if err := p.updateNodeIp(ctx, &cluster, pod); err != nil {
-			return err
-		}
-
 		if controllerutil.AddFinalizer(pod, etcdPodFinalizerName) {
 			log.V(1).Info("Server Pod is being created. Adding finalizer", "pod", pod.Name, "namespace", pod.Namespace)
 
@@ -331,45 +327,4 @@ func (p *StatefulSetReconciler) listPods(ctx context.Context, sts *apps.Stateful
 	}
 
 	return &podList, nil
-}
-
-func (p *StatefulSetReconciler) updateNodeIp(ctx context.Context, cluster *v1beta1.Cluster, pod *v1.Pod) error {
-	log := ctrl.LoggerFrom(ctx)
-
-	// check if the pod's name exists as a node in the node list
-	virtualClient, err := newVirtualClient(ctx, p.Client, cluster.Name, cluster.Namespace)
-	if err != nil {
-		// ignore the error if the kubeconfig secret is not found, which indicates that the cluster is initiating
-		return ctrlruntimeclient.IgnoreNotFound(err)
-	}
-
-	var virtualNode v1.Node
-	if err := virtualClient.Get(ctx, types.NamespacedName{Name: pod.Name}, &virtualNode); err != nil {
-		// retturning nil if the pod isnt found
-		return ctrlruntimeclient.IgnoreNotFound(err)
-	}
-
-	var nodeAddress string
-
-	for i, address := range virtualNode.Status.Addresses {
-		if address.Type == v1.NodeInternalIP {
-			nodeAddress = address.Address
-			// apply the IP here to avoid reiterating on the address list
-			virtualNode.Status.Addresses[i].Address = pod.Status.PodIP
-		}
-	}
-
-	if nodeAddress == "" || pod.Status.PodIP == "" {
-		return nil
-	}
-
-	if pod.Status.PodIP != nodeAddress {
-		log.V(1).Info("Updating the node's addresses with the new pod address", "cluster", cluster, "podIP", pod.Status.PodIP)
-
-		if err := virtualClient.Status().Update(ctx, &virtualNode); err != nil {
-			return fmt.Errorf("failed to patch node status: %w", err)
-		}
-	}
-
-	return nil
 }

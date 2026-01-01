@@ -23,7 +23,7 @@ func newVirtualClient(ctx context.Context, hostClient ctrlruntimeclient.Client, 
 	}
 
 	if err := hostClient.Get(ctx, kubeconfigSecretName, &clusterKubeConfig); err != nil {
-		return nil, fmt.Errorf("failed to get kubeconfig secret: %w", err)
+		return nil, err
 	}
 
 	restConfig, err := clientcmd.RESTConfigFromKubeConfig(clusterKubeConfig.Data["kubeconfig.yaml"])

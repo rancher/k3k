@@ -417,6 +417,7 @@ func (s *Server) setupStartCommand() (string, error) {
 	var output bytes.Buffer
 
 	tmpl := StartupCommand
+
 	mode := "single"
 	if *s.cluster.Spec.Servers > 1 {
 		mode = "ha"

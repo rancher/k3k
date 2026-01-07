@@ -51,7 +51,7 @@ safe_mode() {
 	fi
 }
 
-single_server() {
+start_single_node() {
 	info "Starting single node setup..."
 
 	# checking for existing data in single server if found we must perform reset
@@ -74,7 +74,7 @@ single_server() {
 	/bin/k3s server --config {{.INIT_CONFIG}} {{.EXTRA_ARGS}} 2>&1 | tee /var/log/k3s.log
 }
 
-ha_server() {
+start_ha_node() {
 	info "Starting pod $POD_NAME in HA node setup"
 
 	if [ ${POD_NAME: -1} == 0 ] && [ ! -d "{{.ETCD_DIR}}" ]; then
@@ -92,8 +92,11 @@ ha_server() {
 	fi
 }
 
-if [ {{.ORCHESTRATION_MODE}} == "ha" ]; then
-	ha_server
-else
-	single_server
-fi`
+case "{{.CLUSTER_MODE}}" in
+    "ha")
+        start_ha_node
+        ;;
+    "single"|*)
+        start_single_node
+        ;;
+esac`

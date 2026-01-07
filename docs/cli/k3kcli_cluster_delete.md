@@ -1,6 +1,6 @@
 ## k3kcli cluster delete
 
-Delete an existing cluster
+Delete an existing cluster.
 
 ```
 k3kcli cluster delete [flags]
@@ -29,5 +29,5 @@ k3kcli cluster delete [command options] NAME
 
 ### SEE ALSO
 
-* [k3kcli cluster](k3kcli_cluster.md)	 - cluster command
+* [k3kcli cluster](k3kcli_cluster.md)	 - K3k cluster command.
 

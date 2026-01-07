@@ -1,6 +1,6 @@
 ## k3kcli
 
-CLI for K3K
+CLI for K3K.
 
 ### Options
 
@@ -12,7 +12,7 @@ CLI for K3K
 
 ### SEE ALSO
 
-* [k3kcli cluster](k3kcli_cluster.md)	 - cluster command
-* [k3kcli kubeconfig](k3kcli_kubeconfig.md)	 - Manage kubeconfig for clusters
-* [k3kcli policy](k3kcli_policy.md)	 - policy command
+* [k3kcli cluster](k3kcli_cluster.md)	 - K3k cluster command.
+* [k3kcli kubeconfig](k3kcli_kubeconfig.md)	 - Manage kubeconfig for clusters.
+* [k3kcli policy](k3kcli_policy.md)	 - K3k policy command.
 

@@ -1,0 +1,283 @@
+== k3kcli
+
+CLI for K3K.
+
+=== Options
+
+----
+      --debug               Turn on debug logs
+  -h, --help                help for k3kcli
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli cluster
+
+K3k cluster command.
+
+=== Options
+
+----
+  -h, --help   help for cluster
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli cluster create
+
+Create a new cluster.
+
+----
+k3kcli cluster create [flags]
+----
+
+=== Examples
+
+----
+k3kcli cluster create [command options] NAME
+----
+
+=== Options
+
+----
+      --agent-args strings            agents extra arguments
+      --agent-envs strings            agents extra Envs
+      --agents int                    number of agents
+      --annotations stringArray       Annotations to add to the cluster object (e.g. key=value)
+      --cluster-cidr string           cluster CIDR
+      --custom-certs string           The path for custom certificate directory
+  -h, --help                          help for create
+      --kubeconfig-server string      override the kubeconfig server host
+      --labels stringArray            Labels to add to the cluster object (e.g. key=value)
+      --mirror-host-nodes             Mirror Host Cluster Nodes
+      --mode string                   k3k mode type (shared, virtual) (default "shared")
+  -n, --namespace string              namespace of the k3k cluster
+      --persistence-type string       persistence mode for the nodes (dynamic, ephemeral) (default "dynamic")
+      --policy string                 The policy to create the cluster in
+      --server-args strings           servers extra arguments
+      --server-envs strings           servers extra Envs
+      --servers int                   number of servers (default 1)
+      --service-cidr string           service CIDR
+      --storage-class-name string     storage class name for dynamic persistence type
+      --storage-request-size string   storage size for dynamic persistence type
+      --timeout duration              The timeout for waiting for the cluster to become ready (e.g., 10s, 5m, 1h). (default 3m0s)
+      --token string                  token of the cluster
+      --version string                k3s version
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli cluster delete
+
+Delete an existing cluster.
+
+----
+k3kcli cluster delete [flags]
+----
+
+=== Examples
+
+----
+k3kcli cluster delete [command options] NAME
+----
+
+=== Options
+
+----
+  -h, --help               help for delete
+      --keep-data          keeps persistence volumes created for the cluster after deletion
+  -n, --namespace string   namespace of the k3k cluster
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli cluster list
+
+List all existing clusters.
+
+----
+k3kcli cluster list [flags]
+----
+
+=== Examples
+
+----
+k3kcli cluster list [command options]
+----
+
+=== Options
+
+----
+  -h, --help               help for list
+  -n, --namespace string   namespace of the k3k cluster
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli kubeconfig
+
+Manage kubeconfig for clusters.
+
+=== Options
+
+----
+  -h, --help   help for kubeconfig
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli kubeconfig generate
+
+Generate kubeconfig for clusters.
+
+----
+k3kcli kubeconfig generate [flags]
+----
+
+=== Options
+
+----
+      --altNames strings           altNames of the generated certificates for the kubeconfig
+      --cn string                  Common name (CN) of the generated certificates for the kubeconfig (default "system:admin")
+      --config-name string         the name of the generated kubeconfig file
+      --expiration-days int        Expiration date of the certificates used for the kubeconfig (default 365)
+  -h, --help                       help for generate
+      --kubeconfig-server string   override the kubeconfig server host
+      --name string                cluster name
+  -n, --namespace string           namespace of the k3k cluster
+      --org strings                Organization name (ORG) of the generated certificates for the kubeconfig
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli policy
+
+K3k policy command.
+
+=== Options
+
+----
+  -h, --help   help for policy
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli policy create
+
+Create a new policy.
+
+----
+k3kcli policy create [flags]
+----
+
+=== Examples
+
+----
+k3kcli policy create [command options] NAME
+----
+
+=== Options
+
+----
+      --annotations stringArray   Annotations to add to the policy object (e.g. key=value)
+  -h, --help                      help for create
+      --labels stringArray        Labels to add to the policy object (e.g. key=value)
+      --mode string               The allowed mode type of the policy (default "shared")
+      --namespace strings         The namespaces where to bind the policy
+      --overwrite                 Overwrite namespace binding of existing policy
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli policy delete
+
+Delete an existing policy.
+
+----
+k3kcli policy delete [flags]
+----
+
+=== Examples
+
+----
+k3kcli policy delete [command options] NAME
+----
+
+=== Options
+
+----
+  -h, --help   help for delete
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----
+
+== k3kcli policy list
+
+List all existing policies.
+
+----
+k3kcli policy list [flags]
+----
+
+=== Examples
+
+----
+k3kcli policy list [command options]
+----
+
+=== Options
+
+----
+  -h, --help   help for list
+----
+
+=== Options inherited from parent commands
+
+----
+      --debug               Turn on debug logs
+      --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
+----

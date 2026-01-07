@@ -30,7 +30,7 @@ func NewPolicyCreateCmd(appCtx *AppContext) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "create",
-		Short:   "Create new policy",
+		Short:   "Create a new policy.",
 		Example: "k3kcli policy create [command options] NAME",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			switch config.mode {

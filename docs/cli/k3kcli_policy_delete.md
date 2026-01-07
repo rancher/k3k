@@ -1,6 +1,6 @@
 ## k3kcli policy delete
 
-Delete an existing policy
+Delete an existing policy.
 
 ```
 k3kcli policy delete [flags]
@@ -27,5 +27,5 @@ k3kcli policy delete [command options] NAME
 
 ### SEE ALSO
 
-* [k3kcli policy](k3kcli_policy.md)	 - policy command
+* [k3kcli policy](k3kcli_policy.md)	 - K3k policy command.
 

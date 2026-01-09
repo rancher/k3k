@@ -10,7 +10,7 @@ GINKGO_VERSION ?= v2.21.0
 GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
 ENVTEST_K8S_VERSION := 1.31.0
-CRD_REF_DOCS_VER ?= v0.1.0
+CRD_REF_DOCS_VER ?= v0.2.0
 
 GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GINKGO ?= go run github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
@@ -91,7 +91,13 @@ docs-crds:	## Build the CRDs docs
 	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml \
 		--renderer=markdown \
 		--source-path=./pkg/apis/k3k.io/v1beta1 \
-		--output-path=./docs/crds/crd-docs.md
+		--output-path=./docs/crds/crds.md
+
+	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml \
+		--renderer=asciidoctor \
+		--templates-dir=./docs/crds/templates/asciidoctor \
+		--source-path=./pkg/apis/k3k.io/v1beta1 \
+		--output-path=./docs/crds/crds.adoc
 
 .PHONY: docs-cli
 docs-cli:	## Build the CLI docs

@@ -3,8 +3,8 @@
 This guide walks through the various ways to create and manage virtual clusters in K3K. We'll cover common use cases using both the **Custom Resource Definitions (CRDs)** and the **K3K CLI**, so you can choose the method that fits your workflow.
 
 > 📘 For full reference:  
-> - [CRD Reference Documentation](../crds/crd-docs.md)  
-> - [CLI Reference Documentation](../cli/cli-docs.md)  
+> - [CRD Reference Documentation](../crds/crds.md)  
+> - [CLI Reference Documentation](../cli/k3kcli.md)  
 > - [Full example](../advanced-usage.md)
 
 > [!NOTE]

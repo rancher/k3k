@@ -416,9 +416,11 @@ func (s *Server) setupDynamicPersistence() v1.PersistentVolumeClaim {
 func (s *Server) setupStartCommand() (string, error) {
 	var output bytes.Buffer
 
-	tmpl := singleServerTemplate
+	tmpl := StartupCommand
+
+	mode := "single"
 	if *s.cluster.Spec.Servers > 1 {
-		tmpl = HAServerTemplate
+		mode = "ha"
 	}
 
 	tmplCmd, err := template.New("").Parse(tmpl)
@@ -430,6 +432,8 @@ func (s *Server) setupStartCommand() (string, error) {
 		"ETCD_DIR":      "/var/lib/rancher/k3s/server/db/etcd",
 		"INIT_CONFIG":   "/opt/rancher/k3s/init/config.yaml",
 		"SERVER_CONFIG": "/opt/rancher/k3s/server/config.yaml",
+		"CLUSTER_MODE":  mode,
+		"K3K_MODE":      string(s.cluster.Spec.Mode),
 		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
 	}); err != nil {
 		return "", err

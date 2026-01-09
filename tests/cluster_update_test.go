@@ -127,6 +127,11 @@ var _ = When("a shared mode cluster update its envs", Label(e2eTestLabel), Label
 			serverPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(serverPods)).To(Equal(1))
 
+			serverPod := serverPods[0]
+			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+
 			serverEnv1, ok := getEnv(&serverPods[0], "TEST_SERVER_ENV_1")
 			g.Expect(ok).To(BeTrue())
 			g.Expect(serverEnv1).To(Equal("upgraded"))
@@ -144,6 +149,11 @@ var _ = When("a shared mode cluster update its envs", Label(e2eTestLabel), Label
 
 			aPods := listAgentPods(ctx, virtualCluster)
 			g.Expect(aPods).To(HaveLen(len(nodes.Items)))
+
+			agentPod := aPods[0]
+			_, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
 			agentEnv1, ok := getEnv(&aPods[0], "TEST_AGENT_ENV_1")
 			g.Expect(ok).To(BeTrue())
@@ -212,6 +222,11 @@ var _ = When("a shared mode cluster update its server args", Label(e2eTestLabel)
 			// server pods
 			sPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(sPods)).To(Equal(1))
+
+			serverPod := sPods[0]
+			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
 			g.Expect(isArgFound(&sPods[0], "--node-label=test_server=upgraded")).To(BeTrue())
 		}).
@@ -330,6 +345,11 @@ var _ = When("a virtual mode cluster update its envs", Label(e2eTestLabel), Labe
 			serverPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(serverPods)).To(Equal(1))
 
+			serverPod := serverPods[0]
+			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+
 			serverEnv1, ok := getEnv(&serverPods[0], "TEST_SERVER_ENV_1")
 			g.Expect(ok).To(BeTrue())
 			g.Expect(serverEnv1).To(Equal("upgraded"))
@@ -344,6 +364,11 @@ var _ = When("a virtual mode cluster update its envs", Label(e2eTestLabel), Labe
 			// agent pods
 			aPods := listAgentPods(ctx, virtualCluster)
 			g.Expect(len(aPods)).To(Equal(1))
+
+			agentPod := aPods[0]
+			_, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
 			agentEnv1, ok := getEnv(&aPods[0], "TEST_AGENT_ENV_1")
 			g.Expect(ok).To(BeTrue())
@@ -415,6 +440,11 @@ var _ = When("a virtual mode cluster update its server args", Label(e2eTestLabel
 			// server pods
 			sPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(sPods)).To(Equal(1))
+
+			serverPod := sPods[0]
+			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
 			g.Expect(isArgFound(&sPods[0], "--node-label=test_server=upgraded")).To(BeTrue())
 		}).

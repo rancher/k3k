@@ -120,7 +120,7 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1b
 
 	if pod.DeletionTimestamp.IsZero() {
 		if controllerutil.AddFinalizer(pod, etcdPodFinalizerName) {
-			log.V(1).Info("Server Pod is being deleted. Removing finalizer", "pod", pod.Name, "namespace", pod.Namespace)
+			log.V(1).Info("Server Pod is being created. Adding finalizer", "pod", pod.Name, "namespace", pod.Namespace)
 
 			return p.Client.Update(ctx, pod)
 		}

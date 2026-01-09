@@ -4,7 +4,7 @@ This document provides advanced usage information for k3k, including detailed us
 
 ## Customizing the Cluster Resource
 
-The `Cluster` resource provides a variety of fields for customizing the behavior of your virtual clusters. You can check the [CRD documentation](./crds/crd-docs.md) for the full specs.
+The `Cluster` resource provides a variety of fields for customizing the behavior of your virtual clusters. You can check the [CRD documentation](./crds/crds.md) for the full specs.
 
 **Note:** Most of these customization options can also be configured using the `k3kcli` tool. Refer to the [k3kcli](./cli/k3kcli.md) documentation for more details.
 
@@ -115,7 +115,7 @@ The `serverArgs` field allows you to specify additional arguments to be passed t
 
 ## Using the cli
 
-You can check the [k3kcli documentation](./cli/cli-docs.md) for the full specs.
+You can check the [k3kcli documentation](./cli/k3kcli.md) for the full specs.
 
 ### No storage provider:
 

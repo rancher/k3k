@@ -104,7 +104,7 @@ Common use cases for administrators leveraging VirtualClusterPolicy include:
 
 The K3k controller actively monitors VirtualClusterPolicy resources and the corresponding Namespace bindings. When a VCP is applied or updated, the controller ensures that the defined configurations are enforced on the relevant virtual clusters and their associated resources within the targeted Namespaces.
 
-For a deep dive into what VirtualClusterPolicy can do, along with more examples, check out the [VirtualClusterPolicy Concepts](./virtualclusterpolicy.md) page. For a full list of all the spec fields, see the [API Reference for VirtualClusterPolicy](./crds/crd-docs.md#virtualclusterpolicy).
+For a deep dive into what VirtualClusterPolicy can do, along with more examples, check out the [VirtualClusterPolicy Concepts](./virtualclusterpolicy.md) page. For a full list of all the spec fields, see the [API Reference for VirtualClusterPolicy](./crds/crds.md#virtualclusterpolicy).
 
 
 ## Comparison and Trade-offs

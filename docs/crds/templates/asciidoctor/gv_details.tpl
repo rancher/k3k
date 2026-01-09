@@ -6,7 +6,7 @@
 {{ $gv.Doc }}
 
 {{- if $gv.Kinds  }}
-.Resource Types
+=== Resource Types
 {{- range $gv.SortedKinds }}
 - {{ $gv.TypeForKind . | asciidocRenderTypeLink }}
 {{- end }}

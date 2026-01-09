@@ -4,7 +4,7 @@
 :page-revdate: {revdate}
 :anchor_prefix: k8s-api
 
-.Packages
+== Packages
 - xref:{anchor_prefix}-k3k-io-v1beta1[$$k3k.io/v1beta1$$]
 
 
@@ -12,7 +12,7 @@
 == k3k.io/v1beta1
 
 
-.Resource Types
+=== Resource Types
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-cluster[$$Cluster$$]
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterlist[$$ClusterList$$]
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicy[$$VirtualClusterPolicy$$]
@@ -29,10 +29,9 @@ Addon specifies a Secret containing YAML to be deployed on cluster startup.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -53,10 +52,9 @@ k3k uses this to provision and manage these virtual clusters.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterlist[$$ClusterList$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterlist[$$ClusterList$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -98,14 +96,13 @@ _Underlying type:_ _string_
 
 ClusterMode is the possible provisioning mode of a Cluster.
 
-.Validation:
+_Validation:_
 - Enum: [shared virtual]
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicyspec[$$VirtualClusterPolicySpec$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicyspec[$$VirtualClusterPolicySpec$$]
 
 
 
@@ -118,10 +115,9 @@ ClusterPhase is a high-level summary of the cluster's current lifecycle state.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterstatus[$$ClusterStatus$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterstatus[$$ClusterStatus$$]
 
 
 
@@ -134,10 +130,9 @@ ClusterSpec defines the desired state of a virtual Kubernetes cluster.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-cluster[$$Cluster$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-cluster[$$Cluster$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -201,10 +196,9 @@ ConfigMapSyncConfig specifies the sync options for services.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -225,10 +219,9 @@ It can represent either a TLS key pair or a single private key.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsources[$$CredentialSources$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsources[$$CredentialSources$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -250,10 +243,9 @@ TLS key pairs and single signing keys.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customcas[$$CustomCAs$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customcas[$$CustomCAs$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -276,10 +268,9 @@ CustomCAs specifies the cert/key pairs for custom CA certificates.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -298,10 +289,9 @@ ExposeConfig specifies options for exposing the API server.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -321,10 +311,9 @@ IngressConfig specifies options for exposing the API server through an Ingress.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-exposeconfig[$$ExposeConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-exposeconfig[$$ExposeConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -343,10 +332,9 @@ IngressSyncConfig specifies the sync options for services.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -366,10 +354,9 @@ LoadBalancerConfig specifies options for exposing the API server through a LoadB
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-exposeconfig[$$ExposeConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-exposeconfig[$$ExposeConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -392,10 +379,9 @@ NodePortConfig specifies options for exposing the API server through NodePort.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-exposeconfig[$$ExposeConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-exposeconfig[$$ExposeConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -418,10 +404,9 @@ PersistenceConfig specifies options for persisting etcd data.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -443,10 +428,9 @@ PersistenceMode is the storage mode of a Cluster.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-persistenceconfig[$$PersistenceConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-persistenceconfig[$$PersistenceConfig$$]
 
 
 
@@ -459,10 +443,9 @@ PersistentVolumeClaimSyncConfig specifies the sync options for services.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -480,13 +463,12 @@ _Underlying type:_ _string_
 
 PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.
 
-.Validation:
+_Validation:_
 - Enum: [privileged baseline restricted]
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicyspec[$$VirtualClusterPolicySpec$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicyspec[$$VirtualClusterPolicySpec$$]
 
 
 
@@ -499,10 +481,9 @@ PriorityClassSyncConfig specifies the sync options for services.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -522,10 +503,9 @@ SecretSyncConfig specifies the sync options for services.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -545,10 +525,9 @@ ServiceSyncConfig specifies the sync options for services.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -568,11 +547,10 @@ SyncConfig will contain the resources that should be synced from virtual cluster
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicyspec[$$VirtualClusterPolicySpec$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicyspec[$$VirtualClusterPolicySpec$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -596,10 +574,9 @@ for clusters within a clusterpolicy.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicylist[$$VirtualClusterPolicyList$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicylist[$$VirtualClusterPolicyList$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -643,10 +620,9 @@ VirtualClusterPolicySpec defines the desired state of a VirtualClusterPolicy.
 
 
 
-.Appears In:
-****
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicy[$$VirtualClusterPolicy$$]
-****
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicy[$$VirtualClusterPolicy$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===

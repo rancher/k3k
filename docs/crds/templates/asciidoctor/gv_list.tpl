@@ -7,7 +7,7 @@
 :page-revdate: {revdate}
 :anchor_prefix: k8s-api
 
-.Packages
+== Packages
 {{- range $groupVersions }}
 - {{ asciidocRenderGVLink . }}
 {{- end }}

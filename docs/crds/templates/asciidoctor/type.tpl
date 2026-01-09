@@ -10,19 +10,17 @@
 {{ $type.Doc }}
 
 {{ if $type.Validation -}}
-.Validation:
+_Validation:_
 {{- range $type.Validation }}
 - {{ . }}
 {{- end }}
 {{- end }}
 
 {{ if $type.References -}}
-.Appears In:
-****
-{{- range $type.SortedReferences }}
-- {{ asciidocRenderTypeLink . }}
+_Appears In:_
+{{ range $type.SortedReferences }}
+* {{ asciidocRenderTypeLink . }}
 {{- end }}
-****
 {{- end }}
 
 {{ if $type.Members -}}

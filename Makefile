@@ -95,6 +95,7 @@ docs-crds:	## Build the CRDs docs
 
 	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml \
 		--renderer=asciidoctor \
+		--templates-dir=./docs/crds/templates/asciidoctor \
 		--source-path=./pkg/apis/k3k.io/v1beta1 \
 		--output-path=./docs/crds/crds.adoc
 

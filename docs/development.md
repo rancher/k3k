@@ -11,6 +11,18 @@ To start developing K3k you will need:
 - A running Kubernetes cluster
 
 
+> [!IMPORTANT]
+> 
+> Virtual clusters in shared mode need to have a configured storage provider, unless the `--persistence-type ephemeral` flag is used.
+> 
+> To install the [`local-path-provisioner`](https://github.com/rancher/local-path-provisioner) and set it as the default storage class you can run:
+> 
+> ```
+> kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.34/deploy/local-path-storage.yaml
+> kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+> ```
+
+
 ### TLDR
 
 ```shell
@@ -43,9 +55,13 @@ To see all the available Make commands you can run `make help`, i.e:
   test-controller                Run the controller tests (pkg/controller)
   test-kubelet-controller        Run the controller tests (pkg/controller)
   test-e2e                       Run the e2e tests
+  test-cli                       Run the cli tests
   generate                       Generate the CRDs specs
   docs                           Build the CRDs and CLI docs
+  docs-crds                      Build the CRDs docs
+  docs-cli                       Build the CLI docs
   lint                           Find any linting issues in the project
+  fmt                            Format source files in the project
   validate                       Validate the project checking for any dependency or doc mismatch
   install                        Install K3k with Helm on the targeted Kubernetes cluster
   help                           Show this help.
@@ -80,7 +96,20 @@ Once you have your images available you can install K3k with the `make install` 
 
 ## Tests
 
-To run the tests you can just run `make test`, or one of the other available "sub-tests" targets (`test-unit`, `test-controller`, `test-e2e`).
+To run the tests you can just run `make test`, or one of the other available "sub-tests" targets (`test-unit`, `test-controller`, `test-e2e`, `test-cli`).
+
+When running the tests the namespaces used are cleaned up. If you want to keep them to debug you can use the `KEEP_NAMESPACES`, i.e.:
+
+```
+KEEP_NAMESPACES=true make test-e2e
+```
+
+The e2e and cli tests run against the cluster configured in your KUBECONFIG environment variable. Running the tests with the `K3K_DOCKER_INSTALL` environment variable set will use `tescontainers` instead:
+
+```
+K3K_DOCKER_INSTALL=true make test-e2e
+```
+
 
 We use [Ginkgo](https://onsi.github.io/ginkgo/), and [`envtest`](https://book.kubebuilder.io/reference/envtest) for testing the controllers.
 
@@ -153,3 +182,7 @@ Last thing to do is to get the kubeconfig to connect to the virtual cluster we'v
 ```bash
 k3kcli kubeconfig generate --name mycluster --namespace k3k-mycluster --kubeconfig-server localhost:30001
 ```
+
+
+> [!IMPORTANT]
+> Because of technical limitation is not possible to create virtual clusters in `virtual` mode with K3d, or any other dockerized environment (Kind, Minikube)

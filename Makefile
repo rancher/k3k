@@ -111,7 +111,7 @@ lint:	## Find any linting issues in the project
 	$(GOLANGCI_LINT) run --timeout=5m
 
 .PHONY: fmt
-fmt:	## Find any linting issues in the project
+fmt:	## Format source files in the project
 	$(GOLANGCI_LINT) fmt ./...
 
 .PHONY: validate

@@ -265,7 +265,7 @@ func (k *kubelet) start(ctx context.Context) {
 
 func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
-		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, cfg.ClusterNamespace, cfg.ClusterName, cfg.ServerIP, k.dnsIP)
+		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, cfg.ClusterNamespace, cfg.ClusterName, cfg.ServerIP, k.dnsIP, cfg.AgentHostname)
 		if err != nil {
 			return nil, nil, errors.New("unable to make nodeutil provider: " + err.Error())
 		}

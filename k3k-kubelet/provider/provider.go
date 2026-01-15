@@ -35,7 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	compbasemetrics "k8s.io/component-base/metrics"
-	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
+	v1alpha1stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 
 	"github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider/collectors"
@@ -60,12 +60,13 @@ type Provider struct {
 	ClusterName      string
 	serverIP         string
 	dnsIP            string
+	agentHostname    string
 	logger           logr.Logger
 }
 
 var ErrRetryTimeout = errors.New("provider timed out")
 
-func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger logr.Logger, namespace, name, serverIP, dnsIP string) (*Provider, error) {
+func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger logr.Logger, namespace, name, serverIP, dnsIP, agentHostname string) (*Provider, error) {
 	coreClient, err := cv1.NewForConfig(&hostConfig)
 	if err != nil {
 		return nil, err
@@ -88,6 +89,7 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger log
 		logger:           logger.WithValues("cluster", name),
 		serverIP:         serverIP,
 		dnsIP:            dnsIP,
+		agentHostname:    agentHostname,
 	}
 
 	return &p, nil
@@ -225,46 +227,34 @@ func (p *Provider) AttachToContainer(ctx context.Context, namespace, name, conta
 }
 
 // GetStatsSummary gets the stats for the node, including running pods
-func (p *Provider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
+func (p *Provider) GetStatsSummary(ctx context.Context) (*v1alpha1stats.Summary, error) {
 	p.logger.V(1).Info("GetStatsSummary")
 
-	nodeList := &corev1.NodeList{}
-	if err := p.CoreClient.RESTClient().Get().Resource("nodes").Do(ctx).Into(nodeList); err != nil {
+	node, err := p.CoreClient.Nodes().Get(ctx, p.agentHostname, metav1.GetOptions{})
+	if err != nil {
 		p.logger.Error(err, "Unable to get nodes of cluster")
 		return nil, err
 	}
 
-	// fetch the stats from all the nodes
-	var (
-		nodeStats    stats.NodeStats
-		allPodsStats []stats.PodStats
-	)
-
-	for _, n := range nodeList.Items {
-		res, err := p.CoreClient.RESTClient().
-			Get().
-			Resource("nodes").
-			Name(n.Name).
-			SubResource("proxy").
-			Suffix("stats/summary").
-			DoRaw(ctx)
-		if err != nil {
-			p.logger.Error(err, "Unable to get stats/summary from cluster node", "node", n.Name)
-			return nil, err
-		}
-
-		stats := &stats.Summary{}
-		if err := json.Unmarshal(res, stats); err != nil {
-			p.logger.Error(err, "Error unmarshaling stats/summary from cluster node", "node", n.Name)
-			return nil, err
-		}
-
-		// TODO: we should probably calculate somehow the node stats from the different nodes of the host
-		// or reflect different nodes from the virtual kubelet.
-		// For the moment let's just pick one random node stats.
-		nodeStats = stats.Node
-		allPodsStats = append(allPodsStats, stats.Pods...)
+	res, err := p.CoreClient.RESTClient().
+		Get().
+		Resource("nodes").
+		Name(node.Name).
+		SubResource("proxy").
+		Suffix("stats/summary").
+		DoRaw(ctx)
+	if err != nil {
+		p.logger.Error(err, "Unable to get stats/summary from cluster node", "node", node.Name)
+		return nil, err
 	}
+
+	var statsSummary v1alpha1stats.Summary
+	if err := json.Unmarshal(res, &statsSummary); err != nil {
+		p.logger.Error(err, "Error unmarshaling stats/summary from cluster node", "node", node.Name)
+		return nil, err
+	}
+
+	nodeStats := statsSummary.Node
 
 	pods, err := p.GetPods(ctx)
 	if err != nil {
@@ -279,12 +269,12 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) 
 		podsNameMap[hostPodName] = pod
 	}
 
-	filteredStats := &stats.Summary{
+	filteredStats := &v1alpha1stats.Summary{
 		Node: nodeStats,
-		Pods: make([]stats.PodStats, 0),
+		Pods: make([]v1alpha1stats.PodStats, 0),
 	}
 
-	for _, podStat := range allPodsStats {
+	for _, podStat := range statsSummary.Pods {
 		// skip pods that are not in the cluster namespace
 		if podStat.PodRef.Namespace != p.ClusterNamespace {
 			continue
@@ -292,7 +282,7 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) 
 
 		// rewrite the PodReference to match the data of the virtual cluster
 		if pod, found := podsNameMap[podStat.PodRef.Name]; found {
-			podStat.PodRef = stats.PodReference{
+			podStat.PodRef = v1alpha1stats.PodReference{
 				Name:      pod.Name,
 				Namespace: pod.Namespace,
 				UID:       string(pod.UID),
@@ -408,8 +398,8 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 
 	logger = logger.WithValues("pod", hostPod.Name)
 
-	// the node was scheduled on the virtual kubelet, but leaving it this way will make it pending indefinitely
-	hostPod.Spec.NodeName = ""
+	// Schedule the host pod in the same host node of the virtual kubelet
+	hostPod.Spec.NodeName = p.agentHostname
 
 	hostPod.Spec.NodeSelector = cluster.Spec.NodeSelector
 

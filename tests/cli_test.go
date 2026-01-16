@@ -60,7 +60,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				DeleteNamespaces(namespace.Name)
 			})
 
-			_, stderr, err = K3kcli("cluster", "create", clusterName)
+			_, stderr, err = K3kcli("cluster", "create", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
@@ -216,15 +216,15 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				DeleteNamespaces(clusterNamespace)
 			})
 
-			_, stderr, err = K3kcli("cluster", "create", clusterName)
+			_, stderr, err = K3kcli("cluster", "create", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
-			_, stderr, err = K3kcli("kubeconfig", "generate", "--name", clusterName)
+			_, stderr, err = K3kcli("kubeconfig", "generate", "--namespace", clusterNamespace, "--name", clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
-			_, stderr, err = K3kcli("cluster", "delete", clusterName)
+			_, stderr, err = K3kcli("cluster", "delete", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring(`Deleting '%s' cluster in namespace '%s'`, clusterName, clusterNamespace))
 		})

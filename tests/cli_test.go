@@ -69,7 +69,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stderr).To(BeEmpty())
 			Expect(stdout).To(ContainSubstring(clusterNamespace))
 
-			_, stderr, err = K3kcli("cluster", "delete", clusterName)
+			_, stderr, err = K3kcli("cluster", "delete", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring(`Deleting '%s' cluster in namespace '%s'`, clusterName, clusterNamespace))
 

@@ -5,7 +5,7 @@ VERSION ?= $(shell git describe --tags --always --dirty --match="v[0-9]*")
 
 ## Dependencies
 
-GOLANGCI_LINT_VERSION := v2.3.0
+GOLANGCI_LINT_VERSION := v2.7.2
 GINKGO_VERSION ?= v2.21.0
 GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
@@ -112,13 +112,16 @@ lint:	## Find any linting issues in the project
 
 .PHONY: fmt
 fmt:	## Format source files in the project
+ifndef CI
 	$(GOLANGCI_LINT) fmt ./...
+endif
 
 .PHONY: validate
 validate: generate docs fmt ## Validate the project checking for any dependency or doc mismatch
 	$(GINKGO) unfocus
 	go mod tidy
-	git status --porcelain
+	go mod verify
+	git status --porcelain 
 	git --no-pager diff --exit-code
 
 .PHONY: install

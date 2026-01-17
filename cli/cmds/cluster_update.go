@@ -1,10 +1,13 @@
 package cmds
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -27,15 +30,12 @@ import (
 type UpdateConfig struct {
 	servers              int
 	agents               int
-	serverArgs           []string
-	agentArgs            []string
-	serverEnvs           []string
-	agentEnvs            []string
 	labels               []string
 	annotations          []string
 	version              string
 	kubeconfigServerHost string
 	timeout              time.Duration
+	skipInteractive      bool
 }
 
 func NewClusterUpdateCmd(appCtx *AppContext) *cobra.Command {
@@ -101,32 +101,35 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			}
 		}
 
+		oldClusterDetails, err := getClusterDetails(&virtualCluster)
+		if err != nil {
+			return fmt.Errorf("failed to get cluster details: %w", err)
+		}
+
 		logrus.Infof("Updating cluster '%s' in namespace '%s'", name, namespace)
 
 		virtualCluster.Spec.Servers = ptr.To(int32(config.servers))
 		virtualCluster.Spec.Agents = ptr.To(int32(config.agents))
-		virtualCluster.Spec.ServerArgs = config.serverArgs
-		virtualCluster.Spec.AgentArgs = config.agentArgs
 		virtualCluster.Spec.Version = config.version
-		virtualCluster.Labels = parseKeyValuePairs(config.labels, "label")
-		virtualCluster.Annotations = parseKeyValuePairs(config.annotations, "annotation")
+		maps.Copy(virtualCluster.Labels, parseKeyValuePairs(config.labels, "label"))
+		maps.Copy(virtualCluster.Annotations, parseKeyValuePairs(config.annotations, "annotation"))
+
+		clusterDetails, err := getClusterDetails(&virtualCluster)
+		if err != nil {
+			return fmt.Errorf("failed to get cluster details: %w", err)
+		}
+
+		if !config.skipInteractive {
+			if !confirmClusterUpdate(oldClusterDetails, clusterDetails) {
+				return nil
+			}
+		}
 
 		if err := client.Update(ctx, &virtualCluster); err != nil {
 			return err
 		}
 
-		clusterDetails, err := printClusterDetails(&virtualCluster)
-		if err != nil {
-			return fmt.Errorf("failed to print cluster details: %w", err)
-		}
-
 		logrus.Info(clusterDetails)
-
-		logrus.Infof("Waiting for cluster to be available..")
-
-		if err := waitForClusterReady(ctx, client, &virtualCluster, config.timeout); err != nil {
-			return fmt.Errorf("failed to wait for cluster to become ready (status: %s): %w", virtualCluster.Status.Phase, err)
-		}
 
 		logrus.Infof("Extracting Kubeconfig for '%s' cluster", name)
 
@@ -163,4 +166,25 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 		return writeKubeconfigFile(&virtualCluster, kubeconfig, "")
 	}
+}
+
+func confirmClusterUpdate(oldClusterDetails, clusterDetails string) bool {
+	r := bufio.NewReader(os.Stdin)
+
+	logrus.Infof("Current %v\n\nNew %v\n\n", oldClusterDetails, clusterDetails)
+
+	fmt.Printf("Do you want to update the cluster? [y/N]: ")
+
+	res, err := r.ReadString('\n')
+	if err != nil {
+		logrus.Fatalf("unable to read string: %v", err)
+	}
+
+	fmt.Printf("\n")
+
+	if len(res) < 2 {
+		return false
+	}
+
+	return strings.ToLower(strings.TrimSpace(res))[0] == 'y'
 }

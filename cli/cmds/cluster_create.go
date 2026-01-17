@@ -148,9 +148,9 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return fmt.Errorf("failed to wait for cluster to be reconciled: %w", err)
 		}
 
-		clusterDetails, err := printClusterDetails(cluster)
+		clusterDetails, err := getClusterDetails(cluster)
 		if err != nil {
-			return fmt.Errorf("failed to print cluster details: %w", err)
+			return fmt.Errorf("failed to get cluster details: %w", err)
 		}
 
 		logrus.Info(clusterDetails)
@@ -401,7 +401,7 @@ const clusterDetailsTemplate = `Cluster details:
     StorageClass: {{ .Persistence.StorageClassName }}{{ end }}{{ if .Persistence.StorageRequestSize }}
     Size: {{ .Persistence.StorageRequestSize }}{{ end }}`
 
-func printClusterDetails(cluster *v1beta1.Cluster) (string, error) {
+func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 	type templateData struct {
 		Mode        v1beta1.ClusterMode
 		Servers     int32

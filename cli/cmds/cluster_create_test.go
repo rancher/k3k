@@ -87,7 +87,7 @@ func Test_printClusterDetails(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			clusterDetails, err := printClusterDetails(tt.cluster)
+			clusterDetails, err := getClusterDetails(tt.cluster)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, clusterDetails)
 		})

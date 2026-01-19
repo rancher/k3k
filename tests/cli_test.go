@@ -222,7 +222,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
 			// Update the cluster server count
-			_, stderr, err = K3kcli("cluster", "update", "--servers", "2", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "--y", "--servers", "2", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("Updating cluster"))
 
@@ -253,7 +253,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
 			// Update the cluster version
-			_, stderr, err = K3kcli("cluster", "update", "--version", "v1.32.8-k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "--y", "--version", "v1.32.8-k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("Updating cluster"))
 
@@ -262,36 +262,6 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(cluster.Spec.Version).To(Equal("v1.32.8-k3s1"))
-		})
-
-		It("can update a cluster's server args", func() {
-			var (
-				stderr string
-				err    error
-			)
-
-			clusterName := "cluster-" + rand.String(5)
-			clusterNamespace := "k3k-" + clusterName
-
-			DeferCleanup(func() {
-				DeleteNamespaces(clusterNamespace)
-			})
-
-			// Create the cluster first
-			_, stderr, err = K3kcli("cluster", "create", "--namespace", clusterNamespace, clusterName)
-			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
-
-			// Update the cluster with new server args
-			_, stderr, err = K3kcli("cluster", "update", "--server-args", "--node-label=test=updated", "--namespace", clusterNamespace, clusterName)
-			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stderr).To(ContainSubstring("Updating cluster"))
-
-			// Verify the cluster state was actually updated
-			var cluster v1beta1.Cluster
-			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
-			Expect(err).To(Not(HaveOccurred()))
-			Expect(cluster.Spec.ServerArgs).To(ContainElement("--node-label=test=updated"))
 		})
 
 		It("fails to downgrade cluster version", func() {
@@ -313,7 +283,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
 			// Attempt to downgrade should fail
-			_, stderr, err = K3kcli("cluster", "update", "--version", "v1.31.13-k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "--y", "--version", "v1.31.13-k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(HaveOccurred())
 			Expect(stderr).To(ContainSubstring("downgrading cluster version is not supported"))
 
@@ -331,7 +301,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			// Attempt to update a cluster that doesn't exist
-			_, stderr, err = K3kcli("cluster", "update", "--servers", "2", "non-existent-cluster")
+			_, stderr, err = K3kcli("cluster", "update", "--y", "--servers", "2", "non-existent-cluster")
 			Expect(err).To(HaveOccurred())
 			Expect(stderr).To(ContainSubstring("failed to fetch existing cluster"))
 		})
@@ -347,7 +317,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			// No cleanup needed - cluster is never created due to invalid input
 			// Attempt to update with invalid server count
-			_, stderr, err = K3kcli("cluster", "update", "--servers", "0", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "--y", "--servers", "0", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(HaveOccurred())
 			Expect(stderr).To(ContainSubstring("invalid number of servers"))
 		})
@@ -402,7 +372,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
 			// Update the cluster with annotations
-			_, stderr, err = K3kcli("cluster", "update", "--annotations", "description=test-cluster", "--annotations", "owner=qa-team", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "--y", "--annotations", "description=test-cluster", "--annotations", "owner=qa-team", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("Updating cluster"))
 

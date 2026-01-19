@@ -35,7 +35,7 @@ type UpdateConfig struct {
 	version              string
 	kubeconfigServerHost string
 	timeout              time.Duration
-	skipInteractive      bool
+	noConfirm            bool
 }
 
 func NewClusterUpdateCmd(appCtx *AppContext) *cobra.Command {
@@ -77,6 +77,9 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 		clusterKey := types.NamespacedName{Name: name, Namespace: appCtx.namespace}
 		if err := appCtx.Client.Get(ctx, clusterKey, &virtualCluster); err != nil {
+			if apierrors.IsNotFound(err) {
+				return fmt.Errorf("cluster %q not found in namespace %q. Please verify the cluster name and namespace are correct", name, appCtx.namespace)
+			}
 			return fmt.Errorf("failed to fetch existing cluster: %w", err)
 		}
 
@@ -108,17 +111,27 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 		logrus.Infof("Updating cluster '%s' in namespace '%s'", name, namespace)
 
-		virtualCluster.Spec.Servers = ptr.To(int32(config.servers))
-		virtualCluster.Spec.Agents = ptr.To(int32(config.agents))
-		virtualCluster.Spec.Version = config.version
+		if config.servers > 0 {
+			virtualCluster.Spec.Servers = ptr.To(int32(config.servers))
+		}
+
+		if config.agents > 0 {
+			virtualCluster.Spec.Agents = ptr.To(int32(config.agents))
+		}
+
+		if config.version != "" {
+			virtualCluster.Spec.Version = config.version
+		}
+
 		virtualCluster.Labels = mapCopyWithDefault(virtualCluster.Labels, parseKeyValuePairs(config.labels, "label"))
 		virtualCluster.Annotations = mapCopyWithDefault(virtualCluster.Annotations, parseKeyValuePairs(config.annotations, "annotation"))
+
 		clusterDetails, err := getClusterDetails(&virtualCluster)
 		if err != nil {
 			return fmt.Errorf("failed to get cluster details: %w", err)
 		}
 
-		if !config.skipInteractive {
+		if !config.noConfirm {
 			if !confirmClusterUpdate(oldClusterDetails, clusterDetails) {
 				return nil
 			}
@@ -189,6 +202,10 @@ func confirmClusterUpdate(oldClusterDetails, clusterDetails string) bool {
 }
 
 func mapCopyWithDefault(dst, src map[string]string) map[string]string {
+	if src == nil {
+		return dst
+	}
+
 	if dst == nil {
 		dst = make(map[string]string)
 	}

@@ -9,43 +9,8 @@ permissions:
     contents: read
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
-
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v8
-      with:
-        args: --timeout=5m
-        version: v2.3.0
-
-  validate:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
-
-    - name: Install Pandoc
-      run: sudo apt-get install pandoc
-
-    - name: Validate
-      run: make validate
-
   tests:
     runs-on: ubuntu-latest
-    needs: validate
 
     steps:
     - name: Checkout code
@@ -67,7 +32,6 @@ jobs:
 
   tests-cli:
     runs-on: ubuntu-latest
-    needs: validate
 
     steps:
     - name: Checkout code

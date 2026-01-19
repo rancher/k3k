@@ -414,7 +414,7 @@ _Appears In:_
 | *`type`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-persistencemode[$$PersistenceMode$$]__ | Type specifies the persistence mode. + | dynamic | 
 | *`storageClassName`* __string__ | StorageClassName is the name of the StorageClass to use for the PVC. +
 This field is only relevant in "dynamic" mode. + |  | 
-| *`storageRequestSize`* __string__ | StorageRequestSize is the requested size for the PVC. +
+| *`storageRequestSize`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#quantity-resource-api[$$Quantity$$]__ | StorageRequestSize is the requested size for the PVC. +
 This field is only relevant in "dynamic" mode. + | 2G | 
 |===
 

@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -363,7 +364,7 @@ type PersistenceConfig struct {
 	//
 	// +kubebuilder:default="2G"
 	// +optional
-	StorageRequestSize string `json:"storageRequestSize,omitempty"`
+	StorageRequestSize *resource.Quantity `json:"storageRequestSize,omitempty"`
 }
 
 // ExposeConfig specifies options for exposing the API server.

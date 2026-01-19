@@ -20,6 +20,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
@@ -211,7 +212,7 @@ func newCluster(name, namespace string, config *CreateConfig) *v1beta1.Cluster {
 			Persistence: v1beta1.PersistenceConfig{
 				Type:               v1beta1.PersistenceMode(config.persistenceType),
 				StorageClassName:   ptr.To(config.storageClassName),
-				StorageRequestSize: config.storageRequestSize,
+				StorageRequestSize: ptr.To(resource.MustParse(config.storageRequestSize)),
 			},
 			MirrorHostNodes: config.mirrorHostNodes,
 		},
@@ -433,7 +434,10 @@ func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 
 	data.Persistence.Type = cluster.Spec.Persistence.Type
 	data.Persistence.StorageClassName = ptr.Deref(cluster.Spec.Persistence.StorageClassName, "")
-	data.Persistence.StorageRequestSize = cluster.Spec.Persistence.StorageRequestSize
+
+	if srs := cluster.Spec.Persistence.StorageRequestSize; srs != nil {
+		data.Persistence.StorageRequestSize = srs.String()
+	}
 
 	tmpl, err := template.New("clusterDetails").Parse(clusterDetailsTemplate)
 	if err != nil {

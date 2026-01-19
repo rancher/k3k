@@ -78,7 +78,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 		clusterKey := types.NamespacedName{Name: name, Namespace: appCtx.namespace}
 		if err := appCtx.Client.Get(ctx, clusterKey, &virtualCluster); err != nil {
 			if apierrors.IsNotFound(err) {
-				return fmt.Errorf("cluster %q not found in namespace %q. Please verify the cluster name and namespace are correct", name, appCtx.namespace)
+				return fmt.Errorf("cluster %s not found in namespace %s. Please verify the cluster name and namespace are correct", name, appCtx.namespace)
 			}
 			return fmt.Errorf("failed to fetch existing cluster: %w", err)
 		}

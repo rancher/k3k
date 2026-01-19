@@ -7,8 +7,8 @@ import (
 )
 
 func updateFlags(cmd *cobra.Command, cfg *UpdateConfig) {
-	cmd.Flags().IntVar(&cfg.servers, "servers", 0, "number of servers")
-	cmd.Flags().IntVar(&cfg.agents, "agents", 0, "number of agents")
+	cmd.Flags().IntVar(&cfg.servers, "servers", -1, "number of servers (-1 means no change)")
+	cmd.Flags().IntVar(&cfg.agents, "agents", -1, "number of agents (-1 means no change)")
 	cmd.Flags().StringArrayVar(&cfg.labels, "labels", []string{}, "Labels to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringArrayVar(&cfg.annotations, "annotations", []string{}, "Annotations to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringVar(&cfg.version, "version", "", "k3s version")

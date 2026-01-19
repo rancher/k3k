@@ -45,14 +45,8 @@ func NewClusterUpdateCmd(appCtx *AppContext) *cobra.Command {
 		Use:     "update",
 		Short:   "Update existing cluster",
 		Example: "k3kcli cluster update [command options] NAME",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if updateConfig.servers < 0 {
-				return errors.New("invalid number of servers")
-			}
-			return nil
-		},
-		RunE: updateAction(appCtx, updateConfig),
-		Args: cobra.ExactArgs(1),
+		RunE:    updateAction(appCtx, updateConfig),
+		Args:    cobra.ExactArgs(1),
 	}
 
 	CobraFlagNamespace(appCtx, cmd.Flags())
@@ -114,11 +108,11 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 		logrus.Infof("Updating cluster '%s' in namespace '%s'", name, namespace)
 
-		if config.servers > 0 {
+		if config.servers >= 0 {
 			virtualCluster.Spec.Servers = ptr.To(int32(config.servers))
 		}
 
-		if config.agents > 0 {
+		if config.agents >= 0 {
 			virtualCluster.Spec.Agents = ptr.To(int32(config.agents))
 		}
 

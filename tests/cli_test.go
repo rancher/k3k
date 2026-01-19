@@ -306,22 +306,6 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stderr).To(ContainSubstring("failed to fetch existing cluster"))
 		})
 
-		It("fails with invalid server count", func() {
-			var (
-				stderr string
-				err    error
-			)
-
-			clusterName := "cluster-" + rand.String(5)
-			clusterNamespace := "k3k-" + clusterName
-
-			// No cleanup needed - cluster is never created due to invalid input
-			// Attempt to update with invalid server count
-			_, stderr, err = K3kcli("cluster", "update", "-y", "--servers", "-3", "--namespace", clusterNamespace, clusterName)
-			Expect(err).To(HaveOccurred())
-			Expect(stderr).To(ContainSubstring("invalid number of servers"))
-		})
-
 		It("can update a cluster's labels", func() {
 			var (
 				stderr string

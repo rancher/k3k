@@ -193,5 +193,6 @@ func mapCopyWithDefault[M1 ~map[K]V, M2 ~map[K]V, K comparable, V any](dst M1, s
 	if dst == nil {
 		maps.Copy(make(map[K]V), src)
 	}
+
 	maps.Copy(dst, src)
 }

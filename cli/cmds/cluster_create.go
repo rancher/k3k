@@ -399,7 +399,11 @@ const clusterDetailsTemplate = `Cluster details:
   Persistence:
     Type: {{.Persistence.Type}}{{ if .Persistence.StorageClassName }}
     StorageClass: {{ .Persistence.StorageClassName }}{{ end }}{{ if .Persistence.StorageRequestSize }}
-    Size: {{ .Persistence.StorageRequestSize }}{{ end }}`
+    Size: {{ .Persistence.StorageRequestSize }}{{ end }}{{ if .Labels }}
+  Labels: {{ range $key, $value := .Labels }}
+    {{$key}}: {{$value}}{{ end }}{{ end }}{{ if .Annotations }}
+  Annotations: {{ range $key, $value := .Annotations }}
+    {{$key}}: {{$value}}{{ end }}{{ end }}`
 
 func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 	type templateData struct {
@@ -413,6 +417,8 @@ func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 			StorageClassName   string
 			StorageRequestSize string
 		}
+		Labels      map[string]string
+		Annotations map[string]string
 	}
 
 	data := templateData{
@@ -421,6 +427,8 @@ func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 		Agents:      ptr.Deref(cluster.Spec.Agents, 0),
 		Version:     cluster.Spec.Version,
 		HostVersion: cluster.Status.HostVersion,
+		Annotations: cluster.Annotations,
+		Labels:      cluster.Labels,
 	}
 
 	data.Persistence.Type = cluster.Spec.Persistence.Type

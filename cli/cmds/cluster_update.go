@@ -111,9 +111,8 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 		virtualCluster.Spec.Servers = ptr.To(int32(config.servers))
 		virtualCluster.Spec.Agents = ptr.To(int32(config.agents))
 		virtualCluster.Spec.Version = config.version
-		mapCopyWithDefault(virtualCluster.Labels, parseKeyValuePairs(config.labels, "label"))
-		mapCopyWithDefault(virtualCluster.Annotations, parseKeyValuePairs(config.annotations, "annotation"))
-
+		virtualCluster.Labels = mapCopyWithDefault(virtualCluster.Labels, parseKeyValuePairs(config.labels, "label"))
+		virtualCluster.Annotations = mapCopyWithDefault(virtualCluster.Annotations, parseKeyValuePairs(config.annotations, "annotation"))
 		clusterDetails, err := getClusterDetails(&virtualCluster)
 		if err != nil {
 			return fmt.Errorf("failed to get cluster details: %w", err)
@@ -189,10 +188,12 @@ func confirmClusterUpdate(oldClusterDetails, clusterDetails string) bool {
 	return strings.ToLower(strings.TrimSpace(res))[0] == 'y'
 }
 
-func mapCopyWithDefault[M1 ~map[K]V, M2 ~map[K]V, K comparable, V any](dst M1, src M2) {
+func mapCopyWithDefault(dst, src map[string]string) map[string]string {
 	if dst == nil {
-		dst = make(map[K]V)
+		dst = make(map[string]string)
 	}
 
 	maps.Copy(dst, src)
+
+	return dst
 }

@@ -341,7 +341,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
 			// Update the cluster with labels
-			_, stderr, err = K3kcli("cluster", "update", "--labels", "env=test", "--labels", "team=dev", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "--y", "--labels", "env=test", "--labels", "team=dev", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("Updating cluster"))
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -15,16 +14,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
-	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 )
 
 type UpdateConfig struct {
@@ -106,13 +101,11 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			virtualCluster.Spec.Version = config.version
 		}
 
-		logrus.Infof("Updating cluster '%s' in namespace '%s'", name, namespace)
-
-		if config.servers >= 0 {
+		if cmd.Flags().Changed("servers") {
 			virtualCluster.Spec.Servers = ptr.To(int32(config.servers))
 		}
 
-		if config.agents >= 0 {
+		if cmd.Flags().Changed("agents") {
 			virtualCluster.Spec.Agents = ptr.To(int32(config.agents))
 		}
 
@@ -124,11 +117,18 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			return fmt.Errorf("failed to get cluster details: %w", err)
 		}
 
+		if oldClusterDetails == clusterDetails {
+			logrus.Info("No changes detected, skipping update")
+			return nil
+		}
+
 		if !config.noConfirm {
 			if !confirmClusterUpdate(oldClusterDetails, clusterDetails) {
 				return nil
 			}
 		}
+
+		logrus.Infof("Updating cluster '%s' in namespace '%s'", name, namespace)
 
 		if err := client.Update(ctx, &virtualCluster); err != nil {
 			return err
@@ -136,40 +136,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 		logrus.Info(clusterDetails)
 
-		logrus.Infof("Extracting Kubeconfig for '%s' cluster", name)
-
-		// retry every 5s for at most 2m, or 25 times
-		availableBackoff := wait.Backoff{
-			Duration: 5 * time.Second,
-			Cap:      2 * time.Minute,
-			Steps:    25,
-		}
-
-		// add Host IP address as an extra TLS-SAN to expose the k3k cluster
-		url, err := url.Parse(appCtx.RestConfig.Host)
-		if err != nil {
-			return err
-		}
-
-		host := strings.Split(url.Host, ":")
-		if config.kubeconfigServerHost != "" {
-			host = []string{config.kubeconfigServerHost}
-		}
-
-		virtualCluster.Spec.TLSSANs = []string{host[0]}
-
-		cfg := kubeconfig.New()
-
-		var kubeconfig *clientcmdapi.Config
-
-		if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = cfg.Generate(ctx, client, &virtualCluster, host[0], 0)
-			return err
-		}); err != nil {
-			return err
-		}
-
-		return writeKubeconfigFile(&virtualCluster, kubeconfig, "")
+		return nil
 	}
 }
 

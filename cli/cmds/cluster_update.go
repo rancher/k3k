@@ -80,6 +80,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			if apierrors.IsNotFound(err) {
 				return fmt.Errorf("cluster %s not found in namespace %s. Please verify the cluster name and namespace are correct", name, appCtx.namespace)
 			}
+
 			return fmt.Errorf("failed to fetch existing cluster: %w", err)
 		}
 

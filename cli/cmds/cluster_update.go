@@ -46,7 +46,7 @@ func NewClusterUpdateCmd(appCtx *AppContext) *cobra.Command {
 		Short:   "Update existing cluster",
 		Example: "k3kcli cluster update [command options] NAME",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if updateConfig.servers <= 0 {
+			if updateConfig.servers < 0 {
 				return errors.New("invalid number of servers")
 			}
 			return nil
@@ -84,6 +84,11 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			return fmt.Errorf("failed to fetch existing cluster: %w", err)
 		}
 
+		oldClusterDetails, err := getClusterDetails(&virtualCluster)
+		if err != nil {
+			return fmt.Errorf("failed to get cluster details: %w", err)
+		}
+
 		if config.version != "" {
 			currentVersion := virtualCluster.Spec.Version
 			if currentVersion == "" {
@@ -103,11 +108,8 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			if newVersionSemver.LT(currentVersionSemver) {
 				return fmt.Errorf("downgrading cluster version is not supported")
 			}
-		}
 
-		oldClusterDetails, err := getClusterDetails(&virtualCluster)
-		if err != nil {
-			return fmt.Errorf("failed to get cluster details: %w", err)
+			virtualCluster.Spec.Version = config.version
 		}
 
 		logrus.Infof("Updating cluster '%s' in namespace '%s'", name, namespace)
@@ -118,10 +120,6 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 		if config.agents > 0 {
 			virtualCluster.Spec.Agents = ptr.To(int32(config.agents))
-		}
-
-		if config.version != "" {
-			virtualCluster.Spec.Version = config.version
 		}
 
 		virtualCluster.Labels = mapCopyWithDefault(virtualCluster.Labels, parseKeyValuePairs(config.labels, "label"))

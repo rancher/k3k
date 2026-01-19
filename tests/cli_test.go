@@ -317,7 +317,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			// No cleanup needed - cluster is never created due to invalid input
 			// Attempt to update with invalid server count
-			_, stderr, err = K3kcli("cluster", "update", "-y", "--servers", "0", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "-y", "--servers", "-3", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(HaveOccurred())
 			Expect(stderr).To(ContainSubstring("invalid number of servers"))
 		})

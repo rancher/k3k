@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/blang/semver/v4"
 	"github.com/sirupsen/logrus"
@@ -22,14 +21,12 @@ import (
 )
 
 type UpdateConfig struct {
-	servers              int32
-	agents               int32
-	labels               []string
-	annotations          []string
-	version              string
-	kubeconfigServerHost string
-	timeout              time.Duration
-	noConfirm            bool
+	servers     int32
+	agents      int32
+	labels      []string
+	annotations []string
+	version     string
+	noConfirm   bool
 }
 
 func NewClusterUpdateCmd(appCtx *AppContext) *cobra.Command {
@@ -50,13 +47,11 @@ func NewClusterUpdateCmd(appCtx *AppContext) *cobra.Command {
 }
 
 func updateFlags(cmd *cobra.Command, cfg *UpdateConfig) {
-	cmd.Flags().Int32Var(&cfg.servers, "servers", 0, "number of servers")
+	cmd.Flags().Int32Var(&cfg.servers, "servers", 1, "number of servers")
 	cmd.Flags().Int32Var(&cfg.agents, "agents", 0, "number of agents")
 	cmd.Flags().StringArrayVar(&cfg.labels, "labels", []string{}, "Labels to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringArrayVar(&cfg.annotations, "annotations", []string{}, "Annotations to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringVar(&cfg.version, "version", "", "k3s version")
-	cmd.Flags().DurationVar(&cfg.timeout, "timeout", 3*time.Minute, "The timeout for waiting for the cluster to become ready (e.g., 10s, 5m, 1h).")
-	cmd.Flags().StringVar(&cfg.kubeconfigServerHost, "kubeconfig-server", "", "Override the kubeconfig server host")
 	cmd.Flags().BoolVarP(&cfg.noConfirm, "no-confirm", "y", false, "Skip interactive approval before applying update")
 }
 

@@ -73,10 +73,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			return fmt.Errorf("failed to fetch existing cluster: %w", err)
 		}
 
-		oldClusterDetails, err := getClusterDetails(&virtualCluster)
-		if err != nil {
-			return fmt.Errorf("failed to get cluster details: %w", err)
-		}
+		var changes []change
 
 		if config.version != "" {
 			currentVersion := virtualCluster.Spec.Version
@@ -98,54 +95,84 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 				return fmt.Errorf("downgrading cluster version is not supported")
 			}
 
+			changes = append(changes, change{"Version", currentVersion, config.version})
 			virtualCluster.Spec.Version = config.version
 		}
 
 		if cmd.Flags().Changed("servers") {
+			oldServers := int32(0)
+			if virtualCluster.Spec.Servers != nil {
+				oldServers = *virtualCluster.Spec.Servers
+			}
+
+			changes = append(changes, change{"Servers", fmt.Sprintf("%d", oldServers), fmt.Sprintf("%d", config.servers)})
 			virtualCluster.Spec.Servers = ptr.To(int32(config.servers))
 		}
 
 		if cmd.Flags().Changed("agents") {
+			oldAgents := int32(0)
+			if virtualCluster.Spec.Agents != nil {
+				oldAgents = *virtualCluster.Spec.Agents
+			}
+
+			changes = append(changes, change{"Agents", fmt.Sprintf("%d", oldAgents), fmt.Sprintf("%d", config.agents)})
 			virtualCluster.Spec.Agents = ptr.To(int32(config.agents))
 		}
 
-		virtualCluster.Labels = mapCopyWithDefault(virtualCluster.Labels, parseKeyValuePairs(config.labels, "label"))
-		virtualCluster.Annotations = mapCopyWithDefault(virtualCluster.Annotations, parseKeyValuePairs(config.annotations, "annotation"))
+		var labelChanges []change
 
-		clusterDetails, err := getClusterDetails(&virtualCluster)
-		if err != nil {
-			return fmt.Errorf("failed to get cluster details: %w", err)
+		if cmd.Flags().Changed("labels") {
+			oldLabels := mapCopyWithDefault(nil, virtualCluster.Labels)
+			virtualCluster.Labels = mapCopyWithDefault(virtualCluster.Labels, parseKeyValuePairs(config.labels, "label"))
+			labelChanges = diffMaps(oldLabels, virtualCluster.Labels)
 		}
 
-		if oldClusterDetails == clusterDetails {
+		var annotationChanges []change
+
+		if cmd.Flags().Changed("annotations") {
+			oldAnnotations := mapCopyWithDefault(nil, virtualCluster.Annotations)
+			virtualCluster.Annotations = mapCopyWithDefault(virtualCluster.Annotations, parseKeyValuePairs(config.annotations, "annotation"))
+			annotationChanges = diffMaps(oldAnnotations, virtualCluster.Annotations)
+		}
+
+		if len(changes) == 0 && len(labelChanges) == 0 && len(annotationChanges) == 0 {
 			logrus.Info("No changes detected, skipping update")
 			return nil
 		}
 
+		logrus.Infof("Updating cluster '%s' in namespace '%s'", name, namespace)
+
+		printDiff(changes)
+		printMapDiff("Labels", labelChanges)
+		printMapDiff("Annotations", annotationChanges)
+
 		if !config.noConfirm {
-			if !confirmClusterUpdate(oldClusterDetails, clusterDetails) {
+			if !confirmClusterUpdate(&virtualCluster) {
 				return nil
 			}
 		}
-
-		logrus.Infof("Updating cluster '%s' in namespace '%s'", name, namespace)
 
 		if err := client.Update(ctx, &virtualCluster); err != nil {
 			return err
 		}
 
-		logrus.Info(clusterDetails)
+		logrus.Info("Cluster updated successfully")
 
 		return nil
 	}
 }
 
-func confirmClusterUpdate(oldClusterDetails, clusterDetails string) bool {
+func confirmClusterUpdate(cluster *v1beta1.Cluster) bool {
 	r := bufio.NewReader(os.Stdin)
 
-	logrus.Infof("Current %v\n\nNew %v\n\n", oldClusterDetails, clusterDetails)
+	clusterDetails, err := getClusterDetails(cluster)
+	if err != nil {
+		logrus.Fatalf("unable to get cluster details: %v", err)
+	}
 
-	fmt.Printf("Do you want to update the cluster? [y/N]: ")
+	fmt.Printf("\n New %s\n", clusterDetails)
+
+	fmt.Printf("\nDo you want to update the cluster? [y/N]: ")
 
 	res, err := r.ReadString('\n')
 	if err != nil {

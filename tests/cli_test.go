@@ -309,7 +309,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			// Attempt to update a cluster that doesn't exist
 			_, stderr, err = K3kcli("cluster", "update", "-y", "--servers", "2", "non-existent-cluster")
 			Expect(err).To(HaveOccurred())
-			Expect(stderr).To(ContainSubstring("failed to fetch existing cluster"))
+			Expect(stderr).To(ContainSubstring("failed to fetch cluster"))
 		})
 
 		It("can update a cluster's labels", func() {

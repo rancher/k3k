@@ -135,6 +135,7 @@ _Appears in:_
 | `mirrorHostNodes` _boolean_ | MirrorHostNodes controls whether node objects from the host cluster<br />are mirrored into the virtual cluster. |  |  |
 | `customCAs` _[CustomCAs](#customcas)_ | CustomCAs specifies the cert/key pairs for custom CA certificates. |  |  |
 | `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |
+| `secretMounts` _[SecretMount](#secretmount) array_ | SecretMounts specifies a list of secrets to mount into server and agent pods.<br />Each entry defines a secret and its mount path within the pods. |  |  |
 
 
 
@@ -170,7 +171,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `secretName` _string_ | SecretName specifies the name of an existing secret to use.<br />The controller expects specific keys inside based on the credential type:<br />- For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.<br />- For ServiceAccountTokenKey: 'tls.key'. |  |  |
+| `secretName` _string_ | SecretName specifies the name of an existing secret to use.<br />The custom certificate controller expects specific keys inside based on the credential type:<br />- For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.<br />- For ServiceAccountTokenKey: 'tls.key'. |  |  |
 
 
 #### CredentialSources
@@ -375,6 +376,27 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+
+
+#### SecretMount
+
+
+
+SecretMount represent any extra mount that the user will specify
+
+
+
+_Appears in:_
+- [ClusterSpec](#clusterspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `secretName` _string_ | secretName is the name of the secret in the pod's namespace to use.<br />More info: https://kubernetes.io/docs/concepts/storage/volumes#secret |  |  |
+| `items` _[KeyToPath](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#keytopath-v1-core) array_ | items If unspecified, each key-value pair in the Data field of the referenced<br />Secret will be projected into the volume as a file whose name is the<br />key and content is the value. If specified, the listed keys will be<br />projected into the specified paths, and unlisted keys will not be<br />present. If a key is specified which is not present in the Secret,<br />the volume setup will error unless it is marked optional. Paths must be<br />relative and may not contain the '..' path or start with '..'. |  |  |
+| `defaultMode` _integer_ | defaultMode is Optional: mode bits used to set permissions on created files by default.<br />Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.<br />YAML accepts both octal and decimal values, JSON requires decimal values<br />for mode bits. Defaults to 0644.<br />Directories within the path are not affected by this setting.<br />This might be in conflict with other options that affect the file<br />mode, like fsGroup, and the result can be other mode bits set. |  |  |
+| `optional` _boolean_ | optional field specify whether the Secret or its keys must be defined |  |  |
+| `mountPath` _string_ | MountPath is the path within server and agent pods where the<br />secret contents will be mounted. |  |  |
+| `subPath` _string_ | SubPath is an optional path within the secret to mount instead of the root.<br />When specified, only the specified key from the secret will be mounted as a file<br />at MountPath, keeping the parent directory writable. |  |  |
 
 
 #### SecretSyncConfig

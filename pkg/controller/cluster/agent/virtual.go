@@ -130,6 +130,7 @@ func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelect
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 
 	podSpec := v1.PodSpec{
+		NodeSelector: v.cluster.Spec.NodeSelector,
 		Volumes: []v1.Volume{
 			{
 				Name: "config",

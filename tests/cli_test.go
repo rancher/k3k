@@ -210,7 +210,9 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			clusterNamespace := "k3k-" + clusterName
+
+			namespace := NewNamespace()
+			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
 				DeleteNamespaces(clusterNamespace)
@@ -241,7 +243,9 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			clusterNamespace := "k3k-" + clusterName
+
+			namespace := NewNamespace()
+			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
 				DeleteNamespaces(clusterNamespace)
@@ -271,7 +275,9 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			clusterNamespace := "k3k-" + clusterName
+
+			namespace := NewNamespace()
+			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
 				DeleteNamespaces(clusterNamespace)
@@ -313,7 +319,9 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			clusterNamespace := "k3k-" + clusterName
+
+			namespace := NewNamespace()
+			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
 				DeleteNamespaces(clusterNamespace)
@@ -344,7 +352,9 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			clusterNamespace := "k3k-" + clusterName
+
+			namespace := NewNamespace()
+			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
 				DeleteNamespaces(clusterNamespace)

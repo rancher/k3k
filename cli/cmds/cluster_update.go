@@ -2,10 +2,8 @@ package cmds
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +11,7 @@ import (
 	"github.com/blang/semver/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
@@ -23,8 +22,8 @@ import (
 )
 
 type UpdateConfig struct {
-	servers              int
-	agents               int
+	servers              int32
+	agents               int32
 	labels               []string
 	annotations          []string
 	version              string
@@ -50,9 +49,21 @@ func NewClusterUpdateCmd(appCtx *AppContext) *cobra.Command {
 	return cmd
 }
 
+func updateFlags(cmd *cobra.Command, cfg *UpdateConfig) {
+	cmd.Flags().Int32Var(&cfg.servers, "servers", 0, "number of servers")
+	cmd.Flags().Int32Var(&cfg.agents, "agents", 0, "number of agents")
+	cmd.Flags().StringArrayVar(&cfg.labels, "labels", []string{}, "Labels to add to the cluster object (e.g. key=value)")
+	cmd.Flags().StringArrayVar(&cfg.annotations, "annotations", []string{}, "Annotations to add to the cluster object (e.g. key=value)")
+	cmd.Flags().StringVar(&cfg.version, "version", "", "k3s version")
+	cmd.Flags().DurationVar(&cfg.timeout, "timeout", 3*time.Minute, "The timeout for waiting for the cluster to become ready (e.g., 10s, 5m, 1h).")
+	cmd.Flags().StringVar(&cfg.kubeconfigServerHost, "kubeconfig-server", "", "Override the kubeconfig server host")
+	cmd.Flags().BoolVarP(&cfg.noConfirm, "no-confirm", "y", false, "Skip interactive approval before applying update")
+}
+
 func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := cmd.Context()
+
 		client := appCtx.Client
 		name := args[0]
 
@@ -67,15 +78,15 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 		clusterKey := types.NamespacedName{Name: name, Namespace: appCtx.namespace}
 		if err := appCtx.Client.Get(ctx, clusterKey, &virtualCluster); err != nil {
 			if apierrors.IsNotFound(err) {
-				return fmt.Errorf("cluster %s not found in namespace %s. Please verify the cluster name and namespace are correct", name, appCtx.namespace)
+				return fmt.Errorf("cluster %s not found in namespace %s", name, appCtx.namespace)
 			}
 
-			return fmt.Errorf("failed to fetch existing cluster: %w", err)
+			return fmt.Errorf("failed to fetch cluster: %w", err)
 		}
 
 		var changes []change
 
-		if config.version != "" {
+		if cmd.Flags().Changed("version") && config.version != virtualCluster.Spec.Version {
 			currentVersion := virtualCluster.Spec.Version
 			if currentVersion == "" {
 				currentVersion = virtualCluster.Status.HostVersion
@@ -97,41 +108,44 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 			changes = append(changes, change{"Version", currentVersion, config.version})
 			virtualCluster.Spec.Version = config.version
+
 		}
 
 		if cmd.Flags().Changed("servers") {
-			oldServers := int32(0)
-			if virtualCluster.Spec.Servers != nil {
+			var oldServers int32
+			if virtualCluster.Spec.Agents != nil {
 				oldServers = *virtualCluster.Spec.Servers
 			}
-
-			changes = append(changes, change{"Servers", fmt.Sprintf("%d", oldServers), fmt.Sprintf("%d", config.servers)})
-			virtualCluster.Spec.Servers = ptr.To(int32(config.servers))
+			if oldServers != config.servers {
+				changes = append(changes, change{"Servers", fmt.Sprintf("%d", oldServers), fmt.Sprintf("%d", config.servers)})
+				virtualCluster.Spec.Servers = ptr.To(config.servers)
+			}
 		}
 
 		if cmd.Flags().Changed("agents") {
-			oldAgents := int32(0)
+			var oldAgents int32
 			if virtualCluster.Spec.Agents != nil {
 				oldAgents = *virtualCluster.Spec.Agents
 			}
-
-			changes = append(changes, change{"Agents", fmt.Sprintf("%d", oldAgents), fmt.Sprintf("%d", config.agents)})
-			virtualCluster.Spec.Agents = ptr.To(int32(config.agents))
+			if oldAgents != config.agents {
+				changes = append(changes, change{"Agents", fmt.Sprintf("%d", oldAgents), fmt.Sprintf("%d", config.agents)})
+				virtualCluster.Spec.Agents = ptr.To(config.agents)
+			}
 		}
 
 		var labelChanges []change
 
 		if cmd.Flags().Changed("labels") {
-			oldLabels := mapCopyWithDefault(nil, virtualCluster.Labels)
-			virtualCluster.Labels = mapCopyWithDefault(virtualCluster.Labels, parseKeyValuePairs(config.labels, "label"))
+			oldLabels := labels.Merge(nil, virtualCluster.Labels)
+			virtualCluster.Labels = labels.Merge(virtualCluster.Labels, parseKeyValuePairs(config.labels, "label"))
 			labelChanges = diffMaps(oldLabels, virtualCluster.Labels)
 		}
 
 		var annotationChanges []change
 
 		if cmd.Flags().Changed("annotations") {
-			oldAnnotations := mapCopyWithDefault(nil, virtualCluster.Annotations)
-			virtualCluster.Annotations = mapCopyWithDefault(virtualCluster.Annotations, parseKeyValuePairs(config.annotations, "annotation"))
+			oldAnnotations := labels.Merge(nil, virtualCluster.Annotations)
+			virtualCluster.Annotations = labels.Merge(virtualCluster.Annotations, parseKeyValuePairs(config.annotations, "annotation"))
 			annotationChanges = diffMaps(oldAnnotations, virtualCluster.Annotations)
 		}
 
@@ -163,8 +177,6 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 }
 
 func confirmClusterUpdate(cluster *v1beta1.Cluster) bool {
-	r := bufio.NewReader(os.Stdin)
-
 	clusterDetails, err := getClusterDetails(cluster)
 	if err != nil {
 		logrus.Fatalf("unable to get cluster details: %v", err)
@@ -174,30 +186,16 @@ func confirmClusterUpdate(cluster *v1beta1.Cluster) bool {
 
 	fmt.Printf("\nDo you want to update the cluster? [y/N]: ")
 
-	res, err := r.ReadString('\n')
-	if err != nil {
-		logrus.Fatalf("unable to read string: %v", err)
+	scanner := bufio.NewScanner(os.Stdin)
+
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			logrus.Errorf("Error reading input: %v", err)
+		}
+		return false
 	}
 
 	fmt.Printf("\n")
 
-	if len(res) < 2 {
-		return false
-	}
-
-	return strings.ToLower(strings.TrimSpace(res))[0] == 'y'
-}
-
-func mapCopyWithDefault(dst, src map[string]string) map[string]string {
-	if src == nil {
-		return dst
-	}
-
-	if dst == nil {
-		dst = make(map[string]string)
-	}
-
-	maps.Copy(dst, src)
-
-	return dst
+	return strings.ToLower(strings.TrimSpace(scanner.Text())) == "y"
 }

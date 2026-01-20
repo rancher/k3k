@@ -108,7 +108,6 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 			changes = append(changes, change{"Version", currentVersion, config.version})
 			virtualCluster.Spec.Version = config.version
-
 		}
 
 		if cmd.Flags().Changed("servers") {
@@ -116,6 +115,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			if virtualCluster.Spec.Agents != nil {
 				oldServers = *virtualCluster.Spec.Servers
 			}
+
 			if oldServers != config.servers {
 				changes = append(changes, change{"Servers", fmt.Sprintf("%d", oldServers), fmt.Sprintf("%d", config.servers)})
 				virtualCluster.Spec.Servers = ptr.To(config.servers)
@@ -127,6 +127,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			if virtualCluster.Spec.Agents != nil {
 				oldAgents = *virtualCluster.Spec.Agents
 			}
+
 			if oldAgents != config.agents {
 				changes = append(changes, change{"Agents", fmt.Sprintf("%d", oldAgents), fmt.Sprintf("%d", config.agents)})
 				virtualCluster.Spec.Agents = ptr.To(config.agents)
@@ -192,6 +193,7 @@ func confirmClusterUpdate(cluster *v1beta1.Cluster) bool {
 		if err := scanner.Err(); err != nil {
 			logrus.Errorf("Error reading input: %v", err)
 		}
+
 		return false
 	}
 

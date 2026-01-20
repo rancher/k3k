@@ -183,7 +183,7 @@ func confirmClusterUpdate(cluster *v1beta1.Cluster) bool {
 		logrus.Fatalf("unable to get cluster details: %v", err)
 	}
 
-	fmt.Printf("\n New %s\n", clusterDetails)
+	fmt.Printf("\nNew %s\n", clusterDetails)
 
 	fmt.Printf("\nDo you want to update the cluster? [y/N]: ")
 

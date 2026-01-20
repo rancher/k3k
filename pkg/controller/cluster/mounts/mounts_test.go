@@ -1,10 +1,10 @@
 package mounts
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/ptr"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -280,6 +280,26 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			vols, volMounts := BuildSecretsMountsVolumes(tt.args.secretMounts)
 
+			slices.SortFunc(vols, func(a, b v1.Volume) int {
+				if a.Name < b.Name {
+					return -1
+				}
+				if a.Name > b.Name {
+					return 1
+				}
+				return 0
+			})
+
+			slices.SortFunc(volMounts, func(a, b v1.VolumeMount) int {
+				if a.Name < b.Name {
+					return -1
+				}
+				if a.Name > b.Name {
+					return 1
+				}
+				return 0
+			})
+
 			assert.Equal(t, tt.expectedData.vols, vols)
 			assert.Equal(t, tt.expectedData.volMounts, volMounts)
 		})
@@ -296,8 +316,7 @@ func expectedVolume(name string, items []v1.KeyToPath) v1.Volume {
 						LocalObjectReference: v1.LocalObjectReference{
 							Name: name,
 						},
-						Items:    items,
-						Optional: ptr.To(true),
+						Items: items,
 					}},
 				},
 			},

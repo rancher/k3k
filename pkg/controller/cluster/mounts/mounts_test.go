@@ -284,9 +284,11 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				if a.Name < b.Name {
 					return -1
 				}
+
 				if a.Name > b.Name {
 					return 1
 				}
+
 				return 0
 			})
 
@@ -294,9 +296,11 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				if a.Name < b.Name {
 					return -1
 				}
+
 				if a.Name > b.Name {
 					return 1
 				}
+
 				return 0
 			})
 

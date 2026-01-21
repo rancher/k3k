@@ -4,7 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     helm.sh/resource-policy: keep
-    controller-gen.kubebuilder.io/version: v0.16.0
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: clusters.k3k.io
 spec:
   group: k3k.io

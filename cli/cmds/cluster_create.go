@@ -190,14 +190,14 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 }
 
 func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster, error) {
-	var storageRequestSize resource.Quantity
+	var storageRequestSize *resource.Quantity
 	if config.storageRequestSize != "" {
 		parsed, err := resource.ParseQuantity(config.storageRequestSize)
 		if err != nil {
 			return nil, err
 		}
 
-		storageRequestSize = parsed
+		storageRequestSize = ptr.To(parsed)
 	}
 
 	cluster := &v1beta1.Cluster{
@@ -225,7 +225,7 @@ func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster,
 			Persistence: v1beta1.PersistenceConfig{
 				Type:               v1beta1.PersistenceMode(config.persistenceType),
 				StorageClassName:   ptr.To(config.storageClassName),
-				StorageRequestSize: ptr.To(storageRequestSize),
+				StorageRequestSize: storageRequestSize,
 			},
 			MirrorHostNodes: config.mirrorHostNodes,
 		},

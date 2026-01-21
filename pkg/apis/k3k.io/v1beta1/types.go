@@ -364,6 +364,7 @@ type PersistenceConfig struct {
 	// This field is only relevant in "dynamic" mode.
 	//
 	// +kubebuilder:default="2G"
+	// +kubebuilder:validation:XValidation:message="storageRequestSize is immutable",rule="self == oldSelf"
 	// +optional
 	StorageRequestSize *resource.Quantity `json:"storageRequestSize,omitempty"`
 }

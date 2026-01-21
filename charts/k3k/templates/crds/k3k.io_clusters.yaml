@@ -443,6 +443,9 @@ spec:
                       This field is only relevant in "dynamic" mode.
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
+                    x-kubernetes-validations:
+                    - message: storageRequestSize is immutable
+                      rule: self == oldSelf
                   type:
                     default: dynamic
                     description: Type specifies the persistence mode.

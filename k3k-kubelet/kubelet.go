@@ -270,7 +270,19 @@ func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 			return nil, nil, errors.New("unable to make nodeutil provider: " + err.Error())
 		}
 
-		provider.ConfigureNode(k.logger, pc.Node, cfg.AgentHostname, k.port, k.agentIP, utilProvider.CoreClient, utilProvider.VirtualClient, k.virtualCluster, cfg.Version, cfg.MirrorHostNodes)
+		provider.ConfigureNode(
+			k.logger,
+			pc.Node,
+			cfg.AgentHostname,
+			k.port,
+			k.agentIP,
+			utilProvider.HostClient,
+			utilProvider.CoreClient,
+			utilProvider.VirtualClient,
+			k.virtualCluster,
+			cfg.Version,
+			cfg.MirrorHostNodes,
+		)
 
 		return utilProvider, &provider.Node{}, nil
 	}

@@ -2,6 +2,9 @@ name: Validate
 
 on: [pull_request, push, workflow_dispatch]
 
+permissions:
+    contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest

@@ -54,6 +54,7 @@ func AddStatefulSetController(ctx context.Context, mgr manager.Manager, maxConcu
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apps.StatefulSet{}).
+		WithEventFilter(newClusterPredicate()).
 		Owns(&v1.Pod{}).
 		Named(statefulsetController).
 		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).

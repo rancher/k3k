@@ -1,5 +1,7 @@
 name: Validate
-on: [pull_request, push]
+
+on: [pull_request, push, workflow_dispatch]
+
 jobs:
   validate:
     runs-on: ubuntu-latest

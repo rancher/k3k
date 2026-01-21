@@ -2,6 +2,8 @@ module github.com/rancher/k3k
 
 go 1.25
 
+toolchain go1.25.6
+
 replace (
 	github.com/google/cel-go => github.com/google/cel-go v0.20.1
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.16.0

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -66,7 +67,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				Expect(cluster.Spec.Sync.PriorityClasses.Enabled).To(BeFalse())
 
 				Expect(cluster.Spec.Persistence.Type).To(Equal(v1beta1.DynamicPersistenceMode))
-				Expect(cluster.Spec.Persistence.StorageRequestSize).To(Equal("2G"))
+				Expect(cluster.Spec.Persistence.StorageRequestSize.Equal(resource.MustParse("2G"))).To(BeTrue())
 
 				Expect(cluster.Status.Phase).To(Equal(v1beta1.ClusterUnknown))
 

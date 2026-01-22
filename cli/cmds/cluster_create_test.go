@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -66,7 +67,7 @@ func Test_printClusterDetails(t *testing.T) {
 					Persistence: v1beta1.PersistenceConfig{
 						Type:               v1beta1.DynamicPersistenceMode,
 						StorageClassName:   ptr.To("local-path"),
-						StorageRequestSize: "3gb",
+						StorageRequestSize: ptr.To(resource.MustParse("3G")),
 					},
 				},
 				Status: v1beta1.ClusterStatus{
@@ -81,7 +82,7 @@ func Test_printClusterDetails(t *testing.T) {
   Persistence:
     Type: dynamic
     StorageClass: local-path
-    Size: 3gb`,
+    Size: 3G`,
 		},
 	}
 

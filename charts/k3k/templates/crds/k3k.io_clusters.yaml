@@ -4,7 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     helm.sh/resource-policy: keep
-    controller-gen.kubebuilder.io/version: v0.18.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: clusters.k3k.io
 spec:
   group: k3k.io
@@ -434,11 +434,18 @@ spec:
                       This field is only relevant in "dynamic" mode.
                     type: string
                   storageRequestSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
                     default: 2G
                     description: |-
                       StorageRequestSize is the requested size for the PVC.
                       This field is only relevant in "dynamic" mode.
-                    type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                    x-kubernetes-validations:
+                    - message: storageRequestSize is immutable
+                      rule: self == oldSelf
                   type:
                     default: dynamic
                     description: Type specifies the persistence mode.

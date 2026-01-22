@@ -1,7 +1,9 @@
 package v1beta1
 
 import (
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -123,7 +125,7 @@ type ClusterSpec struct {
 	// The Secret must have a "token" field in its data.
 	//
 	// +optional
-	TokenSecretRef *v1.SecretReference `json:"tokenSecretRef,omitempty"`
+	TokenSecretRef *corev1.SecretReference `json:"tokenSecretRef,omitempty"`
 
 	// TLSSANs specifies subject alternative names for the K3s server certificate.
 	//
@@ -145,12 +147,12 @@ type ClusterSpec struct {
 	// ServerEnvs specifies list of environment variables to set in the server pod.
 	//
 	// +optional
-	ServerEnvs []v1.EnvVar `json:"serverEnvs,omitempty"`
+	ServerEnvs []corev1.EnvVar `json:"serverEnvs,omitempty"`
 
 	// AgentEnvs specifies list of environment variables to set in the agent pod.
 	//
 	// +optional
-	AgentEnvs []v1.EnvVar `json:"agentEnvs,omitempty"`
+	AgentEnvs []corev1.EnvVar `json:"agentEnvs,omitempty"`
 
 	// Addons specifies secrets containing raw YAML to deploy on cluster startup.
 	//
@@ -160,12 +162,12 @@ type ClusterSpec struct {
 	// ServerLimit specifies resource limits for server nodes.
 	//
 	// +optional
-	ServerLimit v1.ResourceList `json:"serverLimit,omitempty"`
+	ServerLimit corev1.ResourceList `json:"serverLimit,omitempty"`
 
 	// WorkerLimit specifies resource limits for agent nodes.
 	//
 	// +optional
-	WorkerLimit v1.ResourceList `json:"workerLimit,omitempty"`
+	WorkerLimit corev1.ResourceList `json:"workerLimit,omitempty"`
 
 	// MirrorHostNodes controls whether node objects from the host cluster
 	// are mirrored into the virtual cluster.
@@ -362,8 +364,9 @@ type PersistenceConfig struct {
 	// This field is only relevant in "dynamic" mode.
 	//
 	// +kubebuilder:default="2G"
+	// +kubebuilder:validation:XValidation:message="storageRequestSize is immutable",rule="self == oldSelf"
 	// +optional
-	StorageRequestSize string `json:"storageRequestSize,omitempty"`
+	StorageRequestSize *resource.Quantity `json:"storageRequestSize,omitempty"`
 }
 
 // ExposeConfig specifies options for exposing the API server.
@@ -582,13 +585,13 @@ type VirtualClusterPolicySpec struct {
 	// Quota specifies the resource limits for clusters within a clusterpolicy.
 	//
 	// +optional
-	Quota *v1.ResourceQuotaSpec `json:"quota,omitempty"`
+	Quota *corev1.ResourceQuotaSpec `json:"quota,omitempty"`
 
 	// Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy
 	// to set defaults and constraints (min/max)
 	//
 	// +optional
-	Limit *v1.LimitRangeSpec `json:"limit,omitempty"`
+	Limit *corev1.LimitRangeSpec `json:"limit,omitempty"`
 
 	// DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace.
 	//

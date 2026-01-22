@@ -13,12 +13,13 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -117,7 +118,10 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 
 		logrus.Infof("Creating cluster '%s' in namespace '%s'", name, namespace)
 
-		cluster := newCluster(name, namespace, config)
+		cluster, err := newCluster(name, namespace, config)
+		if err != nil {
+			return err
+		}
 
 		cluster.Spec.Expose = &v1beta1.ExposeConfig{
 			NodePort: &v1beta1.NodePortConfig{},
@@ -185,7 +189,17 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 	}
 }
 
-func newCluster(name, namespace string, config *CreateConfig) *v1beta1.Cluster {
+func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster, error) {
+	var storageRequestSize *resource.Quantity
+	if config.storageRequestSize != "" {
+		parsed, err := resource.ParseQuantity(config.storageRequestSize)
+		if err != nil {
+			return nil, err
+		}
+
+		storageRequestSize = ptr.To(parsed)
+	}
+
 	cluster := &v1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
@@ -211,7 +225,7 @@ func newCluster(name, namespace string, config *CreateConfig) *v1beta1.Cluster {
 			Persistence: v1beta1.PersistenceConfig{
 				Type:               v1beta1.PersistenceMode(config.persistenceType),
 				StorageClassName:   ptr.To(config.storageClassName),
-				StorageRequestSize: config.storageRequestSize,
+				StorageRequestSize: storageRequestSize,
 			},
 			MirrorHostNodes: config.mirrorHostNodes,
 		},
@@ -221,7 +235,7 @@ func newCluster(name, namespace string, config *CreateConfig) *v1beta1.Cluster {
 	}
 
 	if config.token != "" {
-		cluster.Spec.TokenSecretRef = &v1.SecretReference{
+		cluster.Spec.TokenSecretRef = &corev1.SecretReference{
 			Name:      k3kcluster.TokenSecretName(name),
 			Namespace: namespace,
 		}
@@ -253,11 +267,11 @@ func newCluster(name, namespace string, config *CreateConfig) *v1beta1.Cluster {
 		}
 	}
 
-	return cluster
+	return cluster, nil
 }
 
-func env(envSlice []string) []v1.EnvVar {
-	var envVars []v1.EnvVar
+func env(envSlice []string) []corev1.EnvVar {
+	var envVars []corev1.EnvVar
 
 	for _, env := range envSlice {
 		keyValue := strings.Split(env, "=")
@@ -265,7 +279,7 @@ func env(envSlice []string) []v1.EnvVar {
 			logrus.Fatalf("incorrect value for environment variable %s", env)
 		}
 
-		envVars = append(envVars, v1.EnvVar{
+		envVars = append(envVars, corev1.EnvVar{
 			Name:  keyValue[0],
 			Value: keyValue[1],
 		})
@@ -352,8 +366,8 @@ func CreateCustomCertsSecrets(ctx context.Context, name, namespace, customCertsP
 	return nil
 }
 
-func caCertSecret(certName, clusterName, clusterNamespace string, cert, key []byte) *v1.Secret {
-	return &v1.Secret{
+func caCertSecret(certName, clusterName, clusterNamespace string, cert, key []byte) *corev1.Secret {
+	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -362,10 +376,10 @@ func caCertSecret(certName, clusterName, clusterNamespace string, cert, key []by
 			Name:      controller.SafeConcatNameWithPrefix(clusterName, certName),
 			Namespace: clusterNamespace,
 		},
-		Type: v1.SecretTypeTLS,
+		Type: corev1.SecretTypeTLS,
 		Data: map[string][]byte{
-			v1.TLSCertKey:       cert,
-			v1.TLSPrivateKeyKey: key,
+			corev1.TLSCertKey:       cert,
+			corev1.TLSPrivateKeyKey: key,
 		},
 	}
 }
@@ -433,7 +447,10 @@ func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 
 	data.Persistence.Type = cluster.Spec.Persistence.Type
 	data.Persistence.StorageClassName = ptr.Deref(cluster.Spec.Persistence.StorageClassName, "")
-	data.Persistence.StorageRequestSize = cluster.Spec.Persistence.StorageRequestSize
+
+	if srs := cluster.Spec.Persistence.StorageRequestSize; srs != nil {
+		data.Persistence.StorageRequestSize = srs.String()
+	}
 
 	tmpl, err := template.New("clusterDetails").Parse(clusterDetailsTemplate)
 	if err != nil {

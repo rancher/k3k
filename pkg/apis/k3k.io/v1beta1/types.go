@@ -196,7 +196,7 @@ type ClusterSpec struct {
 // SecretMount represent any extra mount that the user will specify
 type SecretMount struct {
 	// Embeds SecretName, Items, DefaultMode, and Optional
-	v1.SecretVolumeSource `json:",inline"`
+	corev1.SecretVolumeSource `json:",inline"`
 	// MountPath is the path within server and agent pods where the
 	// secret contents will be mounted.
 	//

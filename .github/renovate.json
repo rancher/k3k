@@ -6,8 +6,5 @@
   "baseBranchPatterns": [
     "main"
   ],
-  "prHourlyLimit": 2,
-  "baseBranches": [
-    "main"
-  ]
+  "prHourlyLimit": 2
 }

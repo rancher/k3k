@@ -93,12 +93,10 @@ var _ = When("a cluster with private registry configuration is used", Label("e2e
 	It("will be load the registries.yaml and crts in server pod", func() {
 		ctx := context.Background()
 
-		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
-		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-		Expect(err).To(Not(HaveOccurred()))
+		serverPods := listServerPods(ctx, virtualCluster)
 
-		Expect(len(serverPods.Items)).To(Equal(1))
-		serverPod := serverPods.Items[0]
+		Expect(len(serverPods)).To(Equal(1))
+		serverPod := serverPods[0]
 
 		// check registries.yaml
 		registriesConfigPath := "/etc/rancher/k3s/registries.yaml"

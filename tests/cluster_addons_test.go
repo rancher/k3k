@@ -63,12 +63,10 @@ var _ = When("a cluster with secretMounts configuration is used to load addons",
 	It("will load the addon manifest in server pod", func() {
 		ctx := context.Background()
 
-		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
-		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-		Expect(err).To(Not(HaveOccurred()))
+		serverPods := listServerPods(ctx, virtualCluster)
 
-		Expect(len(serverPods.Items)).To(Equal(1))
-		serverPod := serverPods.Items[0]
+		Expect(len(serverPods)).To(Equal(1))
+		serverPod := serverPods[0]
 
 		addonContent, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, secretMountManifestMountPath)
 		Expect(err).To(Not(HaveOccurred()))
@@ -127,12 +125,10 @@ var _ = When("a cluster with addon configuration is used with addons secret in t
 			Client:     virtualClient,
 		}
 
-		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
-		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-		Expect(err).To(Not(HaveOccurred()))
+		serverPods := listServerPods(ctx, virtualCluster)
 
-		Expect(len(serverPods.Items)).To(Equal(1))
-		serverPod := serverPods.Items[0]
+		Expect(len(serverPods)).To(Equal(1))
+		serverPod := serverPods[0]
 
 		addonContent, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, addonManifestMountPath)
 		Expect(err).To(Not(HaveOccurred()))
@@ -192,12 +188,10 @@ var _ = When("a cluster with addon configuration is used with addons secret in t
 	It("will load the addon manifest in server pod and deploys the pod", func() {
 		ctx := context.Background()
 
-		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
-		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-		Expect(err).To(Not(HaveOccurred()))
+		serverPods := listServerPods(ctx, virtualCluster)
 
-		Expect(len(serverPods.Items)).To(Equal(1))
-		serverPod := serverPods.Items[0]
+		Expect(len(serverPods)).To(Equal(1))
+		serverPod := serverPods[0]
 
 		addonContent, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, addonManifestMountPath)
 		Expect(err).To(Not(HaveOccurred()))

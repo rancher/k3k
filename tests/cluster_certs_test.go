@@ -5,8 +5,6 @@ import (
 	"os"
 	"strings"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -98,12 +96,10 @@ var _ = When("a cluster with custom certificates is installed with individual ce
 	It("will load the custom certs in the server pod", func() {
 		ctx := context.Background()
 
-		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
-		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
-		Expect(err).To(Not(HaveOccurred()))
+		serverPods := listServerPods(ctx, virtualCluster)
 
-		Expect(len(serverPods.Items)).To(Equal(1))
-		serverPod := serverPods.Items[0]
+		Expect(len(serverPods)).To(Equal(1))
+		serverPod := serverPods[0]
 
 		// check server-ca.crt
 		serverCACrtPath := "/var/lib/rancher/k3s/server/tls/server-ca.crt"

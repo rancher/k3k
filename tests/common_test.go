@@ -397,26 +397,24 @@ func (c *VirtualCluster) ExecCmd(pod *v1.Pod, command string) (string, string, e
 func restartServerPod(ctx context.Context, virtualCluster *VirtualCluster) {
 	GinkgoHelper()
 
-	labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
-	serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-	Expect(err).To(Not(HaveOccurred()))
+	serverPods := listServerPods(ctx, virtualCluster)
 
-	Expect(len(serverPods.Items)).To(Equal(1))
-	serverPod := serverPods.Items[0]
+	Expect(len(serverPods)).To(Equal(1))
+	serverPod := serverPods[0]
 
 	GinkgoWriter.Printf("deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
 
-	err = k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).Delete(ctx, serverPod.Name, metav1.DeleteOptions{})
+	err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).Delete(ctx, serverPod.Name, metav1.DeleteOptions{})
 	Expect(err).To(Not(HaveOccurred()))
 
 	By("Deleting server pod")
 
 	// check that the server pods restarted
 	Eventually(func() any {
-		serverPods, err = k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-		Expect(err).To(Not(HaveOccurred()))
-		Expect(len(serverPods.Items)).To(Equal(1))
-		return serverPods.Items[0].DeletionTimestamp
+		serverPods := listServerPods(ctx, virtualCluster)
+
+		Expect(len(serverPods)).To(Equal(1))
+		return serverPods[0].DeletionTimestamp
 	}).WithTimeout(60 * time.Second).WithPolling(time.Second * 5).Should(BeNil())
 }
 

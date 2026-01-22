@@ -1,7 +1,6 @@
 package mounts
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -165,7 +164,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			},
 		},
 		{
-			name: "secrets are sorted by name",
+			name: "user will specify the order",
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
@@ -190,14 +189,14 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			},
 			expectedData: expectedVolumes{
 				vols: []v1.Volume{
+					expectedVolume("z-secret", nil),
 					expectedVolume("a-secret", nil),
 					expectedVolume("m-secret", nil),
-					expectedVolume("z-secret", nil),
 				},
 				volMounts: []v1.VolumeMount{
+					expectedVolumeMount("z-secret", "/z", ""),
 					expectedVolumeMount("a-secret", "/a", ""),
 					expectedVolumeMount("m-secret", "/m", ""),
-					expectedVolumeMount("z-secret", "/z", ""),
 				},
 			},
 		},
@@ -279,30 +278,6 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vols, volMounts := BuildSecretsMountsVolumes(tt.args.secretMounts)
-
-			slices.SortFunc(vols, func(a, b v1.Volume) int {
-				if a.Name < b.Name {
-					return -1
-				}
-
-				if a.Name > b.Name {
-					return 1
-				}
-
-				return 0
-			})
-
-			slices.SortFunc(volMounts, func(a, b v1.VolumeMount) int {
-				if a.Name < b.Name {
-					return -1
-				}
-
-				if a.Name > b.Name {
-					return 1
-				}
-
-				return 0
-			})
 
 			assert.Equal(t, tt.expectedData.vols, vols)
 			assert.Equal(t, tt.expectedData.volMounts, volMounts)

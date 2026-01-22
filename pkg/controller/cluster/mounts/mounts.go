@@ -8,9 +8,8 @@ import (
 
 func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount) ([]v1.Volume, []v1.VolumeMount) {
 	var (
-		vols                []v1.Volume
-		volMounts           []v1.VolumeMount
-		projectedVolSources []v1.VolumeProjection
+		vols      []v1.Volume
+		volMounts []v1.VolumeMount
 	)
 
 	for _, secretMount := range secretMounts {
@@ -18,7 +17,7 @@ func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount) ([]v1.Volume,
 			continue
 		}
 
-		projectedVolSources = []v1.VolumeProjection{
+		projectedVolSources := []v1.VolumeProjection{
 			{
 				Secret: &v1.SecretProjection{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -38,6 +37,7 @@ func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount) ([]v1.Volume,
 				},
 			},
 		})
+
 		volMounts = append(volMounts, v1.VolumeMount{
 			Name:      secretMount.SecretName,
 			MountPath: secretMount.MountPath,

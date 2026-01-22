@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"text/template"
@@ -501,12 +500,11 @@ func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMou
 
 func (s *Server) buildAddonsVolumes(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
 	var (
-		volumes         []v1.Volume
-		mounts          []v1.VolumeMount
-		sortedaddonkeys = sortedAddons(s.cluster.Spec.Addons)
+		volumes []v1.Volume
+		mounts  []v1.VolumeMount
 	)
 
-	for _, addon := range sortedaddonkeys {
+	for _, addon := range s.cluster.Spec.Addons {
 		namespace := s.cluster.Namespace
 		if addon.SecretNamespace != "" {
 			namespace = addon.SecretNamespace
@@ -575,16 +573,4 @@ func sortedKeys(keyMap map[string]string) []string {
 	sort.Strings(keys)
 
 	return keys
-}
-
-// sortedAddons will return back a sorted list of addons
-func sortedAddons(addons []v1beta1.Addon) []v1beta1.Addon {
-	sorted := make([]v1beta1.Addon, len(addons))
-	copy(sorted, addons)
-
-	slices.SortFunc(sorted, func(a, b v1beta1.Addon) int {
-		return strings.Compare(a.SecretRef, b.SecretRef)
-	})
-
-	return sorted
 }

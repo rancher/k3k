@@ -99,7 +99,7 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 			"mode":    "virtual",
 		},
 	}
-	podSpec := v.podSpec(image, name, v.cluster.Spec.AgentArgs, &selector)
+	podSpec := v.podSpec(image, name)
 
 	if len(v.cluster.Spec.SecretMounts) > 0 {
 		vols, volMounts := mounts.BuildSecretsMountsVolumes(v.cluster.Spec.SecretMounts)
@@ -134,9 +134,10 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 	return v.ensureObject(ctx, deployment)
 }
 
-func (v *VirtualAgent) podSpec(image, name string, args []string, affinitySelector *metav1.LabelSelector) v1.PodSpec {
+func (v *VirtualAgent) podSpec(image, name string) v1.PodSpec {
 	var limit v1.ResourceList
 
+	args := v.cluster.Spec.AgentArgs
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 
 	podSpec := v1.PodSpec{

@@ -414,6 +414,7 @@ func restartServerPod(ctx context.Context, virtualCluster *VirtualCluster) {
 		serverPods := listServerPods(ctx, virtualCluster)
 
 		Expect(len(serverPods)).To(Equal(1))
+
 		return serverPods[0].DeletionTimestamp
 	}).WithTimeout(60 * time.Second).WithPolling(time.Second * 5).Should(BeNil())
 }

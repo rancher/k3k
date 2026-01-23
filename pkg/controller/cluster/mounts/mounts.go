@@ -24,6 +24,7 @@ func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount, role string) 
 			volMounts = append(volMounts, volMount)
 		}
 	}
+
 	return vols, volMounts
 }
 
@@ -56,5 +57,4 @@ func buildSecretMountVolume(secretMount v1beta1.SecretMount) (v1.Volume, v1.Volu
 	}
 
 	return vol, volMount
-
 }

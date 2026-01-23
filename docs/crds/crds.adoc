@@ -534,6 +534,9 @@ secret contents will be mounted. + |  |
 | *`subPath`* __string__ | SubPath is an optional path within the secret to mount instead of the root. +
 When specified, only the specified key from the secret will be mounted as a file +
 at MountPath, keeping the parent directory writable. + |  | 
+| *`role`* __string__ | Role is the type of the k3k pod that will be used to mount the secret. +
+This can be sever, or agent, or both. + |  | Enum: [server agent all] +
+
 |===
 
 

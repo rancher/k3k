@@ -102,7 +102,7 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 	podSpec := v.podSpec(image, name)
 
 	if len(v.cluster.Spec.SecretMounts) > 0 {
-		vols, volMounts := mounts.BuildSecretsMountsVolumes(v.cluster.Spec.SecretMounts)
+		vols, volMounts := mounts.BuildSecretsMountsVolumes(v.cluster.Spec.SecretMounts, "agent")
 
 		podSpec.Volumes = append(podSpec.Volumes, vols...)
 

@@ -303,7 +303,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	}
 
 	if len(s.cluster.Spec.SecretMounts) > 0 {
-		vols, mounts := mounts.BuildSecretsMountsVolumes(s.cluster.Spec.SecretMounts)
+		vols, mounts := mounts.BuildSecretsMountsVolumes(s.cluster.Spec.SecretMounts, "server")
 
 		volumes = append(volumes, vols...)
 

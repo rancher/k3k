@@ -13,6 +13,7 @@ import (
 func Test_BuildSecretMountsVolume(t *testing.T) {
 	type args struct {
 		secretMounts []v1beta1.SecretMount
+		role         string
 	}
 
 	type expectedVolumes struct {
@@ -29,6 +30,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			name: "empty secret mounts",
 			args: args{
 				secretMounts: []v1beta1.SecretMount{},
+				role:         "server",
 			},
 			expectedData: expectedVolumes{
 				vols:      nil,
@@ -39,6 +41,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			name: "nil secret mounts",
 			args: args{
 				secretMounts: nil,
+				role:         "server",
 			},
 			expectedData: expectedVolumes{
 				vols:      nil,
@@ -46,7 +49,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			},
 		},
 		{
-			name: "single secret mount",
+			name: "single secret mount with no role specified defaults to all",
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
@@ -56,6 +59,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						MountPath: "/mount-dir-1",
 					},
 				},
+				role: "server",
 			},
 			expectedData: expectedVolumes{
 				vols: []v1.Volume{
@@ -67,7 +71,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple secrets mounts",
+			name: "multiple secrets mounts with no role specified defaults to all",
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
@@ -83,6 +87,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						MountPath: "/mount-dir-2",
 					},
 				},
+				role: "server",
 			},
 			expectedData: expectedVolumes{
 				vols: []v1.Volume{
@@ -112,6 +117,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						MountPath: "/mount-dir-1",
 					},
 				},
+				role: "server",
 			},
 			expectedData: expectedVolumes{
 				vols: []v1.Volume{
@@ -151,6 +157,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						MountPath: "/mount-dir-2",
 					},
 				},
+				role: "server",
 			},
 			expectedData: expectedVolumes{
 				vols: []v1.Volume{
@@ -186,6 +193,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						MountPath: "/m",
 					},
 				},
+				role: "server",
 			},
 			expectedData: expectedVolumes{
 				vols: []v1.Volume{
@@ -214,6 +222,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						MountPath: "/mount-dir-2",
 					},
 				},
+				role: "server",
 			},
 			expectedData: expectedVolumes{
 				vols: []v1.Volume{
@@ -241,6 +250,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						MountPath: "/mount-dir-2",
 					},
 				},
+				role: "server",
 			},
 			expectedData: expectedVolumes{
 				vols: []v1.Volume{
@@ -263,6 +273,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						SubPath:   "registries.yaml",
 					},
 				},
+				role: "server",
 			},
 			expectedData: expectedVolumes{
 				vols: []v1.Volume{
@@ -273,11 +284,211 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				},
 			},
 		},
+		// Role-based filtering tests
+		{
+			name: "role server includes only server and all roles",
+			args: args{
+				secretMounts: []v1beta1.SecretMount{
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "server-secret",
+						},
+						MountPath: "/server",
+						Role:      "server",
+					},
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "agent-secret",
+						},
+						MountPath: "/agent",
+						Role:      "agent",
+					},
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "all-secret",
+						},
+						MountPath: "/all",
+						Role:      "all",
+					},
+				},
+				role: "server",
+			},
+			expectedData: expectedVolumes{
+				vols: []v1.Volume{
+					expectedVolume("server-secret", nil),
+					expectedVolume("all-secret", nil),
+				},
+				volMounts: []v1.VolumeMount{
+					expectedVolumeMount("server-secret", "/server", ""),
+					expectedVolumeMount("all-secret", "/all", ""),
+				},
+			},
+		},
+		{
+			name: "role agent includes only agent and all roles",
+			args: args{
+				secretMounts: []v1beta1.SecretMount{
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "server-secret",
+						},
+						MountPath: "/server",
+						Role:      "server",
+					},
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "agent-secret",
+						},
+						MountPath: "/agent",
+						Role:      "agent",
+					},
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "all-secret",
+						},
+						MountPath: "/all",
+						Role:      "all",
+					},
+				},
+				role: "agent",
+			},
+			expectedData: expectedVolumes{
+				vols: []v1.Volume{
+					expectedVolume("agent-secret", nil),
+					expectedVolume("all-secret", nil),
+				},
+				volMounts: []v1.VolumeMount{
+					expectedVolumeMount("agent-secret", "/agent", ""),
+					expectedVolumeMount("all-secret", "/all", ""),
+				},
+			},
+		},
+		{
+			name: "empty role in secret mount defaults to all",
+			args: args{
+				secretMounts: []v1beta1.SecretMount{
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "no-role-secret",
+						},
+						MountPath: "/no-role",
+						Role:      "",
+					},
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "server-secret",
+						},
+						MountPath: "/server",
+						Role:      "server",
+					},
+				},
+				role: "agent",
+			},
+			expectedData: expectedVolumes{
+				vols: []v1.Volume{
+					expectedVolume("no-role-secret", nil),
+				},
+				volMounts: []v1.VolumeMount{
+					expectedVolumeMount("no-role-secret", "/no-role", ""),
+				},
+			},
+		},
+		{
+			name: "mixed roles with server filter",
+			args: args{
+				secretMounts: []v1beta1.SecretMount{
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "registry-config",
+						},
+						MountPath: "/etc/rancher/k3s/registries.yaml",
+						SubPath:   "registries.yaml",
+						Role:      "all",
+					},
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "server-config",
+						},
+						MountPath: "/etc/server",
+						Role:      "server",
+					},
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "agent-config",
+						},
+						MountPath: "/etc/agent",
+						Role:      "agent",
+					},
+				},
+				role: "server",
+			},
+			expectedData: expectedVolumes{
+				vols: []v1.Volume{
+					expectedVolume("registry-config", nil),
+					expectedVolume("server-config", nil),
+				},
+				volMounts: []v1.VolumeMount{
+					expectedVolumeMount("registry-config", "/etc/rancher/k3s/registries.yaml", "registries.yaml"),
+					expectedVolumeMount("server-config", "/etc/server", ""),
+				},
+			},
+		},
+		{
+			name: "all secrets have role all",
+			args: args{
+				secretMounts: []v1beta1.SecretMount{
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "secret-1",
+						},
+						MountPath: "/secret-1",
+						Role:      "all",
+					},
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "secret-2",
+						},
+						MountPath: "/secret-2",
+						Role:      "all",
+					},
+				},
+				role: "server",
+			},
+			expectedData: expectedVolumes{
+				vols: []v1.Volume{
+					expectedVolume("secret-1", nil),
+					expectedVolume("secret-2", nil),
+				},
+				volMounts: []v1.VolumeMount{
+					expectedVolumeMount("secret-1", "/secret-1", ""),
+					expectedVolumeMount("secret-2", "/secret-2", ""),
+				},
+			},
+		},
+		{
+			name: "no secrets match agent role",
+			args: args{
+				secretMounts: []v1beta1.SecretMount{
+					{
+						SecretVolumeSource: v1.SecretVolumeSource{
+							SecretName: "server-only",
+						},
+						MountPath: "/server-only",
+						Role:      "server",
+					},
+				},
+				role: "agent",
+			},
+			expectedData: expectedVolumes{
+				vols:      nil,
+				volMounts: nil,
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vols, volMounts := BuildSecretsMountsVolumes(tt.args.secretMounts)
+			vols, volMounts := BuildSecretsMountsVolumes(tt.args.secretMounts, tt.args.role)
 
 			assert.Equal(t, tt.expectedData.vols, vols)
 			assert.Equal(t, tt.expectedData.volMounts, volMounts)

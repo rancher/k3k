@@ -522,6 +522,15 @@ spec:
                       description: optional field specify whether the Secret or its
                         keys must be defined
                       type: boolean
+                    role:
+                      description: |-
+                        Role is the type of the k3k pod that will be used to mount the secret.
+                        This can be sever, or agent, or both.
+                      enum:
+                      - server
+                      - agent
+                      - all
+                      type: string
                     secretName:
                       description: |-
                         secretName is the name of the secret in the pod's namespace to use.

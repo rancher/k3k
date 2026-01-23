@@ -208,6 +208,12 @@ type SecretMount struct {
 	//
 	// +optional
 	SubPath string `json:"subPath,omitempty"`
+	// Role is the type of the k3k pod that will be used to mount the secret.
+	// This can be sever, or agent, or both.
+	//
+	// +optional
+	// +kubebuilder:validation:Enum=server;agent;all
+	Role string `json:"role,omitempty"`
 }
 
 // SyncConfig will contain the resources that should be synced from virtual cluster to host cluster.

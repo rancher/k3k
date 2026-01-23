@@ -397,6 +397,7 @@ _Appears in:_
 | `optional` _boolean_ | optional field specify whether the Secret or its keys must be defined |  |  |
 | `mountPath` _string_ | MountPath is the path within server and agent pods where the<br />secret contents will be mounted. |  |  |
 | `subPath` _string_ | SubPath is an optional path within the secret to mount instead of the root.<br />When specified, only the specified key from the secret will be mounted as a file<br />at MountPath, keeping the parent directory writable. |  |  |
+| `role` _string_ | Role is the type of the k3k pod that will be used to mount the secret.<br />This can be sever, or agent, or both. |  | Enum: [server agent all] <br /> |
 
 
 #### SecretSyncConfig

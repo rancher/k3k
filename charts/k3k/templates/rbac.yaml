@@ -28,14 +28,6 @@ rules:
   - "get"
   - "list"
   - "watch"
-- apiGroups:                                                                                                 
-  - "k3k.io"
-  resources:
-  - "virtualclusterpolicies"
-  verbs:
-  - "get"
-  - "list"
-  - "watch"
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

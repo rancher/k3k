@@ -8,7 +8,6 @@ replace (
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common => github.com/prometheus/common v0.64.0
-	golang.org/x/term => golang.org/x/term v0.15.0
 )
 
 require (

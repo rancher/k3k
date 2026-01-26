@@ -5,7 +5,7 @@ go 1.25
 toolchain go1.25.6
 
 replace (
-	github.com/google/cel-go => github.com/google/cel-go v0.20.1
+	github.com/google/cel-go => github.com/google/cel-go v0.26.1
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common => github.com/prometheus/common v0.64.0
@@ -47,6 +47,8 @@ require (
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/controller-runtime v0.19.4
 )
+
+require cel.dev/expr v0.24.0 // indirect
 
 require (
 	dario.cat/mergo v1.0.1 // indirect

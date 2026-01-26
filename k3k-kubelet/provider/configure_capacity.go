@@ -47,9 +47,16 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, coreClient type
 	}
 
 	if len(quotas.Items) > 0 {
-		mergedQuotas := GetEffectiveHardLimits(quotas.Items)
+		resourceLists := make([]corev1.ResourceList, len(quotas.Items)+1)
+		resourceLists = append(resourceLists, allocatable)
 
-		m, err := distributeQuotas(ctx, logger, virtualClient, mergedQuotas)
+		for _, q := range quotas.Items {
+			resourceLists = append(resourceLists, q.Status.Hard)
+		}
+
+		mergedResourceLists := MergeResourceLists(resourceLists...)
+
+		m, err := distributeQuotas(ctx, logger, virtualClient, mergedResourceLists)
 		if err != nil {
 			logger.Error(err, "error distributing policy quota")
 		}

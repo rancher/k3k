@@ -101,19 +101,29 @@ func nodeConditions() []corev1.NodeCondition {
 
 // GetEffectiveHardLimits merges a list of ResourceQuotas to find the
 // minimum (most restrictive) constraint for each resource type.
-func GetEffectiveHardLimits(quotas []corev1.ResourceQuota) corev1.ResourceList {
-	effectiveLimits := corev1.ResourceList{}
+func GetHardResourceLists(quotas []corev1.ResourceQuota) []corev1.ResourceList {
+	hardResourceLists := make([]corev1.ResourceList, len(quotas))
 
 	for _, q := range quotas {
-		for resName, qty := range q.Status.Hard {
-			existingQty, found := effectiveLimits[resName]
+		hardResourceLists = append(hardResourceLists, q.Status.Hard)
+	}
+
+	return hardResourceLists
+}
+
+func MergeResourceLists(resourceLists ...corev1.ResourceList) corev1.ResourceList {
+	merged := corev1.ResourceList{}
+
+	for _, resourceList := range resourceLists {
+		for resName, qty := range resourceList {
+			existingQty, found := merged[resName]
 
 			// If it's the first time we see it OR the new one is smaller -> Update
 			if !found || qty.Cmp(existingQty) < 0 {
-				effectiveLimits[resName] = qty.DeepCopy()
+				merged[resName] = qty.DeepCopy()
 			}
 		}
 	}
 
-	return effectiveLimits
+	return merged
 }

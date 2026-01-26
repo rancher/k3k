@@ -16,7 +16,6 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -534,10 +533,10 @@ func (s *Server) buildAddonsVolumes(ctx context.Context) ([]v1.Volume, []v1.Volu
 				Data: addons.Data,
 			}
 
-			if err := s.client.Create(ctx, &clusterAddons); err != nil {
-				if !apierrors.IsAlreadyExists(err) {
-					return nil, nil, err
-				}
+			if _, err := controllerutil.CreateOrUpdate(ctx, s.client, &clusterAddons, func() error {
+				return controllerutil.SetOwnerReference(s.cluster, &clusterAddons, s.client.Scheme())
+			}); err != nil {
+				return nil, nil, err
 			}
 		}
 

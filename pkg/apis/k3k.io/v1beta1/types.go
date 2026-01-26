@@ -193,7 +193,8 @@ type ClusterSpec struct {
 	SecretMounts []SecretMount `json:"secretMounts,omitempty"`
 }
 
-// SecretMount represent any extra mount that the user will specify
+// SecretMount defines a secret to be mounted into server or agent pods,
+// allowing for custom configurations, certificates, or other sensitive data.
 type SecretMount struct {
 	// Embeds SecretName, Items, DefaultMode, and Optional
 	corev1.SecretVolumeSource `json:",inline"`
@@ -209,7 +210,7 @@ type SecretMount struct {
 	// +optional
 	SubPath string `json:"subPath,omitempty"`
 	// Role is the type of the k3k pod that will be used to mount the secret.
-	// This can be sever, or agent, or both.
+	// This can be 'server', 'agent', or 'all' (for both).
 	//
 	// +optional
 	// +kubebuilder:validation:Enum=server;agent;all
@@ -499,10 +500,9 @@ type CredentialSources struct {
 // CredentialSource defines where to get a credential from.
 // It can represent either a TLS key pair or a single private key.
 type CredentialSource struct {
-	// SecretName specifies the name of an existing secret to use.
-	// The custom certificate controller expects specific keys inside based on the credential type:
-	// - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
-	// - For ServiceAccountTokenKey: 'tls.key'.
+	// The secret must contain specific keys based on the credential type:
+	// - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+	// - For the ServiceAccountToken signing key: `tls.key`.
 	SecretName string `json:"secretName"`
 }
 

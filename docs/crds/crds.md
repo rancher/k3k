@@ -171,7 +171,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `secretName` _string_ | SecretName specifies the name of an existing secret to use.<br />The custom certificate controller expects specific keys inside based on the credential type:<br />- For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.<br />- For ServiceAccountTokenKey: 'tls.key'. |  |  |
+| `secretName` _string_ | The secret must contain specific keys based on the credential type:<br />- For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.<br />- For the ServiceAccountToken signing key: `tls.key`. |  |  |
 
 
 #### CredentialSources
@@ -382,7 +382,8 @@ _Appears in:_
 
 
 
-SecretMount represent any extra mount that the user will specify
+SecretMount defines a secret to be mounted into server or agent pods,
+allowing for custom configurations, certificates, or other sensitive data.
 
 
 
@@ -397,7 +398,7 @@ _Appears in:_
 | `optional` _boolean_ | optional field specify whether the Secret or its keys must be defined |  |  |
 | `mountPath` _string_ | MountPath is the path within server and agent pods where the<br />secret contents will be mounted. |  |  |
 | `subPath` _string_ | SubPath is an optional path within the secret to mount instead of the root.<br />When specified, only the specified key from the secret will be mounted as a file<br />at MountPath, keeping the parent directory writable. |  |  |
-| `role` _string_ | Role is the type of the k3k pod that will be used to mount the secret.<br />This can be sever, or agent, or both. |  | Enum: [server agent all] <br /> |
+| `role` _string_ | Role is the type of the k3k pod that will be used to mount the secret.<br />This can be 'server', 'agent', or 'all' (for both). |  | Enum: [server agent all] <br /> |
 
 
 #### SecretSyncConfig

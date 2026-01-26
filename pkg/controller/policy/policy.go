@@ -165,6 +165,7 @@ func nodeEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 			if oldNode.Spec.PodCIDR != newNode.Spec.PodCIDR {
 				podCIDRChanged = true
 			}
+
 			if !reflect.DeepEqual(oldNode.Spec.PodCIDRs, newNode.Spec.PodCIDRs) {
 				podCIDRChanged = true
 			}

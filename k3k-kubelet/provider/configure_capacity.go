@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"time"
 
@@ -115,7 +114,6 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, virtualClient cli
 	// Distribute each resource type from the policy's hard quota
 	for resourceName, totalQuantity := range quotas {
 		// Use MilliValue for precise division, especially for CPU
-
 		var totalValue int64
 		if _, found := rmap[resourceName]; found {
 			totalValue = totalQuantity.MilliValue()
@@ -125,8 +123,6 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, virtualClient cli
 
 		quantityPerNode := totalValue / numNodes
 		remainder := totalValue % numNodes
-
-		fmt.Println("totalValue", totalValue, "totalQuantity", totalQuantity.String(), "resourceName", resourceName, "quantityPerNode", quantityPerNode, "remainder", remainder)
 
 		for _, virtualNode := range virtualNodeList.Items {
 			nodeQuantity := quantityPerNode

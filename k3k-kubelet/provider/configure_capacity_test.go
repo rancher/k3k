@@ -90,30 +90,26 @@ func Test_distributeQuotas(t *testing.T) {
 				corev1.ResourceCPU:     resource.MustParse("2"),
 				corev1.ResourcePods:    resource.MustParse("11"),
 				corev1.ResourceSecrets: resource.MustParse("9"),
-				"custom":               resource.MustParse("8.0"),
-				"custom2":              resource.MustParse("4000m"),
+				"custom":               resource.MustParse("8"),
 			},
 			want: map[string]corev1.ResourceList{
 				"node-1": {
 					corev1.ResourceCPU:     resource.MustParse("667m"),
 					corev1.ResourcePods:    resource.MustParse("4"),
 					corev1.ResourceSecrets: resource.MustParse("3"),
-					"custom":               resource.MustParse("3.0"),
-					"custom2":              resource.MustParse("4000m"),
+					"custom":               resource.MustParse("3"),
 				},
 				"node-2": {
 					corev1.ResourceCPU:     resource.MustParse("667m"),
 					corev1.ResourcePods:    resource.MustParse("4"),
 					corev1.ResourceSecrets: resource.MustParse("3"),
-					"custom":               resource.MustParse("3.0"),
-					"custom2":              resource.MustParse("4000m"),
+					"custom":               resource.MustParse("3"),
 				},
 				"node-3": {
 					corev1.ResourceCPU:     resource.MustParse("666m"),
 					corev1.ResourcePods:    resource.MustParse("3"),
 					corev1.ResourceSecrets: resource.MustParse("3"),
-					"custom":               resource.MustParse("2.0"),
-					"custom2":              resource.MustParse("4000m"),
+					"custom":               resource.MustParse("2"),
 				},
 			},
 			wantErr: false,
@@ -125,10 +121,7 @@ func Test_distributeQuotas(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.virtualNodes...).Build()
 			logger := zapr.NewLogger(zap.NewNop())
 
-			var got map[string]corev1.ResourceList
-			var gotErr error
-
-			got, gotErr = distributeQuotas(context.Background(), logger, fakeClient, tt.quotas)
+			got, gotErr := distributeQuotas(context.Background(), logger, fakeClient, tt.quotas)
 			if tt.wantErr {
 				assert.Error(t, gotErr)
 			} else {

@@ -5,7 +5,6 @@ go 1.25
 toolchain go1.25.6
 
 replace (
-	github.com/google/cel-go => github.com/google/cel-go v0.20.1
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common => github.com/prometheus/common v0.64.0
@@ -32,16 +31,16 @@ require (
 	go.etcd.io/etcd/client/v3 v3.5.16
 	go.uber.org/zap v1.27.1
 	gopkg.in/yaml.v2 v2.4.0
-	helm.sh/helm/v3 v3.14.4
-	k8s.io/api v0.31.13
-	k8s.io/apiextensions-apiserver v0.31.13
-	k8s.io/apimachinery v0.31.13
-	k8s.io/apiserver v0.31.13
-	k8s.io/cli-runtime v0.31.13
-	k8s.io/client-go v0.31.13
-	k8s.io/component-base v0.31.13
-	k8s.io/component-helpers v0.31.13
-	k8s.io/kubectl v0.31.13
+	helm.sh/helm/v3 v3.17.4
+	k8s.io/api v0.32.2
+	k8s.io/apiextensions-apiserver v0.32.2
+	k8s.io/apimachinery v0.32.2
+	k8s.io/apiserver v0.32.2
+	k8s.io/cli-runtime v0.32.2
+	k8s.io/client-go v0.32.2
+	k8s.io/component-base v0.32.2
+	k8s.io/component-helpers v0.32.2
+	k8s.io/kubectl v0.32.2
 	k8s.io/kubelet v0.31.13
 	k8s.io/kubernetes v1.31.13
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
@@ -49,6 +48,7 @@ require (
 )
 
 require (
+	cel.dev/expr v0.18.0 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
@@ -121,7 +121,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
-	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -219,7 +218,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kms v0.31.13 // indirect
+	k8s.io/kms v0.32.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20241105132330-32ad38e42d3f // indirect
 	oras.land/oras-go v1.2.5 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0 // indirect

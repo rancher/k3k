@@ -241,10 +241,9 @@ spec:
                         properties:
                           secretName:
                             description: |-
-                              SecretName specifies the name of an existing secret to use.
-                              The controller expects specific keys inside based on the credential type:
-                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
-                              - For ServiceAccountTokenKey: 'tls.key'.
+                              The secret must contain specific keys based on the credential type:
+                              - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+                              - For the ServiceAccountToken signing key: `tls.key`.
                             type: string
                         required:
                         - secretName
@@ -255,10 +254,9 @@ spec:
                         properties:
                           secretName:
                             description: |-
-                              SecretName specifies the name of an existing secret to use.
-                              The controller expects specific keys inside based on the credential type:
-                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
-                              - For ServiceAccountTokenKey: 'tls.key'.
+                              The secret must contain specific keys based on the credential type:
+                              - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+                              - For the ServiceAccountToken signing key: `tls.key`.
                             type: string
                         required:
                         - secretName
@@ -269,10 +267,9 @@ spec:
                         properties:
                           secretName:
                             description: |-
-                              SecretName specifies the name of an existing secret to use.
-                              The controller expects specific keys inside based on the credential type:
-                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
-                              - For ServiceAccountTokenKey: 'tls.key'.
+                              The secret must contain specific keys based on the credential type:
+                              - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+                              - For the ServiceAccountToken signing key: `tls.key`.
                             type: string
                         required:
                         - secretName
@@ -283,10 +280,9 @@ spec:
                         properties:
                           secretName:
                             description: |-
-                              SecretName specifies the name of an existing secret to use.
-                              The controller expects specific keys inside based on the credential type:
-                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
-                              - For ServiceAccountTokenKey: 'tls.key'.
+                              The secret must contain specific keys based on the credential type:
+                              - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+                              - For the ServiceAccountToken signing key: `tls.key`.
                             type: string
                         required:
                         - secretName
@@ -296,10 +292,9 @@ spec:
                         properties:
                           secretName:
                             description: |-
-                              SecretName specifies the name of an existing secret to use.
-                              The controller expects specific keys inside based on the credential type:
-                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
-                              - For ServiceAccountTokenKey: 'tls.key'.
+                              The secret must contain specific keys based on the credential type:
+                              - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+                              - For the ServiceAccountToken signing key: `tls.key`.
                             type: string
                         required:
                         - secretName
@@ -310,10 +305,9 @@ spec:
                         properties:
                           secretName:
                             description: |-
-                              SecretName specifies the name of an existing secret to use.
-                              The controller expects specific keys inside based on the credential type:
-                              - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
-                              - For ServiceAccountTokenKey: 'tls.key'.
+                              The secret must contain specific keys based on the credential type:
+                              - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+                              - For the ServiceAccountToken signing key: `tls.key`.
                             type: string
                         required:
                         - secretName
@@ -456,6 +450,95 @@ spec:
                   PriorityClass specifies the priorityClassName for server/agent pods.
                   In "shared" mode, this also applies to workloads.
                 type: string
+              secretMounts:
+                description: |-
+                  SecretMounts specifies a list of secrets to mount into server and agent pods.
+                  Each entry defines a secret and its mount path within the pods.
+                items:
+                  description: |-
+                    SecretMount defines a secret to be mounted into server or agent pods,
+                    allowing for custom configurations, certificates, or other sensitive data.
+                  properties:
+                    defaultMode:
+                      description: |-
+                        defaultMode is Optional: mode bits used to set permissions on created files by default.
+                        Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.
+                        YAML accepts both octal and decimal values, JSON requires decimal values
+                        for mode bits. Defaults to 0644.
+                        Directories within the path are not affected by this setting.
+                        This might be in conflict with other options that affect the file
+                        mode, like fsGroup, and the result can be other mode bits set.
+                      format: int32
+                      type: integer
+                    items:
+                      description: |-
+                        items If unspecified, each key-value pair in the Data field of the referenced
+                        Secret will be projected into the volume as a file whose name is the
+                        key and content is the value. If specified, the listed keys will be
+                        projected into the specified paths, and unlisted keys will not be
+                        present. If a key is specified which is not present in the Secret,
+                        the volume setup will error unless it is marked optional. Paths must be
+                        relative and may not contain the '..' path or start with '..'.
+                      items:
+                        description: Maps a string key to a path within a volume.
+                        properties:
+                          key:
+                            description: key is the key to project.
+                            type: string
+                          mode:
+                            description: |-
+                              mode is Optional: mode bits used to set permissions on this file.
+                              Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.
+                              YAML accepts both octal and decimal values, JSON requires decimal values for mode bits.
+                              If not specified, the volume defaultMode will be used.
+                              This might be in conflict with other options that affect the file
+                              mode, like fsGroup, and the result can be other mode bits set.
+                            format: int32
+                            type: integer
+                          path:
+                            description: |-
+                              path is the relative path of the file to map the key to.
+                              May not be an absolute path.
+                              May not contain the path element '..'.
+                              May not start with the string '..'.
+                            type: string
+                        required:
+                        - key
+                        - path
+                        type: object
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    mountPath:
+                      description: |-
+                        MountPath is the path within server and agent pods where the
+                        secret contents will be mounted.
+                      type: string
+                    optional:
+                      description: optional field specify whether the Secret or its
+                        keys must be defined
+                      type: boolean
+                    role:
+                      description: |-
+                        Role is the type of the k3k pod that will be used to mount the secret.
+                        This can be 'server', 'agent', or 'all' (for both).
+                      enum:
+                      - server
+                      - agent
+                      - all
+                      type: string
+                    secretName:
+                      description: |-
+                        secretName is the name of the secret in the pod's namespace to use.
+                        More info: https://kubernetes.io/docs/concepts/storage/volumes#secret
+                      type: string
+                    subPath:
+                      description: |-
+                        SubPath is an optional path within the secret to mount instead of the root.
+                        When specified, only the specified key from the secret will be mounted as a file
+                        at MountPath, keeping the parent directory writable.
+                      type: string
+                  type: object
+                type: array
               serverArgs:
                 description: |-
                   ServerArgs specifies ordered key-value pairs for K3s server pods.

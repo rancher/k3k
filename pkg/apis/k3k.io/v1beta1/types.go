@@ -185,6 +185,36 @@ type ClusterSpec struct {
 	// +kubebuilder:default={}
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
+
+	// SecretMounts specifies a list of secrets to mount into server and agent pods.
+	// Each entry defines a secret and its mount path within the pods.
+	//
+	// +optional
+	SecretMounts []SecretMount `json:"secretMounts,omitempty"`
+}
+
+// SecretMount defines a secret to be mounted into server or agent pods,
+// allowing for custom configurations, certificates, or other sensitive data.
+type SecretMount struct {
+	// Embeds SecretName, Items, DefaultMode, and Optional
+	corev1.SecretVolumeSource `json:",inline"`
+	// MountPath is the path within server and agent pods where the
+	// secret contents will be mounted.
+	//
+	// +optional
+	MountPath string `json:"mountPath,omitempty"`
+	// SubPath is an optional path within the secret to mount instead of the root.
+	// When specified, only the specified key from the secret will be mounted as a file
+	// at MountPath, keeping the parent directory writable.
+	//
+	// +optional
+	SubPath string `json:"subPath,omitempty"`
+	// Role is the type of the k3k pod that will be used to mount the secret.
+	// This can be 'server', 'agent', or 'all' (for both).
+	//
+	// +optional
+	// +kubebuilder:validation:Enum=server;agent;all
+	Role string `json:"role,omitempty"`
 }
 
 // SyncConfig will contain the resources that should be synced from virtual cluster to host cluster.
@@ -470,10 +500,9 @@ type CredentialSources struct {
 // CredentialSource defines where to get a credential from.
 // It can represent either a TLS key pair or a single private key.
 type CredentialSource struct {
-	// SecretName specifies the name of an existing secret to use.
-	// The controller expects specific keys inside based on the credential type:
-	// - For TLS pairs (e.g., ServerCA): 'tls.crt' and 'tls.key'.
-	// - For ServiceAccountTokenKey: 'tls.key'.
+	// The secret must contain specific keys based on the credential type:
+	// - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+	// - For the ServiceAccountToken signing key: `tls.key`.
 	SecretName string `json:"secretName"`
 }
 

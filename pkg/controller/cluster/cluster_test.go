@@ -2,12 +2,14 @@ package cluster_test
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -293,6 +295,164 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 					err := k8sClient.Create(ctx, cluster)
 					Expect(err).To(HaveOccurred())
+				})
+			})
+			When("adding addons to the cluster", func() {
+				It("will create a statefulset with the correct addon volumes and volume mounts", func() {
+					// Create the addon secret first
+					addonSecret := &corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-addon",
+							Namespace: namespace,
+						},
+						Data: map[string][]byte{
+							"manifest.yaml": []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test-cm\n"),
+						},
+					}
+					Expect(k8sClient.Create(ctx, addonSecret)).To(Succeed())
+
+					// Create the cluster with an addon referencing the secret
+					cluster := &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1beta1.ClusterSpec{
+							Addons: []v1beta1.Addon{
+								{
+									SecretRef: "test-addon",
+								},
+							},
+						},
+					}
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+
+					// Wait for the statefulset to be created and verify volumes/mounts
+					var statefulSet appsv1.StatefulSet
+					statefulSetName := k3kcontroller.SafeConcatNameWithPrefix(cluster.Name, "server")
+
+					Eventually(func() error {
+						return k8sClient.Get(ctx, client.ObjectKey{
+							Name:      statefulSetName,
+							Namespace: cluster.Namespace,
+						}, &statefulSet)
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					// Verify the addon volume exists
+					var addonVolume *corev1.Volume
+					for i := range statefulSet.Spec.Template.Spec.Volumes {
+						v := &statefulSet.Spec.Template.Spec.Volumes[i]
+						if v.Name == "addon-test-addon" {
+							addonVolume = v
+							break
+						}
+					}
+					Expect(addonVolume).NotTo(BeNil(), "addon volume should exist")
+					Expect(addonVolume.VolumeSource.Secret).NotTo(BeNil())
+					Expect(addonVolume.VolumeSource.Secret.SecretName).To(Equal("test-addon"))
+
+					// Verify the addon volume mount exists in the first container
+					containers := statefulSet.Spec.Template.Spec.Containers
+					Expect(containers).NotTo(BeEmpty())
+
+					var addonMount *corev1.VolumeMount
+					for i := range containers[0].VolumeMounts {
+						m := &containers[0].VolumeMounts[i]
+						if m.Name == "addon-test-addon" {
+							addonMount = m
+							break
+						}
+					}
+					Expect(addonMount).NotTo(BeNil(), "addon volume mount should exist")
+					Expect(addonMount.MountPath).To(Equal("/var/lib/rancher/k3s/server/manifests/test-addon"))
+					Expect(addonMount.ReadOnly).To(BeTrue())
+				})
+
+				It("will create volumes for multiple addons in the correct order", func() {
+					// Create multiple addon secrets
+					addonSecret1 := &corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "addon-one",
+							Namespace: namespace,
+						},
+						Data: map[string][]byte{
+							"manifest.yaml": []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm-one\n"),
+						},
+					}
+					addonSecret2 := &corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "addon-two",
+							Namespace: namespace,
+						},
+						Data: map[string][]byte{
+							"manifest.yaml": []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm-two\n"),
+						},
+					}
+					Expect(k8sClient.Create(ctx, addonSecret1)).To(Succeed())
+					Expect(k8sClient.Create(ctx, addonSecret2)).To(Succeed())
+
+					// Create the cluster with multiple addons in specific order
+					cluster := &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1beta1.ClusterSpec{
+							Addons: []v1beta1.Addon{
+								{SecretRef: "addon-one"},
+								{SecretRef: "addon-two"},
+							},
+						},
+					}
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+
+					// Wait for the statefulset to be created
+					var statefulSet appsv1.StatefulSet
+					statefulSetName := k3kcontroller.SafeConcatNameWithPrefix(cluster.Name, "server")
+
+					Eventually(func() error {
+						return k8sClient.Get(ctx, client.ObjectKey{
+							Name:      statefulSetName,
+							Namespace: cluster.Namespace,
+						}, &statefulSet)
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					// Verify both addon volumes exist and are in the correct order
+					volumes := statefulSet.Spec.Template.Spec.Volumes
+
+					// Extract only addon volumes (those starting with "addon-")
+					var addonVolumes []corev1.Volume
+					for _, v := range volumes {
+						if strings.HasPrefix(v.Name, "addon-") {
+							addonVolumes = append(addonVolumes, v)
+						}
+					}
+					Expect(addonVolumes).To(HaveLen(2))
+					Expect(addonVolumes[0].Name).To(Equal("addon-addon-one"))
+					Expect(addonVolumes[1].Name).To(Equal("addon-addon-two"))
+
+					// Verify both addon volume mounts exist and are in the correct order
+					containers := statefulSet.Spec.Template.Spec.Containers
+					Expect(containers).NotTo(BeEmpty())
+
+					// Extract only addon mounts (those starting with "addon-")
+					var addonMounts []corev1.VolumeMount
+					for _, m := range containers[0].VolumeMounts {
+						if strings.HasPrefix(m.Name, "addon-") {
+							addonMounts = append(addonMounts, m)
+						}
+					}
+					Expect(addonMounts).To(HaveLen(2))
+					Expect(addonMounts[0].Name).To(Equal("addon-addon-one"))
+					Expect(addonMounts[0].MountPath).To(Equal("/var/lib/rancher/k3s/server/manifests/addon-one"))
+					Expect(addonMounts[1].Name).To(Equal("addon-addon-two"))
+					Expect(addonMounts[1].MountPath).To(Equal("/var/lib/rancher/k3s/server/manifests/addon-two"))
 				})
 			})
 		})

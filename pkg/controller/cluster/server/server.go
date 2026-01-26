@@ -21,13 +21,13 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
+	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
 )
 
 const (
-	k3kSystemNamespace = "k3k-system"
-	serverName         = "server"
-	configName         = "server-config"
-	initConfigName     = "init-server-config"
+	serverName     = "server"
+	configName     = "server-config"
+	initConfigName = "init-server-config"
 )
 
 // Server
@@ -279,66 +279,30 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		volumeMounts []v1.VolumeMount
 	)
 
-	for _, addon := range s.cluster.Spec.Addons {
-		namespace := k3kSystemNamespace
-		if addon.SecretNamespace != "" {
-			namespace = addon.SecretNamespace
-		}
-
-		nn := types.NamespacedName{
-			Name:      addon.SecretRef,
-			Namespace: namespace,
-		}
-
-		var addons v1.Secret
-		if err := s.client.Get(ctx, nn, &addons); err != nil {
-			return nil, err
-		}
-
-		clusterAddons := v1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      addons.Name,
-				Namespace: s.cluster.Namespace,
-			},
-			Data: make(map[string][]byte, len(addons.Data)),
-		}
-		for k, v := range addons.Data {
-			clusterAddons.Data[k] = v
-		}
-
-		if err := s.client.Create(ctx, &clusterAddons); err != nil {
-			return nil, err
-		}
-
-		name := "varlibrancherk3smanifests" + addon.SecretRef
-		volume := v1.Volume{
-			Name: name,
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: addon.SecretRef,
-				},
-			},
-		}
-		volumes = append(volumes, volume)
-
-		volumeMount := v1.VolumeMount{
-			Name:      name,
-			MountPath: "/var/lib/rancher/k3s/server/manifests/" + addon.SecretRef,
-			// changes to this part of the filesystem shouldn't be done manually. The secret should be updated instead.
-			ReadOnly: true,
-		}
-		volumeMounts = append(volumeMounts, volumeMount)
-	}
-
-	if s.cluster.Spec.CustomCAs != nil && s.cluster.Spec.CustomCAs.Enabled {
-		vols, mounts, err := s.loadCACertBundle(ctx)
+	if len(s.cluster.Spec.Addons) > 0 {
+		addonsVols, addonsMounts, err := s.buildAddonsVolumes(ctx)
 		if err != nil {
 			return nil, err
 		}
+
+		volumes = append(volumes, addonsVols...)
+
+		volumeMounts = append(volumeMounts, addonsMounts...)
+	}
+
+	if s.cluster.Spec.CustomCAs != nil && s.cluster.Spec.CustomCAs.Enabled {
+		vols, mounts, err := s.buildCABundleVolumes(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		volumes = append(volumes, vols...)
+
+		volumeMounts = append(volumeMounts, mounts...)
+	}
+
+	if len(s.cluster.Spec.SecretMounts) > 0 {
+		vols, mounts := mounts.BuildSecretsMountsVolumes(s.cluster.Spec.SecretMounts, "server")
 
 		volumes = append(volumes, vols...)
 
@@ -441,7 +405,7 @@ func (s *Server) setupStartCommand() (string, error) {
 	return output.String(), nil
 }
 
-func (s *Server) loadCACertBundle(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
+func (s *Server) buildCABundleVolumes(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
 	if s.cluster.Spec.CustomCAs == nil {
 		return nil, nil, fmt.Errorf("customCAs not found")
 	}
@@ -531,6 +495,71 @@ func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMou
 	})
 
 	return volume, mounts
+}
+
+func (s *Server) buildAddonsVolumes(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
+	var (
+		volumes []v1.Volume
+		mounts  []v1.VolumeMount
+	)
+
+	for _, addon := range s.cluster.Spec.Addons {
+		namespace := s.cluster.Namespace
+		if addon.SecretNamespace != "" {
+			namespace = addon.SecretNamespace
+		}
+
+		nn := types.NamespacedName{
+			Name:      addon.SecretRef,
+			Namespace: namespace,
+		}
+
+		var addons v1.Secret
+		if err := s.client.Get(ctx, nn, &addons); err != nil {
+			return nil, nil, err
+		}
+
+		// skip creating the addon secret if it already exists and in the same namespace as the cluster
+		if namespace != s.cluster.Namespace {
+			clusterAddons := v1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      addons.Name,
+					Namespace: s.cluster.Namespace,
+				},
+				Data: addons.Data,
+			}
+
+			if _, err := controllerutil.CreateOrUpdate(ctx, s.client, &clusterAddons, func() error {
+				return controllerutil.SetOwnerReference(s.cluster, &clusterAddons, s.client.Scheme())
+			}); err != nil {
+				return nil, nil, err
+			}
+		}
+
+		name := "addon-" + addon.SecretRef
+		volume := v1.Volume{
+			Name: name,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: addon.SecretRef,
+				},
+			},
+		}
+		volumes = append(volumes, volume)
+
+		volumeMount := v1.VolumeMount{
+			Name:      name,
+			MountPath: "/var/lib/rancher/k3s/server/manifests/" + addon.SecretRef,
+			ReadOnly:  true,
+		}
+		mounts = append(mounts, volumeMount)
+	}
+
+	return volumes, mounts, nil
 }
 
 func sortedKeys(keyMap map[string]string) []string {

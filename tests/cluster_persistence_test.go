@@ -59,12 +59,10 @@ var _ = When("an ephemeral cluster is installed", Label(e2eTestLabel), Label(per
 		_, err := virtualCluster.Client.ServerVersion()
 		Expect(err).To(Not(HaveOccurred()))
 
-		labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
-		serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
-		Expect(err).To(Not(HaveOccurred()))
+		serverPods := listServerPods(ctx, virtualCluster)
 
-		Expect(len(serverPods.Items)).To(Equal(1))
-		serverPod := serverPods.Items[0]
+		Expect(len(serverPods)).To(Equal(1))
+		serverPod := serverPods[0]
 
 		GinkgoWriter.Printf("deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
 
@@ -75,10 +73,9 @@ var _ = When("an ephemeral cluster is installed", Label(e2eTestLabel), Label(per
 
 		// check that the server pods restarted
 		Eventually(func() any {
-			serverPods, err = k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
-			Expect(err).To(Not(HaveOccurred()))
-			Expect(len(serverPods.Items)).To(Equal(1))
-			return serverPods.Items[0].DeletionTimestamp
+			serverPods := listServerPods(ctx, virtualCluster)
+			Expect(len(serverPods)).To(Equal(1))
+			return serverPods[0].DeletionTimestamp
 		}).
 			WithTimeout(time.Minute).
 			WithPolling(time.Second * 5).

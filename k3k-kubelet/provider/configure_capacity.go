@@ -17,12 +17,42 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-func UpdateNodeCapacity(ctx context.Context, logger logr.Logger, interval time.Duration, coreClient typedv1.CoreV1Interface, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, virtualNodeName string) {
-	ticker := time.NewTicker(interval)
+const (
+	// UpdateNodeCapacityInterval is the interval at which the node capacity is updated.
+	UpdateNodeCapacityInterval = 10 * time.Second
+)
 
+// milliScaleResources is a set of resource names that are measured in milli-units (e.g., CPU).
+// This is used to determine whether to use MilliValue() for calculations.
+var milliScaleResources = map[corev1.ResourceName]struct{}{
+	corev1.ResourceCPU:                      {},
+	corev1.ResourceMemory:                   {},
+	corev1.ResourceStorage:                  {},
+	corev1.ResourceEphemeralStorage:         {},
+	corev1.ResourceRequestsCPU:              {},
+	corev1.ResourceRequestsMemory:           {},
+	corev1.ResourceRequestsStorage:          {},
+	corev1.ResourceRequestsEphemeralStorage: {},
+	corev1.ResourceLimitsCPU:                {},
+	corev1.ResourceLimitsMemory:             {},
+	corev1.ResourceLimitsEphemeralStorage:   {},
+}
+
+// StartNodeCapacityUpdater starts a goroutine that periodically updates the capacity
+// of the virtual node based on host node capacity and any applied ResourceQuotas.
+func startNodeCapacityUpdater(ctx context.Context, logger logr.Logger, coreClient typedv1.CoreV1Interface, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, virtualNodeName string) {
 	go func() {
-		for range ticker.C {
-			updateNodeCapacity(ctx, logger, coreClient, hostClient, virtualClient, virtualCluster, virtualNodeName)
+		ticker := time.NewTicker(UpdateNodeCapacityInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				updateNodeCapacity(ctx, logger, coreClient, hostClient, virtualClient, virtualCluster, virtualNodeName)
+			case <-ctx.Done():
+				logger.Info("Stopping node capacity updates for node", "node", virtualNodeName)
+				return
+			}
 		}
 	}()
 }
@@ -47,14 +77,12 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, coreClient type
 	}
 
 	if len(quotas.Items) > 0 {
-		resourceLists := make([]corev1.ResourceList, len(quotas.Items)+1)
-		resourceLists = append(resourceLists, allocatable)
-
+		resourceLists := []corev1.ResourceList{allocatable}
 		for _, q := range quotas.Items {
 			resourceLists = append(resourceLists, q.Status.Hard)
 		}
 
-		mergedResourceLists := MergeResourceLists(resourceLists...)
+		mergedResourceLists := mergeResourceLists(resourceLists...)
 
 		m, err := distributeQuotas(ctx, logger, virtualClient, mergedResourceLists)
 		if err != nil {
@@ -77,22 +105,29 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, coreClient type
 	}
 }
 
-var rmap = map[corev1.ResourceName]struct{}{
-	corev1.ResourceCPU:                      {},
-	corev1.ResourceMemory:                   {},
-	corev1.ResourceStorage:                  {},
-	corev1.ResourceEphemeralStorage:         {},
-	corev1.ResourceRequestsCPU:              {},
-	corev1.ResourceRequestsMemory:           {},
-	corev1.ResourceRequestsStorage:          {},
-	corev1.ResourceRequestsEphemeralStorage: {},
-	corev1.ResourceLimitsCPU:                {},
-	corev1.ResourceLimitsMemory:             {},
-	corev1.ResourceLimitsEphemeralStorage:   {},
+// mergeResourceLists takes multiple resource lists and returns a single list that represents
+// the most restrictive set of resources. For each resource name, it selects the minimum
+// quantity found across all the provided lists.
+func mergeResourceLists(resourceLists ...corev1.ResourceList) corev1.ResourceList {
+	merged := corev1.ResourceList{}
+
+	for _, resourceList := range resourceLists {
+		for resName, qty := range resourceList {
+			existingQty, found := merged[resName]
+
+			// If it's the first time we see it OR the new one is smaller -> Update
+			if !found || qty.Cmp(existingQty) < 0 {
+				merged[resName] = qty.DeepCopy()
+			}
+		}
+	}
+
+	return merged
 }
 
-// distributeQuotas calculates the capacity and allocatable resources for the virtual nodes
-// based on the VirtualClusterPolicy's quota, the host node's resources, and the number of active virtual kubelets.
+// distributeQuotas divides the total resource quotas evenly among all active virtual nodes.
+// This ensures that each virtual node reports a fair share of the available resources,
+// preventing the scheduler from overloading a single node.
 func distributeQuotas(ctx context.Context, logger logr.Logger, virtualClient client.Client, quotas corev1.ResourceList) (map[string]corev1.ResourceList, error) {
 	// List all virtual nodes to distribute the quota stably
 	var virtualNodeList corev1.NodeList
@@ -122,7 +157,7 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, virtualClient cli
 	for resourceName, totalQuantity := range quotas {
 		// Use MilliValue for precise division, especially for CPU
 		var totalValue int64
-		if _, found := rmap[resourceName]; found {
+		if _, found := milliScaleResources[resourceName]; found {
 			totalValue = totalQuantity.MilliValue()
 		} else {
 			totalValue = totalQuantity.Value()
@@ -138,7 +173,7 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, virtualClient cli
 				remainder--
 			}
 
-			if _, found := rmap[resourceName]; found {
+			if _, found := milliScaleResources[resourceName]; found {
 				resourceMap[virtualNode.Name][resourceName] = *resource.NewMilliQuantity(nodeQuantity, totalQuantity.Format)
 			} else {
 				resourceMap[virtualNode.Name][resourceName] = *resource.NewQuantity(nodeQuantity, totalQuantity.Format)

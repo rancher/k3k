@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,8 +47,7 @@ func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servi
 		// configure versions
 		node.Status.NodeInfo.KubeletVersion = version
 
-		updateNodeCapacityInterval := 10 * time.Second
-		UpdateNodeCapacity(ctx, logger, updateNodeCapacityInterval, coreClient, hostClient, virtualClient, virtualCluster, node.Name)
+		startNodeCapacityUpdater(ctx, logger, coreClient, hostClient, virtualClient, virtualCluster, node.Name)
 	}
 }
 
@@ -97,33 +95,4 @@ func nodeConditions() []corev1.NodeCondition {
 			Message:            "RouteController created a route",
 		},
 	}
-}
-
-// GetEffectiveHardLimits merges a list of ResourceQuotas to find the
-// minimum (most restrictive) constraint for each resource type.
-func GetHardResourceLists(quotas []corev1.ResourceQuota) []corev1.ResourceList {
-	hardResourceLists := make([]corev1.ResourceList, len(quotas))
-
-	for _, q := range quotas {
-		hardResourceLists = append(hardResourceLists, q.Status.Hard)
-	}
-
-	return hardResourceLists
-}
-
-func MergeResourceLists(resourceLists ...corev1.ResourceList) corev1.ResourceList {
-	merged := corev1.ResourceList{}
-
-	for _, resourceList := range resourceLists {
-		for resName, qty := range resourceList {
-			existingQty, found := merged[resName]
-
-			// If it's the first time we see it OR the new one is smaller -> Update
-			if !found || qty.Cmp(existingQty) < 0 {
-				merged[resName] = qty.DeepCopy()
-			}
-		}
-	}
-
-	return merged
 }

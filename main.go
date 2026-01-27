@@ -57,6 +57,7 @@ func main() {
 		},
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			cmds.InitializeConfig(cmd)
+
 			logger = zapr.NewLogger(log.New(debug, logFormat))
 		},
 		RunE: run,

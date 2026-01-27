@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
@@ -10,16 +9,16 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servicePort int, ip string, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1beta1.Cluster, version string, mirrorHostNodes bool) {
+func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servicePort int, ip string, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, version string, mirrorHostNodes bool) {
 	ctx := context.Background()
+
 	if mirrorHostNodes {
-		hostNode, err := coreClient.Nodes().Get(ctx, node.Name, metav1.GetOptions{})
-		if err != nil {
+		var hostNode corev1.Node
+		if err := hostClient.Get(ctx, types.NamespacedName{Name: node.Name}, &hostNode); err != nil {
 			logger.Error(err, "error getting host node for mirroring", err)
 		}
 
@@ -49,16 +48,7 @@ func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servi
 		// configure versions
 		node.Status.NodeInfo.KubeletVersion = version
 
-		updateNodeCapacityInterval := 10 * time.Second
-		ticker := time.NewTicker(updateNodeCapacityInterval)
-
-		go func() {
-			for range ticker.C {
-				if err := updateNodeCapacity(ctx, coreClient, virtualClient, node.Name); err != nil {
-					logger.Error(err, "error updating node capacity")
-				}
-			}
-		}()
+		startNodeCapacityUpdater(ctx, logger, hostClient, virtualClient, virtualCluster, node.Name)
 	}
 }
 
@@ -106,66 +96,4 @@ func nodeConditions() []corev1.NodeCondition {
 			Message:            "RouteController created a route",
 		},
 	}
-}
-
-// updateNodeCapacity will update the virtual node capacity (and the allocatable field) with the sum of all the resource in the host nodes.
-// If the nodeLabels are specified only the matching nodes will be considered.
-func updateNodeCapacity(ctx context.Context, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualNodeName string) error {
-	capacity, allocatable, err := getResourcesFromNodes(ctx, coreClient, virtualNodeName)
-	if err != nil {
-		return err
-	}
-
-	var virtualNode corev1.Node
-	if err := virtualClient.Get(ctx, types.NamespacedName{Name: virtualNodeName}, &virtualNode); err != nil {
-		return err
-	}
-
-	virtualNode.Status.Capacity = capacity
-	virtualNode.Status.Allocatable = allocatable
-
-	return virtualClient.Status().Update(ctx, &virtualNode)
-}
-
-// getResourcesFromNodes will return a sum of all the resource capacity of the host nodes, and the allocatable resources.
-// If some node labels are specified only the matching nodes will be considered.
-func getResourcesFromNodes(ctx context.Context, coreClient typedv1.CoreV1Interface, virtualNodeName string) (corev1.ResourceList, corev1.ResourceList, error) {
-	node, err := coreClient.Nodes().Get(ctx, virtualNodeName, metav1.GetOptions{})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// sum all
-	virtualCapacityResources := corev1.ResourceList{}
-	virtualAvailableResources := corev1.ResourceList{}
-
-	// check if the node is Ready
-	for _, condition := range node.Status.Conditions {
-		if condition.Type != corev1.NodeReady {
-			continue
-		}
-
-		// if the node is not Ready then we can skip it
-		if condition.Status != corev1.ConditionTrue {
-			break
-		}
-	}
-
-	// add all the available metrics to the virtual node
-	// TODO when using Quotas we should use that to actually limits the virtual node
-	for resourceName, resourceQuantity := range node.Status.Capacity {
-		virtualResource := virtualCapacityResources[resourceName]
-
-		(&virtualResource).Add(resourceQuantity)
-		virtualCapacityResources[resourceName] = virtualResource
-	}
-
-	for resourceName, resourceQuantity := range node.Status.Allocatable {
-		virtualResource := virtualAvailableResources[resourceName]
-
-		(&virtualResource).Add(resourceQuantity)
-		virtualAvailableResources[resourceName] = virtualResource
-	}
-
-	return virtualCapacityResources, virtualAvailableResources, nil
 }

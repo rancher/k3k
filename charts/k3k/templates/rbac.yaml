@@ -23,9 +23,11 @@ rules:
   resources:
   - "nodes"
   - "nodes/proxy"
+  - "namespaces"
   verbs:
   - "get"
   - "list"
+  - "watch"
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

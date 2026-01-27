@@ -38,6 +38,7 @@ func main() {
 
 			logger = zapr.NewLogger(log.New(debug, logFormat))
 			ctrlruntimelog.SetLogger(logger)
+
 			return nil
 		},
 		RunE: run,

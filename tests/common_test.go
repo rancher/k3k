@@ -233,6 +233,7 @@ func NewVirtualK8sClientAndConfig(cluster *v1beta1.Cluster) (*kubernetes.Clients
 		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
 		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
 		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP, 0)
+
 		return err
 	}).
 		WithTimeout(time.Minute * 2).
@@ -266,6 +267,7 @@ func NewVirtualK8sClientAndKubeconfig(cluster *v1beta1.Cluster) (*kubernetes.Cli
 		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
 		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
 		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP, 0)
+
 		return err
 	}).
 		WithTimeout(time.Minute * 2).

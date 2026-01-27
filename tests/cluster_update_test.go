@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/utils/ptr"
 
 	v1 "k8s.io/api/core/v1"
@@ -128,7 +127,7 @@ var _ = When("a shared mode cluster update its envs", Label(e2eTestLabel), Label
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			_, cond := GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -151,7 +150,7 @@ var _ = When("a shared mode cluster update its envs", Label(e2eTestLabel), Label
 			g.Expect(aPods).To(HaveLen(len(nodes.Items)))
 
 			agentPod := aPods[0]
-			_, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
+			_, cond = GetPodCondition(&agentPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -224,7 +223,7 @@ var _ = When("a shared mode cluster update its server args", Label(e2eTestLabel)
 			g.Expect(len(sPods)).To(Equal(1))
 
 			serverPod := sPods[0]
-			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			_, cond := GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -346,7 +345,7 @@ var _ = When("a virtual mode cluster update its envs", Label(e2eTestLabel), Labe
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			_, cond := GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -366,7 +365,7 @@ var _ = When("a virtual mode cluster update its envs", Label(e2eTestLabel), Labe
 			g.Expect(len(aPods)).To(Equal(1))
 
 			agentPod := aPods[0]
-			_, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
+			_, cond = GetPodCondition(&agentPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -442,7 +441,7 @@ var _ = When("a virtual mode cluster update its server args", Label(e2eTestLabel
 			g.Expect(len(sPods)).To(Equal(1))
 
 			serverPod := sPods[0]
-			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			_, cond := GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -518,7 +517,7 @@ var _ = When("a shared mode cluster update its version", Label(e2eTestLabel), La
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			_, cond := GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -530,7 +529,7 @@ var _ = When("a shared mode cluster update its version", Label(e2eTestLabel), La
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			_, cond = GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -607,7 +606,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 			g.Expect(len(serverPods)).To(Equal(1))
 
 			serverPod := serverPods[0]
-			_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+			_, cond := GetPodCondition(&serverPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -618,7 +617,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 			g.Expect(len(agentPods)).To(Equal(1))
 
 			agentPod := agentPods[0]
-			_, cond = pod.GetPodCondition(&agentPod.Status, v1.PodReady)
+			_, cond = GetPodCondition(&agentPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -631,7 +630,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
 
-			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			_, cond = GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -705,7 +704,7 @@ var _ = When("a shared mode cluster scales up servers", Label(e2eTestLabel), Lab
 			g.Expect(len(serverPods)).To(Equal(3))
 
 			for _, serverPod := range serverPods {
-				_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+				_, cond := GetPodCondition(&serverPod.Status, v1.PodReady)
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 			}
@@ -716,7 +715,7 @@ var _ = When("a shared mode cluster scales up servers", Label(e2eTestLabel), Lab
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			_, cond := GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -793,7 +792,7 @@ var _ = When("a shared mode cluster scales down servers", Label(e2eTestLabel), L
 			serverPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(serverPods)).To(Equal(1))
 
-			_, cond := pod.GetPodCondition(&serverPods[0].Status, v1.PodReady)
+			_, cond := GetPodCondition(&serverPods[0].Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -803,7 +802,7 @@ var _ = When("a shared mode cluster scales down servers", Label(e2eTestLabel), L
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			_, cond = GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -877,7 +876,7 @@ var _ = When("a virtual mode cluster scales up servers", Label(e2eTestLabel), La
 			g.Expect(len(serverPods)).To(Equal(3))
 
 			for _, serverPod := range serverPods {
-				_, cond := pod.GetPodCondition(&serverPod.Status, v1.PodReady)
+				_, cond := GetPodCondition(&serverPod.Status, v1.PodReady)
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 			}
@@ -888,7 +887,7 @@ var _ = When("a virtual mode cluster scales up servers", Label(e2eTestLabel), La
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
-			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+			_, cond := GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).
@@ -983,7 +982,7 @@ var _ = When("a virtual mode cluster scales down servers", Label(e2eTestLabel), 
 			serverPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(serverPods)).To(Equal(1))
 
-			_, cond := pod.GetPodCondition(&serverPods[0].Status, v1.PodReady)
+			_, cond := GetPodCondition(&serverPods[0].Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 
@@ -1009,7 +1008,7 @@ var _ = When("a virtual mode cluster scales down servers", Label(e2eTestLabel), 
 			// but this is probably to investigate.
 			// Related issue (?): https://github.com/kubernetes/kubernetes/issues/82346
 
-			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.ContainersReady)
+			_, cond := GetPodCondition(&nginxPod.Status, v1.ContainersReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 		}).

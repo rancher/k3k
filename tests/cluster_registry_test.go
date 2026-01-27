@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
@@ -147,7 +146,16 @@ var _ = When("a cluster with private registry configuration is used", Label("e2e
 			alpinePod, err = virtualCluster.Client.CoreV1().Pods(alpinePod.Namespace).Get(ctx, alpinePod.Name, metav1.GetOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
 
-			status, _ := pod.GetContainerStatus(alpinePod.Status.ContainerStatuses, "alpine")
+			statuses := alpinePod.Status.ContainerStatuses
+
+			var status v1.ContainerStatus
+			for i := range statuses {
+				if statuses[i].Name == "alpine" {
+					status = statuses[i]
+					break
+				}
+			}
+
 			state := status.State.Waiting
 			g.Expect(state).NotTo(BeNil())
 

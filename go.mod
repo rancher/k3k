@@ -4,12 +4,6 @@ go 1.25
 
 toolchain go1.25.6
 
-replace (
-	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.16.0
-	github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1
-	github.com/prometheus/common => github.com/prometheus/common v0.64.0
-)
-
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/go-logr/logr v1.4.3
@@ -121,6 +115,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/lib/pq v1.10.9 // indirect

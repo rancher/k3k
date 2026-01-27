@@ -268,7 +268,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(cluster.Spec.Version).To(Equal(k3sVersion))
 		})
 
-		FIt("fails to downgrade cluster version", func() {
+		It("fails to downgrade cluster version", func() {
 			var (
 				stderr string
 				err    error

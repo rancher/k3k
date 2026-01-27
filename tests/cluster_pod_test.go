@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/api/v1/pod"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -188,7 +189,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				vPod, err := virtualCluster.Client.CoreV1().Pods(virtualPod.Namespace).Get(ctx, virtualPod.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 
-				_, cond := GetPodCondition(&vPod.Status, v1.PodReady)
+				_, cond := pod.GetPodCondition(&vPod.Status, v1.PodReady)
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 			}).
@@ -205,7 +206,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				hPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 
-				_, cond := GetPodCondition(&hPod.Status, v1.PodReady)
+				_, cond := pod.GetPodCondition(&hPod.Status, v1.PodReady)
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 			}).

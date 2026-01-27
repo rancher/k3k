@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -387,7 +388,7 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 		err = k8sClient.Get(ctx, key, &controllerPod)
 		g.Expect(err).To(Not(HaveOccurred()))
 
-		_, cond := GetPodCondition(&controllerPod.Status, v1.PodReady)
+		_, cond := pod.GetPodCondition(&controllerPod.Status, v1.PodReady)
 		g.Expect(cond).NotTo(BeNil())
 		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).
@@ -435,7 +436,7 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 		err = k8sClient.Get(ctx, client.ObjectKeyFromObject(tarPod), tarPod)
 		g.Expect(err).To(Not(HaveOccurred()))
 
-		_, cond := GetPodCondition(&tarPod.Status, v1.PodReady)
+		_, cond := pod.GetPodCondition(&tarPod.Status, v1.PodReady)
 		g.Expect(cond).NotTo(BeNil())
 		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).

@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -171,7 +172,7 @@ func CreateCluster(cluster *v1beta1.Cluster) {
 		var serversReady, agentsReady int
 
 		for _, k3sPod := range podList.Items {
-			_, cond := GetPodCondition(&k3sPod.Status, v1.PodReady)
+			_, cond := pod.GetPodCondition(&k3sPod.Status, v1.PodReady)
 
 			// pod not ready
 			if cond == nil || cond.Status != v1.ConditionTrue {
@@ -318,7 +319,7 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*v1.Pod, string) {
 		nginxPod, err = c.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 		g.Expect(err).To(Not(HaveOccurred()))
 
-		_, cond := GetPodCondition(&nginxPod.Status, v1.PodReady)
+		_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 		g.Expect(cond).NotTo(BeNil())
 		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).
@@ -473,20 +474,4 @@ func getServerIP(ctx context.Context, cfg *rest.Config) (string, error) {
 	}
 	// If Host includes a port, u.Hostname() extracts just the hostname part
 	return u.Hostname(), nil
-}
-
-// GetPodCondition extracts the provided condition from the given status and returns that.
-// Returns nil and -1 if the condition is not present, and the index of the located condition.
-func GetPodCondition(status *v1.PodStatus, conditionType v1.PodConditionType) (int, *v1.PodCondition) {
-	if status == nil || status.Conditions == nil {
-		return -1, nil
-	}
-
-	for i := range status.Conditions {
-		if status.Conditions[i].Type == conditionType {
-			return i, &status.Conditions[i]
-		}
-	}
-
-	return -1, nil
 }

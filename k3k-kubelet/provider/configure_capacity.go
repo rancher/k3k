@@ -128,26 +128,32 @@ func mergeResourceLists(resourceLists ...corev1.ResourceList) corev1.ResourceLis
 // distributeQuotas divides the total resource quotas evenly among all active virtual nodes.
 // This ensures that each virtual node reports a fair share of the available resources,
 // preventing the scheduler from overloading a single node.
+//
+// The algorithm iterates over each resource, divides it as evenly as possible among the
+// sorted virtual nodes, and distributes any remainder to the first few nodes to ensure
+// all resources are allocated. Sorting the nodes by name guarantees a deterministic
+// distribution.
 func distributeQuotas(ctx context.Context, logger logr.Logger, virtualClient client.Client, quotas corev1.ResourceList) (map[string]corev1.ResourceList, error) {
-	// List all virtual nodes to distribute the quota stably
+	// List all virtual nodes to distribute the quota stably.
 	var virtualNodeList corev1.NodeList
 	if err := virtualClient.List(ctx, &virtualNodeList); err != nil {
 		logger.Error(err, "error listing virtual nodes for stable capacity distribution, falling back to full quota")
 		return nil, err
 	}
 
+	// If there are no virtual nodes, there's nothing to distribute.
 	numNodes := int64(len(virtualNodeList.Items))
 	if numNodes == 0 {
 		logger.Info("error listing virtual nodes for stable capacity distribution, falling back to full quota")
 		return nil, nil
 	}
 
-	// Sort nodes by name for stable distribution
+	// Sort nodes by name for a deterministic distribution of resources.
 	sort.Slice(virtualNodeList.Items, func(i, j int) bool {
 		return virtualNodeList.Items[i].Name < virtualNodeList.Items[j].Name
 	})
 
-	// init map
+	// Initialize the resource map for each virtual node.
 	resourceMap := make(map[string]corev1.ResourceList)
 	for _, virtualNode := range virtualNodeList.Items {
 		resourceMap[virtualNode.Name] = corev1.ResourceList{}
@@ -155,7 +161,8 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, virtualClient cli
 
 	// Distribute each resource type from the policy's hard quota
 	for resourceName, totalQuantity := range quotas {
-		// Use MilliValue for precise division, especially for CPU
+		// Use MilliValue for precise division, especially for resources like CPU,
+		// which are often expressed in milli-units. Otherwise, use the standard Value().
 		var totalValue int64
 		if _, found := milliScaleResources[resourceName]; found {
 			totalValue = totalQuantity.MilliValue()
@@ -163,9 +170,17 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, virtualClient cli
 			totalValue = totalQuantity.Value()
 		}
 
+		// Calculate the base quantity of the resource to be allocated per node.
+		// and the remainder that needs to be distributed among the nodes.
+		//
+		// For example, if totalValue is 2000 (e.g., 2 CPU) and there are 3 nodes:
+		// - quantityPerNode would be 666 (2000 / 3)
+		// - remainder would be 2 (2000 % 3)
+		// The first two nodes would get 667 (666 + 1), and the last one would get 666.
 		quantityPerNode := totalValue / numNodes
 		remainder := totalValue % numNodes
 
+		// Iterate through the sorted virtual nodes to distribute the resource.
 		for _, virtualNode := range virtualNodeList.Items {
 			nodeQuantity := quantityPerNode
 			if remainder > 0 {

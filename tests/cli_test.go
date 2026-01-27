@@ -252,12 +252,12 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			})
 
 			// Create the cluster with initial version
-			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.33.6+k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.33.6-k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
 			// Update the cluster version
-			_, stderr, err = K3kcli("cluster", "update", "-y", "--version", "v1.33.7+k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "-y", "--version", "v1.33.7-k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("Updating cluster"))
 
@@ -284,7 +284,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			})
 
 			// Create the cluster with a version
-			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.33.7+k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.33.7-k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 

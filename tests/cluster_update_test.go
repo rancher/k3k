@@ -506,7 +506,7 @@ var _ = When("a shared mode cluster update its version", Label(e2eTestLabel), La
 		Expect(err).NotTo(HaveOccurred())
 
 		// update cluster version
-		cluster.Spec.Version = "v1.32.8-k3s1"
+		cluster.Spec.Version = "v1.33.7+k3s1"
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -596,7 +596,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 		Expect(err).NotTo(HaveOccurred())
 
 		// update cluster version
-		cluster.Spec.Version = "v1.32.8-k3s1"
+		cluster.Spec.Version = "v1.33.7+k3s1"
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())

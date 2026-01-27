@@ -252,12 +252,12 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			})
 
 			// Create the cluster with initial version
-			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.31.13-k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.33.6+k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
 			// Update the cluster version
-			_, stderr, err = K3kcli("cluster", "update", "-y", "--version", "v1.32.8-k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "-y", "--version", "v1.33.7+k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("Updating cluster"))
 
@@ -265,7 +265,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			var cluster v1beta1.Cluster
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
 			Expect(err).To(Not(HaveOccurred()))
-			Expect(cluster.Spec.Version).To(Equal("v1.32.8-k3s1"))
+			Expect(cluster.Spec.Version).To(Equal("v1.33.7+k3s1"))
 		})
 
 		It("fails to downgrade cluster version", func() {
@@ -284,7 +284,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			})
 
 			// Create the cluster with a version
-			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.32.8-k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.33.7+k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 

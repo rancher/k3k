@@ -39,7 +39,7 @@ jobs:
     - name: Install k3s
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-        K3S_HOST_VERSION: v1.32.1+k3s1
+        K3S_HOST_VERSION: v1.33.7+k3s1
       run: |
         curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -
 

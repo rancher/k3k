@@ -458,6 +458,7 @@ var _ = When("a shared mode cluster update its version", Label(e2eTestLabel), La
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
 	)
+
 	BeforeEach(func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
@@ -468,8 +469,8 @@ var _ = When("a shared mode cluster update its version", Label(e2eTestLabel), La
 
 		cluster := NewCluster(namespace.Name)
 
-		// Add initial version
-		cluster.Spec.Version = "v1.31.13-k3s1"
+		// Add initial old version
+		cluster.Spec.Version = "v1.33.0-k3s1"
 
 		// need to enable persistence for this
 		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
@@ -506,7 +507,7 @@ var _ = When("a shared mode cluster update its version", Label(e2eTestLabel), La
 		Expect(err).NotTo(HaveOccurred())
 
 		// update cluster version
-		cluster.Spec.Version = "v1.33.7+k3s1"
+		cluster.Spec.Version = k3sVersion
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -544,6 +545,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
 	)
+
 	BeforeEach(func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
@@ -554,8 +556,8 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 
 		cluster := NewCluster(namespace.Name)
 
-		// Add initial version
-		cluster.Spec.Version = "v1.31.13-k3s1"
+		// Add initial old version
+		cluster.Spec.Version = "v1.33.0-k3s1"
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
 		cluster.Spec.Agents = ptr.To[int32](1)
@@ -588,6 +590,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 
 		nginxPod, _ = virtualCluster.NewNginxPod("")
 	})
+
 	It("will update server version when version spec is updated", func() {
 		var cluster v1beta1.Cluster
 		ctx := context.Background()
@@ -596,7 +599,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 		Expect(err).NotTo(HaveOccurred())
 
 		// update cluster version
-		cluster.Spec.Version = "v1.33.7+k3s1"
+		cluster.Spec.Version = k3sVersion
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())

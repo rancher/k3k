@@ -46,6 +46,8 @@ import (
 const (
 	k3kNamespace = "k3k-system"
 
+	k3sVersion = "v1.33.7-k3s1"
+
 	e2eTestLabel           = "e2e"
 	slowTestsLabel         = "slow"
 	updateTestsLabel       = "update"
@@ -155,7 +157,7 @@ func installK3SDocker(ctx context.Context) {
 
 	k3sHostVersion := os.Getenv("K3S_HOST_VERSION")
 	if k3sHostVersion == "" {
-		k3sHostVersion = "v1.33.6+k3s1"
+		k3sHostVersion = k3sVersion
 	}
 
 	k3sHostVersion = strings.ReplaceAll(k3sHostVersion, "+", "-")

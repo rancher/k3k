@@ -4,20 +4,21 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servicePort int, ip string, hostClient client.Client, coreClient typedv1.CoreV1Interface, virtualClient client.Client, virtualCluster v1beta1.Cluster, version string, mirrorHostNodes bool) {
+func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servicePort int, ip string, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, version string, mirrorHostNodes bool) {
 	ctx := context.Background()
+
 	if mirrorHostNodes {
-		hostNode, err := coreClient.Nodes().Get(ctx, node.Name, metav1.GetOptions{})
-		if err != nil {
+		var hostNode corev1.Node
+		if err := hostClient.Get(ctx, types.NamespacedName{Name: node.Name}, &hostNode); err != nil {
 			logger.Error(err, "error getting host node for mirroring", err)
 		}
 
@@ -47,7 +48,7 @@ func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servi
 		// configure versions
 		node.Status.NodeInfo.KubeletVersion = version
 
-		startNodeCapacityUpdater(ctx, logger, coreClient, hostClient, virtualClient, virtualCluster, node.Name)
+		startNodeCapacityUpdater(ctx, logger, hostClient, virtualClient, virtualCluster, node.Name)
 	}
 }
 

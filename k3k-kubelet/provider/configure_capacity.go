@@ -11,8 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -40,7 +38,7 @@ var milliScaleResources = map[corev1.ResourceName]struct{}{
 
 // StartNodeCapacityUpdater starts a goroutine that periodically updates the capacity
 // of the virtual node based on host node capacity and any applied ResourceQuotas.
-func startNodeCapacityUpdater(ctx context.Context, logger logr.Logger, coreClient typedv1.CoreV1Interface, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, virtualNodeName string) {
+func startNodeCapacityUpdater(ctx context.Context, logger logr.Logger, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, virtualNodeName string) {
 	go func() {
 		ticker := time.NewTicker(UpdateNodeCapacityInterval)
 		defer ticker.Stop()
@@ -48,7 +46,7 @@ func startNodeCapacityUpdater(ctx context.Context, logger logr.Logger, coreClien
 		for {
 			select {
 			case <-ticker.C:
-				updateNodeCapacity(ctx, logger, coreClient, hostClient, virtualClient, virtualCluster, virtualNodeName)
+				updateNodeCapacity(ctx, logger, hostClient, virtualClient, virtualCluster, virtualNodeName)
 			case <-ctx.Done():
 				logger.Info("Stopping node capacity updates for node", "node", virtualNodeName)
 				return
@@ -59,11 +57,12 @@ func startNodeCapacityUpdater(ctx context.Context, logger logr.Logger, coreClien
 
 // updateNodeCapacity will update the virtual node capacity (and the allocatable field) with the sum of all the resource in the host nodes.
 // If the nodeLabels are specified only the matching nodes will be considered.
-func updateNodeCapacity(ctx context.Context, logger logr.Logger, coreClient typedv1.CoreV1Interface, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, virtualNodeName string) {
+func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, virtualNodeName string) {
 	// by default we get the resources of the same Node where the kubelet is running
-	node, err := coreClient.Nodes().Get(ctx, virtualNodeName, metav1.GetOptions{})
-	if err != nil {
+	var node corev1.Node
+	if err := hostClient.Get(ctx, types.NamespacedName{Name: virtualNodeName}, &node); err != nil {
 		logger.Error(err, "error getting virtual node for updating node capacity")
+		return
 	}
 
 	allocatable := node.Status.Allocatable.DeepCopy()
@@ -95,6 +94,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, coreClient type
 	var virtualNode corev1.Node
 	if err := virtualClient.Get(ctx, types.NamespacedName{Name: virtualNodeName}, &virtualNode); err != nil {
 		logger.Error(err, "error getting virtual node for updating node capacity")
+		return
 	}
 
 	virtualNode.Status.Capacity = allocatable

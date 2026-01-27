@@ -277,7 +277,6 @@ func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 			k.port,
 			k.agentIP,
 			utilProvider.HostClient,
-			utilProvider.CoreClient,
 			utilProvider.VirtualClient,
 			k.virtualCluster,
 			cfg.Version,

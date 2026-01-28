@@ -1,4 +1,4 @@
-FROM alpine
+FROM registry.suse.com/bci/bci-base:15.7
 
 ARG BIN_K3K=bin/k3k
 ARG BIN_K3KCLI=bin/k3kcli

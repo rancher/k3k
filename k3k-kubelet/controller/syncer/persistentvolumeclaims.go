@@ -98,7 +98,7 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	}
 
 	syncedPVC := r.pvc(&virtPVC)
-	if err := controllerutil.SetControllerReference(&cluster, syncedPVC, r.HostClient.Scheme()); err != nil {
+	if err := controllerutil.SetOwnerReference(&cluster, syncedPVC, r.HostClient.Scheme()); err != nil {
 		return reconcile.Result{}, err
 	}
 

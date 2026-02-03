@@ -100,7 +100,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 
 	syncedSecret := s.translateSecret(&virtualSecret)
 
-	if err := controllerutil.SetControllerReference(&cluster, syncedSecret, s.HostClient.Scheme()); err != nil {
+	if err := controllerutil.SetOwnerReference(&cluster, syncedSecret, s.HostClient.Scheme()); err != nil {
 		return reconcile.Result{}, err
 	}
 

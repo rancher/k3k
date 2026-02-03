@@ -76,7 +76,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	syncedService := r.service(&virtService)
 
-	if err := controllerutil.SetControllerReference(&cluster, syncedService, r.HostClient.Scheme()); err != nil {
+	if err := controllerutil.SetOwnerReference(&cluster, syncedService, r.HostClient.Scheme()); err != nil {
 		return reconcile.Result{}, err
 	}
 

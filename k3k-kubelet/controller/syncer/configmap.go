@@ -100,7 +100,7 @@ func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	syncedConfigMap := c.translateConfigMap(&virtualConfigMap)
 
-	if err := controllerutil.SetControllerReference(&cluster, syncedConfigMap, c.HostClient.Scheme()); err != nil {
+	if err := controllerutil.SetOwnerReference(&cluster, syncedConfigMap, c.HostClient.Scheme()); err != nil {
 		return reconcile.Result{}, err
 	}
 

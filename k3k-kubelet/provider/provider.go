@@ -401,24 +401,38 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	// Schedule the host pod in the same host node of the virtual kubelet
 	hostPod.Spec.NodeName = p.agentHostname
 
+	// Determine the final NodeSelector for the pod.
+	// The pod's own nodeSelector is always ignored. The selector is determined by the
+	// cluster spec and is completely overridden by the policy if present.
+	// Precedence is: Policy > Cluster Spec.
 	hostPod.Spec.NodeSelector = cluster.Spec.NodeSelector
+	if cluster.Status.Policy != nil && len(cluster.Status.Policy.NodeSelector) > 0 {
+		hostPod.Spec.NodeSelector = cluster.Status.Policy.NodeSelector
+	}
 
 	// setting the hostname for the pod if its not set
 	if virtualPod.Spec.Hostname == "" {
 		hostPod.Spec.Hostname = k3kcontroller.SafeConcatName(virtualPod.Name)
 	}
 
-	// if the priorityClass for the virtual cluster is set then override the provided value
+	// When a PriorityClass is set we will use the translated one in the HostCluster.
+	// If the Cluster or a Policy define a PriorityClass of the host we are going to use that one.
 	// Note: the core-dns and local-path-provisioner pod are scheduled by k3s with the
 	// 'system-cluster-critical' and 'system-node-critical' default priority classes.
-	if !strings.HasPrefix(hostPod.Spec.PriorityClassName, "system-") {
-		if hostPod.Spec.PriorityClassName != "" {
-			tPriorityClassName := p.Translator.TranslateName("", hostPod.Spec.PriorityClassName)
-			hostPod.Spec.PriorityClassName = tPriorityClassName
+	// We need to use those in case.
+	// TODO: we probably need to define a custom "intermediate" k3k-system-* priority
+	if strings.HasPrefix(virtualPod.Spec.PriorityClassName, "system-") {
+		hostPod.Spec.PriorityClassName = virtualPod.Spec.PriorityClassName
+	} else {
+		enforcedPriorityClassName := cluster.Spec.PriorityClass
+		if cluster.Status.Policy != nil && cluster.Status.Policy.PriorityClass != "" {
+			enforcedPriorityClassName = cluster.Status.Policy.PriorityClass
 		}
 
-		if cluster.Spec.PriorityClass != "" {
-			hostPod.Spec.PriorityClassName = cluster.Spec.PriorityClass
+		if enforcedPriorityClassName != "" {
+			hostPod.Spec.PriorityClassName = enforcedPriorityClassName
+		} else if virtualPod.Spec.PriorityClassName != "" {
+			hostPod.Spec.PriorityClassName = p.Translator.TranslateName("", virtualPod.Spec.PriorityClassName)
 			hostPod.Spec.Priority = nil
 		}
 	}

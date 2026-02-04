@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
+	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,8 +25,21 @@ const (
 // to look like the serviceaccount token
 func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) error {
 	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name, "serviceAccountNameod", pod.Spec.ServiceAccountName)
-	logger.V(1).Info("Transforming token")
+	logger.V(1).Info("Transforming service account tokens")
 
+	// transform projected service account token
+	if err := p.transformProjectedTokens(ctx, pod, tPod); err != nil {
+		return err
+	}
+
+	if err := p.transformKubeAccessToken(ctx, pod, tPod); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Provider) transformKubeAccessToken(ctx context.Context, pod, tPod *corev1.Pod) error {
 	// skip this process if the kube-api-access is already removed from the pod
 	// this is needed in case users already adds their own custom tokens like in rancher imported clusters
 	if !isKubeAccessVolumeFound(pod) {
@@ -70,6 +84,85 @@ func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) e
 	p.translateToken(tPod, hostSecret.Name)
 
 	return nil
+}
+
+func (p *Provider) transformProjectedTokens(ctx context.Context, pod, tPod *corev1.Pod) error {
+	for i, volume := range pod.Spec.Volumes {
+		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
+			continue
+		}
+
+		if volume.Projected != nil {
+			for j, source := range volume.Projected.Sources {
+				if source.ServiceAccountToken != nil {
+					projectedSecret, err := p.requestTokenSecret(ctx, source.ServiceAccountToken, pod)
+					if err != nil {
+						return err
+					}
+					hostSecret := projectedSecret.DeepCopy()
+					hostSecret.Type = ""
+					hostSecret.Annotations = make(map[string]string)
+
+					p.Translator.TranslateTo(hostSecret)
+
+					if err := p.HostClient.Create(ctx, hostSecret); err != nil {
+						if !apierrors.IsAlreadyExists(err) {
+							return err
+						}
+					}
+					// replace the projected token volume with a projected secret
+					// todo check the volume name
+					tPod.Spec.Volumes[i].Projected.Sources[j].ServiceAccountToken = nil
+					tPod.Spec.Volumes[i].Projected.Sources[j].Secret = &corev1.SecretProjection{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: hostSecret.Name,
+						},
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (p *Provider) requestTokenSecret(ctx context.Context, token *corev1.ServiceAccountTokenProjection, pod *corev1.Pod) (*corev1.Secret, error) {
+	namespace := pod.Namespace
+	serviceAccountName := pod.Spec.ServiceAccountName
+
+	tokenRequest := &authv1.TokenRequest{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceAccountName,
+			Namespace: namespace,
+		},
+		Spec: authv1.TokenRequestSpec{
+			Audiences:         []string{token.Audience},
+			ExpirationSeconds: token.ExpirationSeconds,
+			BoundObjectRef: &authv1.BoundObjectReference{
+				Name:       pod.Name,
+				Kind:       "Pod",
+				APIVersion: "v1",
+			},
+		},
+	}
+
+	tokenResp, err := p.VirtualCoreClient.ServiceAccounts(namespace).CreateToken(ctx, serviceAccountName, tokenRequest, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// create a virtual secret with that token
+	virtualSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			// todo add randomized name or token request by data, since not each projected token is the same
+			Name:      serviceAccountName + "-tokenrequest",
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			token.Path: []byte(tokenResp.Status.Token),
+		},
+	}
+
+	return virtualSecret, nil
 }
 
 func virtualSecret(name, namespace, serviceAccountName string) *corev1.Secret {

@@ -50,18 +50,19 @@ var _ nodeutil.Provider = (*Provider)(nil)
 // Provider implements nodetuil.Provider from virtual Kubelet.
 // TODO: Implement NotifyPods and the required usage so that this can be an async provider
 type Provider struct {
-	Translator       translate.ToHostTranslator
-	HostClient       client.Client
-	VirtualClient    client.Client
-	VirtualManager   manager.Manager
-	ClientConfig     rest.Config
-	CoreClient       cv1.CoreV1Interface
-	ClusterNamespace string
-	ClusterName      string
-	serverIP         string
-	dnsIP            string
-	agentHostname    string
-	logger           logr.Logger
+	Translator        translate.ToHostTranslator
+	HostClient        client.Client
+	VirtualClient     client.Client
+	VirtualManager    manager.Manager
+	ClientConfig      rest.Config
+	CoreClient        cv1.CoreV1Interface
+	VirtualCoreClient cv1.CoreV1Interface
+	ClusterNamespace  string
+	ClusterName       string
+	serverIP          string
+	dnsIP             string
+	agentHostname     string
+	logger            logr.Logger
 }
 
 var ErrRetryTimeout = errors.New("provider timed out")
@@ -72,24 +73,30 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger log
 		return nil, err
 	}
 
+	virtualCoreClient, err := cv1.NewForConfig(virtualMgr.GetConfig())
+	if err != nil {
+		return nil, err
+	}
+
 	translator := translate.ToHostTranslator{
 		ClusterName:      name,
 		ClusterNamespace: namespace,
 	}
 
 	p := Provider{
-		HostClient:       hostMgr.GetClient(),
-		VirtualClient:    virtualMgr.GetClient(),
-		VirtualManager:   virtualMgr,
-		Translator:       translator,
-		ClientConfig:     hostConfig,
-		CoreClient:       coreClient,
-		ClusterNamespace: namespace,
-		ClusterName:      name,
-		logger:           logger.WithValues("cluster", name),
-		serverIP:         serverIP,
-		dnsIP:            dnsIP,
-		agentHostname:    agentHostname,
+		HostClient:        hostMgr.GetClient(),
+		VirtualClient:     virtualMgr.GetClient(),
+		VirtualManager:    virtualMgr,
+		Translator:        translator,
+		ClientConfig:      hostConfig,
+		CoreClient:        coreClient,
+		VirtualCoreClient: virtualCoreClient,
+		ClusterNamespace:  namespace,
+		ClusterName:       name,
+		logger:            logger.WithValues("cluster", name),
+		serverIP:          serverIP,
+		dnsIP:             dnsIP,
+		agentHostname:     agentHostname,
 	}
 
 	return &p, nil

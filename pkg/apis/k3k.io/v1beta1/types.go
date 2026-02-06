@@ -538,6 +538,12 @@ type ClusterStatus struct {
 	// +optional
 	PolicyName string `json:"policyName,omitempty"`
 
+	// Policy represents the status of the policy applied to this cluster.
+	// This field is set by the VirtualClusterPolicy controller.
+	//
+	// +optional
+	Policy *AppliedPolicyStatus `json:"policy,omitempty"`
+
 	// KubeletPort specefies the port used by k3k-kubelet in shared mode.
 	//
 	// +optional
@@ -559,6 +565,20 @@ type ClusterStatus struct {
 	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Failed;Terminating;Unknown
 	// +optional
 	Phase ClusterPhase `json:"phase,omitempty"`
+}
+
+// AppliedPolicyStatus defines the observed state of an applied policy.
+type AppliedPolicyStatus struct {
+	// Name is the name of the VirtualClusterPolicy currently applied to this cluster.
+	Name string `json:"name,omitempty"`
+
+	// PriorityClass is the priority class enforced by the active VirtualClusterPolicy.
+	// +optional
+	PriorityClass string `json:"priorityClass,omitempty"`
+
+	// NodeSelector is a node selector enforced by the active VirtualClusterPolicy.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.

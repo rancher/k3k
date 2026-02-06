@@ -955,6 +955,10 @@ spec:
                       active VirtualClusterPolicy.
                     type: string
                 type: object
+              policyName:
+                description: PolicyName specifies the virtual cluster policy name
+                  bound to the virtual cluster.
+                type: string
               serviceCIDR:
                 description: ServiceCIDR is the CIDR range for service IPs.
                 type: string

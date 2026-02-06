@@ -533,8 +533,14 @@ type ClusterStatus struct {
 	// +optional
 	TLSSANs []string `json:"tlsSANs,omitempty"`
 
+	// PolicyName specifies the virtual cluster policy name bound to the virtual cluster.
+	//
+	// +optional
+	PolicyName string `json:"policyName,omitempty"`
+
 	// Policy represents the status of the policy applied to this cluster.
 	// This field is set by the VirtualClusterPolicy controller.
+	//
 	// +optional
 	Policy *AppliedPolicyStatus `json:"policy,omitempty"`
 
@@ -574,7 +580,6 @@ type AppliedPolicyStatus struct {
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
-
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.
 type ClusterPhase string

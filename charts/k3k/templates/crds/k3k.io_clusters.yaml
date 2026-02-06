@@ -935,10 +935,26 @@ spec:
                 - Terminating
                 - Unknown
                 type: string
-              policyName:
-                description: PolicyName specifies the virtual cluster policy name
-                  bound to the virtual cluster.
-                type: string
+              policy:
+                description: |-
+                  Policy represents the status of the policy applied to this cluster.
+                  This field is set by the VirtualClusterPolicy controller.
+                properties:
+                  name:
+                    description: Name is the name of the VirtualClusterPolicy currently
+                      applied to this cluster.
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: NodeSelector is a node selector enforced by the active
+                      VirtualClusterPolicy.
+                    type: object
+                  priorityClass:
+                    description: PriorityClass is the priority class enforced by the
+                      active VirtualClusterPolicy.
+                    type: string
+                type: object
               serviceCIDR:
                 description: ServiceCIDR is the CIDR range for service IPs.
                 type: string

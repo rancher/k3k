@@ -420,6 +420,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	// Note: the core-dns and local-path-provisioner pod are scheduled by k3s with the
 	// 'system-cluster-critical' and 'system-node-critical' default priority classes.
 	// We need to use those in case.
+	//
 	// TODO: we probably need to define a custom "intermediate" k3k-system-* priority
 	if strings.HasPrefix(virtualPod.Spec.PriorityClassName, "system-") {
 		hostPod.Spec.PriorityClassName = virtualPod.Spec.PriorityClassName
@@ -435,6 +436,11 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 			hostPod.Spec.PriorityClassName = p.Translator.TranslateName("", virtualPod.Spec.PriorityClassName)
 			hostPod.Spec.Priority = nil
 		}
+	}
+
+	// if the priority class is set we need to remove the priority
+	if hostPod.Spec.PriorityClassName != "" {
+		hostPod.Spec.Priority = nil
 	}
 
 	p.configurePodEnvs(hostPod, &virtualPod)

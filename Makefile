@@ -6,7 +6,7 @@ VERSION ?= $(shell git describe --tags --always --dirty --match="v[0-9]*")
 ## Dependencies
 
 GOLANGCI_LINT_VERSION := v2.8.0
-GINKGO_VERSION ?= v2.21.0
+GINKGO_VERSION ?= v2.28.1
 GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
 ENVTEST_K8S_VERSION := 1.31.0

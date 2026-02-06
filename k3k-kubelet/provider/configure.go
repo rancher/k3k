@@ -14,13 +14,14 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servicePort int, ip string, hostMgr manager.Manager, virtualClient client.Client, virtualCluster v1beta1.Cluster, version string, mirrorHostNodes bool) {
+func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servicePort int, ip string, hostMgr manager.Manager, virtualClient client.Client, virtualCluster v1beta1.Cluster, version string, mirrorHostNodes bool) error {
 	ctx := context.Background()
 
 	if mirrorHostNodes {
 		var hostNode corev1.Node
 		if err := hostMgr.GetAPIReader().Get(ctx, types.NamespacedName{Name: node.Name}, &hostNode); err != nil {
-			logger.Error(err, "error getting host node for mirroring")
+			logger.Error(err, "error getting host node for mirroring", "node", node.Name)
+			return err
 		}
 
 		node.Spec = *hostNode.Spec.DeepCopy()
@@ -51,6 +52,8 @@ func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servi
 
 		startNodeCapacityUpdater(ctx, logger, hostMgr.GetClient(), virtualClient, virtualCluster, node.Name)
 	}
+
+	return nil
 }
 
 // nodeConditions returns the basic conditions which mark the node as ready

@@ -2,7 +2,6 @@ package policy_test
 
 import (
 	"context"
-	"reflect"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -307,7 +306,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "latest"))
 			})
 
-			It("should update Cluster's PriorityClass", func() {
+			It("updates the Cluster's policy status with the DefaultPriorityClass", func() {
 				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					DefaultPriorityClass: "foobar",
 				})
@@ -329,19 +328,21 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				err := k8sClient.Create(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
 
-				// wait a bit
-				Eventually(func() bool {
+				Eventually(func(g Gomega) {
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
 					err = k8sClient.Get(ctx, key, cluster)
-					Expect(err).To(Not(HaveOccurred()))
-					return cluster.Spec.PriorityClass == policy.Spec.DefaultPriorityClass
+					g.Expect(err).To(Not(HaveOccurred()))
+
+					g.Expect(cluster.Spec.PriorityClass).To(BeEmpty())
+					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.PriorityClass).To(Equal(policy.Spec.DefaultPriorityClass))
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
-					Should(BeTrue())
+					Should(Succeed())
 			})
 
-			It("should update Cluster's NodeSelector", func() {
+			It("updates the Cluster's policy status with the DefaultNodeSelector", func() {
 				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					DefaultNodeSelector: map[string]string{"label-1": "value-1"},
 				})
@@ -366,18 +367,21 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait a bit
-				Eventually(func() bool {
+				Eventually(func(g Gomega) {
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
 					err = k8sClient.Get(ctx, key, cluster)
 					Expect(err).To(Not(HaveOccurred()))
-					return reflect.DeepEqual(cluster.Spec.NodeSelector, policy.Spec.DefaultNodeSelector)
+
+					g.Expect(cluster.Spec.NodeSelector).To(BeEmpty())
+					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.NodeSelector).To(Equal(map[string]string{"label-1": "value-1"}))
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
-					Should(BeTrue())
+					Should(Succeed())
 			})
 
-			It("should update the nodeSelector if changed", func() {
+			It("updates the Cluster's policy status when the VCP nodeSelector changes", func() {
 				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					DefaultNodeSelector: map[string]string{"label-1": "value-1"},
 				})
@@ -399,43 +403,56 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				err := k8sClient.Create(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
 
-				Expect(cluster.Spec.NodeSelector).To(Equal(policy.Spec.DefaultNodeSelector))
+				// Cluster Spec should not change, VCP NodeSelector should be present in the Status
+				Eventually(func(g Gomega) {
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, cluster)
+					Expect(err).To(Not(HaveOccurred()))
+
+					g.Expect(cluster.Spec.NodeSelector).To(Equal(map[string]string{"label-1": "value-1"}))
+					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.NodeSelector).To(Equal(map[string]string{"label-1": "value-1"}))
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(Succeed())
 
 				// update the VirtualClusterPolicy
 				policy.Spec.DefaultNodeSelector["label-2"] = "value-2"
 				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
-				Expect(cluster.Spec.NodeSelector).To(Not(Equal(policy.Spec.DefaultNodeSelector)))
 
 				// wait a bit
-				Eventually(func() bool {
+				Eventually(func(g Gomega) {
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
 					err = k8sClient.Get(ctx, key, cluster)
 					Expect(err).To(Not(HaveOccurred()))
-					return reflect.DeepEqual(cluster.Spec.NodeSelector, policy.Spec.DefaultNodeSelector)
+
+					g.Expect(cluster.Spec.NodeSelector).To(Equal(map[string]string{"label-1": "value-1"}))
+					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.NodeSelector).To(Equal(map[string]string{"label-1": "value-1", "label-2": "value-2"}))
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
-					Should(BeTrue())
+					Should(Succeed())
 
 				// Update the Cluster
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)
+				Expect(err).To(Not(HaveOccurred()))
 				cluster.Spec.NodeSelector["label-3"] = "value-3"
 				err = k8sClient.Update(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
-				Expect(cluster.Spec.NodeSelector).To(Not(Equal(policy.Spec.DefaultNodeSelector)))
 
 				// wait a bit and check it's restored
-				Eventually(func() bool {
-					var updatedCluster v1beta1.Cluster
-
+				Consistently(func(g Gomega) {
 					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
-					err = k8sClient.Get(ctx, key, &updatedCluster)
-					Expect(err).To(Not(HaveOccurred()))
-					return reflect.DeepEqual(updatedCluster.Spec.NodeSelector, policy.Spec.DefaultNodeSelector)
+					err = k8sClient.Get(ctx, key, cluster)
+					g.Expect(err).To(Not(HaveOccurred()))
+					g.Expect(cluster.Spec.NodeSelector).To(Equal(map[string]string{"label-1": "value-1", "label-3": "value-3"}))
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
-					Should(BeTrue())
+					Should(Succeed())
 			})
 
 			It("should create a ResourceQuota if Quota is enabled", func() {

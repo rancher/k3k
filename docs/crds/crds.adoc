@@ -41,6 +41,28 @@ _Appears In:_
 |===
 
 
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-appliedpolicystatus"]
+=== AppliedPolicyStatus
+
+
+
+AppliedPolicyStatus defines the observed state of an applied policy.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterstatus[$$ClusterStatus$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`name`* __string__ | Name is the name of the VirtualClusterPolicy currently applied to this cluster. + |  | 
+| *`priorityClass`* __string__ | PriorityClass is the priority class enforced by the active VirtualClusterPolicy. + |  | 
+| *`nodeSelector`* __object (keys:string, values:string)__ | NodeSelector is a node selector enforced by the active VirtualClusterPolicy. + |  | 
+|===
+
+
 [id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-cluster"]
 === Cluster
 

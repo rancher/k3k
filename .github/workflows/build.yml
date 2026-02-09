@@ -50,7 +50,7 @@ jobs:
         output: 'trivy-results-k3kcli.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab (k3kcli)
-      uses: github/codeql-action/upload-sarif@38e701f46e33fb233075bf4238cb1e5d68e429e4 # v3
+      uses: github/codeql-action/upload-sarif@b5ebac6f4c00c8ccddb7cdcd45fdb248329f808a # v3
       with:
         sarif_file: trivy-results-k3kcli.sarif
         category: k3kcli
@@ -66,7 +66,7 @@ jobs:
         output: 'trivy-results-k3k.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab (k3k)
-      uses: github/codeql-action/upload-sarif@38e701f46e33fb233075bf4238cb1e5d68e429e4 # v3
+      uses: github/codeql-action/upload-sarif@b5ebac6f4c00c8ccddb7cdcd45fdb248329f808a # v3
       with:
         sarif_file: trivy-results-k3k.sarif
         category: k3k
@@ -82,7 +82,7 @@ jobs:
         output: 'trivy-results-k3k-kubelet.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab (k3k-kubelet)
-      uses: github/codeql-action/upload-sarif@38e701f46e33fb233075bf4238cb1e5d68e429e4 # v3
+      uses: github/codeql-action/upload-sarif@b5ebac6f4c00c8ccddb7cdcd45fdb248329f808a # v3
       with:
         sarif_file: trivy-results-k3k-kubelet.sarif
         category: k3k-kubelet

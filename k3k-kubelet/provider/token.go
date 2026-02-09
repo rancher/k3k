@@ -279,8 +279,10 @@ func generateTokenSecretName(serviceAccountName string, tokenReq *authv1.TokenRe
 	if tokenReq.Spec.Audiences != nil {
 		nameStr += "-" + strings.Join(tokenReq.Spec.Audiences, "-")
 	}
+
 	if tokenReq.Spec.ExpirationSeconds != nil {
 		nameStr += "-" + strconv.Itoa(int(*tokenReq.Spec.ExpirationSeconds))
 	}
+
 	return nameStr
 }

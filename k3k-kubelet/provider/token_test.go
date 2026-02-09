@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
@@ -194,24 +193,23 @@ func Test_addKubeAccessVolume(t *testing.T) {
 	assert.Equal(t, 2, len(pod.Spec.Volumes))
 	addedVol := pod.Spec.Volumes[1]
 	assert.Equal(t, tokenVolumeName, addedVol.Name)
-	require.NotNil(t, addedVol.VolumeSource.Secret)
 	assert.Equal(t, hostSecretName, addedVol.VolumeSource.Secret.SecretName)
 
 	// Verify init container mount was added
-	require.Equal(t, 1, len(pod.Spec.InitContainers[0].VolumeMounts))
+	assert.Equal(t, 1, len(pod.Spec.InitContainers[0].VolumeMounts))
 	assert.Equal(t, tokenVolumeName, pod.Spec.InitContainers[0].VolumeMounts[0].Name)
 	assert.Equal(t, serviceAccountTokenMountPath, pod.Spec.InitContainers[0].VolumeMounts[0].MountPath)
 
 	// Verify all container mounts were added
 	for _, c := range pod.Spec.Containers {
-		require.Equal(t, 1, len(c.VolumeMounts), "container %s should have mount", c.Name)
+		assert.Equal(t, 1, len(c.VolumeMounts), "container %s should have mount", c.Name)
 		assert.Equal(t, tokenVolumeName, c.VolumeMounts[0].Name)
 		assert.Equal(t, serviceAccountTokenMountPath, c.VolumeMounts[0].MountPath)
 	}
 
 	// Verify ephemeral container mounts were added
 	for _, c := range pod.Spec.EphemeralContainers {
-		require.Equal(t, 1, len(c.VolumeMounts), "ephemeral container %s should have mount", c.Name)
+		assert.Equal(t, 1, len(c.VolumeMounts), "ephemeral container %s should have mount", c.Name)
 		assert.Equal(t, tokenVolumeName, c.VolumeMounts[0].Name)
 		assert.Equal(t, serviceAccountTokenMountPath, c.VolumeMounts[0].MountPath)
 	}

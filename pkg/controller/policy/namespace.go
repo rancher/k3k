@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/types"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -73,6 +73,7 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 				log.Error(err, "error getting policy for namespace", "namespace", ns.Name, "policy", currentPolicyName)
 			}
 		}
+
 		selector := labels.NewSelector()
 
 		if req, err := labels.NewRequirement(ManagedByLabelKey, selection.Equals, []string{VirtualPolicyControllerName}); err == nil {
@@ -115,12 +116,14 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 // clearPolicyFieldsForClustersInNamespace sets the policy status on Cluster objects in the given namespace to nil.
 func (c *VirtualClusterPolicyReconciler) clearPolicyFieldsForClustersInNamespace(ctx context.Context, namespace string) error {
 	log := ctrl.LoggerFrom(ctx)
+
 	var clusters v1beta1.ClusterList
 	if err := c.Client.List(ctx, &clusters, client.InNamespace(namespace)); err != nil {
 		return err
 	}
 
 	var updateErrs []error
+
 	for i := range clusters.Items {
 		cluster := clusters.Items[i]
 		// Only update if there are policy fields to clear to avoid unnecessary reconciliation loops.
@@ -135,5 +138,6 @@ func (c *VirtualClusterPolicyReconciler) clearPolicyFieldsForClustersInNamespace
 			}
 		}
 	}
+
 	return errors.Join(updateErrs...)
 }

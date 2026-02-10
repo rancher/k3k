@@ -32,11 +32,11 @@ _Appears in:_
 | `secretRef` _string_ | SecretRef is the name of the Secret. |  |  |
 
 
-#### AppliedPolicyStatus
+#### AppliedPolicy
 
 
 
-AppliedPolicyStatus defines the observed state of an applied policy.
+AppliedPolicy defines the observed state of an applied policy.
 
 
 

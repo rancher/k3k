@@ -65,12 +65,14 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 			}
 		} else {
 			var policy v1beta1.VirtualClusterPolicy
-			if err := c.Client.Get(ctx, types.NamespacedName{Name: currentPolicyName}, &policy); apierrors.IsNotFound(err) {
-				if err := c.clearPolicyFieldsForClustersInNamespace(ctx, ns.Name); err != nil {
-					log.Error(err, "error clearing policy fields for clusters in namespace with non-existent policy", "namespace", ns.Name, "policy", currentPolicyName)
+			if err := c.Client.Get(ctx, types.NamespacedName{Name: currentPolicyName}, &policy); err != nil {
+				if apierrors.IsNotFound(err) {
+					if err := c.clearPolicyFieldsForClustersInNamespace(ctx, ns.Name); err != nil {
+						log.Error(err, "error clearing policy fields for clusters in namespace with non-existent policy", "namespace", ns.Name, "policy", currentPolicyName)
+					}
+				} else {
+					log.Error(err, "error getting policy for namespace", "namespace", ns.Name, "policy", currentPolicyName)
 				}
-			} else if err != nil {
-				log.Error(err, "error getting policy for namespace", "namespace", ns.Name, "policy", currentPolicyName)
 			}
 		}
 
@@ -126,13 +128,10 @@ func (c *VirtualClusterPolicyReconciler) clearPolicyFieldsForClustersInNamespace
 
 	for i := range clusters.Items {
 		cluster := clusters.Items[i]
-		// Only update if there are policy fields to clear to avoid unnecessary reconciliation loops.
 		if cluster.Status.Policy != nil {
 			log.V(1).Info("Clearing policy status for Cluster", "cluster", cluster.Name, "namespace", namespace)
 			cluster.Status.Policy = nil
 
-			// Use Status().Update() to avoid race conditions and honor the separation
-			// between spec and status.
 			if err := c.Client.Status().Update(ctx, &cluster); err != nil {
 				updateErrs = append(updateErrs, err)
 			}

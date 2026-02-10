@@ -472,7 +472,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, 
 	for _, cluster := range clusters.Items {
 		origStatus := cluster.Status.DeepCopy()
 
-		cluster.Status.Policy = &v1beta1.AppliedPolicyStatus{
+		cluster.Status.Policy = &v1beta1.AppliedPolicy{
 			Name:          policy.Name,
 			PriorityClass: policy.Spec.DefaultPriorityClass,
 			NodeSelector:  policy.Spec.DefaultNodeSelector,

@@ -401,10 +401,8 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	// Schedule the host pod in the same host node of the virtual kubelet
 	hostPod.Spec.NodeName = p.agentHostname
 
-	// Determine the final NodeSelector for the pod.
-	// The pod's own nodeSelector is always ignored. The selector is determined by the
-	// cluster spec and is completely overridden by the policy if present.
-	// Precedence is: Policy > Cluster Spec.
+	// The pod's own nodeSelector is ignored.
+	// The final selector is determined by the cluster spec, but overridden by a policy if present.
 	hostPod.Spec.NodeSelector = cluster.Spec.NodeSelector
 	if cluster.Status.Policy != nil && len(cluster.Status.Policy.NodeSelector) > 0 {
 		hostPod.Spec.NodeSelector = cluster.Status.Policy.NodeSelector
@@ -419,7 +417,6 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	// If the Cluster or a Policy define a PriorityClass of the host we are going to use that one.
 	// Note: the core-dns and local-path-provisioner pod are scheduled by k3s with the
 	// 'system-cluster-critical' and 'system-node-critical' default priority classes.
-	// We need to use those in case.
 	//
 	// TODO: we probably need to define a custom "intermediate" k3k-system-* priority
 	if strings.HasPrefix(virtualPod.Spec.PriorityClassName, "system-") {

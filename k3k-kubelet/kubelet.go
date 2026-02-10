@@ -270,7 +270,7 @@ func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 			return nil, nil, errors.New("unable to make nodeutil provider: " + err.Error())
 		}
 
-		provider.ConfigureNode(
+		err = provider.ConfigureNode(
 			k.logger,
 			pc.Node,
 			cfg.AgentHostname,
@@ -283,7 +283,7 @@ func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 			cfg.MirrorHostNodes,
 		)
 
-		return utilProvider, &provider.Node{}, nil
+		return utilProvider, &provider.Node{}, err
 	}
 }
 
@@ -304,6 +304,9 @@ func (k *kubelet) nodeOpts(srvPort int, namespace, name, hostname, agentIP strin
 		}
 
 		c.TLSConfig = tlsConfig
+
+		c.NodeSpec.Labels["kubernetes.io/role"] = "worker"
+		c.NodeSpec.Labels["node-role.kubernetes.io/worker"] = "true"
 
 		return nil
 	}

@@ -11,6 +11,7 @@ GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
 ENVTEST_K8S_VERSION := 1.31.0
 CRD_REF_DOCS_VER ?= v0.2.0
+BIN_DIR ?= $(shell pwd)/.bin
 
 GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GINKGO ?= go run github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
@@ -19,6 +20,7 @@ PANDOC := $(shell which pandoc 2> /dev/null)
 
 ENVTEST ?= go run sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
 ENVTEST_DIR ?= $(shell pwd)/.envtest
+KUBE_API_LINT := $(BIN_DIR)/tools/kube-api-lint
 
 E2E_LABEL_FILTER ?= e2e
 
@@ -117,7 +119,7 @@ ifndef CI
 endif
 
 .PHONY: validate
-validate: generate docs fmt ## Validate the project checking for any dependency or doc mismatch
+validate: generate docs fmt verify-kube-api-lint # Validate the project checking for any dependency or doc mismatch
 	$(GINKGO) unfocus
 	go mod tidy
 	go mod verify
@@ -138,3 +140,26 @@ install:	## Install K3k with Helm on the targeted Kubernetes cluster
 .PHONY: help
 help:	## Show this help.
 	@egrep -h '\s##\s' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m  %-30s\033[0m %s\n", $$1, $$2}'
+
+$(BIN_DIR) $(BIN_DIR)/tools:
+	mkdir -p $@
+
+$(KUBE_API_LINT): $(BIN_DIR)/tools
+	@echo "Building kube-api-lint custom golangci-lint binary"
+	$(GOLANGCI_LINT) custom -v \
+		--destination $(BIN_DIR)/tools \
+		--name kube-api-lint
+
+.PHONY: verify-kube-api-lint
+## Verify all APIs using Kube API Linter
+## @category [shared] Generate/ Verify
+verify-kube-api-lint: $(KUBE_API_LINT)
+	@echo "Running kube-api-lint"
+	$(KUBE_API_LINT) run --max-issues-per-linter=500 -c $(CURDIR)/.golangci-kal.yml
+
+.PHONY: fix-kube-api-lint
+## Fix all APIs using Kube API Linter
+## @category [shared] Generate/ Verify
+fix-kube-api-lint: $(KUBE_API_LINT)
+	@echo "Running kube-api-lint with --fix"
+	$(KUBE_API_LINT) run --fix -c $(CURDIR)/.golangci-kal.yml

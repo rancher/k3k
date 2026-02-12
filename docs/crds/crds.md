@@ -45,9 +45,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is the name of the VirtualClusterPolicy currently applied to this cluster. |  |  |
-| `priorityClass` _string_ | PriorityClass is the priority class enforced by the active VirtualClusterPolicy. |  |  |
-| `nodeSelector` _object (keys:string, values:string)_ | NodeSelector is a node selector enforced by the active VirtualClusterPolicy. |  |  |
+| `name` _string_ | name is the name of the VirtualClusterPolicy currently applied to this cluster. |  | MinLength: 1 <br /> |
+| `priorityClass` _string_ | priorityClass is the priority class enforced by the active VirtualClusterPolicy. |  |  |
+| `nodeSelector` _object (keys:string, values:string)_ | nodeSelector is a node selector enforced by the active VirtualClusterPolicy. |  |  |
 
 
 #### Cluster

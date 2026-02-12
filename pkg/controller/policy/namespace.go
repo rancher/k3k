@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -57,6 +58,12 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 	for _, ns := range namespaces.Items {
 		currentPolicyName := ns.Labels[PolicyNameLabelKey]
 
+		// This will match all the resources managed by the K3k Policy controller
+		// that have the app.kubernetes.io/managed-by=k3k-policy-controller label
+		selector := labels.SelectorFromSet(labels.Set{
+			ManagedByLabelKey: VirtualPolicyControllerName,
+		})
+
 		// If the namespace is not bound to any policy, or if the policy it was bound to no longer exists,
 		// we need to clear policy-related fields on its Cluster objects.
 		if currentPolicyName == "" {
@@ -74,17 +81,11 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 					log.Error(err, "error getting policy for namespace", "namespace", ns.Name, "policy", currentPolicyName)
 				}
 			}
-		}
 
-		selector := labels.NewSelector()
-
-		if req, err := labels.NewRequirement(ManagedByLabelKey, selection.Equals, []string{VirtualPolicyControllerName}); err == nil {
-			selector = selector.Add(*req)
-		}
-
-		// if the namespace is bound to a policy -> cleanup resources of other policies
-		if ns.Labels[PolicyNameLabelKey] != "" {
-			requirement, err := labels.NewRequirement(PolicyNameLabelKey, selection.NotEquals, []string{ns.Labels[PolicyNameLabelKey]})
+			// if the namespace is bound to a policy -> cleanup resources of other policies
+			requirement, err := labels.NewRequirement(
+				PolicyNameLabelKey, selection.NotEquals, []string{currentPolicyName},
+			)
 
 			// log the error but continue cleaning up the other namespaces
 			if err != nil {
@@ -121,7 +122,7 @@ func (c *VirtualClusterPolicyReconciler) clearPolicyFieldsForClustersInNamespace
 
 	var clusters v1beta1.ClusterList
 	if err := c.Client.List(ctx, &clusters, client.InNamespace(namespace)); err != nil {
-		return err
+		return fmt.Errorf("failed listing clusters in namespace %s: %w", namespace, err)
 	}
 
 	var updateErrs []error
@@ -132,8 +133,9 @@ func (c *VirtualClusterPolicyReconciler) clearPolicyFieldsForClustersInNamespace
 			log.V(1).Info("Clearing policy status for Cluster", "cluster", cluster.Name, "namespace", namespace)
 			cluster.Status.Policy = nil
 
-			if err := c.Client.Status().Update(ctx, &cluster); err != nil {
-				updateErrs = append(updateErrs, err)
+			if updateErr := c.Client.Status().Update(ctx, &cluster); updateErr != nil {
+				updateErr = fmt.Errorf("failed updating Status for Cluster %s: %w", cluster.Name, updateErr)
+				updateErrs = append(updateErrs, updateErr)
 			}
 		}
 	}

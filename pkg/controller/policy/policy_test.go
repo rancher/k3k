@@ -335,7 +335,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 					g.Expect(cluster.Spec.PriorityClass).To(BeEmpty())
 					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
-					g.Expect(cluster.Status.Policy.PriorityClass).To(Equal(policy.Spec.DefaultPriorityClass))
+					g.Expect(cluster.Status.Policy.PriorityClass).To(Not(BeNil()))
+					g.Expect(*cluster.Status.Policy.PriorityClass).To(Equal(policy.Spec.DefaultPriorityClass))
 				}).
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).

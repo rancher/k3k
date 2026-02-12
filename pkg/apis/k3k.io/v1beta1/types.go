@@ -538,7 +538,7 @@ type ClusterStatus struct {
 	// +optional
 	PolicyName string `json:"policyName,omitempty"`
 
-	// Policy represents the status of the policy applied to this cluster.
+	// policy represents the status of the policy applied to this cluster.
 	// This field is set by the VirtualClusterPolicy controller.
 	//
 	// +optional
@@ -569,15 +569,18 @@ type ClusterStatus struct {
 
 // AppliedPolicy defines the observed state of an applied policy.
 type AppliedPolicy struct {
-	// Name is the name of the VirtualClusterPolicy currently applied to this cluster.
+	// name is the name of the VirtualClusterPolicy currently applied to this cluster.
+	//
+	// +kubebuilder:validation:MinLength:=1
+	// +required
 	Name string `json:"name,omitempty"`
 
-	// PriorityClass is the priority class enforced by the active VirtualClusterPolicy.
+	// priorityClass is the priority class enforced by the active VirtualClusterPolicy.
 	//
 	// +optional
-	PriorityClass string `json:"priorityClass,omitempty"`
+	PriorityClass *string `json:"priorityClass,omitempty"`
 
-	// NodeSelector is a node selector enforced by the active VirtualClusterPolicy.
+	// nodeSelector is a node selector enforced by the active VirtualClusterPolicy.
 	//
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`

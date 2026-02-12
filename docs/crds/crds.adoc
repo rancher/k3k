@@ -57,9 +57,10 @@ _Appears In:_
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`name`* __string__ | Name is the name of the VirtualClusterPolicy currently applied to this cluster. + |  | 
-| *`priorityClass`* __string__ | PriorityClass is the priority class enforced by the active VirtualClusterPolicy. + |  | 
-| *`nodeSelector`* __object (keys:string, values:string)__ | NodeSelector is a node selector enforced by the active VirtualClusterPolicy. + |  | 
+| *`name`* __string__ | name is the name of the VirtualClusterPolicy currently applied to this cluster. + |  | MinLength: 1 +
+
+| *`priorityClass`* __string__ | priorityClass is the priority class enforced by the active VirtualClusterPolicy. + |  | 
+| *`nodeSelector`* __object (keys:string, values:string)__ | nodeSelector is a node selector enforced by the active VirtualClusterPolicy. + |  | 
 |===
 
 

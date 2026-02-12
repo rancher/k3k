@@ -474,7 +474,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, 
 
 		cluster.Status.Policy = &v1beta1.AppliedPolicy{
 			Name:          policy.Name,
-			PriorityClass: policy.Spec.DefaultPriorityClass,
+			PriorityClass: &policy.Spec.DefaultPriorityClass,
 			NodeSelector:  policy.Spec.DefaultNodeSelector,
 		}
 

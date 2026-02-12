@@ -186,7 +186,8 @@ var _ = When("a cluster's status is tracked", Label(e2eTestLabel), Label(statusT
 				g.Expect(err).NotTo(HaveOccurred())
 
 				g.Expect(clusterObj.Status.Policy).To(Not(BeNil()))
-				g.Expect(clusterObj.Status.Policy.PriorityClass).To(Equal(priorityClassVCP.Name))
+				g.Expect(clusterObj.Status.Policy.PriorityClass).To(Not(BeNil()))
+				g.Expect(*clusterObj.Status.Policy.PriorityClass).To(Equal(priorityClassVCP.Name))
 				g.Expect(clusterObj.Spec.PriorityClass).To(Equal(priorityClass.Name))
 			}).
 				WithTimeout(time.Minute * 3).

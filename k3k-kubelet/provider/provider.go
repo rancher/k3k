@@ -414,7 +414,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	// When a PriorityClass is set we will use the translated one in the HostCluster.
-	// If the Cluster or a Policy define a PriorityClass of the host we are going to use that one.
+	// If the Cluster or a Policy defines a PriorityClass of the host we are going to use that one.
 	// Note: the core-dns and local-path-provisioner pod are scheduled by k3s with the
 	// 'system-cluster-critical' and 'system-node-critical' default priority classes.
 	//
@@ -423,8 +423,8 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 		hostPod.Spec.PriorityClassName = virtualPod.Spec.PriorityClassName
 	} else {
 		enforcedPriorityClassName := cluster.Spec.PriorityClass
-		if cluster.Status.Policy != nil && cluster.Status.Policy.PriorityClass != "" {
-			enforcedPriorityClassName = cluster.Status.Policy.PriorityClass
+		if cluster.Status.Policy != nil && cluster.Status.Policy.PriorityClass != nil {
+			enforcedPriorityClassName = *cluster.Status.Policy.PriorityClass
 		}
 
 		if enforcedPriorityClassName != "" {

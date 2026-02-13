@@ -470,16 +470,21 @@ func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, 
 	var clusterUpdateErrs []error
 
 	for _, cluster := range clusters.Items {
-		orig := cluster.DeepCopy()
+		origStatus := cluster.Status.DeepCopy()
 
-		cluster.Spec.PriorityClass = policy.Spec.DefaultPriorityClass
-		cluster.Spec.NodeSelector = policy.Spec.DefaultNodeSelector
+		cluster.Status.Policy = &v1beta1.AppliedPolicy{
+			Name:          policy.Name,
+			PriorityClass: &policy.Spec.DefaultPriorityClass,
+			NodeSelector:  policy.Spec.DefaultNodeSelector,
+		}
 
-		if !reflect.DeepEqual(orig, cluster) {
+		if !reflect.DeepEqual(origStatus, &cluster.Status) {
 			log.V(1).Info("Updating Cluster", "cluster", cluster.Name, "namespace", namespace.Name)
 
 			// continue updating also the other clusters even if an error occurred
-			clusterUpdateErrs = append(clusterUpdateErrs, c.Client.Update(ctx, &cluster))
+			if err := c.Client.Status().Update(ctx, &cluster); err != nil {
+				clusterUpdateErrs = append(clusterUpdateErrs, err)
+			}
 		}
 	}
 

@@ -935,6 +935,29 @@ spec:
                 - Terminating
                 - Unknown
                 type: string
+              policy:
+                description: |-
+                  policy represents the status of the policy applied to this cluster.
+                  This field is set by the VirtualClusterPolicy controller.
+                properties:
+                  name:
+                    description: name is the name of the VirtualClusterPolicy currently
+                      applied to this cluster.
+                    minLength: 1
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: nodeSelector is a node selector enforced by the active
+                      VirtualClusterPolicy.
+                    type: object
+                  priorityClass:
+                    description: priorityClass is the priority class enforced by the
+                      active VirtualClusterPolicy.
+                    type: string
+                required:
+                - name
+                type: object
               policyName:
                 description: PolicyName specifies the virtual cluster policy name
                   bound to the virtual cluster.

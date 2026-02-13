@@ -32,6 +32,24 @@ _Appears in:_
 | `secretRef` _string_ | SecretRef is the name of the Secret. |  |  |
 
 
+#### AppliedPolicy
+
+
+
+AppliedPolicy defines the observed state of an applied policy.
+
+
+
+_Appears in:_
+- [ClusterStatus](#clusterstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | name is the name of the VirtualClusterPolicy currently applied to this cluster. |  | MinLength: 1 <br /> |
+| `priorityClass` _string_ | priorityClass is the priority class enforced by the active VirtualClusterPolicy. |  |  |
+| `nodeSelector` _object (keys:string, values:string)_ | nodeSelector is a node selector enforced by the active VirtualClusterPolicy. |  |  |
+
+
 #### Cluster
 
 

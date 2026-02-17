@@ -2522,6 +2522,12 @@ spec:
                           Selector specifies set of labels of the resources that will be synced, if empty
                           then all resources of the given type will be synced.
                         type: object
+                      syncTLSSecrets:
+                        default: true
+                        description: |-
+                          Enabled is an on/off switch for translating TLS secret
+                          from virtual cluster to host cluster
+                        type: boolean
                     required:
                     - enabled
                     type: object

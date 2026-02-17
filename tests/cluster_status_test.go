@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
+	schedv1 "k8s.io/api/scheduling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -94,6 +95,100 @@ var _ = When("a cluster's status is tracked", Label(e2eTestLabel), Label(statusT
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 				g.Expect(cond.Reason).To(Equal(cluster.ReasonProvisioned))
+			}).
+				WithTimeout(time.Minute * 3).
+				WithPolling(time.Second * 5).
+				Should(Succeed())
+		})
+
+		It("created with field controlled from a policy", func() {
+			ctx := context.Background()
+
+			priorityClass := &schedv1.PriorityClass{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "pc-",
+				},
+				Value: 100,
+			}
+			Expect(k8sClient.Create(ctx, priorityClass)).To(Succeed())
+
+			clusterObj := &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "status-cluster-",
+					Namespace:    namespace.Name,
+				},
+				Spec: v1beta1.ClusterSpec{
+					PriorityClass: priorityClass.Name,
+				},
+			}
+			Expect(k8sClient.Create(ctx, clusterObj)).To(Succeed())
+
+			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, priorityClass)).To(Succeed())
+			})
+
+			clusterKey := client.ObjectKeyFromObject(clusterObj)
+
+			// Check for the initial status to be set
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(ctx, clusterKey, clusterObj)
+				g.Expect(err).NotTo(HaveOccurred())
+
+				g.Expect(clusterObj.Status.Phase).To(Equal(v1beta1.ClusterProvisioning))
+
+				cond := meta.FindStatusCondition(clusterObj.Status.Conditions, cluster.ConditionReady)
+				g.Expect(cond).NotTo(BeNil())
+				g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+				g.Expect(cond.Reason).To(Equal(cluster.ReasonProvisioning))
+			}).
+				WithPolling(time.Second * 2).
+				WithTimeout(time.Second * 20).
+				Should(Succeed())
+
+			// Check for the status to be updated to Ready
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(ctx, clusterKey, clusterObj)
+				g.Expect(err).NotTo(HaveOccurred())
+
+				g.Expect(clusterObj.Status.Phase).To(Equal(v1beta1.ClusterReady))
+				g.Expect(clusterObj.Status.Policy).To(Not(BeNil()))
+				g.Expect(clusterObj.Status.Policy.Name).To(Equal(vcp.Name))
+
+				cond := meta.FindStatusCondition(clusterObj.Status.Conditions, cluster.ConditionReady)
+				g.Expect(cond).NotTo(BeNil())
+				g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(cond.Reason).To(Equal(cluster.ReasonProvisioned))
+			}).
+				WithTimeout(time.Minute * 3).
+				WithPolling(time.Second * 5).
+				Should(Succeed())
+
+			// update policy
+
+			priorityClassVCP := &schedv1.PriorityClass{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "pc-",
+				},
+				Value: 100,
+			}
+			Expect(k8sClient.Create(ctx, priorityClassVCP)).To(Succeed())
+
+			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, priorityClassVCP)).To(Succeed())
+			})
+
+			vcp.Spec.DefaultPriorityClass = priorityClassVCP.Name
+			Expect(k8sClient.Update(ctx, vcp)).To(Succeed())
+
+			// Check for the status to be updated to Ready
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(ctx, clusterKey, clusterObj)
+				g.Expect(err).NotTo(HaveOccurred())
+
+				g.Expect(clusterObj.Status.Policy).To(Not(BeNil()))
+				g.Expect(clusterObj.Status.Policy.PriorityClass).To(Not(BeNil()))
+				g.Expect(*clusterObj.Status.Policy.PriorityClass).To(Equal(priorityClassVCP.Name))
+				g.Expect(clusterObj.Spec.PriorityClass).To(Equal(priorityClass.Name))
 			}).
 				WithTimeout(time.Minute * 3).
 				WithPolling(time.Second * 5).

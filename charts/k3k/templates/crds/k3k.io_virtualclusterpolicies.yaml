@@ -343,6 +343,25 @@ spec:
                     required:
                     - enabled
                     type: object
+                  storageClasses:
+                    default:
+                      enabled: false
+                    description: StorageClasses resources sync configuration.
+                    properties:
+                      enabled:
+                        default: false
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    required:
+                    - enabled
+                    type: object
                 type: object
             type: object
           status:

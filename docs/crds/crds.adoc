@@ -607,6 +607,28 @@ then all resources of the given type will be synced. + |  |
 |===
 
 
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-storageclasssyncconfig"]
+=== StorageClassSyncConfig
+
+
+
+StorageClassSyncConfig specifies the sync options for services.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`enabled`* __boolean__ | Enabled is an on/off switch for syncing resources. + | false | 
+| *`selector`* __object (keys:string, values:string)__ | Selector specifies set of labels of the resources that will be synced, if empty +
+then all resources of the given type will be synced. + |  | 
+|===
+
+
 [id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig"]
 === SyncConfig
 
@@ -630,6 +652,7 @@ _Appears In:_
 | *`ingresses`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-ingresssyncconfig[$$IngressSyncConfig$$]__ | Ingresses resources sync configuration. + | { enabled:false } | 
 | *`persistentVolumeClaims`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-persistentvolumeclaimsyncconfig[$$PersistentVolumeClaimSyncConfig$$]__ | PersistentVolumeClaims resources sync configuration. + | { enabled:true } | 
 | *`priorityClasses`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-priorityclasssyncconfig[$$PriorityClassSyncConfig$$]__ | PriorityClasses resources sync configuration. + | { enabled:false } | 
+| *`storageClasses`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-storageclasssyncconfig[$$StorageClassSyncConfig$$]__ | StorageClasses resources sync configuration. + | { enabled:false } | 
 |===
 
 

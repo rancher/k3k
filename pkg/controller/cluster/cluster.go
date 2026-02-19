@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -22,12 +23,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,6 +55,8 @@ const (
 	defaultSharedClusterCIDR  = "10.42.0.0/16"
 	defaultSharedServiceCIDR  = "10.43.0.0/16"
 	memberRemovalTimeout      = time.Minute * 1
+
+	storageClassEnabledIndexField = "spec.sync.storageClasses.enabled"
 )
 
 var (
@@ -115,13 +120,69 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		},
 	}
 
+	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassEnabledIndexField, func(rawObj client.Object) []string {
+		vc := rawObj.(*v1beta1.Cluster)
+
+		if vc.Spec.Sync != nil && vc.Spec.Sync.StorageClasses.Enabled {
+			return []string{"true"}
+		}
+
+		return []string{"false"}
+	})
+	if err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.Cluster{}).
 		Watches(&v1.Namespace{}, namespaceEventHandler(&reconciler)).
+		Watches(&storagev1.StorageClass{},
+			handler.EnqueueRequestsFromMapFunc(reconciler.mapStorageClassToCluster),
+			// builder.WithPredicates(storageClassPredicate),
+		).
 		Owns(&apps.StatefulSet{}).
 		Owns(&v1.Service{}).
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
+}
+
+var storageClassPredicate = predicate.Funcs{
+	UpdateFunc: func(e event.UpdateEvent) bool {
+		// Only trigger if the labels match our "opt-in" criteria
+		newLabels := e.ObjectNew.GetLabels()
+		if newLabels["k3k.io/sync"] != "true" {
+			return false
+		}
+
+		// Also check if the spec actually changed (ignore metadata/heartbeats)
+		oldSc := e.ObjectOld.(*storagev1.StorageClass)
+		newSc := e.ObjectNew.(*storagev1.StorageClass)
+		return !reflect.DeepEqual(oldSc.Provisioner, newSc.Provisioner) ||
+			!reflect.DeepEqual(oldSc.Parameters, newSc.Parameters)
+	},
+	CreateFunc: func(e event.CreateEvent) bool {
+		return e.Object.GetLabels()["k3k.io/sync"] == "true"
+	},
+}
+
+func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj client.Object) []reconcile.Request {
+	// Use the indexer to ONLY get clusters that actually care!
+	var clusterList v1beta1.ClusterList
+	if err := r.Client.List(ctx, &clusterList, client.MatchingFields{storageClassEnabledIndexField: "true"}); err != nil {
+		fmt.Println("ERR: " + err.Error())
+		return nil
+	}
+
+	fmt.Println("storage classes update!")
+
+	requests := make([]reconcile.Request, 0, len(clusterList.Items))
+	for _, cluster := range clusterList.Items {
+		requests = append(requests, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(&cluster),
+		})
+	}
+
+	return requests
 }
 
 func namespaceEventHandler(r *ClusterReconciler) handler.Funcs {
@@ -343,6 +404,10 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 	}
 
 	if err := c.ensureIngress(ctx, cluster); err != nil {
+		return err
+	}
+
+	if err := c.ensureStorageClasses(ctx, cluster); err != nil {
 		return err
 	}
 
@@ -615,6 +680,64 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1beta1.
 	key := client.ObjectKeyFromObject(currentServerIngress)
 	if result != controllerutil.OperationResultNone {
 		log.V(1).Info("Cluster ingress updated", "key", key, "result", result)
+	}
+
+	return nil
+}
+
+func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v1beta1.Cluster) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.V(1).Info("Ensuring cluster StorageClasses")
+
+	virtualClient, err := newVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace)
+	if err != nil {
+		return err
+	}
+
+	// If storageclass sync is disabled, clean up any managed storage classes.
+	if cluster.Spec.Sync == nil || !cluster.Spec.Sync.StorageClasses.Enabled {
+		err := virtualClient.DeleteAllOf(ctx, &storagev1.StorageClass{}, client.MatchingLabels{"k3k.io/managed-by": "k3k"})
+		return client.IgnoreNotFound(err)
+	}
+
+	var storageClassList storagev1.StorageClassList
+	if err := c.Client.List(ctx, &storageClassList); err != nil {
+		return err
+	}
+
+	for i := range storageClassList.Items {
+		hostSc := storageClassList.Items[i]
+
+		virtualSc := hostSc.DeepCopy()
+		virtualSc.ObjectMeta = metav1.ObjectMeta{
+			Name:        hostSc.Name,
+			Labels:      hostSc.Labels,
+			Annotations: hostSc.Annotations,
+		}
+
+		_, errCreateOrUpdate := controllerutil.CreateOrUpdate(ctx, virtualClient, virtualSc, func() error {
+			if virtualSc.Labels == nil {
+				virtualSc.Labels = make(map[string]string)
+			}
+
+			virtualSc.Labels["k3k.io/managed-by"] = "k3k"
+
+			virtualSc.Provisioner = hostSc.Provisioner
+			virtualSc.Parameters = hostSc.Parameters
+			virtualSc.ReclaimPolicy = hostSc.ReclaimPolicy
+			virtualSc.MountOptions = hostSc.MountOptions
+			virtualSc.AllowVolumeExpansion = hostSc.AllowVolumeExpansion
+			virtualSc.VolumeBindingMode = hostSc.VolumeBindingMode
+			virtualSc.AllowedTopologies = hostSc.AllowedTopologies
+
+			return nil
+		})
+
+		err = errors.Join(err, errCreateOrUpdate)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to sync storageclasses: %w", err)
 	}
 
 	return nil

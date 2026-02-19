@@ -249,6 +249,11 @@ type SyncConfig struct {
 	// +kubebuilder:default={"enabled": false}
 	// +optional
 	PriorityClasses PriorityClassSyncConfig `json:"priorityClasses"`
+	// StorageClasses resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": false}
+	// +optional
+	StorageClasses StorageClassSyncConfig `json:"storageClasses"`
 }
 
 // SecretSyncConfig specifies the sync options for services.
@@ -328,6 +333,21 @@ type PersistentVolumeClaimSyncConfig struct {
 
 // PriorityClassSyncConfig specifies the sync options for services.
 type PriorityClassSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	//
+	// +kubebuilder:default=false
+	// +required
+	Enabled bool `json:"enabled"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// StorageClassSyncConfig specifies the sync options for services.
+type StorageClassSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
 	// +kubebuilder:default=false

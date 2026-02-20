@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -93,6 +94,46 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 			Eventually(func(g Gomega) {
 				_, err := k8s.CoreV1().Services(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
 				g.Expect(err).To(Not(HaveOccurred()))
+			}).
+				WithTimeout(time.Minute).
+				WithPolling(time.Second).
+				Should(Succeed())
+		})
+	})
+
+	FWhen("the StorageClass sync is enabled", func() {
+		BeforeAll(func() {
+			ctx := context.Background()
+
+			storageClasses, err := virtualCluster.Client.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+			Expect(storageClasses.Items).To(HaveLen(0))
+		})
+
+		It("is replicated in the virtual cluster cluster", func() {
+			ctx := context.Background()
+
+			clusterSync := virtualCluster.Cluster.Spec.Sync
+			if clusterSync == nil {
+				clusterSync = &v1beta1.SyncConfig{}
+			}
+
+			clusterSync.StorageClasses.Enabled = true
+			virtualCluster.Cluster.Spec.Sync = clusterSync
+
+			err := k8sClient.Update(ctx, virtualCluster.Cluster)
+			Expect(err).To(Not(HaveOccurred()))
+
+			Eventually(func(g Gomega) {
+				hostStorageClasses, err := k8s.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+				g.Expect(err).To(Not(HaveOccurred()))
+				g.Expect(hostStorageClasses.Items).To(Not(HaveLen(0)))
+
+				virtStorageClasses, err := virtualCluster.Client.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+				g.Expect(err).To(Not(HaveOccurred()))
+				g.Expect(virtStorageClasses.Items).To(Not(HaveLen(0)))
+
+				g.Expect(virtStorageClasses.Items[0].Name).To(Equal(hostStorageClasses.Items[0].Name))
 			}).
 				WithTimeout(time.Minute).
 				WithPolling(time.Second).

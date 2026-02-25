@@ -12,6 +12,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
@@ -49,6 +50,9 @@ const (
 	clusterController    = "k3k-cluster-controller"
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
 	ClusterInvalidName   = "system"
+
+	SyncSourceLabelKey  = "k3k.io/sync-source"
+	SyncSourceHostLabel = "host"
 
 	defaultVirtualClusterCIDR = "10.52.0.0/16"
 	defaultVirtualServiceCIDR = "10.53.0.0/16"
@@ -150,7 +154,7 @@ var storageClassPredicate = predicate.Funcs{
 	UpdateFunc: func(e event.UpdateEvent) bool {
 		// Only trigger if the labels match our "opt-in" criteria
 		newLabels := e.ObjectNew.GetLabels()
-		if newLabels["k3k.io/sync"] != "true" {
+		if newLabels[SyncSourceLabelKey] != "true" {
 			return false
 		}
 
@@ -161,25 +165,39 @@ var storageClassPredicate = predicate.Funcs{
 			!reflect.DeepEqual(oldSc.Parameters, newSc.Parameters)
 	},
 	CreateFunc: func(e event.CreateEvent) bool {
-		return e.Object.GetLabels()["k3k.io/sync"] == "true"
+		return e.Object.GetLabels()[SyncSourceLabelKey] == "true"
 	},
 }
 
 func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj client.Object) []reconcile.Request {
-	// Use the indexer to ONLY get clusters that actually care!
+	sc, ok := obj.(*storagev1.StorageClass)
+	if !ok {
+		return nil
+	}
+
 	var clusterList v1beta1.ClusterList
 	if err := r.Client.List(ctx, &clusterList, client.MatchingFields{storageClassEnabledIndexField: "true"}); err != nil {
 		fmt.Println("ERR: " + err.Error())
 		return nil
 	}
 
-	fmt.Println("storage classes update!")
+	var requests []reconcile.Request
 
-	requests := make([]reconcile.Request, 0, len(clusterList.Items))
 	for _, cluster := range clusterList.Items {
-		requests = append(requests, reconcile.Request{
-			NamespacedName: client.ObjectKeyFromObject(&cluster),
-		})
+		if cluster.Spec.Sync.StorageClasses.Selector == nil {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&cluster),
+			})
+			continue
+		}
+
+		selector := labels.SelectorFromSet(cluster.Spec.Sync.StorageClasses.Selector)
+
+		if selector.Matches(labels.Set(sc.Labels)) {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&cluster),
+			})
+		}
 	}
 
 	return requests
@@ -407,11 +425,11 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 		return err
 	}
 
-	if err := c.ensureStorageClasses(ctx, cluster); err != nil {
+	if err := c.ensureBootstrapSecret(ctx, cluster, serviceIP, token); err != nil {
 		return err
 	}
 
-	if err := c.ensureBootstrapSecret(ctx, cluster, serviceIP, token); err != nil {
+	if err := c.bindClusterRoles(ctx, cluster); err != nil {
 		return err
 	}
 
@@ -419,7 +437,14 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 		return err
 	}
 
-	return c.bindClusterRoles(ctx, cluster)
+	// Important: if you need to call the Server API of the Virtual Cluster
+	// this needs to be done AFTER he kubeconfig has been generated
+
+	if err := c.ensureStorageClasses(ctx, cluster); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ensureBootstrapSecret will create or update the Secret containing the bootstrap data from the k3s server
@@ -696,7 +721,7 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 
 	// If storageclass sync is disabled, clean up any managed storage classes.
 	if cluster.Spec.Sync == nil || !cluster.Spec.Sync.StorageClasses.Enabled {
-		err := virtualClient.DeleteAllOf(ctx, &storagev1.StorageClass{}, client.MatchingLabels{"k3k.io/managed-by": "k3k"})
+		err := virtualClient.DeleteAllOf(ctx, &storagev1.StorageClass{}, client.MatchingLabels{SyncSourceLabelKey: SyncSourceHostLabel})
 		return client.IgnoreNotFound(err)
 	}
 
@@ -720,7 +745,7 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 				virtualSc.Labels = make(map[string]string)
 			}
 
-			virtualSc.Labels["k3k.io/managed-by"] = "k3k"
+			virtualSc.Labels[SyncSourceLabelKey] = SyncSourceHostLabel
 
 			virtualSc.Provisioner = hostSc.Provisioner
 			virtualSc.Parameters = hostSc.Parameters

@@ -101,7 +101,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 		})
 	})
 
-	FWhen("the StorageClass sync is enabled", func() {
+	When("the StorageClass sync is enabled", func() {
 		BeforeAll(func() {
 			ctx := context.Background()
 

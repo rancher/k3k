@@ -716,7 +716,7 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 
 	virtualClient, err := newVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed creating virtual client: %w", err)
 	}
 
 	// If storageclass sync is disabled, clean up any managed storage classes.
@@ -725,13 +725,32 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 		return client.IgnoreNotFound(err)
 	}
 
-	var storageClassList storagev1.StorageClassList
-	if err := c.Client.List(ctx, &storageClassList); err != nil {
-		return err
+	var hostStorageClasses storagev1.StorageClassList
+	if err := c.Client.List(ctx, &hostStorageClasses); err != nil {
+		return fmt.Errorf("failed listing host storageclasses: %w", err)
 	}
 
-	for i := range storageClassList.Items {
-		hostSc := storageClassList.Items[i]
+	desiredNames := make(map[string]bool)
+	for _, sc := range hostStorageClasses.Items {
+		desiredNames[sc.Name] = true
+	}
+
+	var virtStorageClasses storagev1.StorageClassList
+	if err = virtualClient.List(ctx, &virtStorageClasses, client.MatchingLabels{SyncSourceLabelKey: SyncSourceHostLabel}); err != nil {
+		return fmt.Errorf("failed listing virtual storageclasses: %w", err)
+	}
+
+	for _, sc := range virtStorageClasses.Items {
+		if !desiredNames[sc.Name] {
+			if deleteErr := virtualClient.Delete(ctx, &sc); deleteErr != nil {
+				log.Error(deleteErr, "failed to delete virtual storageclass", "name", sc.Name)
+				err = errors.Join(err, deleteErr)
+			}
+		}
+	}
+
+	for i := range hostStorageClasses.Items {
+		hostSc := hostStorageClasses.Items[i]
 
 		virtualSc := hostSc.DeepCopy()
 		virtualSc.ObjectMeta = metav1.ObjectMeta{
@@ -758,6 +777,7 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 			return nil
 		})
 
+		// TODO log err
 		err = errors.Join(err, errCreateOrUpdate)
 	}
 

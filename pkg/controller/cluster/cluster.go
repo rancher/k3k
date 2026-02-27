@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -24,7 +23,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apps "k8s.io/api/apps/v1"
@@ -51,6 +49,7 @@ const (
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
 	ClusterInvalidName   = "system"
 
+	SyncEnabledLabelKey = "k3k.io/sync-enabled"
 	SyncSourceLabelKey  = "k3k.io/sync-source"
 	SyncSourceHostLabel = "host"
 
@@ -142,7 +141,6 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		Watches(&v1.Namespace{}, namespaceEventHandler(&reconciler)).
 		Watches(&storagev1.StorageClass{},
 			handler.EnqueueRequestsFromMapFunc(reconciler.mapStorageClassToCluster),
-			// builder.WithPredicates(storageClassPredicate),
 		).
 		Owns(&apps.StatefulSet{}).
 		Owns(&v1.Service{}).
@@ -150,54 +148,26 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		Complete(&reconciler)
 }
 
-var storageClassPredicate = predicate.Funcs{
-	UpdateFunc: func(e event.UpdateEvent) bool {
-		// Only trigger if the labels match our "opt-in" criteria
-		newLabels := e.ObjectNew.GetLabels()
-		if newLabels[SyncSourceLabelKey] != "true" {
-			return false
-		}
-
-		// Also check if the spec actually changed (ignore metadata/heartbeats)
-		oldSc := e.ObjectOld.(*storagev1.StorageClass)
-		newSc := e.ObjectNew.(*storagev1.StorageClass)
-		return !reflect.DeepEqual(oldSc.Provisioner, newSc.Provisioner) ||
-			!reflect.DeepEqual(oldSc.Parameters, newSc.Parameters)
-	},
-	CreateFunc: func(e event.CreateEvent) bool {
-		return e.Object.GetLabels()[SyncSourceLabelKey] == "true"
-	},
-}
-
 func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj client.Object) []reconcile.Request {
-	sc, ok := obj.(*storagev1.StorageClass)
+	log := ctrl.LoggerFrom(ctx)
+
+	_, ok := obj.(*storagev1.StorageClass)
 	if !ok {
 		return nil
 	}
 
 	var clusterList v1beta1.ClusterList
 	if err := r.Client.List(ctx, &clusterList, client.MatchingFields{storageClassEnabledIndexField: "true"}); err != nil {
-		fmt.Println("ERR: " + err.Error())
+		log.Error(err, "error listing clusters for storageclass sync")
 		return nil
 	}
 
-	var requests []reconcile.Request
+	requests := make([]reconcile.Request, 0, len(clusterList.Items))
 
 	for _, cluster := range clusterList.Items {
-		if cluster.Spec.Sync.StorageClasses.Selector == nil {
-			requests = append(requests, reconcile.Request{
-				NamespacedName: client.ObjectKeyFromObject(&cluster),
-			})
-			continue
-		}
-
-		selector := labels.SelectorFromSet(cluster.Spec.Sync.StorageClasses.Selector)
-
-		if selector.Matches(labels.Set(sc.Labels)) {
-			requests = append(requests, reconcile.Request{
-				NamespacedName: client.ObjectKeyFromObject(&cluster),
-			})
-		}
+		requests = append(requests, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(&cluster),
+		})
 	}
 
 	return requests
@@ -730,9 +700,29 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 		return fmt.Errorf("failed listing host storageclasses: %w", err)
 	}
 
-	desiredNames := make(map[string]bool)
+	// filter the StorageClasses disabled for the sync, and the one not matching the selector
+	filteredHostStorageClasses := make(map[string]storagev1.StorageClass)
+
 	for _, sc := range hostStorageClasses.Items {
-		desiredNames[sc.Name] = true
+		syncEnabled, found := sc.Labels[SyncEnabledLabelKey]
+
+		// if sync is disabled -> continue
+		if found && syncEnabled != "true" {
+			log.V(1).Info("sync is disabled", "sc-name", sc.Name)
+			continue
+		}
+
+		// if selector doesn't match -> continue
+		// an empty selector matche everything
+		selector := labels.SelectorFromSet(cluster.Spec.Sync.StorageClasses.Selector)
+		if !selector.Matches(labels.Set(sc.Labels)) {
+			log.V(1).Info("selector not matching", "sc-name", sc.Name)
+			continue
+		}
+
+		log.V(1).Info("keeping storageclass", "sc-name", sc.Name)
+
+		filteredHostStorageClasses[sc.Name] = sc
 	}
 
 	var virtStorageClasses storagev1.StorageClassList
@@ -740,19 +730,24 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 		return fmt.Errorf("failed listing virtual storageclasses: %w", err)
 	}
 
+	// delete StorageClasses with the sync disabled
+
 	for _, sc := range virtStorageClasses.Items {
-		if !desiredNames[sc.Name] {
-			if deleteErr := virtualClient.Delete(ctx, &sc); deleteErr != nil {
-				log.Error(deleteErr, "failed to delete virtual storageclass", "name", sc.Name)
-				err = errors.Join(err, deleteErr)
+		if _, found := filteredHostStorageClasses[sc.Name]; !found {
+			log.V(1).Info("deleting storageclass", "sc-name", sc.Name)
+
+			if errDelete := virtualClient.Delete(ctx, &sc); errDelete != nil {
+				log.Error(errDelete, "failed to delete virtual storageclass", "name", sc.Name)
+				err = errors.Join(err, errDelete)
 			}
 		}
 	}
 
-	for i := range hostStorageClasses.Items {
-		hostSc := hostStorageClasses.Items[i]
+	for _, hostSc := range filteredHostStorageClasses {
+		log.V(1).Info("updating storageclass", "sc-name", hostSc.Name)
 
 		virtualSc := hostSc.DeepCopy()
+
 		virtualSc.ObjectMeta = metav1.ObjectMeta{
 			Name:        hostSc.Name,
 			Labels:      hostSc.Labels,
@@ -776,9 +771,10 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 
 			return nil
 		})
-
-		// TODO log err
-		err = errors.Join(err, errCreateOrUpdate)
+		if errCreateOrUpdate != nil {
+			log.Error(errCreateOrUpdate, "failed to create or update virtual storageclass", "name", virtualSc.Name)
+			err = errors.Join(err, errCreateOrUpdate)
+		}
 	}
 
 	if err != nil {

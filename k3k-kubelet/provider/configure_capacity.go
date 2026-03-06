@@ -172,10 +172,7 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtu
 
 	// Distribute each resource type from the policy's hard quota
 	for resourceName, totalQuantity := range quotas {
-		useMilli := false
-		if _, ok := milliScaleResources[resourceName]; ok {
-			useMilli = true
-		}
+		_, useMilli := milliScaleResources[resourceName]
 
 		var eligibleNodes []string
 

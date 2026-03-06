@@ -187,12 +187,14 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtu
 			if hostNode == nil {
 				continue
 			}
+
 			resourceQuantity := hostNode.Status.Allocatable[resourceName]
 
 			hostCap[vn.Name] = resourceQuantity.Value()
 			if useMilli {
 				hostCap[vn.Name] = resourceQuantity.MilliValue()
 			}
+
 			eligibleNodes = append(eligibleNodes, vn.Name)
 		}
 

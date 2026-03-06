@@ -254,6 +254,7 @@ func Test_distributeQuotas(t *testing.T) {
 			if len(tt.hostNodes) > 0 {
 				hostClientBuilder = hostClientBuilder.WithObjects(tt.hostNodes...)
 			}
+
 			hostClient := hostClientBuilder.Build()
 			logger := zapr.NewLogger(zap.NewNop())
 

@@ -249,6 +249,7 @@ func Test_distributeQuotas(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			virtualClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.virtualNodes...).Build()
+
 			hostClientBuilder := fake.NewClientBuilder().WithScheme(scheme)
 			if len(tt.hostNodes) > 0 {
 				hostClientBuilder = hostClientBuilder.WithObjects(tt.hostNodes...)

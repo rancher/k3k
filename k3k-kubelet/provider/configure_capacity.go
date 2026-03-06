@@ -178,6 +178,7 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtu
 		}
 
 		var eligibleNodes []string
+
 		hostCap := make(map[string]int64)
 
 		// Populate the host nodes capacity map and the initial effective nodes
@@ -187,12 +188,14 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtu
 				continue
 			}
 			resourceQuantity := hostNode.Status.Allocatable[resourceName]
+
 			hostCap[vn.Name] = resourceQuantity.Value()
 			if useMilli {
 				hostCap[vn.Name] = resourceQuantity.MilliValue()
 			}
 			eligibleNodes = append(eligibleNodes, vn.Name)
 		}
+
 		sort.Strings(eligibleNodes)
 
 		totalValue := totalQuantity.Value()
@@ -208,6 +211,7 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtu
 			remainder := totalValue % nodeNum
 
 			remainingNodes := []string{}
+
 			for _, virtualNodeName := range eligibleNodes {
 				nodeQuantity := quantityPerNode
 				if remainder > 0 {
@@ -225,6 +229,7 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtu
 						resourceMap[virtualNodeName][resourceName] = *resource.NewQuantity(existing.Value()+nodeQuantity, totalQuantity.Format)
 					}
 				}
+
 				totalValue -= nodeQuantity
 				hostCap[virtualNodeName] -= nodeQuantity
 
@@ -232,6 +237,7 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtu
 					remainingNodes = append(remainingNodes, virtualNodeName)
 				}
 			}
+
 			eligibleNodes = remainingNodes
 		}
 	}

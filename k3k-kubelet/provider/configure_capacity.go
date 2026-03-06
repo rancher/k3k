@@ -83,7 +83,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 
 		mergedResourceLists := mergeResourceLists(resourceLists...)
 
-		m, err := distributeQuotas(ctx, logger, virtualClient, mergedResourceLists)
+		m, err := distributeQuotas(ctx, logger, hostClient, virtualClient, mergedResourceLists)
 		if err != nil {
 			logger.Error(err, "error distributing policy quota")
 		}
@@ -125,74 +125,114 @@ func mergeResourceLists(resourceLists ...corev1.ResourceList) corev1.ResourceLis
 	return merged
 }
 
-// distributeQuotas divides the total resource quotas evenly among all active virtual nodes.
-// This ensures that each virtual node reports a fair share of the available resources,
-// preventing the scheduler from overloading a single node.
+// distributeQuotas divides the total resource quotas among all active virtual nodes,
+// capped by each node's actual host capacity. This ensures that each virtual node
+// reports a fair share of the available resources without exceeding what its
+// underlying host node can provide.
 //
-// The algorithm iterates over each resource, divides it as evenly as possible among the
-// sorted virtual nodes, and distributes any remainder to the first few nodes to ensure
-// all resources are allocated. Sorting the nodes by name guarantees a deterministic
-// distribution.
-func distributeQuotas(ctx context.Context, logger logr.Logger, virtualClient client.Client, quotas corev1.ResourceList) (map[string]corev1.ResourceList, error) {
-	// List all virtual nodes to distribute the quota stably.
-	var virtualNodeList corev1.NodeList
+// For each resource type the algorithm uses a multi-pass redistribution loop:
+//  1. Divide the remaining quota evenly among eligible nodes (sorted by name for
+//     determinism), assigning any integer remainder to the first nodes alphabetically.
+//  2. Cap each node's share at its host allocatable capacity.
+//  3. Remove nodes that have reached their host capacity.
+//  4. If there is still unallocated quota (because some nodes were capped below their
+//     even share), repeat from step 1 with the remaining quota and remaining nodes.
+//
+// The loop terminates when the quota is fully distributed or no eligible nodes remain.
+func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtualClient client.Client, quotas corev1.ResourceList) (map[string]corev1.ResourceList, error) {
+	var virtualNodeList, hostNodeList corev1.NodeList
+
 	if err := virtualClient.List(ctx, &virtualNodeList); err != nil {
 		logger.Error(err, "error listing virtual nodes for stable capacity distribution, falling back to full quota")
 		return nil, err
 	}
 
-	// If there are no virtual nodes, there's nothing to distribute.
-	numNodes := int64(len(virtualNodeList.Items))
-	if numNodes == 0 {
+	if len(virtualNodeList.Items) == 0 {
 		logger.Info("error listing virtual nodes for stable capacity distribution, falling back to full quota")
 		return nil, nil
 	}
 
-	// Sort nodes by name for a deterministic distribution of resources.
-	sort.Slice(virtualNodeList.Items, func(i, j int) bool {
-		return virtualNodeList.Items[i].Name < virtualNodeList.Items[j].Name
-	})
-
-	// Initialize the resource map for each virtual node.
 	resourceMap := make(map[string]corev1.ResourceList)
-	for _, virtualNode := range virtualNodeList.Items {
-		resourceMap[virtualNode.Name] = corev1.ResourceList{}
+	for _, vn := range virtualNodeList.Items {
+		resourceMap[vn.Name] = corev1.ResourceList{}
+	}
+
+	if err := hostClient.List(ctx, &hostNodeList); err != nil {
+		logger.Error(err, "error listing host nodes for stable capacity distribution, falling back to full quota")
+		return nil, err
+	}
+
+	hostNodeMap := make(map[string]*corev1.Node, len(hostNodeList.Items))
+	for i := range hostNodeList.Items {
+		name := hostNodeList.Items[i].Name
+		if _, ok := resourceMap[name]; ok {
+			hostNodeMap[name] = &hostNodeList.Items[i]
+		}
 	}
 
 	// Distribute each resource type from the policy's hard quota
 	for resourceName, totalQuantity := range quotas {
-		// Use MilliValue for precise division, especially for resources like CPU,
-		// which are often expressed in milli-units. Otherwise, use the standard Value().
-		var totalValue int64
-		if _, found := milliScaleResources[resourceName]; found {
-			totalValue = totalQuantity.MilliValue()
-		} else {
-			totalValue = totalQuantity.Value()
+		useMilli := false
+		if _, ok := milliScaleResources[resourceName]; ok {
+			useMilli = true
 		}
 
-		// Calculate the base quantity of the resource to be allocated per node.
-		// and the remainder that needs to be distributed among the nodes.
-		//
-		// For example, if totalValue is 2000 (e.g., 2 CPU) and there are 3 nodes:
-		// - quantityPerNode would be 666 (2000 / 3)
-		// - remainder would be 2 (2000 % 3)
-		// The first two nodes would get 667 (666 + 1), and the last one would get 666.
-		quantityPerNode := totalValue / numNodes
-		remainder := totalValue % numNodes
+		var eligibleNodes []string
+		hostCap := make(map[string]int64)
 
-		// Iterate through the sorted virtual nodes to distribute the resource.
-		for _, virtualNode := range virtualNodeList.Items {
-			nodeQuantity := quantityPerNode
-			if remainder > 0 {
-				nodeQuantity++
-				remainder--
+		// Populate the host nodes capacity map and the initial effective nodes
+		for _, vn := range virtualNodeList.Items {
+			hostNode := hostNodeMap[vn.Name]
+			if hostNode == nil {
+				continue
 			}
+			resourceQuantity := hostNode.Status.Allocatable[resourceName]
+			hostCap[vn.Name] = resourceQuantity.Value()
+			if useMilli {
+				hostCap[vn.Name] = resourceQuantity.MilliValue()
+			}
+			eligibleNodes = append(eligibleNodes, vn.Name)
+		}
+		sort.Strings(eligibleNodes)
 
-			if _, found := milliScaleResources[resourceName]; found {
-				resourceMap[virtualNode.Name][resourceName] = *resource.NewMilliQuantity(nodeQuantity, totalQuantity.Format)
-			} else {
-				resourceMap[virtualNode.Name][resourceName] = *resource.NewQuantity(nodeQuantity, totalQuantity.Format)
+		totalValue := totalQuantity.Value()
+		if useMilli {
+			totalValue = totalQuantity.MilliValue()
+		}
+
+		// Start of the distribution cycle, each cycle will distribute the quota resource
+		// evenly between nodes, each node can not exceed the corresponding host node capacity
+		for totalValue > 0 && len(eligibleNodes) > 0 {
+			nodeNum := int64(len(eligibleNodes))
+			quantityPerNode := totalValue / nodeNum
+			remainder := totalValue % nodeNum
+
+			remainingNodes := []string{}
+			for _, virtualNodeName := range eligibleNodes {
+				nodeQuantity := quantityPerNode
+				if remainder > 0 {
+					nodeQuantity++
+					remainder--
+				}
+				// We cap the quantity to the hostNode capacity
+				nodeQuantity = min(nodeQuantity, hostCap[virtualNodeName])
+
+				if nodeQuantity > 0 {
+					existing := resourceMap[virtualNodeName][resourceName]
+					if useMilli {
+						resourceMap[virtualNodeName][resourceName] = *resource.NewMilliQuantity(existing.MilliValue()+nodeQuantity, totalQuantity.Format)
+					} else {
+						resourceMap[virtualNodeName][resourceName] = *resource.NewQuantity(existing.Value()+nodeQuantity, totalQuantity.Format)
+					}
+				}
+				totalValue -= nodeQuantity
+				hostCap[virtualNodeName] -= nodeQuantity
+
+				if hostCap[virtualNodeName] > 0 {
+					remainingNodes = append(remainingNodes, virtualNodeName)
+				}
 			}
+			eligibleNodes = remainingNodes
 		}
 	}
 

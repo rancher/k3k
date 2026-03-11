@@ -59,7 +59,8 @@ const (
 	defaultSharedServiceCIDR  = "10.43.0.0/16"
 	memberRemovalTimeout      = time.Minute * 1
 
-	storageClassEnabledIndexField = "spec.sync.storageClasses.enabled"
+	storageClassEnabledIndexField       = "spec.sync.storageClasses.enabled"
+	storageClassStatusEnabledIndexField = "status.policy.sync.storageClasses.enabled"
 )
 
 var (
@@ -123,15 +124,26 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		},
 	}
 
-	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassEnabledIndexField, func(rawObj client.Object) []string {
+	storageClassIndexerFunc := func(rawObj client.Object) []string {
 		vc := rawObj.(*v1beta1.Cluster)
 
 		if vc.Spec.Sync != nil && vc.Spec.Sync.StorageClasses.Enabled {
 			return []string{"true"}
 		}
 
+		if vc.Status.Policy != nil && vc.Status.Policy.Sync != nil && vc.Status.Policy.Sync.StorageClasses.Enabled {
+			return []string{"true"}
+		}
+
 		return []string{"false"}
-	})
+	}
+
+	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassEnabledIndexField, storageClassIndexerFunc)
+	if err != nil {
+		return err
+	}
+
+	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassStatusEnabledIndexField, storageClassIndexerFunc)
 	if err != nil {
 		return err
 	}
@@ -911,11 +923,6 @@ func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy v1beta1.Vi
 		if err := c.validateCustomCACerts(cluster.Spec.CustomCAs.Sources); err != nil {
 			return fmt.Errorf("%w: %w", ErrClusterValidation, err)
 		}
-	}
-
-	// validate sync policy
-	if !equality.Semantic.DeepEqual(cluster.Spec.Sync, policy.Spec.Sync) {
-		return fmt.Errorf("sync configuration %v is not allowed by the policy %q", cluster.Spec.Sync, policy.Name)
 	}
 
 	return nil

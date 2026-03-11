@@ -689,8 +689,15 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 		return fmt.Errorf("failed creating virtual client: %w", err)
 	}
 
+	appliedSync := cluster.Spec.Sync.DeepCopy()
+
+	// If a policy is applied to the virtual cluster we need to use its SyncConfig, if available
+	if cluster.Status.Policy != nil && cluster.Status.Policy.Sync != nil {
+		appliedSync = cluster.Status.Policy.Sync
+	}
+
 	// If storageclass sync is disabled, clean up any managed storage classes.
-	if cluster.Spec.Sync == nil || !cluster.Spec.Sync.StorageClasses.Enabled {
+	if appliedSync == nil || !appliedSync.StorageClasses.Enabled {
 		err := virtualClient.DeleteAllOf(ctx, &storagev1.StorageClass{}, client.MatchingLabels{SyncSourceLabelKey: SyncSourceHostLabel})
 		return client.IgnoreNotFound(err)
 	}
@@ -714,7 +721,7 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 
 		// if selector doesn't match -> continue
 		// an empty selector matche everything
-		selector := labels.SelectorFromSet(cluster.Spec.Sync.StorageClasses.Selector)
+		selector := labels.SelectorFromSet(appliedSync.StorageClasses.Selector)
 		if !selector.Matches(labels.Set(sc.Labels)) {
 			log.V(1).Info("selector not matching", "sc-name", sc.Name)
 			continue

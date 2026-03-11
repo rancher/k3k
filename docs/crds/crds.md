@@ -48,6 +48,7 @@ _Appears in:_
 | `name` _string_ | name is the name of the VirtualClusterPolicy currently applied to this cluster. |  | MinLength: 1 <br /> |
 | `priorityClass` _string_ | priorityClass is the priority class enforced by the active VirtualClusterPolicy. |  |  |
 | `nodeSelector` _object (keys:string, values:string)_ | nodeSelector is a node selector enforced by the active VirtualClusterPolicy. |  |  |
+| `sync` _[SyncConfig](#syncconfig)_ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. |  |  |
 
 
 #### Cluster
@@ -479,6 +480,7 @@ SyncConfig will contain the resources that should be synced from virtual cluster
 
 
 _Appears in:_
+- [AppliedPolicy](#appliedpolicy)
 - [ClusterSpec](#clusterspec)
 - [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
 

@@ -604,6 +604,11 @@ type AppliedPolicy struct {
 	//
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// sync is the SyncConfig enforced by the active VirtualClusterPolicy.
+	//
+	// +optional
+	Sync *SyncConfig `json:"sync,omitempty"`
 }
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.

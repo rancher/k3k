@@ -124,26 +124,30 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		},
 	}
 
-	storageClassIndexerFunc := func(rawObj client.Object) []string {
+	// index the 'spec.sync.storageClasses.enabled' field
+	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassEnabledIndexField, func(rawObj client.Object) []string {
 		vc := rawObj.(*v1beta1.Cluster)
 
 		if vc.Spec.Sync != nil && vc.Spec.Sync.StorageClasses.Enabled {
 			return []string{"true"}
 		}
 
+		return []string{"false"}
+	})
+	if err != nil {
+		return err
+	}
+
+	// index the 'status.policy.sync.storageClasses.enabled' field
+	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassStatusEnabledIndexField, func(rawObj client.Object) []string {
+		vc := rawObj.(*v1beta1.Cluster)
+
 		if vc.Status.Policy != nil && vc.Status.Policy.Sync != nil && vc.Status.Policy.Sync.StorageClasses.Enabled {
 			return []string{"true"}
 		}
 
 		return []string{"false"}
-	}
-
-	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassEnabledIndexField, storageClassIndexerFunc)
-	if err != nil {
-		return err
-	}
-
-	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassStatusEnabledIndexField, storageClassIndexerFunc)
+	})
 	if err != nil {
 		return err
 	}
@@ -168,18 +172,32 @@ func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj cl
 		return nil
 	}
 
-	var clusterList v1beta1.ClusterList
-	if err := r.Client.List(ctx, &clusterList, client.MatchingFields{storageClassEnabledIndexField: "true"}); err != nil {
-		log.Error(err, "error listing clusters for storageclass sync")
+	var specClusterList v1beta1.ClusterList
+	if err := r.Client.List(ctx, &specClusterList, client.MatchingFields{storageClassEnabledIndexField: "true"}); err != nil {
+		log.Error(err, "error listing clusters with spec sync enabled for storageclass sync")
 		return nil
 	}
 
-	requests := make([]reconcile.Request, 0, len(clusterList.Items))
+	var statusClusterList v1beta1.ClusterList
+	if err := r.Client.List(ctx, &statusClusterList, client.MatchingFields{storageClassStatusEnabledIndexField: "true"}); err != nil {
+		log.Error(err, "error listing clusters with status sync enabled for storageclass sync")
+		return nil
+	}
 
-	for _, cluster := range clusterList.Items {
-		requests = append(requests, reconcile.Request{
-			NamespacedName: client.ObjectKeyFromObject(&cluster),
-		})
+	// Merge and deduplicate clusters
+	allClusters := make(map[types.NamespacedName]struct{})
+
+	for _, cluster := range specClusterList.Items {
+		allClusters[client.ObjectKeyFromObject(&cluster)] = struct{}{}
+	}
+
+	for _, cluster := range statusClusterList.Items {
+		allClusters[client.ObjectKeyFromObject(&cluster)] = struct{}{}
+	}
+
+	requests := make([]reconcile.Request, 0, len(allClusters))
+	for key := range allClusters {
+		requests = append(requests, reconcile.Request{NamespacedName: key})
 	}
 
 	return requests
@@ -774,10 +792,9 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 		}
 
 		_, errCreateOrUpdate := controllerutil.CreateOrUpdate(ctx, virtualClient, virtualSc, func() error {
-			if virtualSc.Labels == nil {
-				virtualSc.Labels = make(map[string]string)
-			}
+			virtualSc.Annotations = hostSc.Annotations
 
+			virtualSc.Labels = hostSc.Labels
 			virtualSc.Labels[SyncSourceLabelKey] = SyncSourceHostLabel
 
 			virtualSc.Provisioner = hostSc.Provisioner

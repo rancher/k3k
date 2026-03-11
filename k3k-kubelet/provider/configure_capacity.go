@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"maps"
 	"sort"
 	"time"
 
@@ -89,15 +90,23 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 			logger.Error(err, "error listing virtual nodes for stable capacity distribution")
 		}
 
+		virtResourceMap := make(map[string]corev1.ResourceList, len(virtualNodeList.Items))
+		for _, vNode := range virtualNodeList.Items {
+			virtResourceMap[vNode.Name] = corev1.ResourceList{}
+		}
+
 		if err := hostClient.List(ctx, &hostNodeList); err != nil {
 			logger.Error(err, "error listing host nodes for stable capacity distribution")
 		}
 
-		m, err := distributeQuotas(ctx, logger, hostNodeList, virtualNodeList, mergedResourceLists)
-		if err != nil {
-			logger.Error(err, "error distributing policy quota")
+		hostResourceMap := make(map[string]corev1.ResourceList, len(hostNodeList.Items))
+		for _, hNode := range hostNodeList.Items {
+			if _, ok := virtResourceMap[hNode.Name]; ok {
+				hostResourceMap[hNode.Name] = hNode.Status.Allocatable
+			}
 		}
 
+		m := distributeQuotas(hostResourceMap, hostResourceMap, mergedResourceLists)
 		allocatable = m[virtualNodeName]
 	}
 
@@ -149,48 +158,38 @@ func mergeResourceLists(resourceLists ...corev1.ResourceList) corev1.ResourceLis
 //     even share), repeat from step 1 with the remaining quota and remaining nodes.
 //
 // The loop terminates when the quota is fully distributed or no eligible nodes remain.
-func distributeQuotas(ctx context.Context, logger logr.Logger, hostNodeList, virtualNodeList corev1.NodeList, quotas corev1.ResourceList) (map[string]corev1.ResourceList, error) {
-	if len(virtualNodeList.Items) == 0 {
-		logger.Info("error listing virtual nodes for stable capacity distribution, falling back to full quota")
-		return nil, nil
-	}
-
-	resourceMap := make(map[string]corev1.ResourceList)
-	for _, vn := range virtualNodeList.Items {
-		resourceMap[vn.Name] = corev1.ResourceList{}
-	}
-
-	hostNodeMap := make(map[string]*corev1.Node, len(hostNodeList.Items))
-	for i := range hostNodeList.Items {
-		name := hostNodeList.Items[i].Name
-		if _, ok := resourceMap[name]; ok {
-			hostNodeMap[name] = &hostNodeList.Items[i]
-		}
-	}
+func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.ResourceList, quotas corev1.ResourceList) map[string]corev1.ResourceList {
+	resourceMap := make(map[string]corev1.ResourceList, len(virtResourceMap))
+	maps.Copy(resourceMap, virtResourceMap)
 
 	// Distribute each resource type from the policy's hard quota
 	for resourceName, totalQuantity := range quotas {
 		_, useMilli := milliScaleResources[resourceName]
 
+		// eligible nodes for each distribution cycle
 		var eligibleNodes []string
 
 		hostCap := make(map[string]int64)
 
 		// Populate the host nodes capacity map and the initial effective nodes
-		for _, vn := range virtualNodeList.Items {
-			hostNode := hostNodeMap[vn.Name]
-			if hostNode == nil {
+		for vn := range virtResourceMap {
+			hostNodeResources := hostResourceMap[vn]
+			if hostNodeResources == nil {
 				continue
 			}
 
-			resourceQuantity := hostNode.Status.Allocatable[resourceName]
-
-			hostCap[vn.Name] = resourceQuantity.Value()
-			if useMilli {
-				hostCap[vn.Name] = resourceQuantity.MilliValue()
+			resourceQuantity, ok := hostNodeResources[resourceName]
+			if !ok {
+				// skip the node if the resource does not exist on the host node
+				continue
 			}
 
-			eligibleNodes = append(eligibleNodes, vn.Name)
+			hostCap[vn] = resourceQuantity.Value()
+			if useMilli {
+				hostCap[vn] = resourceQuantity.MilliValue()
+			}
+
+			eligibleNodes = append(eligibleNodes, vn)
 		}
 
 		sort.Strings(eligibleNodes)
@@ -239,5 +238,5 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, hostNodeList, vir
 		}
 	}
 
-	return resourceMap, nil
+	return resourceMap
 }

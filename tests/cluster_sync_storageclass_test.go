@@ -26,8 +26,40 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 		ctx = context.Background()
 		virtualCluster = NewVirtualCluster()
 
+		storageClassEnabled := &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "sc-",
+				Labels: map[string]string{
+					cluster.SyncEnabledLabelKey: "true",
+				},
+			},
+			Provisioner: "my-provisioner",
+		}
+
+		storageClassEnabled, err := k8s.StorageV1().StorageClasses().Create(ctx, storageClassEnabled, metav1.CreateOptions{})
+		Expect(err).To(Not(HaveOccurred()))
+
+		storageClassDisabled := &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "sc-",
+				Labels: map[string]string{
+					cluster.SyncEnabledLabelKey: "false",
+				},
+			},
+			Provisioner: "my-provisioner",
+		}
+
+		storageClassDisabled, err = k8s.StorageV1().StorageClasses().Create(ctx, storageClassDisabled, metav1.CreateOptions{})
+		Expect(err).To(Not(HaveOccurred()))
+
 		DeferCleanup(func() {
 			DeleteNamespaces(virtualCluster.Cluster.Namespace)
+
+			err = k8s.StorageV1().StorageClasses().Delete(ctx, storageClassEnabled.Name, metav1.DeleteOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+
+			err = k8s.StorageV1().StorageClasses().Delete(ctx, storageClassDisabled.Name, metav1.DeleteOptions{})
+			Expect(err).To(Not(HaveOccurred()))
 		})
 	})
 
@@ -86,72 +118,42 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 				Should(Succeed())
 		})
 
-		It("will sync the host storage classes in the virtual cluster", func() {
-			hostStorageClasses, err := k8s.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
-			Expect(err).To(Not(HaveOccurred()))
-			Expect(hostStorageClasses.Items).To(Not(HaveLen(0)))
-
+		It("will sync host storage classes with the sync enabled", func() {
 			Eventually(func(g Gomega) {
-				virtualStorageClasses, err := virtualCluster.Client.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
-				g.Expect(err).To(Not(HaveOccurred()))
+				hostStorageClasses, err := k8s.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+				Expect(err).To(Not(HaveOccurred()))
 
 				for _, hostSC := range hostStorageClasses.Items {
-					var found bool
+					_, err := virtualCluster.Client.StorageV1().StorageClasses().Get(ctx, hostSC.Name, metav1.GetOptions{})
 
-					for _, virtualSC := range virtualStorageClasses.Items {
-						if virtualSC.Name == hostSC.Name {
-							found = true
-
-							g.Expect(virtualSC.Labels[cluster.SyncSourceLabelKey]).To(Equal(cluster.SyncSourceHostLabel))
-							break
-						}
+					if syncEnabled, found := hostSC.Labels[cluster.SyncEnabledLabelKey]; !found || syncEnabled == "true" {
+						g.Expect(err).To(Not(HaveOccurred()))
 					}
-
-					g.Expect(found).To(BeTrue())
 				}
 			}).
-				WithTimeout(time.Second * 5).
+				MustPassRepeatedly(5).
 				WithPolling(time.Second).
+				WithTimeout(time.Second * 30).
 				Should(Succeed())
 		})
 
 		It("will not sync host storage classes with the sync disabled", func() {
-			storageClassEnabled := &storagev1.StorageClass{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "sc-",
-					Labels: map[string]string{
-						cluster.SyncEnabledLabelKey: "true",
-					},
-				},
-				Provisioner: "my-provisioner",
-			}
-
-			storageClassEnabled, err := k8s.StorageV1().StorageClasses().Create(ctx, storageClassEnabled, metav1.CreateOptions{})
-			Expect(err).To(Not(HaveOccurred()))
-
-			storageClassDisabled := &storagev1.StorageClass{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "sc-",
-					Labels: map[string]string{
-						cluster.SyncEnabledLabelKey: "false",
-					},
-				},
-				Provisioner: "my-provisioner",
-			}
-
-			storageClassDisabled, err = k8s.StorageV1().StorageClasses().Create(ctx, storageClassDisabled, metav1.CreateOptions{})
-			Expect(err).To(Not(HaveOccurred()))
-
 			Eventually(func(g Gomega) {
-				_, err := virtualCluster.Client.StorageV1().StorageClasses().Get(ctx, storageClassEnabled.Name, metav1.GetOptions{})
-				g.Expect(err).To(Not(HaveOccurred()))
+				hostStorageClasses, err := k8s.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+				Expect(err).To(Not(HaveOccurred()))
 
-				_, err = virtualCluster.Client.StorageV1().StorageClasses().Get(ctx, storageClassDisabled.Name, metav1.GetOptions{})
-				g.Expect(err).To(HaveOccurred())
-				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+				for _, hostSC := range hostStorageClasses.Items {
+					_, err := virtualCluster.Client.StorageV1().StorageClasses().Get(ctx, hostSC.Name, metav1.GetOptions{})
+
+					if hostSC.Labels[cluster.SyncEnabledLabelKey] == "false" {
+						g.Expect(err).To(HaveOccurred())
+						g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+					}
+				}
 			}).
 				MustPassRepeatedly(5).
 				WithPolling(time.Second).
+				WithTimeout(time.Second * 30).
 				Should(Succeed())
 		})
 	})

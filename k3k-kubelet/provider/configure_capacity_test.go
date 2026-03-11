@@ -9,8 +9,6 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,14 +19,6 @@ func Test_distributeQuotas(t *testing.T) {
 	err := corev1.AddToScheme(scheme)
 	assert.NoError(t, err)
 
-	// Helper to create a host node with given allocatable resources.
-	hostNode := func(name string, allocatable corev1.ResourceList) *corev1.Node {
-		return &corev1.Node{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
-			Status:     corev1.NodeStatus{Allocatable: allocatable},
-		}
-	}
-
 	// Large allocatable so capping doesn't interfere with basic distribution tests.
 	largeAllocatable := corev1.ResourceList{
 		corev1.ResourceCPU:    resource.MustParse("100"),
@@ -36,21 +26,18 @@ func Test_distributeQuotas(t *testing.T) {
 		corev1.ResourcePods:   resource.MustParse("1000"),
 	}
 
-	node1 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}}
-	node2 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-2"}}
-	node3 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-3"}}
-
 	tests := []struct {
 		name         string
-		virtualNodes []client.Object
-		hostNodes    []client.Object
+		virtualNodes corev1.NodeList
+		hostNodes    corev1.NodeList
 		quotas       corev1.ResourceList
 		want         map[string]corev1.ResourceList
 		wantErr      bool
 	}{
 		{
 			name:         "no virtual nodes",
-			virtualNodes: []client.Object{},
+			virtualNodes: nodeList(),
+			hostNodes:    nodeList(),
 			quotas: corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("2"),
 			},
@@ -59,12 +46,9 @@ func Test_distributeQuotas(t *testing.T) {
 		},
 		{
 			name:         "no quotas",
-			virtualNodes: []client.Object{node1, node2},
-			hostNodes: []client.Object{
-				hostNode("node-1", largeAllocatable),
-				hostNode("node-2", largeAllocatable),
-			},
-			quotas: corev1.ResourceList{},
+			virtualNodes: nodeList(virtualNode("node-1"), virtualNode("node-2")),
+			hostNodes:    nodeList(hostNode("node-1", largeAllocatable), hostNode("node-2", largeAllocatable)),
+			quotas:       corev1.ResourceList{},
 			want: map[string]corev1.ResourceList{
 				"node-1": {},
 				"node-2": {},
@@ -73,11 +57,8 @@ func Test_distributeQuotas(t *testing.T) {
 		},
 		{
 			name:         "even distribution of cpu and memory",
-			virtualNodes: []client.Object{node1, node2},
-			hostNodes: []client.Object{
-				hostNode("node-1", largeAllocatable),
-				hostNode("node-2", largeAllocatable),
-			},
+			virtualNodes: nodeList(virtualNode("node-1"), virtualNode("node-2")),
+			hostNodes:    nodeList(hostNode("node-1", largeAllocatable), hostNode("node-2", largeAllocatable)),
 			quotas: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("2"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
@@ -96,12 +77,8 @@ func Test_distributeQuotas(t *testing.T) {
 		},
 		{
 			name:         "uneven distribution with remainder",
-			virtualNodes: []client.Object{node1, node2, node3},
-			hostNodes: []client.Object{
-				hostNode("node-1", largeAllocatable),
-				hostNode("node-2", largeAllocatable),
-				hostNode("node-3", largeAllocatable),
-			},
+			virtualNodes: nodeList(virtualNode("node-1"), virtualNode("node-2"), virtualNode("node-3")),
+			hostNodes:    nodeList(hostNode("node-1", largeAllocatable), hostNode("node-2", largeAllocatable), hostNode("node-3", largeAllocatable)),
 			quotas: corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("2"),
 			},
@@ -114,12 +91,8 @@ func Test_distributeQuotas(t *testing.T) {
 		},
 		{
 			name:         "distribution of number resources",
-			virtualNodes: []client.Object{node1, node2, node3},
-			hostNodes: []client.Object{
-				hostNode("node-1", largeAllocatable),
-				hostNode("node-2", largeAllocatable),
-				hostNode("node-3", largeAllocatable),
-			},
+			virtualNodes: nodeList(virtualNode("node-1"), virtualNode("node-2"), virtualNode("node-3")),
+			hostNodes:    nodeList(hostNode("node-1", largeAllocatable), hostNode("node-2", largeAllocatable), hostNode("node-3", largeAllocatable)),
 			quotas: corev1.ResourceList{
 				corev1.ResourceCPU:  resource.MustParse("2"),
 				corev1.ResourcePods: resource.MustParse("11"),
@@ -142,8 +115,8 @@ func Test_distributeQuotas(t *testing.T) {
 		},
 		{
 			name:         "extended resource distributed only to nodes that have it",
-			virtualNodes: []client.Object{node1, node2, node3},
-			hostNodes: []client.Object{
+			virtualNodes: nodeList(virtualNode("node-1"), virtualNode("node-2"), virtualNode("node-3")),
+			hostNodes: nodeList(
 				hostNode("node-1", corev1.ResourceList{
 					corev1.ResourceCPU: resource.MustParse("100"),
 					"nvidia.com/gpu":   resource.MustParse("2"),
@@ -154,8 +127,7 @@ func Test_distributeQuotas(t *testing.T) {
 				hostNode("node-3", corev1.ResourceList{
 					corev1.ResourceCPU: resource.MustParse("100"),
 					"nvidia.com/gpu":   resource.MustParse("4"),
-				}),
-			},
+				})),
 			quotas: corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("3"),
 				"nvidia.com/gpu":   resource.MustParse("4"),
@@ -177,15 +149,14 @@ func Test_distributeQuotas(t *testing.T) {
 		},
 		{
 			name:         "capping at host capacity with redistribution",
-			virtualNodes: []client.Object{node1, node2},
-			hostNodes: []client.Object{
+			virtualNodes: nodeList(virtualNode("node-1"), virtualNode("node-2")),
+			hostNodes: nodeList(
 				hostNode("node-1", corev1.ResourceList{
 					corev1.ResourceCPU: resource.MustParse("8"),
 				}),
 				hostNode("node-2", corev1.ResourceList{
 					corev1.ResourceCPU: resource.MustParse("2"),
-				}),
-			},
+				})),
 			quotas: corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("6"),
 			},
@@ -199,15 +170,14 @@ func Test_distributeQuotas(t *testing.T) {
 		},
 		{
 			name:         "gpu capping with uneven host capacity",
-			virtualNodes: []client.Object{node1, node2},
-			hostNodes: []client.Object{
+			virtualNodes: nodeList(virtualNode("node-1"), virtualNode("node-2")),
+			hostNodes: nodeList(
 				hostNode("node-1", corev1.ResourceList{
 					"nvidia.com/gpu": resource.MustParse("6"),
 				}),
 				hostNode("node-2", corev1.ResourceList{
 					"nvidia.com/gpu": resource.MustParse("1"),
-				}),
-			},
+				})),
 			quotas: corev1.ResourceList{
 				"nvidia.com/gpu": resource.MustParse("4"),
 			},
@@ -221,8 +191,8 @@ func Test_distributeQuotas(t *testing.T) {
 		},
 		{
 			name:         "quota exceeds total host capacity",
-			virtualNodes: []client.Object{node1, node2, node3},
-			hostNodes: []client.Object{
+			virtualNodes: nodeList(virtualNode("node-1"), virtualNode("node-2"), virtualNode("node-3")),
+			hostNodes: nodeList(
 				hostNode("node-1", corev1.ResourceList{
 					"nvidia.com/gpu": resource.MustParse("2"),
 				}),
@@ -231,8 +201,7 @@ func Test_distributeQuotas(t *testing.T) {
 				}),
 				hostNode("node-3", corev1.ResourceList{
 					"nvidia.com/gpu": resource.MustParse("1"),
-				}),
-			},
+				})),
 			quotas: corev1.ResourceList{
 				"nvidia.com/gpu": resource.MustParse("10"),
 			},
@@ -248,17 +217,9 @@ func Test_distributeQuotas(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			virtualClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.virtualNodes...).Build()
-
-			hostClientBuilder := fake.NewClientBuilder().WithScheme(scheme)
-			if len(tt.hostNodes) > 0 {
-				hostClientBuilder = hostClientBuilder.WithObjects(tt.hostNodes...)
-			}
-
-			hostClient := hostClientBuilder.Build()
 			logger := zapr.NewLogger(zap.NewNop())
 
-			got, gotErr := distributeQuotas(context.Background(), logger, hostClient, virtualClient, tt.quotas)
+			got, gotErr := distributeQuotas(context.Background(), logger, tt.hostNodes, tt.virtualNodes, tt.quotas)
 			if tt.wantErr {
 				assert.Error(t, gotErr)
 			} else {
@@ -280,5 +241,24 @@ func Test_distributeQuotas(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func virtualNode(name string) corev1.Node {
+	return corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+	}
+}
+
+func hostNode(name string, allocatable corev1.ResourceList) corev1.Node {
+	return corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Status:     corev1.NodeStatus{Allocatable: allocatable},
+	}
+}
+
+func nodeList(nodes ...corev1.Node) corev1.NodeList {
+	return corev1.NodeList{
+		Items: nodes,
 	}
 }

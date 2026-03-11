@@ -83,7 +83,17 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 
 		mergedResourceLists := mergeResourceLists(resourceLists...)
 
-		m, err := distributeQuotas(ctx, logger, hostClient, virtualClient, mergedResourceLists)
+		var virtualNodeList, hostNodeList corev1.NodeList
+
+		if err := virtualClient.List(ctx, &virtualNodeList); err != nil {
+			logger.Error(err, "error listing virtual nodes for stable capacity distribution")
+		}
+
+		if err := hostClient.List(ctx, &hostNodeList); err != nil {
+			logger.Error(err, "error listing host nodes for stable capacity distribution")
+		}
+
+		m, err := distributeQuotas(ctx, logger, hostNodeList, virtualNodeList, mergedResourceLists)
 		if err != nil {
 			logger.Error(err, "error distributing policy quota")
 		}
@@ -139,14 +149,7 @@ func mergeResourceLists(resourceLists ...corev1.ResourceList) corev1.ResourceLis
 //     even share), repeat from step 1 with the remaining quota and remaining nodes.
 //
 // The loop terminates when the quota is fully distributed or no eligible nodes remain.
-func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtualClient client.Client, quotas corev1.ResourceList) (map[string]corev1.ResourceList, error) {
-	var virtualNodeList, hostNodeList corev1.NodeList
-
-	if err := virtualClient.List(ctx, &virtualNodeList); err != nil {
-		logger.Error(err, "error listing virtual nodes for stable capacity distribution, falling back to full quota")
-		return nil, err
-	}
-
+func distributeQuotas(ctx context.Context, logger logr.Logger, hostNodeList, virtualNodeList corev1.NodeList, quotas corev1.ResourceList) (map[string]corev1.ResourceList, error) {
 	if len(virtualNodeList.Items) == 0 {
 		logger.Info("error listing virtual nodes for stable capacity distribution, falling back to full quota")
 		return nil, nil
@@ -155,11 +158,6 @@ func distributeQuotas(ctx context.Context, logger logr.Logger, hostClient, virtu
 	resourceMap := make(map[string]corev1.ResourceList)
 	for _, vn := range virtualNodeList.Items {
 		resourceMap[vn.Name] = corev1.ResourceList{}
-	}
-
-	if err := hostClient.List(ctx, &hostNodeList); err != nil {
-		logger.Error(err, "error listing host nodes for stable capacity distribution, falling back to full quota")
-		return nil, err
 	}
 
 	hostNodeMap := make(map[string]*corev1.Node, len(hostNodeList.Items))

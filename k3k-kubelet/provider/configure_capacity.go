@@ -100,6 +100,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 		}
 
 		hostResourceMap := make(map[string]corev1.ResourceList)
+
 		for _, hNode := range hostNodeList.Items {
 			if _, ok := virtResourceMap[hNode.Name]; ok {
 				hostResourceMap[hNode.Name] = hNode.Status.Allocatable

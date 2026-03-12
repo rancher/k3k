@@ -169,6 +169,16 @@ type ClusterSpec struct {
 	// +optional
 	WorkerLimit corev1.ResourceList `json:"workerLimit,omitempty"`
 
+	// ServerAffinity specifies the affinity rules for server pods.
+	//
+	// +optional
+	ServerAffinity *corev1.Affinity `json:"serverAffinity,omitempty"`
+
+	// AgentAffinity specifies the affinity rules for agent pods.
+	//
+	// +optional
+	AgentAffinity *corev1.Affinity `json:"agentAffinity,omitempty"`
+
 	// MirrorHostNodes controls whether node objects from the host cluster
 	// are mirrored into the virtual cluster.
 	//

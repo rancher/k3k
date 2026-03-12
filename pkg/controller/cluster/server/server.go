@@ -55,6 +55,7 @@ func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePull
 
 func (s *Server) podSpec(image, name string, persistent bool, startupCmd string) v1.PodSpec {
 	podSpec := v1.PodSpec{
+		Affinity:          s.cluster.Spec.ServerAffinity,
 		NodeSelector:      s.cluster.Spec.NodeSelector,
 		PriorityClassName: s.cluster.Spec.PriorityClass,
 		Volumes: []v1.Volume{

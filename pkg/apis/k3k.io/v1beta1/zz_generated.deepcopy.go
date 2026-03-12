@@ -195,6 +195,16 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*out)[key] = val.DeepCopy()
 		}
 	}
+	if in.ServerAffinity != nil {
+		in, out := &in.ServerAffinity, &out.ServerAffinity
+		*out = new(v1.Affinity)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.AgentAffinity != nil {
+		in, out := &in.AgentAffinity, &out.AgentAffinity
+		*out = new(v1.Affinity)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.CustomCAs != nil {
 		in, out := &in.CustomCAs, &out.CustomCAs
 		*out = new(CustomCAs)

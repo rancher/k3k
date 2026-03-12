@@ -166,6 +166,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 	}
 
 	podSpec := v1.PodSpec{
+		Affinity:           s.cluster.Spec.AgentAffinity,
 		HostNetwork:        hostNetwork,
 		DNSPolicy:          dnsPolicy,
 		ServiceAccountName: s.Name(),

@@ -90,7 +90,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 			logger.Error(err, "error listing virtual nodes for stable capacity distribution")
 		}
 
-		virtResourceMap := make(map[string]corev1.ResourceList, len(virtualNodeList.Items))
+		virtResourceMap := make(map[string]corev1.ResourceList)
 		for _, vNode := range virtualNodeList.Items {
 			virtResourceMap[vNode.Name] = corev1.ResourceList{}
 		}
@@ -99,14 +99,14 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 			logger.Error(err, "error listing host nodes for stable capacity distribution")
 		}
 
-		hostResourceMap := make(map[string]corev1.ResourceList, len(hostNodeList.Items))
+		hostResourceMap := make(map[string]corev1.ResourceList)
 		for _, hNode := range hostNodeList.Items {
 			if _, ok := virtResourceMap[hNode.Name]; ok {
 				hostResourceMap[hNode.Name] = hNode.Status.Allocatable
 			}
 		}
 
-		m := distributeQuotas(hostResourceMap, hostResourceMap, mergedResourceLists)
+		m := distributeQuotas(hostResourceMap, virtResourceMap, mergedResourceLists)
 		allocatable = m[virtualNodeName]
 	}
 
@@ -178,8 +178,8 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 				continue
 			}
 
-			resourceQuantity, ok := hostNodeResources[resourceName]
-			if !ok {
+			resourceQuantity, found := hostNodeResources[resourceName]
+			if !found {
 				// skip the node if the resource does not exist on the host node
 				continue
 			}

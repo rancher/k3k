@@ -54,6 +54,33 @@ func Test_distributeQuotas(t *testing.T) {
 			},
 		},
 		{
+			name: "fewer virtual nodes than host nodes",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": largeAllocatable,
+				"node-2": largeAllocatable,
+				"node-3": largeAllocatable,
+				"node-4": largeAllocatable,
+			},
+			quotas: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+			},
+			want: map[string]corev1.ResourceList{
+				"node-1": {
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("2Gi"),
+				},
+				"node-2": {
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("2Gi"),
+				},
+			},
+		},
+		{
 			name: "even distribution of cpu and memory",
 			virtResourceMap: map[string]corev1.ResourceList{
 				"node-1": {},

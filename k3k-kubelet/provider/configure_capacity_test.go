@@ -1,19 +1,13 @@
 package provider
 
 import (
-	"context"
 	"testing"
 
-	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_distributeQuotas(t *testing.T) {
@@ -21,39 +15,56 @@ func Test_distributeQuotas(t *testing.T) {
 	err := corev1.AddToScheme(scheme)
 	assert.NoError(t, err)
 
-	node1 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}}
-	node2 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-2"}}
-	node3 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-3"}}
+	// Large allocatable so capping doesn't interfere with basic distribution tests.
+	largeAllocatable := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("100"),
+		corev1.ResourceMemory: resource.MustParse("100Gi"),
+		corev1.ResourcePods:   resource.MustParse("1000"),
+	}
 
 	tests := []struct {
-		name         string
-		virtualNodes []client.Object
-		quotas       corev1.ResourceList
-		want         map[string]corev1.ResourceList
-		wantErr      bool
+		name            string
+		virtResourceMap map[string]corev1.ResourceList
+		hostResourceMap map[string]corev1.ResourceList
+		quotas          corev1.ResourceList
+		want            map[string]corev1.ResourceList
 	}{
 		{
-			name:         "no virtual nodes",
-			virtualNodes: []client.Object{},
+			name:            "no virtual nodes",
+			virtResourceMap: map[string]corev1.ResourceList{},
 			quotas: corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("2"),
 			},
-			want:    map[string]corev1.ResourceList{},
-			wantErr: false,
+			want: map[string]corev1.ResourceList{},
 		},
 		{
-			name:         "no quotas",
-			virtualNodes: []client.Object{node1, node2},
-			quotas:       corev1.ResourceList{},
+			name: "no quotas",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": largeAllocatable,
+				"node-2": largeAllocatable,
+			},
+			quotas: corev1.ResourceList{},
 			want: map[string]corev1.ResourceList{
 				"node-1": {},
 				"node-2": {},
 			},
-			wantErr: false,
 		},
 		{
-			name:         "even distribution of cpu and memory",
-			virtualNodes: []client.Object{node1, node2},
+			name: "fewer virtual nodes than host nodes",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": largeAllocatable,
+				"node-2": largeAllocatable,
+				"node-3": largeAllocatable,
+				"node-4": largeAllocatable,
+			},
 			quotas: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("2"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
@@ -68,65 +79,203 @@ func Test_distributeQuotas(t *testing.T) {
 					corev1.ResourceMemory: resource.MustParse("2Gi"),
 				},
 			},
-			wantErr: false,
 		},
 		{
-			name:         "uneven distribution with remainder",
-			virtualNodes: []client.Object{node1, node2, node3},
+			name: "even distribution of cpu and memory",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": largeAllocatable,
+				"node-2": largeAllocatable,
+			},
 			quotas: corev1.ResourceList{
-				corev1.ResourceCPU: resource.MustParse("2"), // 2000m / 3 = 666m with 2m remainder
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+			},
+			want: map[string]corev1.ResourceList{
+				"node-1": {
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("2Gi"),
+				},
+				"node-2": {
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("2Gi"),
+				},
+			},
+		},
+		{
+			name: "uneven distribution with remainder",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+				"node-3": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": largeAllocatable,
+				"node-2": largeAllocatable,
+				"node-3": largeAllocatable,
+			},
+			quotas: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("2"),
 			},
 			want: map[string]corev1.ResourceList{
 				"node-1": {corev1.ResourceCPU: resource.MustParse("667m")},
 				"node-2": {corev1.ResourceCPU: resource.MustParse("667m")},
 				"node-3": {corev1.ResourceCPU: resource.MustParse("666m")},
 			},
-			wantErr: false,
 		},
 		{
-			name:         "distribution of number resources",
-			virtualNodes: []client.Object{node1, node2, node3},
+			name: "distribution of number resources",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+				"node-3": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": largeAllocatable,
+				"node-2": largeAllocatable,
+				"node-3": largeAllocatable,
+			},
 			quotas: corev1.ResourceList{
-				corev1.ResourceCPU:     resource.MustParse("2"),
-				corev1.ResourcePods:    resource.MustParse("11"),
-				corev1.ResourceSecrets: resource.MustParse("9"),
-				"custom":               resource.MustParse("8"),
+				corev1.ResourceCPU:  resource.MustParse("2"),
+				corev1.ResourcePods: resource.MustParse("11"),
 			},
 			want: map[string]corev1.ResourceList{
 				"node-1": {
-					corev1.ResourceCPU:     resource.MustParse("667m"),
-					corev1.ResourcePods:    resource.MustParse("4"),
-					corev1.ResourceSecrets: resource.MustParse("3"),
-					"custom":               resource.MustParse("3"),
+					corev1.ResourceCPU:  resource.MustParse("667m"),
+					corev1.ResourcePods: resource.MustParse("4"),
 				},
 				"node-2": {
-					corev1.ResourceCPU:     resource.MustParse("667m"),
-					corev1.ResourcePods:    resource.MustParse("4"),
-					corev1.ResourceSecrets: resource.MustParse("3"),
-					"custom":               resource.MustParse("3"),
+					corev1.ResourceCPU:  resource.MustParse("667m"),
+					corev1.ResourcePods: resource.MustParse("4"),
 				},
 				"node-3": {
-					corev1.ResourceCPU:     resource.MustParse("666m"),
-					corev1.ResourcePods:    resource.MustParse("3"),
-					corev1.ResourceSecrets: resource.MustParse("3"),
-					"custom":               resource.MustParse("2"),
+					corev1.ResourceCPU:  resource.MustParse("666m"),
+					corev1.ResourcePods: resource.MustParse("3"),
 				},
 			},
-			wantErr: false,
+		},
+		{
+			name: "extended resource distributed only to nodes that have it",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+				"node-3": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": {
+					corev1.ResourceCPU: resource.MustParse("100"),
+					"nvidia.com/gpu":   resource.MustParse("2"),
+				},
+				"node-2": {
+					corev1.ResourceCPU: resource.MustParse("100"),
+				},
+				"node-3": {
+					corev1.ResourceCPU: resource.MustParse("100"),
+					"nvidia.com/gpu":   resource.MustParse("4"),
+				},
+			},
+			quotas: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("3"),
+				"nvidia.com/gpu":   resource.MustParse("4"),
+			},
+			want: map[string]corev1.ResourceList{
+				"node-1": {
+					corev1.ResourceCPU: resource.MustParse("1"),
+					"nvidia.com/gpu":   resource.MustParse("2"),
+				},
+				"node-2": {
+					corev1.ResourceCPU: resource.MustParse("1"),
+				},
+				"node-3": {
+					corev1.ResourceCPU: resource.MustParse("1"),
+					"nvidia.com/gpu":   resource.MustParse("2"),
+				},
+			},
+		},
+		{
+			name: "capping at host capacity with redistribution",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": {
+					corev1.ResourceCPU: resource.MustParse("8"),
+				},
+				"node-2": {
+					corev1.ResourceCPU: resource.MustParse("2"),
+				},
+			},
+			quotas: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("6"),
+			},
+			// Even split would be 3 each, but node-2 only has 2 CPU.
+			// node-2 gets capped at 2, the remaining 1 goes to node-1.
+			want: map[string]corev1.ResourceList{
+				"node-1": {corev1.ResourceCPU: resource.MustParse("4")},
+				"node-2": {corev1.ResourceCPU: resource.MustParse("2")},
+			},
+		},
+		{
+			name: "gpu capping with uneven host capacity",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": {
+					"nvidia.com/gpu": resource.MustParse("6"),
+				},
+				"node-2": {
+					"nvidia.com/gpu": resource.MustParse("1"),
+				},
+			},
+			quotas: corev1.ResourceList{
+				"nvidia.com/gpu": resource.MustParse("4"),
+			},
+			// Even split would be 2 each, but node-2 only has 1 GPU.
+			// node-2 gets capped at 1, the remaining 1 goes to node-1.
+			want: map[string]corev1.ResourceList{
+				"node-1": {"nvidia.com/gpu": resource.MustParse("3")},
+				"node-2": {"nvidia.com/gpu": resource.MustParse("1")},
+			},
+		},
+		{
+			name: "quota exceeds total host capacity",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+				"node-3": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": {
+					"nvidia.com/gpu": resource.MustParse("2"),
+				},
+				"node-2": {
+					"nvidia.com/gpu": resource.MustParse("1"),
+				},
+				"node-3": {
+					"nvidia.com/gpu": resource.MustParse("1"),
+				},
+			},
+			quotas: corev1.ResourceList{
+				"nvidia.com/gpu": resource.MustParse("10"),
+			},
+			// Total host capacity is 4, quota is 10. Each node gets its full capacity.
+			want: map[string]corev1.ResourceList{
+				"node-1": {"nvidia.com/gpu": resource.MustParse("2")},
+				"node-2": {"nvidia.com/gpu": resource.MustParse("1")},
+				"node-3": {"nvidia.com/gpu": resource.MustParse("1")},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.virtualNodes...).Build()
-			logger := zapr.NewLogger(zap.NewNop())
-
-			got, gotErr := distributeQuotas(context.Background(), logger, fakeClient, tt.quotas)
-			if tt.wantErr {
-				assert.Error(t, gotErr)
-			} else {
-				assert.NoError(t, gotErr)
-			}
+			got := distributeQuotas(tt.hostResourceMap, tt.virtResourceMap, tt.quotas)
 
 			assert.Equal(t, len(tt.want), len(got), "Number of nodes in result should match")
 

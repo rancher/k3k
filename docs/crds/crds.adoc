@@ -218,7 +218,7 @@ Each entry defines a secret and its mount path within the pods. + |  |
 
 
 
-ConfigMapSyncConfig specifies the sync options for services.
+ConfigMapSyncConfig specifies the sync options for ConfigMaps.
 
 
 
@@ -353,7 +353,7 @@ _Appears In:_
 
 
 
-IngressSyncConfig specifies the sync options for services.
+IngressSyncConfig specifies the sync options for Ingresses.
 
 
 
@@ -464,7 +464,7 @@ _Appears In:_
 
 
 
-PersistentVolumeClaimSyncConfig specifies the sync options for services.
+PersistentVolumeClaimSyncConfig specifies the sync options for PersistentVolumeClaims.
 
 
 
@@ -502,7 +502,7 @@ _Appears In:_
 
 
 
-PriorityClassSyncConfig specifies the sync options for services.
+PriorityClassSyncConfig specifies the sync options for PriorityClasses.
 
 
 
@@ -569,7 +569,7 @@ This can be 'server', 'agent', or 'all' (for both). + |  | Enum: [server agent a
 
 
 
-SecretSyncConfig specifies the sync options for services.
+SecretSyncConfig specifies the sync options for Secrets.
 
 
 
@@ -591,7 +591,7 @@ then all resources of the given type will be synced. + |  |
 
 
 
-ServiceSyncConfig specifies the sync options for services.
+ServiceSyncConfig specifies the sync options for Services.
 
 
 
@@ -613,7 +613,7 @@ then all resources of the given type will be synced. + |  |
 
 
 
-StorageClassSyncConfig specifies the sync options for services.
+StorageClassSyncConfig specifies the sync options for StorageClasses.
 
 
 

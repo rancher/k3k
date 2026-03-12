@@ -256,7 +256,7 @@ type SyncConfig struct {
 	StorageClasses StorageClassSyncConfig `json:"storageClasses"`
 }
 
-// SecretSyncConfig specifies the sync options for services.
+// SecretSyncConfig specifies the sync options for Secrets.
 type SecretSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -271,7 +271,7 @@ type SecretSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// ServiceSyncConfig specifies the sync options for services.
+// ServiceSyncConfig specifies the sync options for Services.
 type ServiceSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -286,7 +286,7 @@ type ServiceSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// ConfigMapSyncConfig specifies the sync options for services.
+// ConfigMapSyncConfig specifies the sync options for ConfigMaps.
 type ConfigMapSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -301,7 +301,7 @@ type ConfigMapSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// IngressSyncConfig specifies the sync options for services.
+// IngressSyncConfig specifies the sync options for Ingresses.
 type IngressSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -316,7 +316,7 @@ type IngressSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// PersistentVolumeClaimSyncConfig specifies the sync options for services.
+// PersistentVolumeClaimSyncConfig specifies the sync options for PersistentVolumeClaims.
 type PersistentVolumeClaimSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -331,7 +331,7 @@ type PersistentVolumeClaimSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// PriorityClassSyncConfig specifies the sync options for services.
+// PriorityClassSyncConfig specifies the sync options for PriorityClasses.
 type PriorityClassSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -346,7 +346,7 @@ type PriorityClassSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// StorageClassSyncConfig specifies the sync options for services.
+// StorageClassSyncConfig specifies the sync options for StorageClasses.
 type StorageClassSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//

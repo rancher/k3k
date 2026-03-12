@@ -157,4 +157,38 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 				Should(Succeed())
 		})
 	})
+
+	When("editing a synced storage class in the host cluster", Ordered, func() {
+		var syncedStorageClass *storagev1.StorageClass
+
+		BeforeAll(func() {
+			hostStorageClasses, err := k8s.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+
+			for _, hostSC := range hostStorageClasses.Items {
+				if syncEnabled, found := hostSC.Labels[cluster.SyncEnabledLabelKey]; !found || syncEnabled == "true" {
+					syncedStorageClass = &hostSC
+					break
+				}
+			}
+
+			Expect(syncedStorageClass).To(Not(BeNil()))
+
+			syncedStorageClass.Labels["foo"] = "bar"
+			_, err = k8s.StorageV1().StorageClasses().Update(ctx, syncedStorageClass, metav1.UpdateOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+		})
+
+		It("will update the synced storage class in the virtual cluster", func() {
+			Eventually(func(g Gomega) {
+				_, err := virtualCluster.Client.StorageV1().StorageClasses().Get(ctx, syncedStorageClass.Name, metav1.GetOptions{})
+				g.Expect(err).To(Not(HaveOccurred()))
+				g.Expect(syncedStorageClass.Labels).Should(HaveKeyWithValue("foo", "bar"))
+			}).
+				MustPassRepeatedly(5).
+				WithPolling(time.Second).
+				WithTimeout(time.Second * 30).
+				Should(Succeed())
+		})
+	})
 })

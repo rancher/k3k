@@ -163,7 +163,7 @@ _Appears in:_
 
 
 
-ConfigMapSyncConfig specifies the sync options for services.
+ConfigMapSyncConfig specifies the sync options for ConfigMaps.
 
 
 
@@ -271,7 +271,7 @@ _Appears in:_
 
 
 
-IngressSyncConfig specifies the sync options for services.
+IngressSyncConfig specifies the sync options for Ingresses.
 
 
 
@@ -353,7 +353,7 @@ _Appears in:_
 
 
 
-PersistentVolumeClaimSyncConfig specifies the sync options for services.
+PersistentVolumeClaimSyncConfig specifies the sync options for PersistentVolumeClaims.
 
 
 
@@ -384,7 +384,7 @@ _Appears in:_
 
 
 
-PriorityClassSyncConfig specifies the sync options for services.
+PriorityClassSyncConfig specifies the sync options for PriorityClasses.
 
 
 
@@ -424,7 +424,7 @@ _Appears in:_
 
 
 
-SecretSyncConfig specifies the sync options for services.
+SecretSyncConfig specifies the sync options for Secrets.
 
 
 
@@ -441,7 +441,7 @@ _Appears in:_
 
 
 
-ServiceSyncConfig specifies the sync options for services.
+ServiceSyncConfig specifies the sync options for Services.
 
 
 
@@ -458,7 +458,7 @@ _Appears in:_
 
 
 
-StorageClassSyncConfig specifies the sync options for services.
+StorageClassSyncConfig specifies the sync options for StorageClasses.
 
 
 

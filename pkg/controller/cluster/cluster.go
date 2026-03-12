@@ -167,32 +167,29 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj client.Object) []reconcile.Request {
 	log := ctrl.LoggerFrom(ctx)
 
-	_, ok := obj.(*storagev1.StorageClass)
-	if !ok {
-		return nil
-	}
-
-	var specClusterList v1beta1.ClusterList
-	if err := r.Client.List(ctx, &specClusterList, client.MatchingFields{storageClassEnabledIndexField: "true"}); err != nil {
-		log.Error(err, "error listing clusters with spec sync enabled for storageclass sync")
-		return nil
-	}
-
-	var statusClusterList v1beta1.ClusterList
-	if err := r.Client.List(ctx, &statusClusterList, client.MatchingFields{storageClassStatusEnabledIndexField: "true"}); err != nil {
-		log.Error(err, "error listing clusters with status sync enabled for storageclass sync")
+	if _, ok := obj.(*storagev1.StorageClass); !ok {
 		return nil
 	}
 
 	// Merge and deduplicate clusters
 	allClusters := make(map[types.NamespacedName]struct{})
 
-	for _, cluster := range specClusterList.Items {
-		allClusters[client.ObjectKeyFromObject(&cluster)] = struct{}{}
+	var specClusterList v1beta1.ClusterList
+	if err := r.Client.List(ctx, &specClusterList, client.MatchingFields{storageClassEnabledIndexField: "true"}); err != nil {
+		log.Error(err, "error listing clusters with spec sync enabled for storageclass sync")
+	} else {
+		for _, cluster := range specClusterList.Items {
+			allClusters[client.ObjectKeyFromObject(&cluster)] = struct{}{}
+		}
 	}
 
-	for _, cluster := range statusClusterList.Items {
-		allClusters[client.ObjectKeyFromObject(&cluster)] = struct{}{}
+	var statusClusterList v1beta1.ClusterList
+	if err := r.Client.List(ctx, &statusClusterList, client.MatchingFields{storageClassStatusEnabledIndexField: "true"}); err != nil {
+		log.Error(err, "error listing clusters with status sync enabled for storageclass sync")
+	} else {
+		for _, cluster := range statusClusterList.Items {
+			allClusters[client.ObjectKeyFromObject(&cluster)] = struct{}{}
+		}
 	}
 
 	requests := make([]reconcile.Request, 0, len(allClusters))

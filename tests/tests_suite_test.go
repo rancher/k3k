@@ -78,7 +78,6 @@ var (
 	k8s              *kubernetes.Clientset
 	k8sClient        client.Client
 	kubeconfigPath   string
-	repo             string
 	helmActionConfig *action.Configuration
 )
 
@@ -87,17 +86,17 @@ var _ = BeforeSuite(func() {
 
 	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
 
-	repo = os.Getenv("REPO")
-	if repo == "" {
-		repo = "rancher"
-	}
-
 	_, dockerInstallEnabled := os.LookupEnv("K3K_DOCKER_INSTALL")
 
 	if dockerInstallEnabled {
-		installK3SDocker(ctx)
+		repo := os.Getenv("REPO")
+		if repo == "" {
+			repo = "rancher"
+		}
+
+		installK3SDocker(ctx, repo+"/k3k", repo+"/k3k-kubelet")
 		initKubernetesClient(ctx)
-		installK3kChart()
+		installK3kChart(repo+"/k3k", repo+"/k3k-kubelet")
 	} else {
 		initKubernetesClient(ctx)
 	}
@@ -110,6 +109,11 @@ func initKubernetesClient(ctx context.Context) {
 		err        error
 		kubeconfig []byte
 	)
+
+	logger, err := zap.NewDevelopment()
+	Expect(err).NotTo(HaveOccurred())
+
+	log.SetLogger(zapr.NewLogger(logger))
 
 	kubeconfigPath := os.Getenv("KUBECONFIG")
 	Expect(kubeconfigPath).To(Not(BeEmpty()))
@@ -129,11 +133,6 @@ func initKubernetesClient(ctx context.Context) {
 	scheme := buildScheme()
 	k8sClient, err = client.New(restcfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
-
-	logger, err := zap.NewDevelopment()
-	Expect(err).NotTo(HaveOccurred())
-
-	log.SetLogger(zapr.NewLogger(logger))
 }
 
 func buildScheme() *runtime.Scheme {
@@ -147,7 +146,7 @@ func buildScheme() *runtime.Scheme {
 	return scheme
 }
 
-func installK3SDocker(ctx context.Context) {
+func installK3SDocker(ctx context.Context, controllerImage, kubeletImage string) {
 	var (
 		err        error
 		kubeconfig []byte
@@ -179,16 +178,15 @@ func installK3SDocker(ctx context.Context) {
 	Expect(tmpFile.Close()).To(Succeed())
 	kubeconfigPath = tmpFile.Name()
 
-	err = k3sContainer.LoadImages(ctx, repo+"/k3k:dev", repo+"/k3k-kubelet:dev")
+	err = k3sContainer.LoadImages(ctx, controllerImage+":dev", kubeletImage+":dev")
 	Expect(err).To(Not(HaveOccurred()))
 	DeferCleanup(os.Remove, kubeconfigPath)
 
 	Expect(os.Setenv("KUBECONFIG", kubeconfigPath)).To(Succeed())
-	GinkgoWriter.Print(kubeconfigPath)
-	GinkgoWriter.Print(string(kubeconfig))
+	GinkgoWriter.Printf("KUBECONFIG set to: %s\n", kubeconfigPath)
 }
 
-func installK3kChart() {
+func installK3kChart(controllerImage, kubeletImage string) {
 	pwd, err := os.Getwd()
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -204,7 +202,7 @@ func installK3kChart() {
 	Expect(err).To(Not(HaveOccurred()))
 
 	err = helmActionConfig.Init(restClientGetter, k3kNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...any) {
-		GinkgoWriter.Printf("helm debug: "+format+"\n", v...)
+		GinkgoWriter.Printf("[Helm] "+format+"\n", v...)
 	})
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -216,9 +214,17 @@ func installK3kChart() {
 	iCli.Wait = true
 
 	controllerMap, _ := k3kChart.Values["controller"].(map[string]any)
+
+	extraEnvArray, _ := controllerMap["extraEnv"].([]map[string]any)
+	extraEnvArray = append(extraEnvArray, map[string]any{
+		"name":  "DEBUG",
+		"value": "true",
+	})
+	controllerMap["extraEnv"] = extraEnvArray
+
 	imageMap, _ := controllerMap["image"].(map[string]any)
 	maps.Copy(imageMap, map[string]any{
-		"repository": repo + "/k3k",
+		"repository": controllerImage,
 		"tag":        "dev",
 		"pullPolicy": "IfNotPresent",
 	})
@@ -227,14 +233,14 @@ func installK3kChart() {
 	sharedAgentMap, _ := agentMap["shared"].(map[string]any)
 	sharedAgentImageMap, _ := sharedAgentMap["image"].(map[string]any)
 	maps.Copy(sharedAgentImageMap, map[string]any{
-		"repository": repo + "/k3k-kubelet",
+		"repository": kubeletImage,
 		"tag":        "dev",
 	})
 
 	release, err := iCli.Run(k3kChart, k3kChart.Values)
 	Expect(err).To(Not(HaveOccurred()))
 
-	GinkgoWriter.Printf("Release %s installed in %s namespace\n", release.Name, release.Namespace)
+	GinkgoWriter.Printf("Helm release '%s' installed in '%s' namespace\n", release.Name, release.Namespace)
 }
 
 func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
@@ -297,36 +303,28 @@ func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
 	_, err = clientset.AppsV1().Deployments(k3kNamespace).Update(ctx, k3kDeployment, metav1.UpdateOptions{})
 	Expect(err).To(Not(HaveOccurred()))
 
-	Eventually(func() bool {
+	Eventually(func(g Gomega) {
 		GinkgoWriter.Println("Checking K3k deployment status")
 
 		dep, err := clientset.AppsV1().Deployments(k3kNamespace).Get(ctx, k3kDeployment.Name, metav1.GetOptions{})
-		Expect(err).To(Not(HaveOccurred()))
+		g.Expect(err).To(Not(HaveOccurred()))
+		g.Expect(dep.Generation).To(Equal(dep.Status.ObservedGeneration))
 
-		// 1. Check if the controller has observed the latest generation
-		if dep.Generation > dep.Status.ObservedGeneration {
-			GinkgoWriter.Printf("K3k deployment generation: %d, observed generation: %d\n", dep.Generation, dep.Status.ObservedGeneration)
-			return false
+		var availableCond appsv1.DeploymentCondition
+
+		for _, cond := range dep.Status.Conditions {
+			if cond.Type == appsv1.DeploymentAvailable {
+				availableCond = cond
+				break
+			}
 		}
 
-		// 2. Check if all replicas have been updated
-		if dep.Spec.Replicas != nil && dep.Status.UpdatedReplicas < *dep.Spec.Replicas {
-			GinkgoWriter.Printf("K3k deployment replicas: %d, updated replicas: %d\n", *dep.Spec.Replicas, dep.Status.UpdatedReplicas)
-			return false
-		}
-
-		// 3. Check if all updated replicas are available
-		if dep.Status.AvailableReplicas < dep.Status.UpdatedReplicas {
-			GinkgoWriter.Printf("K3k deployment available replicas: %d, updated replicas: %d\n", dep.Status.AvailableReplicas, dep.Status.UpdatedReplicas)
-			return false
-		}
-
-		return true
+		g.Expect(availableCond.Type).To(Equal(appsv1.DeploymentAvailable))
+		g.Expect(availableCond.Status).To(Equal(v1.ConditionTrue))
 	}).
-		MustPassRepeatedly(5).
 		WithPolling(time.Second).
 		WithTimeout(time.Second * 30).
-		Should(BeTrue())
+		Should(Succeed())
 }
 
 var _ = AfterSuite(func() {

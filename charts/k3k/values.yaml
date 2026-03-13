@@ -56,7 +56,7 @@ controller:
 server:
   imagePullSecrets: []
   image:
-    registry: 
+    registry:
     repository: "rancher/k3s"
     pullPolicy: ""
 
@@ -74,8 +74,6 @@ agent:
 
     # Specifies the port range that will be used for k3k-kubelet api if mirrorHostNodes is enabled
     kubeletPortRange: "50000-51000"
-    # Specifies the port range that will be used for webhook if mirrorHostNodes is enabled
-    webhookPortRange: "51001-52000"
 
   # configuration related to agent in virtual mode
   virtual:

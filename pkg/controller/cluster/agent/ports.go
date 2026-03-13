@@ -19,7 +19,6 @@ import (
 
 const (
 	kubeletPortRangeConfigMapName = "k3k-kubelet-port-range"
-	webhookPortRangeConfigMapName = "k3k-webhook-port-range"
 
 	rangeKey          = "range"
 	allocatedPortsKey = "allocatedPorts"
@@ -30,7 +29,6 @@ type PortAllocator struct {
 	ctrlruntimeclient.Client
 
 	KubeletCM *v1.ConfigMap
-	WebhookCM *v1.ConfigMap
 }
 
 func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client) (*PortAllocator, error) {
@@ -42,32 +40,20 @@ func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client) (*Po
 		return nil, fmt.Errorf("failed to find k3k controller namespace")
 	}
 
-	var kubeletPortRangeCM, webhookPortRangeCM v1.ConfigMap
+	var kubeletPortRangeCM v1.ConfigMap
 
 	kubeletPortRangeCM.Name = kubeletPortRangeConfigMapName
 	kubeletPortRangeCM.Namespace = portRangeConfigMapNamespace
 
-	webhookPortRangeCM.Name = webhookPortRangeConfigMapName
-	webhookPortRangeCM.Namespace = portRangeConfigMapNamespace
-
 	return &PortAllocator{
 		Client:    client,
 		KubeletCM: &kubeletPortRangeCM,
-		WebhookCM: &webhookPortRangeCM,
 	}, nil
 }
 
-func (a *PortAllocator) InitPortAllocatorConfig(ctx context.Context, client ctrlruntimeclient.Client, kubeletPortRange, webhookPortRange string) manager.Runnable {
+func (a *PortAllocator) InitPortAllocatorConfig(ctx context.Context, client ctrlruntimeclient.Client, kubeletPortRange string) manager.Runnable {
 	return manager.RunnableFunc(func(ctx context.Context) error {
-		if err := a.getOrCreate(ctx, a.KubeletCM, kubeletPortRange); err != nil {
-			return err
-		}
-
-		if err := a.getOrCreate(ctx, a.WebhookCM, webhookPortRange); err != nil {
-			return err
-		}
-
-		return nil
+		return a.getOrCreate(ctx, a.KubeletCM, kubeletPortRange)
 	})
 }
 
@@ -97,14 +83,6 @@ func (a *PortAllocator) getOrCreate(ctx context.Context, configmap *v1.ConfigMap
 	}
 
 	return nil
-}
-
-func (a *PortAllocator) AllocateWebhookPort(ctx context.Context, clusterName, clusterNamespace string) (int, error) {
-	return a.allocatePort(ctx, clusterName, clusterNamespace, a.WebhookCM)
-}
-
-func (a *PortAllocator) DeallocateWebhookPort(ctx context.Context, clusterName, clusterNamespace string, webhookPort int) error {
-	return a.deallocatePort(ctx, clusterName, clusterNamespace, a.WebhookCM, webhookPort)
 }
 
 func (a *PortAllocator) AllocateKubeletPort(ctx context.Context, clusterName, clusterNamespace string) (int, error) {

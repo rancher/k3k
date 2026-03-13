@@ -35,7 +35,6 @@ var (
 	config                  cluster.Config
 	kubeconfig              string
 	kubeletPortRange        string
-	webhookPortRange        string
 	maxConcurrentReconciles int
 	debug                   bool
 	logFormat               string
@@ -72,7 +71,6 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&config.VirtualAgentImage, "agent-virtual-image", "rancher/k3s", "K3S Virtual Agent image")
 	rootCmd.PersistentFlags().StringVar(&config.VirtualAgentImagePullPolicy, "agent-virtual-image-pull-policy", "", "K3S Virtual Agent image pull policy must be one of Always, IfNotPresent or Never")
 	rootCmd.PersistentFlags().StringVar(&kubeletPortRange, "kubelet-port-range", "50000-51000", "Port Range for k3k kubelet in shared mode")
-	rootCmd.PersistentFlags().StringVar(&webhookPortRange, "webhook-port-range", "51001-52000", "Port Range for k3k kubelet webhook in shared mode")
 	rootCmd.PersistentFlags().StringVar(&config.K3SServerImage, "k3s-server-image", "rancher/k3s", "K3K server image")
 	rootCmd.PersistentFlags().StringVar(&config.K3SServerImagePullPolicy, "k3s-server-image-pull-policy", "", "K3K server image pull policy")
 	rootCmd.PersistentFlags().StringSliceVar(&config.ServerImagePullSecrets, "server-image-pull-secret", nil, "Image pull secret used for for servers")
@@ -110,7 +108,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	runnable := portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient(), kubeletPortRange, webhookPortRange)
+	runnable := portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient(), kubeletPortRange)
 	if err := mgr.Add(runnable); err != nil {
 		return err
 	}

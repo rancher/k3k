@@ -14,7 +14,6 @@ type config struct {
 	HostKubeconfig   string `mapstructure:"hostKubeconfig"`
 	VirtKubeconfig   string `mapstructure:"virtKubeconfig"`
 	KubeletPort      int    `mapstructure:"kubeletPort"`
-	WebhookPort      int    `mapstructure:"webhookPort"`
 	ServerIP         string `mapstructure:"serverIP"`
 	Version          string `mapstructure:"version"`
 	MirrorHostNodes  bool   `mapstructure:"mirrorHostNodes"`

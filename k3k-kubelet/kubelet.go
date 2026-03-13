@@ -26,7 +26,6 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
 	v1 "k8s.io/api/core/v1"
@@ -37,7 +36,6 @@ import (
 	ctrlserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
-	k3kwebhook "github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -128,14 +126,8 @@ func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, e
 		return nil, errors.New("unable to add client go types to virtual cluster scheme: " + err.Error())
 	}
 
-	webhookServer := webhook.NewServer(webhook.Options{
-		CertDir: "/opt/rancher/k3k-webhook",
-		Port:    c.WebhookPort,
-	})
-
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
 		Scheme:                  virtualScheme,
-		WebhookServer:           webhookServer,
 		LeaderElection:          true,
 		LeaderElectionNamespace: "kube-system",
 		LeaderElectionID:        c.ClusterName,
@@ -145,12 +137,6 @@ func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, e
 	})
 	if err != nil {
 		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
-	}
-
-	logger.Info("adding pod mutating webhook")
-
-	if err := k3kwebhook.AddPodMutatingWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.ServiceName, logger, c.WebhookPort); err != nil {
-		return nil, errors.New("unable to add pod mutating webhook for virtual cluster: " + err.Error())
 	}
 
 	if err := addControllers(ctx, hostMgr, virtualMgr, c, hostClient); err != nil {

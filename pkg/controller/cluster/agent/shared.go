@@ -2,19 +2,14 @@ package agent
 
 import (
 	"context"
-	"crypto"
-	"crypto/x509"
 	"errors"
 	"fmt"
-	"time"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	certutil "github.com/rancher/dynamiclistener/cert"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,7 +17,6 @@ import (
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/controller/certs"
 )
 
 const (
@@ -38,11 +32,10 @@ type SharedAgent struct {
 	imageRegistry    string
 	token            string
 	kubeletPort      int
-	webhookPort      int
 	imagePullSecrets []string
 }
 
-func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort, webhookPort int, imagePullSecrets []string) *SharedAgent {
+func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort int, imagePullSecrets []string) *SharedAgent {
 	return &SharedAgent{
 		Config:           config,
 		serviceIP:        serviceIP,
@@ -50,7 +43,6 @@ func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token str
 		imagePullPolicy:  imagePullPolicy,
 		token:            token,
 		kubeletPort:      kubeletPort,
-		webhookPort:      webhookPort,
 		imagePullSecrets: imagePullSecrets,
 	}
 }
@@ -68,7 +60,6 @@ func (s *SharedAgent) EnsureResources(ctx context.Context) error {
 		s.service(ctx),
 		s.daemonset(ctx),
 		s.dnsService(ctx),
-		s.webhookTLS(ctx),
 	); err != nil {
 		return fmt.Errorf("failed to ensure some resources: %w", err)
 	}
@@ -81,7 +72,7 @@ func (s *SharedAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Ob
 }
 
 func (s *SharedAgent) config(ctx context.Context) error {
-	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP, s.kubeletPort, s.webhookPort)
+	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP, s.kubeletPort)
 
 	configSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -100,7 +91,7 @@ func (s *SharedAgent) config(ctx context.Context) error {
 	return s.ensureObject(ctx, configSecret)
 }
 
-func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, kubeletPort, webhookPort int) string {
+func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, kubeletPort int) string {
 	version := cluster.Spec.Version
 	if cluster.Spec.Version == "" {
 		version = cluster.Status.HostVersion
@@ -113,9 +104,8 @@ serviceName: %s
 token: %v
 mirrorHostNodes: %t
 version: %s
-webhookPort: %d
 kubeletPort: %d`,
-		cluster.Name, cluster.Namespace, ip, serviceName, token, cluster.Spec.MirrorHostNodes, version, webhookPort, kubeletPort)
+		cluster.Name, cluster.Namespace, ip, serviceName, token, cluster.Spec.MirrorHostNodes, version, kubeletPort)
 }
 
 func (s *SharedAgent) daemonset(ctx context.Context) error {
@@ -196,28 +186,6 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 					},
 				},
 			},
-			{
-				Name: "webhook-certs",
-				VolumeSource: v1.VolumeSource{
-					Secret: &v1.SecretVolumeSource{
-						SecretName: WebhookSecretName(s.cluster.Name),
-						Items: []v1.KeyToPath{
-							{
-								Key:  "tls.crt",
-								Path: "tls.crt",
-							},
-							{
-								Key:  "tls.key",
-								Path: "tls.key",
-							},
-							{
-								Key:  "ca.crt",
-								Path: "ca.crt",
-							},
-						},
-					},
-				},
-			},
 		},
 		Containers: []v1.Container{
 			{
@@ -253,22 +221,12 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 						MountPath: "/opt/rancher/k3k/",
 						ReadOnly:  false,
 					},
-					{
-						Name:      "webhook-certs",
-						MountPath: "/opt/rancher/k3k-webhook",
-						ReadOnly:  false,
-					},
 				},
 				Ports: []v1.ContainerPort{
 					{
 						Name:          "kubelet-port",
 						Protocol:      v1.ProtocolTCP,
 						ContainerPort: int32(s.kubeletPort),
-					},
-					{
-						Name:          "webhook-port",
-						Protocol:      v1.ProtocolTCP,
-						ContainerPort: int32(s.webhookPort),
 					},
 				},
 			},
@@ -303,12 +261,6 @@ func (s *SharedAgent) service(ctx context.Context) error {
 					Name:     "k3s-kubelet-port",
 					Protocol: v1.ProtocolTCP,
 					Port:     int32(s.kubeletPort),
-				},
-				{
-					Name:       "webhook-server",
-					Protocol:   v1.ProtocolTCP,
-					Port:       int32(s.webhookPort),
-					TargetPort: intstr.FromInt32(int32(s.webhookPort)),
 				},
 			},
 		},
@@ -448,95 +400,4 @@ func (s *SharedAgent) roleBinding(ctx context.Context) error {
 	}
 
 	return s.ensureObject(ctx, roleBinding)
-}
-
-func (s *SharedAgent) webhookTLS(ctx context.Context) error {
-	webhookSecret := &v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      WebhookSecretName(s.cluster.Name),
-			Namespace: s.cluster.Namespace,
-		},
-	}
-
-	key := ctrlruntimeclient.ObjectKeyFromObject(webhookSecret)
-	if err := s.client.Get(ctx, key, webhookSecret); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-
-		caPrivateKeyPEM, caCertPEM, err := newWebhookSelfSignedCACerts()
-		if err != nil {
-			return err
-		}
-
-		altNames := []string{s.Name(), s.cluster.Name}
-
-		webhookCert, webhookKey, err := newWebhookCerts(s.Name(), altNames, caPrivateKeyPEM, caCertPEM)
-		if err != nil {
-			return err
-		}
-
-		webhookSecret.Data = map[string][]byte{
-			"tls.crt": webhookCert,
-			"tls.key": webhookKey,
-			"ca.crt":  caCertPEM,
-			"ca.key":  caPrivateKeyPEM,
-		}
-
-		return s.ensureObject(ctx, webhookSecret)
-	}
-
-	// if the webhook secret is found we can skip
-	// we should check for their validity
-	return nil
-}
-
-func newWebhookSelfSignedCACerts() ([]byte, []byte, error) {
-	// generate CA CERT/KEY
-	caPrivateKeyPEM, err := certutil.MakeEllipticPrivateKeyPEM()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	caPrivateKey, err := certutil.ParsePrivateKeyPEM(caPrivateKeyPEM)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cfg := certutil.Config{
-		CommonName: fmt.Sprintf("k3k-webhook-ca@%d", time.Now().Unix()),
-	}
-
-	caCert, err := certutil.NewSelfSignedCACert(cfg, caPrivateKey.(crypto.Signer))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	caCertPEM := certutil.EncodeCertPEM(caCert)
-
-	return caPrivateKeyPEM, caCertPEM, nil
-}
-
-func newWebhookCerts(commonName string, subAltNames []string, caPrivateKey, caCert []byte) ([]byte, []byte, error) {
-	// generate webhook cert bundle
-	altNames := certs.AddSANs(subAltNames)
-	oneYearExpiration := time.Until(time.Now().AddDate(1, 0, 0))
-
-	return certs.CreateClientCertKey(
-		commonName,
-		nil,
-		&altNames,
-		[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		oneYearExpiration,
-		string(caCert),
-		string(caPrivateKey),
-	)
-}
-
-func WebhookSecretName(clusterName string) string {
-	return controller.SafeConcatNameWithPrefix(clusterName, "webhook")
 }

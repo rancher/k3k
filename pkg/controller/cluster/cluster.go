@@ -792,6 +792,10 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 			virtualSc.Annotations = hostSc.Annotations
 
 			virtualSc.Labels = hostSc.Labels
+			if len(virtualSc.Labels) == 0 {
+				virtualSc.Labels = make(map[string]string)
+			}
+
 			virtualSc.Labels[SyncSourceLabelKey] = SyncSourceHostLabel
 
 			virtualSc.Provisioner = hostSc.Provisioner

@@ -518,7 +518,6 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
 					Should(Succeed())
-
 			})
 
 			It("should create a ResourceQuota if Quota is enabled", func() {

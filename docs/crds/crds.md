@@ -48,6 +48,8 @@ _Appears in:_
 | `name` _string_ | name is the name of the VirtualClusterPolicy currently applied to this cluster. |  | MinLength: 1 <br /> |
 | `priorityClass` _string_ | priorityClass is the priority class enforced by the active VirtualClusterPolicy. |  |  |
 | `nodeSelector` _object (keys:string, values:string)_ | nodeSelector is a node selector enforced by the active VirtualClusterPolicy. |  |  |
+| `serverAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy. |  |  |
+| `agentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy. |  |  |
 | `sync` _[SyncConfig](#syncconfig)_ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. |  |  |
 
 
@@ -151,6 +153,8 @@ _Appears in:_
 | `addons` _[Addon](#addon) array_ | Addons specifies secrets containing raw YAML to deploy on cluster startup. |  |  |
 | `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit specifies resource limits for server nodes. |  |  |
 | `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  |  |
+| `serverAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | ServerAffinity specifies the affinity rules for server pods. |  |  |
+| `agentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | AgentAffinity specifies the affinity rules for agent pods. |  |  |
 | `mirrorHostNodes` _boolean_ | MirrorHostNodes controls whether node objects from the host cluster<br />are mirrored into the virtual cluster. |  |  |
 | `customCAs` _[CustomCAs](#customcas)_ | CustomCAs specifies the cert/key pairs for custom CA certificates. |  |  |
 | `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |
@@ -550,6 +554,8 @@ _Appears in:_
 | `limit` _[LimitRangeSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#limitrangespec-v1-core)_ | Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy<br />to set defaults and constraints (min/max) |  |  |
 | `defaultNodeSelector` _object (keys:string, values:string)_ | DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace. |  |  |
 | `defaultPriorityClass` _string_ | DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace. |  |  |
+| `defaultServerAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace. |  |  |
+| `defaultAgentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace. |  |  |
 | `allowedMode` _[ClusterMode](#clustermode)_ | AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared". | shared | Enum: [shared virtual] <br /> |
 | `disableNetworkPolicy` _boolean_ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. |  |  |
 | `podSecurityAdmissionLevel` _[PodSecurityAdmissionLevel](#podsecurityadmissionlevel)_ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. |  | Enum: [privileged baseline restricted] <br /> |

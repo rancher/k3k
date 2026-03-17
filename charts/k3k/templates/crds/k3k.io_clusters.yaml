@@ -810,6 +810,25 @@ spec:
                     required:
                     - enabled
                     type: object
+                  storageClasses:
+                    default:
+                      enabled: false
+                    description: StorageClasses resources sync configuration.
+                    properties:
+                      enabled:
+                        default: false
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    required:
+                    - enabled
+                    type: object
                 type: object
               tlsSANs:
                 description: TLSSANs specifies subject alternative names for the K3s
@@ -955,6 +974,141 @@ spec:
                     description: priorityClass is the priority class enforced by the
                       active VirtualClusterPolicy.
                     type: string
+                  sync:
+                    description: sync is the SyncConfig enforced by the active VirtualClusterPolicy.
+                    properties:
+                      configMaps:
+                        default:
+                          enabled: true
+                        description: ConfigMaps resources sync configuration.
+                        properties:
+                          enabled:
+                            default: true
+                            description: Enabled is an on/off switch for syncing resources.
+                            type: boolean
+                          selector:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Selector specifies set of labels of the resources that will be synced, if empty
+                              then all resources of the given type will be synced.
+                            type: object
+                        required:
+                        - enabled
+                        type: object
+                      ingresses:
+                        default:
+                          enabled: false
+                        description: Ingresses resources sync configuration.
+                        properties:
+                          enabled:
+                            default: false
+                            description: Enabled is an on/off switch for syncing resources.
+                            type: boolean
+                          selector:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Selector specifies set of labels of the resources that will be synced, if empty
+                              then all resources of the given type will be synced.
+                            type: object
+                        required:
+                        - enabled
+                        type: object
+                      persistentVolumeClaims:
+                        default:
+                          enabled: true
+                        description: PersistentVolumeClaims resources sync configuration.
+                        properties:
+                          enabled:
+                            default: true
+                            description: Enabled is an on/off switch for syncing resources.
+                            type: boolean
+                          selector:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Selector specifies set of labels of the resources that will be synced, if empty
+                              then all resources of the given type will be synced.
+                            type: object
+                        required:
+                        - enabled
+                        type: object
+                      priorityClasses:
+                        default:
+                          enabled: false
+                        description: PriorityClasses resources sync configuration.
+                        properties:
+                          enabled:
+                            default: false
+                            description: Enabled is an on/off switch for syncing resources.
+                            type: boolean
+                          selector:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Selector specifies set of labels of the resources that will be synced, if empty
+                              then all resources of the given type will be synced.
+                            type: object
+                        required:
+                        - enabled
+                        type: object
+                      secrets:
+                        default:
+                          enabled: true
+                        description: Secrets resources sync configuration.
+                        properties:
+                          enabled:
+                            default: true
+                            description: Enabled is an on/off switch for syncing resources.
+                            type: boolean
+                          selector:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Selector specifies set of labels of the resources that will be synced, if empty
+                              then all resources of the given type will be synced.
+                            type: object
+                        type: object
+                      services:
+                        default:
+                          enabled: true
+                        description: Services resources sync configuration.
+                        properties:
+                          enabled:
+                            default: true
+                            description: Enabled is an on/off switch for syncing resources.
+                            type: boolean
+                          selector:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Selector specifies set of labels of the resources that will be synced, if empty
+                              then all resources of the given type will be synced.
+                            type: object
+                        required:
+                        - enabled
+                        type: object
+                      storageClasses:
+                        default:
+                          enabled: false
+                        description: StorageClasses resources sync configuration.
+                        properties:
+                          enabled:
+                            default: false
+                            description: Enabled is an on/off switch for syncing resources.
+                            type: boolean
+                          selector:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Selector specifies set of labels of the resources that will be synced, if empty
+                              then all resources of the given type will be synced.
+                            type: object
+                        required:
+                        - enabled
+                        type: object
+                    type: object
                 required:
                 - name
                 type: object

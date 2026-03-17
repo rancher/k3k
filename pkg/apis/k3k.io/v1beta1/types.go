@@ -249,9 +249,14 @@ type SyncConfig struct {
 	// +kubebuilder:default={"enabled": false}
 	// +optional
 	PriorityClasses PriorityClassSyncConfig `json:"priorityClasses"`
+	// StorageClasses resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": false}
+	// +optional
+	StorageClasses StorageClassSyncConfig `json:"storageClasses"`
 }
 
-// SecretSyncConfig specifies the sync options for services.
+// SecretSyncConfig specifies the sync options for Secrets.
 type SecretSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -266,7 +271,7 @@ type SecretSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// ServiceSyncConfig specifies the sync options for services.
+// ServiceSyncConfig specifies the sync options for Services.
 type ServiceSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -281,7 +286,7 @@ type ServiceSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// ConfigMapSyncConfig specifies the sync options for services.
+// ConfigMapSyncConfig specifies the sync options for ConfigMaps.
 type ConfigMapSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -296,7 +301,7 @@ type ConfigMapSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// IngressSyncConfig specifies the sync options for services.
+// IngressSyncConfig specifies the sync options for Ingresses.
 type IngressSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -311,7 +316,7 @@ type IngressSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// PersistentVolumeClaimSyncConfig specifies the sync options for services.
+// PersistentVolumeClaimSyncConfig specifies the sync options for PersistentVolumeClaims.
 type PersistentVolumeClaimSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
@@ -326,8 +331,23 @@ type PersistentVolumeClaimSyncConfig struct {
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// PriorityClassSyncConfig specifies the sync options for services.
+// PriorityClassSyncConfig specifies the sync options for PriorityClasses.
 type PriorityClassSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	//
+	// +kubebuilder:default=false
+	// +required
+	Enabled bool `json:"enabled"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// StorageClassSyncConfig specifies the sync options for StorageClasses.
+type StorageClassSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
 	// +kubebuilder:default=false
@@ -584,6 +604,11 @@ type AppliedPolicy struct {
 	//
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// sync is the SyncConfig enforced by the active VirtualClusterPolicy.
+	//
+	// +optional
+	Sync *SyncConfig `json:"sync,omitempty"`
 }
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.

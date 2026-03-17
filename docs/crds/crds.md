@@ -48,6 +48,7 @@ _Appears in:_
 | `name` _string_ | name is the name of the VirtualClusterPolicy currently applied to this cluster. |  | MinLength: 1 <br /> |
 | `priorityClass` _string_ | priorityClass is the priority class enforced by the active VirtualClusterPolicy. |  |  |
 | `nodeSelector` _object (keys:string, values:string)_ | nodeSelector is a node selector enforced by the active VirtualClusterPolicy. |  |  |
+| `sync` _[SyncConfig](#syncconfig)_ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. |  |  |
 
 
 #### Cluster
@@ -162,7 +163,7 @@ _Appears in:_
 
 
 
-ConfigMapSyncConfig specifies the sync options for services.
+ConfigMapSyncConfig specifies the sync options for ConfigMaps.
 
 
 
@@ -270,7 +271,7 @@ _Appears in:_
 
 
 
-IngressSyncConfig specifies the sync options for services.
+IngressSyncConfig specifies the sync options for Ingresses.
 
 
 
@@ -352,7 +353,7 @@ _Appears in:_
 
 
 
-PersistentVolumeClaimSyncConfig specifies the sync options for services.
+PersistentVolumeClaimSyncConfig specifies the sync options for PersistentVolumeClaims.
 
 
 
@@ -383,7 +384,7 @@ _Appears in:_
 
 
 
-PriorityClassSyncConfig specifies the sync options for services.
+PriorityClassSyncConfig specifies the sync options for PriorityClasses.
 
 
 
@@ -423,7 +424,7 @@ _Appears in:_
 
 
 
-SecretSyncConfig specifies the sync options for services.
+SecretSyncConfig specifies the sync options for Secrets.
 
 
 
@@ -440,7 +441,7 @@ _Appears in:_
 
 
 
-ServiceSyncConfig specifies the sync options for services.
+ServiceSyncConfig specifies the sync options for Services.
 
 
 
@@ -453,6 +454,23 @@ _Appears in:_
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
+#### StorageClassSyncConfig
+
+
+
+StorageClassSyncConfig specifies the sync options for StorageClasses.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+
+
 #### SyncConfig
 
 
@@ -462,6 +480,7 @@ SyncConfig will contain the resources that should be synced from virtual cluster
 
 
 _Appears in:_
+- [AppliedPolicy](#appliedpolicy)
 - [ClusterSpec](#clusterspec)
 - [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
 
@@ -473,6 +492,7 @@ _Appears in:_
 | `ingresses` _[IngressSyncConfig](#ingresssyncconfig)_ | Ingresses resources sync configuration. | \{ enabled:false \} |  |
 | `persistentVolumeClaims` _[PersistentVolumeClaimSyncConfig](#persistentvolumeclaimsyncconfig)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:true \} |  |
 | `priorityClasses` _[PriorityClassSyncConfig](#priorityclasssyncconfig)_ | PriorityClasses resources sync configuration. | \{ enabled:false \} |  |
+| `storageClasses` _[StorageClassSyncConfig](#storageclasssyncconfig)_ | StorageClasses resources sync configuration. | \{ enabled:false \} |  |
 
 
 #### VirtualClusterPolicy

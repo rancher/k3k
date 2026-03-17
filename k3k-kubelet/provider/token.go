@@ -120,16 +120,19 @@ func (p *Provider) transformProjectedTokens(ctx context.Context, pod, tPod *core
 			}
 		}
 	}
+
 	return nil
 }
 
 func (p *Provider) requestTokenSecret(ctx context.Context, token *corev1.ServiceAccountTokenProjection, pod *corev1.Pod) (*corev1.Secret, error) {
 	namespace := pod.Namespace
 	serviceAccountName := pod.Spec.ServiceAccountName
+
 	var audiences []string
 	if token.Audience != "" {
 		audiences = []string{token.Audience}
 	}
+
 	tokenRequest := &authv1.TokenRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceAccountName,

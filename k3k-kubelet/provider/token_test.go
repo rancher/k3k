@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/ptr"
+
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
@@ -193,7 +194,7 @@ func Test_addKubeAccessVolume(t *testing.T) {
 	assert.Equal(t, 2, len(pod.Spec.Volumes))
 	addedVol := pod.Spec.Volumes[1]
 	assert.Equal(t, tokenVolumeName, addedVol.Name)
-	assert.Equal(t, hostSecretName, addedVol.VolumeSource.Secret.SecretName)
+	assert.Equal(t, hostSecretName, addedVol.Secret.SecretName)
 
 	// Verify init container mount was added
 	assert.Equal(t, 1, len(pod.Spec.InitContainers[0].VolumeMounts))

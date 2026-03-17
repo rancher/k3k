@@ -8,6 +8,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +26,7 @@ const (
 // transformTokens copies the serviceaccount tokens used by pod's serviceaccount to a secret on the host cluster and mount it
 // to look like the serviceaccount token
 func (p *Provider) transformTokens(ctx context.Context, pod, tPod *corev1.Pod) error {
-	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name, "serviceAccountNameod", pod.Spec.ServiceAccountName)
+	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name, "serviceAccountName", pod.Spec.ServiceAccountName)
 	logger.V(1).Info("Transforming service account tokens")
 
 	// transform projected service account token
@@ -86,8 +87,11 @@ func (p *Provider) transformKubeAccessToken(ctx context.Context, pod, tPod *core
 	return nil
 }
 
+// transformProjectedTokens will iterate over the target pod projected volume sources
+// and transform projected tokens to use a requested token secret from the virtual cluster
+// instead the automatically generated secret on the host cluster.
 func (p *Provider) transformProjectedTokens(ctx context.Context, pod, tPod *corev1.Pod) error {
-	for i, volume := range pod.Spec.Volumes {
+	for i, volume := range tPod.Spec.Volumes {
 		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
 			continue
 		}
@@ -106,7 +110,6 @@ func (p *Provider) transformProjectedTokens(ctx context.Context, pod, tPod *core
 					}
 
 					// replace the projected token volume with a projected secret
-					// todo check the volume name
 					tPod.Spec.Volumes[i].Projected.Sources[j].ServiceAccountToken = nil
 					tPod.Spec.Volumes[i].Projected.Sources[j].Secret = &corev1.SecretProjection{
 						LocalObjectReference: corev1.LocalObjectReference{
@@ -123,17 +126,21 @@ func (p *Provider) transformProjectedTokens(ctx context.Context, pod, tPod *core
 func (p *Provider) requestTokenSecret(ctx context.Context, token *corev1.ServiceAccountTokenProjection, pod *corev1.Pod) (*corev1.Secret, error) {
 	namespace := pod.Namespace
 	serviceAccountName := pod.Spec.ServiceAccountName
-
+	var audiences []string
+	if token.Audience != "" {
+		audiences = []string{token.Audience}
+	}
 	tokenRequest := &authv1.TokenRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceAccountName,
 			Namespace: namespace,
 		},
 		Spec: authv1.TokenRequestSpec{
-			Audiences:         []string{token.Audience},
+			Audiences:         audiences,
 			ExpirationSeconds: token.ExpirationSeconds,
 			BoundObjectRef: &authv1.BoundObjectReference{
 				Name:       pod.Name,
+				UID:        pod.UID,
 				Kind:       "Pod",
 				APIVersion: "v1",
 			},
@@ -184,8 +191,12 @@ func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, projec
 
 	p.Translator.TranslateTo(hostSecret)
 
-	if err := p.HostClient.Create(ctx, hostSecret); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
+	if err := p.HostClient.Get(ctx, client.ObjectKeyFromObject(hostSecret), hostSecret); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+
+		if err := p.HostClient.Create(ctx, hostSecret); err != nil {
 			return nil, err
 		}
 	}

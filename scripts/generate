@@ -14,7 +14,7 @@ go run sigs.k8s.io/controller-tools/cmd/controller-gen@${CONTROLLER_TOOLS_VERSIO
 
 # add the 'helm.sh/resource-policy: keep' annotation to the CRDs
 for f in ./charts/k3k/templates/crds/*.yaml; do
-    sed -i '0,/^[[:space:]]*annotations:/s/^[[:space:]]*annotations:/&\n    helm.sh\/resource-policy: keep/' "$f"
+    sed -i '' '1,/^[[:space:]]*annotations:/s/^[[:space:]]*annotations:/&\n    helm.sh\/resource-policy: keep/' "$f"
     echo "Validating $f"
     yq . "$f" > /dev/null
 done

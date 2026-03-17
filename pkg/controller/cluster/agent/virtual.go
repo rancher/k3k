@@ -140,8 +140,14 @@ func (v *VirtualAgent) podSpec(image, name string) v1.PodSpec {
 	args := v.cluster.Spec.AgentArgs
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 
+	// Use the agent affinity from the policy status if it exists, otherwise fall back to the spec.
+	agentAffinity := v.cluster.Spec.AgentAffinity
+	if v.cluster.Status.Policy.AgentAffinity != nil {
+		agentAffinity = v.cluster.Status.Policy.AgentAffinity
+	}
+
 	podSpec := v1.PodSpec{
-		Affinity:     v.cluster.Spec.AgentAffinity,
+		Affinity:     agentAffinity,
 		NodeSelector: v.cluster.Spec.NodeSelector,
 		Volumes: []v1.Volume{
 			{

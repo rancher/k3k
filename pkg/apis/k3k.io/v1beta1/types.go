@@ -615,6 +615,16 @@ type AppliedPolicy struct {
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
+	// serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy.
+	//
+	// +optional
+	ServerAffinity *corev1.Affinity `json:"serverAffinity,omitempty"`
+
+	// agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy.
+	//
+	// +optional
+	AgentAffinity *corev1.Affinity `json:"agentAffinity,omitempty"`
+
 	// sync is the SyncConfig enforced by the active VirtualClusterPolicy.
 	//
 	// +optional
@@ -691,6 +701,16 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +optional
 	DefaultPriorityClass string `json:"defaultPriorityClass,omitempty"`
+
+	// DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace.
+	//
+	// +optional
+	DefaultServerAffinity *corev1.Affinity `json:"defaultServerAffinity,omitempty"`
+
+	// DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace.
+	//
+	// +optional
+	DefaultAgentAffinity *corev1.Affinity `json:"defaultAgentAffinity,omitempty"`
 
 	// AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared".
 	//

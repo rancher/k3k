@@ -165,8 +165,14 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 		image = s.imageRegistry + "/" + s.image
 	}
 
+	// Use the agent affinity from the policy status if it exists, otherwise fall back to the spec.
+	agentAffinity := s.cluster.Spec.AgentAffinity
+	if s.cluster.Status.Policy.AgentAffinity != nil {
+		agentAffinity = s.cluster.Status.Policy.AgentAffinity
+	}
+
 	podSpec := v1.PodSpec{
-		Affinity:           s.cluster.Spec.AgentAffinity,
+		Affinity:           agentAffinity,
 		HostNetwork:        hostNetwork,
 		DNSPolicy:          dnsPolicy,
 		ServiceAccountName: s.Name(),

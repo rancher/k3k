@@ -54,8 +54,14 @@ func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePull
 }
 
 func (s *Server) podSpec(image, name string, persistent bool, startupCmd string) v1.PodSpec {
+	// Use the server affinity from the policy status if it exists, otherwise fall back to the spec.
+	serverAffinity := s.cluster.Spec.ServerAffinity
+	if s.cluster.Status.Policy.ServerAffinity != nil {
+		serverAffinity = s.cluster.Status.Policy.ServerAffinity
+	}
+
 	podSpec := v1.PodSpec{
-		Affinity:          s.cluster.Spec.ServerAffinity,
+		Affinity:          serverAffinity,
 		NodeSelector:      s.cluster.Spec.NodeSelector,
 		PriorityClassName: s.cluster.Spec.PriorityClass,
 		Volumes: []v1.Volume{

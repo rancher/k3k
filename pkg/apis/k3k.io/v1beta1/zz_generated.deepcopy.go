@@ -40,6 +40,16 @@ func (in *AppliedPolicy) DeepCopyInto(out *AppliedPolicy) {
 			(*out)[key] = val
 		}
 	}
+	if in.ServerAffinity != nil {
+		in, out := &in.ServerAffinity, &out.ServerAffinity
+		*out = new(v1.Affinity)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.AgentAffinity != nil {
+		in, out := &in.AgentAffinity, &out.AgentAffinity
+		*out = new(v1.Affinity)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Sync != nil {
 		in, out := &in.Sync, &out.Sync
 		*out = new(SyncConfig)
@@ -715,6 +725,16 @@ func (in *VirtualClusterPolicySpec) DeepCopyInto(out *VirtualClusterPolicySpec) 
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.DefaultServerAffinity != nil {
+		in, out := &in.DefaultServerAffinity, &out.DefaultServerAffinity
+		*out = new(v1.Affinity)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.DefaultAgentAffinity != nil {
+		in, out := &in.DefaultAgentAffinity, &out.DefaultAgentAffinity
+		*out = new(v1.Affinity)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.PodSecurityAdmissionLevel != nil {
 		in, out := &in.PodSecurityAdmissionLevel, &out.PodSecurityAdmissionLevel

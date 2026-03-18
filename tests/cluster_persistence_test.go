@@ -75,6 +75,7 @@ var _ = When("an ephemeral cluster is installed", Label(e2eTestLabel), Label(per
 		Eventually(func() any {
 			serverPods := listServerPods(ctx, virtualCluster)
 			Expect(len(serverPods)).To(Equal(1))
+
 			return serverPods[0].DeletionTimestamp
 		}).
 			WithTimeout(time.Minute).
@@ -87,7 +88,9 @@ var _ = When("an ephemeral cluster is installed", Label(e2eTestLabel), Label(per
 
 		Eventually(func() bool {
 			_, err = virtualCluster.Client.DiscoveryClient.ServerVersion()
+
 			var unknownAuthorityErr x509.UnknownAuthorityError
+
 			return errors.As(err, &unknownAuthorityErr)
 		}).
 			WithTimeout(time.Minute * 2).
@@ -99,6 +102,7 @@ var _ = When("an ephemeral cluster is installed", Label(e2eTestLabel), Label(per
 		Eventually(func() error {
 			virtualCluster.Client, virtualCluster.RestConfig = NewVirtualK8sClientAndConfig(virtualCluster.Cluster)
 			_, err = virtualCluster.Client.DiscoveryClient.ServerVersion()
+
 			return err
 		}).
 			WithTimeout(time.Minute * 2).

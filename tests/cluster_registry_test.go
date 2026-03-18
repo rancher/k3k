@@ -20,6 +20,7 @@ import (
 
 var _ = When("a cluster with private registry configuration is used", Label("e2e"), Label(registryTestsLabel), func() {
 	var virtualCluster *VirtualCluster
+
 	BeforeEach(func() {
 		ctx := context.Background()
 
@@ -138,7 +139,9 @@ var _ = When("a cluster with private registry configuration is used", Label("e2e
 		}
 
 		By("Creating Alpine Pod and making sure its failing to start")
+
 		var err error
+
 		alpinePod, err = virtualCluster.Client.CoreV1().Pods(alpinePod.Namespace).Create(ctx, alpinePod, metav1.CreateOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 

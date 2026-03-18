@@ -89,6 +89,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			}
 
 			ctx := context.Background()
+
 			var err error
 
 			virtualPod, err = virtualCluster.Client.CoreV1().Pods(p.Namespace).Create(ctx, p, metav1.CreateOptions{})
@@ -110,6 +111,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				g.Expect(envVars).NotTo(BeEmpty())
 
 				var found bool
+
 				for _, envVar := range envVars {
 					if envVar.Name == "POD_NAME" {
 						found = true
@@ -117,9 +119,11 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 						g.Expect(envVars[0].ValueFrom).NotTo(BeNil())
 						g.Expect(envVars[0].ValueFrom.FieldRef).NotTo(BeNil())
 						g.Expect(envVars[0].ValueFrom.FieldRef.FieldPath).To(Equal("metadata.name"))
+
 						break
 					}
 				}
+
 				g.Expect(found).To(BeTrue())
 
 				containerStatuses := pod.Status.ContainerStatuses
@@ -148,15 +152,18 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				g.Expect(envVars).NotTo(BeEmpty())
 
 				var found bool
+
 				for _, envVar := range envVars {
 					if envVar.Name == "POD_NAME" {
 						found = true
 
 						g.Expect(envVar.ValueFrom).To(BeNil())
 						g.Expect(envVar.Value).To(Equal(virtualPod.Name))
+
 						break
 					}
 				}
+
 				g.Expect(found).To(BeTrue())
 
 				containerStatuses := pod.Status.ContainerStatuses

@@ -76,6 +76,7 @@ var SecretTests = func() {
 		By(fmt.Sprintf("Created Secret %s in virtual cluster", secret.Name))
 
 		var hostSecret v1.Secret
+
 		hostSecretName := translateName(cluster, secret.Namespace, secret.Name)
 
 		Eventually(func() error {
@@ -113,6 +114,7 @@ var SecretTests = func() {
 		By(fmt.Sprintf("Created secret %s in virtual cluster", secret.Name))
 
 		var hostSecret v1.Secret
+
 		hostSecretName := translateName(cluster, secret.Namespace, secret.Name)
 
 		Eventually(func() error {
@@ -144,6 +146,7 @@ var SecretTests = func() {
 			key := client.ObjectKey{Name: hostSecretName, Namespace: namespace}
 			err = hostTestEnv.k8sClient.Get(ctx, key, &hostSecret)
 			Expect(err).NotTo(HaveOccurred())
+
 			return hostSecret.Labels
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -170,6 +173,7 @@ var SecretTests = func() {
 		By(fmt.Sprintf("Created secret %s in virtual cluster", secret.Name))
 
 		var hostSecret v1.Secret
+
 		hostSecretName := translateName(cluster, secret.Namespace, secret.Name)
 
 		Eventually(func() error {
@@ -190,6 +194,7 @@ var SecretTests = func() {
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostSecretName, Namespace: namespace}
 			err := hostTestEnv.k8sClient.Get(ctx, key, &hostSecret)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -219,11 +224,13 @@ var SecretTests = func() {
 		By(fmt.Sprintf("Created secret %s in virtual cluster", secret.Name))
 
 		var hostSecret v1.Secret
+
 		hostSecretName := translateName(cluster, secret.Namespace, secret.Name)
 
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostSecretName, Namespace: namespace}
 			err = hostTestEnv.k8sClient.Get(ctx, key, &hostSecret)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).

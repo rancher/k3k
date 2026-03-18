@@ -14,6 +14,7 @@ var _ = When("creating a shared mode cluster", Label(e2eTestLabel), Label(slowTe
 
 	BeforeEach(func() {
 		namespace := NewNamespace()
+
 		DeferCleanup(func() {
 			DeleteNamespaces(namespace.Name)
 		})

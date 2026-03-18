@@ -77,6 +77,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace.Name,
 					}
+
 					return k8sClient.Get(ctx, key, networkPolicy)
 				}).
 					WithTimeout(time.Minute).
@@ -132,6 +133,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace.Name,
 					}
+
 					return k8sClient.Get(context.Background(), key, networkPolicy)
 				}).
 					WithTimeout(time.Minute).
@@ -154,6 +156,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace.Name,
 					}
+
 					return k8sClient.Get(ctx, key, networkPolicy)
 				}).
 					WithTimeout(time.Second * 10).
@@ -182,6 +185,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				Eventually(func() string {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
 					Expect(err).To(Not(HaveOccurred()))
+
 					return ns.Labels["pod-security.kubernetes.io/enforce"]
 				}).
 					WithTimeout(time.Second * 10).
@@ -207,6 +211,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				Eventually(func() string {
 					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
 					Expect(err).To(Not(HaveOccurred()))
+
 					return ns.Labels["pod-security.kubernetes.io/enforce"]
 				}).
 					WithTimeout(time.Second * 10).
@@ -228,6 +233,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				Eventually(func() string {
 					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
 					Expect(err).To(Not(HaveOccurred()))
+
 					return ns.Labels["pod-security.kubernetes.io/enforce"]
 				}).
 					WithTimeout(time.Second * 10).
@@ -249,7 +255,9 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				Eventually(func() bool {
 					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
 					Expect(err).To(Not(HaveOccurred()))
+
 					_, found := ns.Labels["pod-security.kubernetes.io/enforce"]
+
 					return found
 				}).
 					WithTimeout(time.Second * 10).
@@ -277,7 +285,9 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
 					Expect(err).To(Not(HaveOccurred()))
+
 					enforceValue := ns.Labels["pod-security.kubernetes.io/enforce"]
+
 					return enforceValue == "privileged"
 				}).
 					WithTimeout(time.Second * 10).
@@ -295,7 +305,9 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				Eventually(func() bool {
 					err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
 					Expect(err).To(Not(HaveOccurred()))
+
 					enforceValue := ns.Labels["pod-security.kubernetes.io/enforce"]
+
 					return enforceValue == "privileged"
 				}).
 					WithTimeout(time.Second * 10).
@@ -440,6 +452,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				// Update the Cluster
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)
 				Expect(err).To(Not(HaveOccurred()))
+
 				cluster.Spec.NodeSelector["label-3"] = "value-3"
 				err = k8sClient.Update(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
@@ -469,6 +482,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				bindPolicyToNamespace(namespace, policy)
 
 				var resourceQuota v1.ResourceQuota
+
 				Eventually(func() error {
 					key := types.NamespacedName{
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
@@ -503,6 +517,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
 						Namespace: namespace.Name,
 					}
+
 					return k8sClient.Get(ctx, key, &resourceQuota)
 				}).
 					WithTimeout(time.Minute).
@@ -512,6 +527,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				// get policy again
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(policy), policy)
 				Expect(err).To(Not(HaveOccurred()))
+
 				policy.Spec.Quota = nil
 				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
@@ -523,6 +539,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 						Namespace: namespace.Name,
 					}
 					err := k8sClient.Get(ctx, key, &resourceQuota)
+
 					return apierrors.IsNotFound(err)
 				}).
 					WithTimeout(time.Second * 10).
@@ -549,6 +566,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 						Name:      k3kcontroller.SafeConcatNameWithPrefix(clusterPolicy.Name),
 						Namespace: namespace.Name,
 					}
+
 					return k8sClient.Get(ctx, key, &resourceQuota)
 				}).
 					WithTimeout(time.Minute).
@@ -566,6 +584,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 						Namespace: namespace.Name,
 					}
 					err := k8sClient.Get(ctx, key, &resourceQuota)
+
 					return apierrors.IsNotFound(err)
 				}).
 					WithTimeout(time.Second * 10).

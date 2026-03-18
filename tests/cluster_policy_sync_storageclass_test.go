@@ -42,6 +42,7 @@ var _ = When("a shared mode cluster is created in a namespace with a policy", Or
 		}
 
 		var err error
+
 		storageClassEnabled, err = k8s.StorageV1().StorageClasses().Create(ctx, storageClassEnabled, metav1.CreateOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 

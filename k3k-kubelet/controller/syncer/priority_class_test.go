@@ -81,6 +81,7 @@ var PriorityClassTests = func() {
 		By(fmt.Sprintf("Created priorityClass %s in virtual cluster", priorityClass.Name))
 
 		var hostPriorityClass schedulingv1.PriorityClass
+
 		hostPriorityClassName := translateName(cluster, priorityClass.Namespace, priorityClass.Name)
 
 		Eventually(func() error {
@@ -113,6 +114,7 @@ var PriorityClassTests = func() {
 		By(fmt.Sprintf("Created priorityClass %s in virtual cluster", priorityClass.Name))
 
 		var hostPriorityClass schedulingv1.PriorityClass
+
 		hostPriorityClassName := translateName(cluster, priorityClass.Namespace, priorityClass.Name)
 
 		Eventually(func() error {
@@ -144,6 +146,7 @@ var PriorityClassTests = func() {
 			key := client.ObjectKey{Name: hostPriorityClassName}
 			err = hostTestEnv.k8sClient.Get(ctx, key, &hostPriorityClass)
 			Expect(err).NotTo(HaveOccurred())
+
 			return hostPriorityClass.Labels
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -165,6 +168,7 @@ var PriorityClassTests = func() {
 		By(fmt.Sprintf("Created priorityClass %s in virtual cluster", priorityClass.Name))
 
 		var hostPriorityClass schedulingv1.PriorityClass
+
 		hostPriorityClassName := translateName(cluster, priorityClass.Namespace, priorityClass.Name)
 
 		Eventually(func() error {
@@ -185,6 +189,7 @@ var PriorityClassTests = func() {
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostPriorityClassName}
 			err := hostTestEnv.k8sClient.Get(ctx, key, &hostPriorityClass)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -207,6 +212,7 @@ var PriorityClassTests = func() {
 		By(fmt.Sprintf("Created priorityClass %s in virtual cluster", priorityClass.Name))
 
 		var hostPriorityClass schedulingv1.PriorityClass
+
 		hostPriorityClassName := translateName(cluster, priorityClass.Namespace, priorityClass.Name)
 
 		Eventually(func() error {
@@ -242,11 +248,13 @@ var PriorityClassTests = func() {
 		By(fmt.Sprintf("Created priorityClass %s in virtual cluster", priorityClass.Name))
 
 		var hostPriorityClass schedulingv1.PriorityClass
+
 		hostPriorityClassName := translateName(cluster, priorityClass.Namespace, priorityClass.Name)
 
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostPriorityClassName}
 			err = hostTestEnv.k8sClient.Get(ctx, key, &hostPriorityClass)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).

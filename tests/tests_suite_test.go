@@ -337,6 +337,7 @@ var _ = AfterSuite(func() {
 	}
 
 	dumpK3kCoverageData(ctx, goCoverDir)
+
 	if k3sContainer != nil {
 		// dump k3s logs
 		k3sLogs, err := k3sContainer.Logs(ctx)

@@ -85,6 +85,7 @@ var PVCTests = func() {
 		By(fmt.Sprintf("Created PVC %s in virtual cluster", pvc.Name))
 
 		var hostPVC v1.PersistentVolumeClaim
+
 		hostPVCName := translateName(cluster, pvc.Namespace, pvc.Name)
 
 		Eventually(func() error {
@@ -102,6 +103,7 @@ var PVCTests = func() {
 		GinkgoWriter.Printf("labels: %v\n", hostPVC.Labels)
 
 		var virtualPV v1.PersistentVolume
+
 		key := client.ObjectKey{Name: pvc.Name}
 
 		err = virtTestEnv.k8sClient.Get(ctx, key, &virtualPV)

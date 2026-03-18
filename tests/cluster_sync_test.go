@@ -79,6 +79,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 			}
 
 			var err error
+
 			virtualService, err = virtualCluster.Client.CoreV1().Services("default").Create(ctx, virtualService, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
 		})

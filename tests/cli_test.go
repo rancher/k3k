@@ -78,6 +78,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Eventually(func() string {
 				stdout, stderr, err := K3kcli("cluster", "list", "-n", clusterNamespace)
 				Expect(err).To(Not(HaveOccurred()), string(stderr))
+
 				return stdout + stderr
 			}).
 				WithTimeout(time.Second * 5).
@@ -164,6 +165,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			})
 
 			var ns v1.Namespace
+
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: namespaceName}, &ns)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(ns.Name).To(Equal(namespaceName))
@@ -230,6 +232,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			// Verify the cluster state was actually updated
 			var cluster v1beta1.Cluster
+
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(cluster.Spec.Servers).To(Not(BeNil()))
@@ -263,6 +266,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			// Verify the cluster state was actually updated
 			var cluster v1beta1.Cluster
+
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(cluster.Spec.Version).To(Equal(k3sVersion))
@@ -295,6 +299,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			// Verify the cluster version was NOT changed
 			var cluster v1beta1.Cluster
+
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(cluster.Spec.Version).To(Equal(k3sVersion))
@@ -339,6 +344,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			// Verify the cluster labels were actually updated
 			var cluster v1beta1.Cluster
+
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(cluster.Labels).To(HaveKeyWithValue("env", "test"))
@@ -372,6 +378,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			// Verify the cluster annotations were actually updated
 			var cluster v1beta1.Cluster
+
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(cluster.Annotations).To(HaveKeyWithValue("description", "test-cluster"))

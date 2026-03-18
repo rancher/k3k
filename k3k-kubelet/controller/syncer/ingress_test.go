@@ -107,6 +107,7 @@ var IngressTests = func() {
 		By(fmt.Sprintf("Created Ingress %s in virtual cluster", ingress.Name))
 
 		var hostIngress networkingv1.Ingress
+
 		hostIngressName := translateName(cluster, ingress.Namespace, ingress.Name)
 
 		Eventually(func() error {
@@ -172,6 +173,7 @@ var IngressTests = func() {
 		By(fmt.Sprintf("Created Ingress %s in virtual cluster", ingress.Name))
 
 		var hostIngress networkingv1.Ingress
+
 		hostIngressName := translateName(cluster, ingress.Namespace, ingress.Name)
 
 		Eventually(func() error {
@@ -205,6 +207,7 @@ var IngressTests = func() {
 			key := client.ObjectKey{Name: hostIngressName, Namespace: namespace}
 			err = hostTestEnv.k8sClient.Get(ctx, key, &hostIngress)
 			Expect(err).NotTo(HaveOccurred())
+
 			return hostIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -256,6 +259,7 @@ var IngressTests = func() {
 		By(fmt.Sprintf("Created Ingress %s in virtual cluster", ingress.Name))
 
 		var hostIngress networkingv1.Ingress
+
 		hostIngressName := translateName(cluster, ingress.Namespace, ingress.Name)
 
 		Eventually(func() error {
@@ -280,6 +284,7 @@ var IngressTests = func() {
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostIngressName, Namespace: namespace}
 			err := hostTestEnv.k8sClient.Get(ctx, key, &hostIngress)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -335,11 +340,13 @@ var IngressTests = func() {
 		By(fmt.Sprintf("Created Ingress %s in virtual cluster", ingress.Name))
 
 		var hostIngress networkingv1.Ingress
+
 		hostIngressName := translateName(cluster, ingress.Namespace, ingress.Name)
 
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostIngressName, Namespace: namespace}
 			err := hostTestEnv.k8sClient.Get(ctx, key, &hostIngress)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).

@@ -84,6 +84,7 @@ var ServiceTests = func() {
 		By(fmt.Sprintf("Created service %s in virtual cluster", service.Name))
 
 		var hostService v1.Service
+
 		hostServiceName := translateName(cluster, service.Namespace, service.Name)
 
 		Eventually(func() error {
@@ -132,6 +133,7 @@ var ServiceTests = func() {
 		By(fmt.Sprintf("Created service %s in virtual cluster", service.Name))
 
 		var hostService v1.Service
+
 		hostServiceName := translateName(cluster, service.Namespace, service.Name)
 
 		Eventually(func() error {
@@ -163,6 +165,7 @@ var ServiceTests = func() {
 			key := client.ObjectKey{Name: hostServiceName, Namespace: namespace}
 			err = hostTestEnv.k8sClient.Get(ctx, key, &hostService)
 			Expect(err).NotTo(HaveOccurred())
+
 			return hostService.Spec.Ports[0].Name
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -196,6 +199,7 @@ var ServiceTests = func() {
 		By(fmt.Sprintf("Created service %s in virtual cluster", service.Name))
 
 		var hostService v1.Service
+
 		hostServiceName := translateName(cluster, service.Namespace, service.Name)
 
 		Eventually(func() error {
@@ -218,6 +222,7 @@ var ServiceTests = func() {
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostServiceName, Namespace: namespace}
 			err := hostTestEnv.k8sClient.Get(ctx, key, &hostService)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -255,11 +260,13 @@ var ServiceTests = func() {
 		By(fmt.Sprintf("Created service %s in virtual cluster", service.Name))
 
 		var hostService v1.Service
+
 		hostServiceName := translateName(cluster, service.Namespace, service.Name)
 
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostServiceName, Namespace: namespace}
 			err = hostTestEnv.k8sClient.Get(ctx, key, &hostService)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).

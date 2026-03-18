@@ -36,18 +36,24 @@ var _ = When("a cluster with custom certificates is installed with individual ce
 		}
 
 		for _, certName := range certList {
-			var cert, key []byte
-			var err error
+			var (
+				cert, key []byte
+				err       error
+			)
+
 			filePathPrefix := ""
 			certfile := certName
+
 			if strings.HasPrefix(certName, "etcd") {
 				filePathPrefix = "etcd/"
 				certfile = strings.TrimPrefix(certName, "etcd-")
 			}
+
 			if !strings.Contains(certName, "service") {
 				cert, err = os.ReadFile(customCertDir + filePathPrefix + certfile + ".crt")
 				Expect(err).To(Not(HaveOccurred()))
 			}
+
 			key, err = os.ReadFile(customCertDir + filePathPrefix + certfile + ".key")
 			Expect(err).To(Not(HaveOccurred()))
 

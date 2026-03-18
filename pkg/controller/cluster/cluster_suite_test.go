@@ -40,6 +40,7 @@ var (
 
 var _ = BeforeSuite(func() {
 	By("bootstrapping test environment")
+
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "charts", "k3k", "templates", "crds")},
 		ErrorIfCRDPathMissing: true,
@@ -81,6 +82,7 @@ var _ = BeforeSuite(func() {
 
 	go func() {
 		defer GinkgoRecover()
+
 		err = mgr.Start(ctx)
 		Expect(err).NotTo(HaveOccurred(), "failed to run manager")
 	}()
@@ -90,6 +92,7 @@ var _ = AfterSuite(func() {
 	cancel()
 
 	By("tearing down the test environment")
+
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })

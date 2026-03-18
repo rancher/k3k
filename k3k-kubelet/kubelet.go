@@ -330,8 +330,10 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		return err != nil
 	}, func() error {
 		var err error
+
 		b, err = bootstrap.DecodedBootstrap(token, endpoint)
 		logger.Error(err, "decoded bootstrap")
+
 		return err
 	}); err != nil {
 		return nil, errors.New("unable to decode bootstrap: " + err.Error())
@@ -391,7 +393,9 @@ func loadTLSConfig(clusterName, clusterNamespace, nodeName, hostname, token, age
 		return err != nil
 	}, func() error {
 		var err error
+
 		b, err = bootstrap.DecodedBootstrap(token, endpoint)
+
 		return err
 	}); err != nil {
 		return nil, errors.New("unable to decode bootstrap: " + err.Error())

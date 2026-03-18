@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
-	"github.com/sirupsen/logrus"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

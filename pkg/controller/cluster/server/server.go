@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
@@ -22,7 +23,6 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
-	"github.com/sirupsen/logrus"
 )
 
 const (

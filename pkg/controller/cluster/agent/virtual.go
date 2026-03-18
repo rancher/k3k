@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
 	"k8s.io/utils/ptr"
 
 	apps "k8s.io/api/apps/v1"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
-	"github.com/sirupsen/logrus"
 )
 
 const (

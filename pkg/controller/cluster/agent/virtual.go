@@ -14,6 +14,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -142,7 +143,8 @@ func (v *VirtualAgent) podSpec(image, name string) v1.PodSpec {
 
 	// Use the agent affinity from the policy status if it exists, otherwise fall back to the spec.
 	agentAffinity := v.cluster.Spec.AgentAffinity
-	if v.cluster.Status.Policy.AgentAffinity != nil {
+	if v.cluster.Status.Policy != nil && v.cluster.Status.Policy.AgentAffinity != nil {
+		logrus.Warnf("Using agent affinity from policy %s for cluster %s", v.cluster.Status.PolicyName, v.cluster.Name)
 		agentAffinity = v.cluster.Status.Policy.AgentAffinity
 	}
 

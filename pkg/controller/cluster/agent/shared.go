@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
+	"github.com/sirupsen/logrus"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -167,7 +168,8 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 
 	// Use the agent affinity from the policy status if it exists, otherwise fall back to the spec.
 	agentAffinity := s.cluster.Spec.AgentAffinity
-	if s.cluster.Status.Policy.AgentAffinity != nil {
+	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.AgentAffinity != nil {
+		logrus.Warnf("Using agent affinity from policy %s for cluster %s", s.cluster.Status.PolicyName, s.cluster.Name)
 		agentAffinity = s.cluster.Status.Policy.AgentAffinity
 	}
 

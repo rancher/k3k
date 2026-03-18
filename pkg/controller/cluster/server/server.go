@@ -22,6 +22,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -56,7 +57,8 @@ func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePull
 func (s *Server) podSpec(image, name string, persistent bool, startupCmd string) v1.PodSpec {
 	// Use the server affinity from the policy status if it exists, otherwise fall back to the spec.
 	serverAffinity := s.cluster.Spec.ServerAffinity
-	if s.cluster.Status.Policy.ServerAffinity != nil {
+	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.ServerAffinity != nil {
+		logrus.Warnf("Using server affinity from policy %s for cluster %s", s.cluster.Status.PolicyName, s.cluster.Name)
 		serverAffinity = s.cluster.Status.Policy.ServerAffinity
 	}
 

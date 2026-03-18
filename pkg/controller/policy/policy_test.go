@@ -508,6 +508,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					Expect(err).To(Not(HaveOccurred()))
 
 					g.Expect(cluster.Spec.AgentAffinity).To(BeEmpty())
+					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
 					g.Expect(cluster.Status.Policy.AgentAffinity).To(Not(BeNil()))
 					g.Expect(cluster.Status.Policy.AgentAffinity).To(Equal(agentAffinity))
 

@@ -68,7 +68,9 @@ spec:
                   type: object
                 type: array
               agentAffinity:
-                description: AgentAffinity specifies the affinity rules for agent pods.
+                description: |-
+                  AgentAffinity specifies the affinity rules for agent pods.
+                  This includes both node affinity and pod affinity/anti-affinity rules.
                 properties:
                   nodeAffinity:
                     description: Describes node affinity scheduling rules for the pod.
@@ -1425,7 +1427,9 @@ spec:
                   type: object
                 type: array
               serverAffinity:
-                description: ServerAffinity specifies the affinity rules for server pods.
+                description: |-
+                  ServerAffinity specifies the affinity rules for server pods.
+                  This includes both node affinity and pod affinity/anti-affinity rules.
                 properties:
                   nodeAffinity:
                     description: Describes node affinity scheduling rules for the pod.
@@ -2738,7 +2742,9 @@ spec:
                   This field is set by the VirtualClusterPolicy controller.
                 properties:
                   agentAffinity:
-                    description: agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy.
+                    description: |-
+                      agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy.
+                      This includes both node affinity and pod affinity/anti-affinity rules.
                     properties:
                       nodeAffinity:
                         description: Describes node affinity scheduling rules for the pod.
@@ -3623,7 +3629,9 @@ spec:
                     description: priorityClass is the priority class enforced by the active VirtualClusterPolicy.
                     type: string
                   serverAffinity:
-                    description: serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy.
+                    description: |-
+                      serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy.
+                      This includes both node affinity and pod affinity/anti-affinity rules.
                     properties:
                       nodeAffinity:
                         description: Describes node affinity scheduling rules for the pod.

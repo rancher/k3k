@@ -60,7 +60,9 @@ spec:
                 - message: mode is immutable
                   rule: self == oldSelf
               defaultAgentAffinity:
-                description: DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace.
+                description: |-
+                  DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace.
+                  This includes both node affinity and pod affinity/anti-affinity rules.
                 properties:
                   nodeAffinity:
                     description: Describes node affinity scheduling rules for the pod.
@@ -941,7 +943,9 @@ spec:
                 description: DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace.
                 type: string
               defaultServerAffinity:
-                description: DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace.
+                description: |-
+                  DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace.
+                  This includes both node affinity and pod affinity/anti-affinity rules.
                 properties:
                   nodeAffinity:
                     description: Describes node affinity scheduling rules for the pod.

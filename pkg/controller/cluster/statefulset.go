@@ -193,7 +193,9 @@ func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1
 		return true
 	}, func() error {
 		var err error
+
 		b, err = bootstrap.DecodedBootstrap(token, endpoint)
+
 		return err
 	}); err != nil {
 		return nil, err

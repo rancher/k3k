@@ -76,6 +76,7 @@ var ConfigMapTests = func() {
 		By(fmt.Sprintf("Created configmap %s in virtual cluster", configMap.Name))
 
 		var hostConfigMap v1.ConfigMap
+
 		hostConfigMapName := translateName(cluster, configMap.Namespace, configMap.Name)
 
 		Eventually(func() error {
@@ -113,6 +114,7 @@ var ConfigMapTests = func() {
 		By(fmt.Sprintf("Created configmap %s in virtual cluster", configMap.Name))
 
 		var hostConfigMap v1.ConfigMap
+
 		hostConfigMapName := translateName(cluster, configMap.Namespace, configMap.Name)
 
 		Eventually(func() error {
@@ -146,6 +148,7 @@ var ConfigMapTests = func() {
 			key := client.ObjectKey{Name: hostConfigMapName, Namespace: namespace}
 			err = hostTestEnv.k8sClient.Get(ctx, key, &hostConfigMap)
 			Expect(err).NotTo(HaveOccurred())
+
 			return hostConfigMap.Labels
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -172,6 +175,7 @@ var ConfigMapTests = func() {
 		By(fmt.Sprintf("Created configmap %s in virtual cluster", configMap.Name))
 
 		var hostConfigMap v1.ConfigMap
+
 		hostConfigMapName := translateName(cluster, configMap.Namespace, configMap.Name)
 
 		Eventually(func() error {
@@ -192,6 +196,7 @@ var ConfigMapTests = func() {
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostConfigMapName, Namespace: namespace}
 			err := hostTestEnv.k8sClient.Get(ctx, key, &hostConfigMap)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).
@@ -221,12 +226,14 @@ var ConfigMapTests = func() {
 		By(fmt.Sprintf("Created configmap %s in virtual cluster", configMap.Name))
 
 		var hostConfigMap v1.ConfigMap
+
 		hostConfigMapName := translateName(cluster, configMap.Namespace, configMap.Name)
 
 		Eventually(func() bool {
 			key := client.ObjectKey{Name: hostConfigMapName, Namespace: namespace}
 			err := hostTestEnv.k8sClient.Get(ctx, key, &hostConfigMap)
 			GinkgoWriter.Printf("error: %v", err)
+
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Millisecond * 300).

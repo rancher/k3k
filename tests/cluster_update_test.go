@@ -20,7 +20,9 @@ import (
 
 var _ = When("a shared mode cluster update its envs", Label(e2eTestLabel), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
+
 	ctx := context.Background()
+
 	BeforeEach(func() {
 		namespace := NewNamespace()
 
@@ -174,7 +176,9 @@ var _ = When("a shared mode cluster update its envs", Label(e2eTestLabel), Label
 
 var _ = When("a shared mode cluster update its server args", Label(e2eTestLabel), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
+
 	ctx := context.Background()
+
 	BeforeEach(func() {
 		namespace := NewNamespace()
 
@@ -238,7 +242,9 @@ var _ = When("a shared mode cluster update its server args", Label(e2eTestLabel)
 
 var _ = When("a virtual mode cluster update its envs", Label(e2eTestLabel), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
+
 	ctx := context.Background()
+
 	BeforeEach(func() {
 		namespace := NewNamespace()
 
@@ -389,7 +395,9 @@ var _ = When("a virtual mode cluster update its envs", Label(e2eTestLabel), Labe
 
 var _ = When("a virtual mode cluster update its server args", Label(e2eTestLabel), Label(updateTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
+
 	ctx := context.Background()
+
 	BeforeEach(func() {
 		namespace := NewNamespace()
 
@@ -502,6 +510,7 @@ var _ = When("a shared mode cluster update its version", Label(e2eTestLabel), La
 
 	It("will update server version when version spec is updated", func() {
 		var cluster v1beta1.Cluster
+
 		ctx := context.Background()
 
 		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
@@ -531,6 +540,7 @@ var _ = When("a shared mode cluster update its version", Label(e2eTestLabel), La
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
+
 			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
@@ -594,6 +604,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 
 	It("will update server version when version spec is updated", func() {
 		var cluster v1beta1.Cluster
+
 		ctx := context.Background()
 
 		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
@@ -649,6 +660,7 @@ var _ = When("a shared mode cluster scales up servers", Label(e2eTestLabel), Lab
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
 	)
+
 	BeforeEach(func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
@@ -691,6 +703,7 @@ var _ = When("a shared mode cluster scales up servers", Label(e2eTestLabel), Lab
 	})
 	It("will scale up server pods", func() {
 		var cluster v1beta1.Cluster
+
 		ctx := context.Background()
 
 		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
@@ -719,6 +732,7 @@ var _ = When("a shared mode cluster scales up servers", Label(e2eTestLabel), Lab
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
+
 			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
@@ -734,6 +748,7 @@ var _ = When("a shared mode cluster scales down servers", Label(e2eTestLabel), L
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
 	)
+
 	BeforeEach(func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
@@ -780,6 +795,7 @@ var _ = When("a shared mode cluster scales down servers", Label(e2eTestLabel), L
 	})
 	It("will scale down server pods", func() {
 		var cluster v1beta1.Cluster
+
 		ctx := context.Background()
 
 		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
@@ -806,6 +822,7 @@ var _ = When("a shared mode cluster scales down servers", Label(e2eTestLabel), L
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
+
 			_, cond = pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
@@ -821,6 +838,7 @@ var _ = When("a virtual mode cluster scales up servers", Label(e2eTestLabel), La
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
 	)
+
 	BeforeEach(func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
@@ -863,6 +881,7 @@ var _ = When("a virtual mode cluster scales up servers", Label(e2eTestLabel), La
 	})
 	It("will scale up server pods", func() {
 		var cluster v1beta1.Cluster
+
 		ctx := context.Background()
 
 		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
@@ -891,6 +910,7 @@ var _ = When("a virtual mode cluster scales up servers", Label(e2eTestLabel), La
 
 			nginxPod, err = virtualCluster.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 			g.Expect(err).To(BeNil())
+
 			_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
@@ -906,6 +926,7 @@ var _ = When("a virtual mode cluster scales down servers", Label(e2eTestLabel), 
 		virtualCluster *VirtualCluster
 		nginxPod       *v1.Pod
 	)
+
 	BeforeEach(func() {
 		ctx := context.Background()
 		namespace := NewNamespace()
@@ -955,6 +976,7 @@ var _ = When("a virtual mode cluster scales down servers", Label(e2eTestLabel), 
 		By("Scaling down cluster")
 
 		var cluster v1beta1.Cluster
+
 		ctx := context.Background()
 
 		err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)

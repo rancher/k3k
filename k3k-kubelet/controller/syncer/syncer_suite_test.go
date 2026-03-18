@@ -133,6 +133,7 @@ var _ = Describe("Kubelet Controller", func() {
 
 	BeforeEach(func() {
 		var err error
+
 		ctx, cancel = context.WithCancel(context.Background())
 
 		hostManager, err = ctrl.NewManager(hostTestEnv.Config, ctrl.Options{
@@ -151,12 +152,14 @@ var _ = Describe("Kubelet Controller", func() {
 
 		go func() {
 			defer GinkgoRecover()
+
 			err := hostManager.Start(ctx)
 			Expect(err).NotTo(HaveOccurred(), "failed to run host manager")
 		}()
 
 		go func() {
 			defer GinkgoRecover()
+
 			err := virtManager.Start(ctx)
 			Expect(err).NotTo(HaveOccurred(), "failed to run virt manager")
 		}()

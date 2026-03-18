@@ -16,8 +16,8 @@ echo "Building k3k... [cli os/arch: $(go env GOOS)/$(go env GOARCH)]"
 echo "Current TAG: ${VERSION} "
 
 export CGO_ENABLED=0
-GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" "${build_args[@]}" -o bin/k3k
-GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" "${build_args[@]}" -o bin/k3k-kubelet ./k3k-kubelet
+GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" "${build_args[@]+"${build_args[@]}"}" -o bin/k3k
+GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" "${build_args[@]+"${build_args[@]}"}" -o bin/k3k-kubelet ./k3k-kubelet
 
 # build the cli for the local OS and ARCH
-go build -ldflags="${LDFLAGS}" "${build_args[@]}" -o bin/k3kcli ./cli
+go build -ldflags="${LDFLAGS}" "${build_args[@]+"${build_args[@]}"}" -o bin/k3kcli ./cli

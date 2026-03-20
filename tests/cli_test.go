@@ -255,7 +255,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			})
 
 			// Create the cluster with initial version
-			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.35.2-k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.35.0-k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
@@ -293,7 +293,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 
 			// Attempt to downgrade should fail
-			_, stderr, err = K3kcli("cluster", "update", "-y", "--version", "v1.35.2-k3s1", "--namespace", clusterNamespace, clusterName)
+			_, stderr, err = K3kcli("cluster", "update", "-y", "--version", "v1.35.0-k3s1", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(HaveOccurred())
 			Expect(stderr).To(ContainSubstring("downgrading cluster version is not supported"))
 

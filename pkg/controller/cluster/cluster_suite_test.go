@@ -16,6 +16,7 @@ import (
 
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/cluster"
@@ -61,7 +62,7 @@ var _ = BeforeSuite(func() {
 
 	ctrl.SetLogger(zapr.NewLogger(zap.NewNop()))
 
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scheme})
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scheme, Metrics: metricsserver.Options{BindAddress: "0"}})
 	Expect(err).NotTo(HaveOccurred())
 
 	portAllocator, err := agent.NewPortAllocator(ctx, mgr.GetClient())

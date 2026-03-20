@@ -66,16 +66,12 @@ func AddPodMutatingWebhook(ctx context.Context, mgr manager.Manager, hostClient 
 		}
 	}
 	// register webhook with the manager
-	return ctrl.NewWebhookManagedBy(mgr).For(&v1.Pod{}).WithDefaulter(&handler).Complete()
+	return ctrl.NewWebhookManagedBy(mgr, &v1.Pod{}).WithDefaulter(&handler).Complete()
 }
 
-func (w *webhookHandler) Default(ctx context.Context, obj runtime.Object) error {
-	pod, ok := obj.(*v1.Pod)
-	if !ok {
-		return fmt.Errorf("invalid request: object was type %t not cluster", obj)
-	}
-
+func (w *webhookHandler) Default(ctx context.Context, pod *v1.Pod) error {
 	w.logger.Info("mutating webhook request", "pod", pod.Name, "namespace", pod.Namespace)
+
 	// look for status.* fields in the env
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)

@@ -70,6 +70,7 @@ _Appears in:_
 | `kind` _string_ | `Cluster` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[ClusterSpec](#clusterspec)_ | Spec defines the desired state of the Cluster. | \{  \} |  |
+| `status` _[ClusterStatus](#clusterstatus)_ | Status reflects the observed state of the Cluster. | \{  \} |  |
 
 
 #### ClusterList
@@ -157,6 +158,30 @@ _Appears in:_
 | `secretMounts` _[SecretMount](#secretmount) array_ | SecretMounts specifies a list of secrets to mount into server and agent pods.<br />Each entry defines a secret and its mount path within the pods. |  |  |
 
 
+#### ClusterStatus
+
+
+
+ClusterStatus reflects the observed state of a Cluster.
+
+
+
+_Appears in:_
+- [Cluster](#cluster)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `hostVersion` _string_ | HostVersion is the Kubernetes version of the host node. |  |  |
+| `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for pod IPs. |  |  |
+| `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for service IPs. |  |  |
+| `clusterDNS` _string_ | ClusterDNS is the IP address for the CoreDNS service. |  |  |
+| `tlsSANs` _string array_ | TLSSANs specifies subject alternative names for the K3s server certificate. |  |  |
+| `policyName` _string_ | PolicyName specifies the virtual cluster policy name bound to the virtual cluster. |  |  |
+| `policy` _[AppliedPolicy](#appliedpolicy)_ | policy represents the status of the policy applied to this cluster.<br />This field is set by the VirtualClusterPolicy controller. |  |  |
+| `kubeletPort` _integer_ | KubeletPort specefies the port used by k3k-kubelet in shared mode. |  |  |
+| `webhookPort` _integer_ | WebhookPort specefies the port used by webhook in k3k-kubelet in shared mode. |  |  |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the cluster set. |  |  |
+| `phase` _[ClusterPhase](#clusterphase)_ | Phase is a high-level summary of the cluster's current lifecycle state. | Unknown | Enum: [Pending Provisioning Ready Failed Terminating Unknown] <br /> |
 
 
 #### ConfigMapSyncConfig
@@ -513,6 +538,7 @@ _Appears in:_
 | `kind` _string_ | `VirtualClusterPolicy` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[VirtualClusterPolicySpec](#virtualclusterpolicyspec)_ | Spec defines the desired state of the VirtualClusterPolicy. | \{  \} |  |
+| `status` _[VirtualClusterPolicyStatus](#virtualclusterpolicystatus)_ | Status reflects the observed state of the VirtualClusterPolicy. |  |  |
 
 
 #### VirtualClusterPolicyList
@@ -556,5 +582,22 @@ _Appears in:_
 | `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |
 
 
+#### VirtualClusterPolicyStatus
+
+
+
+VirtualClusterPolicyStatus reflects the observed state of a VirtualClusterPolicy.
+
+
+
+_Appears in:_
+- [VirtualClusterPolicy](#virtualclusterpolicy)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `observedGeneration` _integer_ | ObservedGeneration was the generation at the time the status was updated. |  |  |
+| `lastUpdateTime` _string_ | LastUpdate is the timestamp when the status was last updated. |  |  |
+| `summary` _string_ | Summary is a summary of the status. |  |  |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the cluster set. |  |  |
 
 

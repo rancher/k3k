@@ -88,6 +88,7 @@ _Appears In:_
 | *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
  |  | 
 | *`spec`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]__ | Spec defines the desired state of the Cluster. + | {  } | 
+| *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterstatus[$$ClusterStatus$$]__ | Status reflects the observed state of the Cluster. + | {  } | 
 |===
 
 
@@ -211,6 +212,36 @@ Each entry defines a secret and its mount path within the pods. + |  |
 |===
 
 
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterstatus"]
+=== ClusterStatus
+
+
+
+ClusterStatus reflects the observed state of a Cluster.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-cluster[$$Cluster$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`hostVersion`* __string__ | HostVersion is the Kubernetes version of the host node. + |  | 
+| *`clusterCIDR`* __string__ | ClusterCIDR is the CIDR range for pod IPs. + |  | 
+| *`serviceCIDR`* __string__ | ServiceCIDR is the CIDR range for service IPs. + |  | 
+| *`clusterDNS`* __string__ | ClusterDNS is the IP address for the CoreDNS service. + |  | 
+| *`tlsSANs`* __string array__ | TLSSANs specifies subject alternative names for the K3s server certificate. + |  | 
+| *`policyName`* __string__ | PolicyName specifies the virtual cluster policy name bound to the virtual cluster. + |  | 
+| *`policy`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-appliedpolicy[$$AppliedPolicy$$]__ | policy represents the status of the policy applied to this cluster. +
+This field is set by the VirtualClusterPolicy controller. + |  | 
+| *`kubeletPort`* __integer__ | KubeletPort specefies the port used by k3k-kubelet in shared mode. + |  | 
+| *`webhookPort`* __integer__ | WebhookPort specefies the port used by webhook in k3k-kubelet in shared mode. + |  | 
+| *`conditions`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta[$$Condition$$] array__ | Conditions are the individual conditions for the cluster set. + |  | 
+| *`phase`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterphase[$$ClusterPhase$$]__ | Phase is a high-level summary of the cluster's current lifecycle state. + | Unknown | Enum: [Pending Provisioning Ready Failed Terminating Unknown] +
+
+|===
 
 
 [id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-configmapsyncconfig"]
@@ -680,6 +711,7 @@ _Appears In:_
 | *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
  |  | 
 | *`spec`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicyspec[$$VirtualClusterPolicySpec$$]__ | Spec defines the desired state of the VirtualClusterPolicy. + | {  } | 
+| *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicystatus[$$VirtualClusterPolicyStatus$$]__ | Status reflects the observed state of the VirtualClusterPolicy. + |  | 
 |===
 
 
@@ -735,5 +767,26 @@ to set defaults and constraints (min/max) + |  |
 |===
 
 
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicystatus"]
+=== VirtualClusterPolicyStatus
+
+
+
+VirtualClusterPolicyStatus reflects the observed state of a VirtualClusterPolicy.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicy[$$VirtualClusterPolicy$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`observedGeneration`* __integer__ | ObservedGeneration was the generation at the time the status was updated. + |  | 
+| *`lastUpdateTime`* __string__ | LastUpdate is the timestamp when the status was last updated. + |  | 
+| *`summary`* __string__ | Summary is a summary of the status. + |  | 
+| *`conditions`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta[$$Condition$$] array__ | Conditions are the individual conditions for the cluster set. + |  | 
+|===
 
 

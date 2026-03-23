@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"k8s.io/utils/ptr"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/pkg/controller"
@@ -100,7 +100,7 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 			"mode":    "virtual",
 		},
 	}
-	podSpec := v.podSpec(image, name)
+	podSpec := v.podSpec(ctx, image, name)
 
 	if len(v.cluster.Spec.SecretMounts) > 0 {
 		vols, volMounts := mounts.BuildSecretsMountsVolumes(v.cluster.Spec.SecretMounts, "agent")
@@ -135,7 +135,8 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 	return v.ensureObject(ctx, deployment)
 }
 
-func (v *VirtualAgent) podSpec(image, name string) v1.PodSpec {
+func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSpec {
+	log := ctrl.LoggerFrom(ctx)
 	var limit v1.ResourceList
 
 	args := v.cluster.Spec.AgentArgs
@@ -144,7 +145,7 @@ func (v *VirtualAgent) podSpec(image, name string) v1.PodSpec {
 	// Use the agent affinity from the policy status if it exists, otherwise fall back to the spec.
 	agentAffinity := v.cluster.Spec.AgentAffinity
 	if v.cluster.Status.Policy != nil && v.cluster.Status.Policy.AgentAffinity != nil {
-		logrus.Warnf("Using agent affinity from policy %s for cluster %s", v.cluster.Status.PolicyName, v.cluster.Name)
+		log.V(1).Info("Using agent affinity from policy", "policyName", v.cluster.Status.PolicyName, "clusterName", v.cluster.Name)
 		agentAffinity = v.cluster.Status.Policy.AgentAffinity
 	}
 

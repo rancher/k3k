@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
@@ -17,6 +16,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -143,7 +143,7 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
 				},
-				Spec: s.podSpec(),
+				Spec: s.podSpec(ctx),
 			},
 		},
 	}
@@ -151,7 +151,9 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 	return s.ensureObject(ctx, deploy)
 }
 
-func (s *SharedAgent) podSpec() v1.PodSpec {
+func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
+	log := ctrl.LoggerFrom(ctx)
+
 	hostNetwork := false
 	dnsPolicy := v1.DNSClusterFirst
 
@@ -169,7 +171,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 	// Use the agent affinity from the policy status if it exists, otherwise fall back to the spec.
 	agentAffinity := s.cluster.Spec.AgentAffinity
 	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.AgentAffinity != nil {
-		logrus.Warnf("Using agent affinity from policy %s for cluster %s", s.cluster.Status.PolicyName, s.cluster.Name)
+		log.V(1).Info("Using agent affinity from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
 		agentAffinity = s.cluster.Status.Policy.AgentAffinity
 	}
 

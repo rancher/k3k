@@ -8,7 +8,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
@@ -18,6 +17,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -54,11 +54,13 @@ func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePull
 	}
 }
 
-func (s *Server) podSpec(image, name string, persistent bool, startupCmd string) v1.PodSpec {
+func (s *Server) podSpec(ctx context.Context, image, name string, persistent bool, startupCmd string) v1.PodSpec {
+	log := ctrl.LoggerFrom(ctx)
+
 	// Use the server affinity from the policy status if it exists, otherwise fall back to the spec.
 	serverAffinity := s.cluster.Spec.ServerAffinity
 	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.ServerAffinity != nil {
-		logrus.Warnf("Using server affinity from policy %s for cluster %s", s.cluster.Status.PolicyName, s.cluster.Name)
+		log.V(1).Info("Using server affinity from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
 		serverAffinity = s.cluster.Status.Policy.ServerAffinity
 	}
 
@@ -330,7 +332,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		return nil, err
 	}
 
-	podSpec := s.podSpec(image, name, persistent, startupCommand)
+	podSpec := s.podSpec(ctx, image, name, persistent, startupCommand)
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
 

@@ -479,7 +479,7 @@ var _ = When("a shared mode cluster update its version", Label(e2eTestLabel), La
 		cluster := NewCluster(namespace.Name)
 
 		// Add initial old version
-		cluster.Spec.Version = "v1.33.0-k3s1"
+		cluster.Spec.Version = k3sOldVersion
 
 		// need to enable persistence for this
 		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
@@ -568,7 +568,7 @@ var _ = When("a virtual mode cluster update its version", Label(e2eTestLabel), L
 		cluster := NewCluster(namespace.Name)
 
 		// Add initial old version
-		cluster.Spec.Version = "v1.33.0-k3s1"
+		cluster.Spec.Version = k3sOldVersion
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
 		cluster.Spec.Agents = ptr.To[int32](1)

@@ -469,6 +469,117 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					Should(Succeed())
 			})
 
+			It("updates the cluster policy status with the DefaultServerAffinity and DefaultAgentAffinity", func() {
+				serverAffinity := &v1.Affinity{
+					NodeAffinity: &v1.NodeAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+							{Weight: 10},
+						},
+					},
+				}
+				agentAffinity := serverAffinity.DeepCopy()
+				agentAffinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].Weight = 20
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
+					DefaultServerAffinity: serverAffinity,
+					DefaultAgentAffinity:  agentAffinity,
+				})
+				bindPolicyToNamespace(namespace, policy)
+				err := k8sClient.Update(ctx, policy)
+				Expect(err).To(Not(HaveOccurred()))
+
+				cluster := &v1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "cluster-",
+						Namespace:    namespace.Name,
+					},
+					Spec: v1beta1.ClusterSpec{
+						Mode:    v1beta1.SharedClusterMode,
+						Servers: ptr.To[int32](1),
+						Agents:  ptr.To[int32](0),
+					},
+				}
+				err = k8sClient.Create(ctx, cluster)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait a bit
+				Eventually(func(g Gomega) {
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, cluster)
+					g.Expect(err).To(Not(HaveOccurred()))
+
+					g.Expect(cluster.Spec.AgentAffinity).To(BeNil())
+					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.AgentAffinity).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.AgentAffinity).To(Equal(agentAffinity))
+
+					g.Expect(cluster.Spec.ServerAffinity).To(BeNil())
+					g.Expect(cluster.Status.Policy.ServerAffinity).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.ServerAffinity).To(Equal(serverAffinity))
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(Succeed())
+			})
+
+			It("overrides the cluster ServerAffinity and AgentAffinity with the DefaultServerAffinity and DefaultAgentAffinity from the policy", func() {
+				serverAffinity := &v1.Affinity{
+					NodeAffinity: &v1.NodeAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+							{Weight: 10},
+						},
+					},
+				}
+				agentAffinity := serverAffinity.DeepCopy()
+				agentAffinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].Weight = 20
+				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
+					DefaultServerAffinity: serverAffinity,
+					DefaultAgentAffinity:  agentAffinity,
+				})
+				bindPolicyToNamespace(namespace, policy)
+				err := k8sClient.Update(ctx, policy)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// Cluster values that will get overwritten by the policy in the cluster status
+				clusterAgentAffinity := agentAffinity.DeepCopy()
+				clusterAgentAffinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].Weight = 30
+				clusterServerAffinity := serverAffinity.DeepCopy()
+				clusterServerAffinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].Weight = 40
+				cluster := &v1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "cluster-",
+						Namespace:    namespace.Name,
+					},
+					Spec: v1beta1.ClusterSpec{
+						Mode:           v1beta1.SharedClusterMode,
+						Servers:        ptr.To[int32](1),
+						Agents:         ptr.To[int32](0),
+						AgentAffinity:  clusterAgentAffinity,
+						ServerAffinity: clusterServerAffinity,
+					},
+				}
+				err = k8sClient.Create(ctx, cluster)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// wait a bit
+				Eventually(func(g Gomega) {
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, cluster)
+					g.Expect(err).To(Not(HaveOccurred()))
+
+					g.Expect(cluster.Spec.AgentAffinity).To(Equal(clusterAgentAffinity))
+					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.AgentAffinity).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.AgentAffinity).To(Equal(agentAffinity))
+
+					g.Expect(cluster.Spec.ServerAffinity).To(Equal(clusterServerAffinity))
+					g.Expect(cluster.Status.Policy.ServerAffinity).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.ServerAffinity).To(Equal(serverAffinity))
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(Succeed())
+			})
+
 			It("should create a ResourceQuota if Quota is enabled", func() {
 				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
 					Quota: &v1.ResourceQuotaSpec{

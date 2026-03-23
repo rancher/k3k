@@ -169,6 +169,18 @@ type ClusterSpec struct {
 	// +optional
 	WorkerLimit corev1.ResourceList `json:"workerLimit,omitempty"`
 
+	// ServerAffinity specifies the affinity rules for server pods.
+	// This includes both node affinity and pod affinity/anti-affinity rules.
+	//
+	// +optional
+	ServerAffinity *corev1.Affinity `json:"serverAffinity,omitempty"`
+
+	// AgentAffinity specifies the affinity rules for agent pods.
+	// This includes both node affinity and pod affinity/anti-affinity rules.
+	//
+	// +optional
+	AgentAffinity *corev1.Affinity `json:"agentAffinity,omitempty"`
+
 	// MirrorHostNodes controls whether node objects from the host cluster
 	// are mirrored into the virtual cluster.
 	//
@@ -605,6 +617,18 @@ type AppliedPolicy struct {
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
+	// serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy.
+	// This includes both node affinity and pod affinity/anti-affinity rules.
+	//
+	// +optional
+	ServerAffinity *corev1.Affinity `json:"serverAffinity,omitempty"`
+
+	// agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy.
+	// This includes both node affinity and pod affinity/anti-affinity rules.
+	//
+	// +optional
+	AgentAffinity *corev1.Affinity `json:"agentAffinity,omitempty"`
+
 	// sync is the SyncConfig enforced by the active VirtualClusterPolicy.
 	//
 	// +optional
@@ -681,6 +705,18 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +optional
 	DefaultPriorityClass string `json:"defaultPriorityClass,omitempty"`
+
+	// DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace.
+	// This includes both node affinity and pod affinity/anti-affinity rules.
+	//
+	// +optional
+	DefaultServerAffinity *corev1.Affinity `json:"defaultServerAffinity,omitempty"`
+
+	// DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace.
+	// This includes both node affinity and pod affinity/anti-affinity rules.
+	//
+	// +optional
+	DefaultAgentAffinity *corev1.Affinity `json:"defaultAgentAffinity,omitempty"`
 
 	// AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared".
 	//

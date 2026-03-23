@@ -61,6 +61,10 @@ _Appears In:_
 
 | *`priorityClass`* __string__ | priorityClass is the priority class enforced by the active VirtualClusterPolicy. + |  | 
 | *`nodeSelector`* __object (keys:string, values:string)__ | nodeSelector is a node selector enforced by the active VirtualClusterPolicy. + |  | 
+| *`serverAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy. +
+This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
+| *`agentAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy. +
+This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
 | *`sync`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]__ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. + |  | 
 |===
 
@@ -203,6 +207,10 @@ Example: ["--node-name=my-agent-node"] + |  |
 | *`addons`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-addon[$$Addon$$] array__ | Addons specifies secrets containing raw YAML to deploy on cluster startup. + |  | 
 | *`serverLimit`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core[$$ResourceList$$]__ | ServerLimit specifies resource limits for server nodes. + |  | 
 | *`workerLimit`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core[$$ResourceList$$]__ | WorkerLimit specifies resource limits for agent nodes. + |  | 
+| *`serverAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | ServerAffinity specifies the affinity rules for server pods. +
+This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
+| *`agentAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | AgentAffinity specifies the affinity rules for agent pods. +
+This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
 | *`mirrorHostNodes`* __boolean__ | MirrorHostNodes controls whether node objects from the host cluster +
 are mirrored into the virtual cluster. + |  | 
 | *`customCAs`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customcas[$$CustomCAs$$]__ | CustomCAs specifies the cert/key pairs for custom CA certificates. + |  | 
@@ -758,6 +766,10 @@ _Appears In:_
 to set defaults and constraints (min/max) + |  | 
 | *`defaultNodeSelector`* __object (keys:string, values:string)__ | DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace. + |  | 
 | *`defaultPriorityClass`* __string__ | DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace. + |  | 
+| *`defaultServerAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace. +
+This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
+| *`defaultAgentAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace. +
+This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
 | *`allowedMode`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clustermode[$$ClusterMode$$]__ | AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared". + | shared | Enum: [shared virtual] +
 
 | *`disableNetworkPolicy`* __boolean__ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. + |  | 

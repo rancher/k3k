@@ -1,8 +1,8 @@
-== k3kcli
+=== k3kcli
 
 CLI for K3K.
 
-=== Options
+==== Options
 
 ----
       --debug               Turn on debug logs
@@ -10,24 +10,24 @@ CLI for K3K.
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli cluster
+=== k3kcli cluster
 
 K3k cluster command.
 
-=== Options
+==== Options
 
 ----
   -h, --help   help for cluster
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli cluster create
+=== k3kcli cluster create
 
 Create a new cluster.
 
@@ -35,13 +35,13 @@ Create a new cluster.
 k3kcli cluster create [flags]
 ----
 
-=== Examples
+==== Examples
 
 ----
 k3kcli cluster create [command options] NAME
 ----
 
-=== Options
+==== Options
 
 ----
       --agent-args strings            agents extra arguments
@@ -69,14 +69,14 @@ k3kcli cluster create [command options] NAME
       --version string                k3s version
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli cluster delete
+=== k3kcli cluster delete
 
 Delete an existing cluster.
 
@@ -84,13 +84,13 @@ Delete an existing cluster.
 k3kcli cluster delete [flags]
 ----
 
-=== Examples
+==== Examples
 
 ----
 k3kcli cluster delete [command options] NAME
 ----
 
-=== Options
+==== Options
 
 ----
   -h, --help               help for delete
@@ -98,14 +98,14 @@ k3kcli cluster delete [command options] NAME
   -n, --namespace string   namespace of the k3k cluster
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli cluster list
+=== k3kcli cluster list
 
 List all existing clusters.
 
@@ -113,27 +113,27 @@ List all existing clusters.
 k3kcli cluster list [flags]
 ----
 
-=== Examples
+==== Examples
 
 ----
 k3kcli cluster list [command options]
 ----
 
-=== Options
+==== Options
 
 ----
   -h, --help               help for list
   -n, --namespace string   namespace of the k3k cluster
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli cluster update
+=== k3kcli cluster update
 
 Update existing cluster
 
@@ -141,13 +141,13 @@ Update existing cluster
 k3kcli cluster update [flags]
 ----
 
-=== Examples
+==== Examples
 
 ----
 k3kcli cluster update [command options] NAME
 ----
 
-=== Options
+==== Options
 
 ----
       --agents int32              number of agents
@@ -160,31 +160,31 @@ k3kcli cluster update [command options] NAME
       --version string            k3s version
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli kubeconfig
+=== k3kcli kubeconfig
 
 Manage kubeconfig for clusters.
 
-=== Options
+==== Options
 
 ----
   -h, --help   help for kubeconfig
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli kubeconfig generate
+=== k3kcli kubeconfig generate
 
 Generate kubeconfig for clusters.
 
@@ -192,7 +192,7 @@ Generate kubeconfig for clusters.
 k3kcli kubeconfig generate [flags]
 ----
 
-=== Options
+==== Options
 
 ----
       --altNames strings           altNames of the generated certificates for the kubeconfig
@@ -206,31 +206,31 @@ k3kcli kubeconfig generate [flags]
       --org strings                Organization name (ORG) of the generated certificates for the kubeconfig
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli policy
+=== k3kcli policy
 
 K3k policy command.
 
-=== Options
+==== Options
 
 ----
   -h, --help   help for policy
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli policy create
+=== k3kcli policy create
 
 Create a new policy.
 
@@ -238,13 +238,13 @@ Create a new policy.
 k3kcli policy create [flags]
 ----
 
-=== Examples
+==== Examples
 
 ----
 k3kcli policy create [command options] NAME
 ----
 
-=== Options
+==== Options
 
 ----
       --annotations stringArray   Annotations to add to the policy object (e.g. key=value)
@@ -255,14 +255,14 @@ k3kcli policy create [command options] NAME
       --overwrite                 Overwrite namespace binding of existing policy
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli policy delete
+=== k3kcli policy delete
 
 Delete an existing policy.
 
@@ -270,26 +270,26 @@ Delete an existing policy.
 k3kcli policy delete [flags]
 ----
 
-=== Examples
+==== Examples
 
 ----
 k3kcli policy delete [command options] NAME
 ----
 
-=== Options
+==== Options
 
 ----
   -h, --help   help for delete
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs
       --kubeconfig string   kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)
 ----
 
-== k3kcli policy list
+=== k3kcli policy list
 
 List all existing policies.
 
@@ -297,19 +297,19 @@ List all existing policies.
 k3kcli policy list [flags]
 ----
 
-=== Examples
+==== Examples
 
 ----
 k3kcli policy list [command options]
 ----
 
-=== Options
+==== Options
 
 ----
   -h, --help   help for list
 ----
 
-=== Options inherited from parent commands
+==== Options inherited from parent commands
 
 ----
       --debug               Turn on debug logs

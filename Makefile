@@ -57,7 +57,7 @@ push-%:
 
 .PHONY: test
 test:	## Run all the tests
-	$(GINKGO) $(GINKGO_FLAGS) --label-filter=$(label-filter)
+	$(GINKGO) $(GINKGO_FLAGS) --label-filter=$(label-filter) -r
 
 .PHONY: test-unit
 test-unit:	## Run the unit tests (skips the e2e)
@@ -73,7 +73,7 @@ test-kubelet-controller:	## Run the controller tests (pkg/controller)
 
 .PHONY: test-e2e
 test-e2e:	## Run the e2e tests
-	$(GINKGO) $(GINKGO_FLAGS) --label-filter="$(E2E_LABEL_FILTER)" tests
+	$(GINKGO) $(GINKGO_FLAGS) --label-filter="$(E2E_LABEL_FILTER)" tests/e2e
 
 .PHONY: test-cli
 test-cli:	## Run the cli tests

@@ -12,9 +12,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 )
 
-const (
-	webhookName = "podmutating.k3k.io"
-)
+const webhookName = "podmutating.k3k.io"
 
 func RemovePodMutatingWebhook(ctx context.Context, virtualClient, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace string) error {
 	webhookSecret := &v1.Secret{

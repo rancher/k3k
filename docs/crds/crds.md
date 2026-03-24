@@ -183,7 +183,6 @@ _Appears in:_
 | `policyName` _string_ | PolicyName specifies the virtual cluster policy name bound to the virtual cluster. |  |  |
 | `policy` _[AppliedPolicy](#appliedpolicy)_ | policy represents the status of the policy applied to this cluster.<br />This field is set by the VirtualClusterPolicy controller. |  |  |
 | `kubeletPort` _integer_ | KubeletPort specefies the port used by k3k-kubelet in shared mode. |  |  |
-| `webhookPort` _integer_ | WebhookPort specefies the port used by webhook in k3k-kubelet in shared mode. |  |  |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the cluster set. |  |  |
 | `phase` _[ClusterPhase](#clusterphase)_ | Phase is a high-level summary of the cluster's current lifecycle state. | Unknown | Enum: [Pending Provisioning Ready Failed Terminating Unknown] <br /> |
 

@@ -36,6 +36,7 @@ import (
 	ctrlserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
+	k3kwebhook "github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -137,6 +138,12 @@ func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, e
 	})
 	if err != nil {
 		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
+	}
+
+	logger.Info("removing pod mutating webhook")
+
+	if err := k3kwebhook.RemovePodMutatingWebhook(ctx, virtualMgr.GetClient(), hostClient, c.ClusterName, c.ClusterNamespace); err != nil {
+		return nil, errors.New("unable to remove pod mutating webhook for virtual cluster: " + err.Error())
 	}
 
 	if err := addControllers(ctx, hostMgr, virtualMgr, c, hostClient); err != nil {

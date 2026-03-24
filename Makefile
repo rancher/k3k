@@ -57,15 +57,11 @@ push-%:
 
 .PHONY: test
 test:	## Run all the tests
-	$(GINKGO) $(GINKGO_FLAGS) --label-filter=$(label-filter) -r
+	$(GINKGO) $(GINKGO_FLAGS) --label-filter=$(label-filter)
 
 .PHONY: test-unit
 test-unit:	## Run the unit tests (skips the e2e)
 	$(GINKGO) $(GINKGO_FLAGS) --skip-file=tests/*
-
-.PHONY: test-controller
-test-controller:	## Run the controller tests (pkg/controller)
-	$(GINKGO) $(GINKGO_FLAGS) pkg/controller
 
 .PHONY: test-kubelet-controller
 test-kubelet-controller:	## Run the controller tests (pkg/controller)
@@ -78,6 +74,10 @@ test-e2e:	## Run the e2e tests
 .PHONY: test-cli
 test-cli:	## Run the cli tests
 	$(GINKGO) $(GINKGO_FLAGS) --label-filter=cli --flake-attempts=3 tests/cli
+
+.PHONY: test-integration
+test-integration:	## Run the integration tests
+	$(GINKGO) $(GINKGO_FLAGS) tests/integration
 
 .PHONY: generate
 generate:	## Generate the CRDs specs

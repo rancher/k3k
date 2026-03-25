@@ -2,11 +2,9 @@ package cli_test
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"maps"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 	"testing"
@@ -18,19 +16,13 @@ import (
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -53,7 +45,6 @@ func TestTests(t *testing.T) {
 
 var (
 	k3sContainer     *k3s.K3sContainer
-	hostIP           string
 	restcfg          *rest.Config
 	k8s              *kubernetes.Clientset
 	k8sClient        client.Client
@@ -64,8 +55,6 @@ var (
 var _ = BeforeSuite(func() {
 	ctx := context.Background()
 
-	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
-
 	_, dockerInstallEnabled := os.LookupEnv("K3K_DOCKER_INSTALL")
 
 	if dockerInstallEnabled {
@@ -75,16 +64,14 @@ var _ = BeforeSuite(func() {
 		}
 
 		installK3SDocker(ctx, repo+"/k3k", repo+"/k3k-kubelet")
-		initKubernetesClient(ctx)
+		initKubernetesClient()
 		installK3kChart(repo+"/k3k", repo+"/k3k-kubelet")
 	} else {
-		initKubernetesClient(ctx)
+		initKubernetesClient()
 	}
-
-	patchPVC(ctx, k8s)
 })
 
-func initKubernetesClient(ctx context.Context) {
+func initKubernetesClient() {
 	var (
 		err        error
 		kubeconfig []byte
@@ -102,9 +89,6 @@ func initKubernetesClient(ctx context.Context) {
 	Expect(err).To(Not(HaveOccurred()))
 
 	restcfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-	Expect(err).To(Not(HaveOccurred()))
-
-	hostIP, err = getServerIP(ctx, restcfg)
 	Expect(err).To(Not(HaveOccurred()))
 
 	k8s, err = kubernetes.NewForConfig(restcfg)
@@ -223,100 +207,8 @@ func installK3kChart(controllerImage, kubeletImage string) {
 	GinkgoWriter.Printf("Helm release '%s' installed in '%s' namespace\n", release.Name, release.Namespace)
 }
 
-func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
-	deployments, err := clientset.AppsV1().Deployments(k3kNamespace).List(ctx, metav1.ListOptions{})
-	Expect(err).To(Not(HaveOccurred()))
-	Expect(deployments.Items).To(HaveLen(1))
-
-	k3kDeployment := &deployments.Items[0]
-
-	pvc := &v1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "coverage-data-pvc",
-			Namespace: k3kNamespace,
-		},
-		Spec: v1.PersistentVolumeClaimSpec{
-			AccessModes: []v1.PersistentVolumeAccessMode{
-				v1.ReadWriteOnce,
-			},
-			Resources: v1.VolumeResourceRequirements{
-				Requests: v1.ResourceList{
-					v1.ResourceStorage: resource.MustParse("100M"),
-				},
-			},
-		},
-	}
-
-	_, err = clientset.CoreV1().PersistentVolumeClaims(k3kNamespace).Create(ctx, pvc, metav1.CreateOptions{})
-	Expect(client.IgnoreAlreadyExists(err)).To(Not(HaveOccurred()))
-
-	k3kSpec := k3kDeployment.Spec.Template.Spec
-
-	// check if the Deployment has already the volume for the coverage
-	for _, volumes := range k3kSpec.Volumes {
-		if volumes.Name == "tmp-covdata" {
-			return
-		}
-	}
-
-	k3kSpec.Volumes = append(k3kSpec.Volumes, v1.Volume{
-		Name: "tmp-covdata",
-		VolumeSource: v1.VolumeSource{
-			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-				ClaimName: "coverage-data-pvc",
-			},
-		},
-	})
-
-	k3kSpec.Containers[0].VolumeMounts = append(k3kSpec.Containers[0].VolumeMounts, v1.VolumeMount{
-		Name:      "tmp-covdata",
-		MountPath: "/tmp/covdata",
-	})
-
-	k3kSpec.Containers[0].Env = append(k3kSpec.Containers[0].Env, v1.EnvVar{
-		Name:  "GOCOVERDIR",
-		Value: "/tmp/covdata",
-	})
-
-	k3kDeployment.Spec.Template.Spec = k3kSpec
-
-	_, err = clientset.AppsV1().Deployments(k3kNamespace).Update(ctx, k3kDeployment, metav1.UpdateOptions{})
-	Expect(err).To(Not(HaveOccurred()))
-
-	Eventually(func(g Gomega) {
-		GinkgoWriter.Println("Checking K3k deployment status")
-
-		dep, err := clientset.AppsV1().Deployments(k3kNamespace).Get(ctx, k3kDeployment.Name, metav1.GetOptions{})
-		g.Expect(err).To(Not(HaveOccurred()))
-		g.Expect(dep.Generation).To(Equal(dep.Status.ObservedGeneration))
-
-		var availableCond appsv1.DeploymentCondition
-
-		for _, cond := range dep.Status.Conditions {
-			if cond.Type == appsv1.DeploymentAvailable {
-				availableCond = cond
-				break
-			}
-		}
-
-		g.Expect(availableCond.Type).To(Equal(appsv1.DeploymentAvailable))
-		g.Expect(availableCond.Status).To(Equal(v1.ConditionTrue))
-	}).
-		WithPolling(time.Second).
-		WithTimeout(time.Second * 30).
-		Should(Succeed())
-}
-
 var _ = AfterSuite(func() {
 	ctx := context.Background()
-
-	goCoverDir := os.Getenv("GOCOVERDIR")
-	if goCoverDir == "" {
-		goCoverDir = path.Join(os.TempDir(), "covdata")
-		Expect(os.MkdirAll(goCoverDir, 0o755)).To(Succeed())
-	}
-
-	dumpK3kCoverageData(ctx, goCoverDir)
 
 	if k3sContainer != nil {
 		// dump k3s logs
@@ -324,125 +216,9 @@ var _ = AfterSuite(func() {
 		Expect(err).To(Not(HaveOccurred()))
 		writeLogs("k3s.log", k3sLogs)
 
-		// dump k3k controller logs
-		k3kLogs := getK3kLogs(ctx)
-		writeLogs("k3k.log", k3kLogs)
-
 		testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
 	}
 })
-
-// dumpK3kCoverageData will kill the K3k controller container to force it to dump the coverage data.
-// It will then download the files with kubectl cp into the specified folder. If the folder doesn't exists it will be created.
-func dumpK3kCoverageData(ctx context.Context, folder string) {
-	By("Restarting k3k controller")
-
-	var podList v1.PodList
-
-	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
-	Expect(err).To(Not(HaveOccurred()))
-	Expect(podList.Items).To(Not(BeZero()))
-
-	k3kPod := podList.Items[0]
-	k3kContainerName := k3kPod.Spec.Containers[0].Name
-
-	By("Restarting k3k controller " + k3kPod.Name + "/" + k3kContainerName)
-
-	cmd := exec.Command("kubectl", "exec", "-n", k3kNamespace, k3kPod.Name, "-c", k3kContainerName, "--", "/bin/sh", "-c", "kill 1")
-	output, err := cmd.CombinedOutput()
-	Expect(err).NotTo(HaveOccurred(), string(output))
-
-	By("Waiting to be ready again")
-
-	Eventually(func(g Gomega) {
-		key := types.NamespacedName{
-			Namespace: k3kNamespace,
-			Name:      k3kPod.Name,
-		}
-
-		var controllerPod v1.Pod
-
-		err = k8sClient.Get(ctx, key, &controllerPod)
-		g.Expect(err).To(Not(HaveOccurred()))
-
-		_, cond := pod.GetPodCondition(&controllerPod.Status, v1.PodReady)
-		g.Expect(cond).NotTo(BeNil())
-		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
-	}).
-		MustPassRepeatedly(5).
-		WithPolling(time.Second * 2).
-		WithTimeout(time.Minute * 2).
-		Should(Succeed())
-
-	By("Controller is ready again, dumping coverage data")
-
-	GinkgoWriter.Printf("Downloading covdata from k3k controller %s/%s to %s\n", k3kNamespace, k3kPod.Name, folder)
-
-	tarPod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "tar",
-			Namespace: k3kNamespace,
-		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{{
-				Name:    "tar",
-				Image:   "busybox",
-				Command: []string{"/bin/sh", "-c", "sleep 3600"},
-				VolumeMounts: []v1.VolumeMount{{
-					Name:      "tmp-covdata",
-					MountPath: "/tmp/covdata",
-				}},
-			}},
-			Volumes: []v1.Volume{{
-				Name: "tmp-covdata",
-				VolumeSource: v1.VolumeSource{
-					PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-						ClaimName: "coverage-data-pvc",
-					},
-				},
-			}},
-		},
-	}
-
-	_, err = k8s.CoreV1().Pods(k3kNamespace).Create(ctx, tarPod, metav1.CreateOptions{})
-	Expect(client.IgnoreAlreadyExists(err)).To(Not(HaveOccurred()))
-
-	By("Waiting for tar pod to be ready")
-
-	Eventually(func(g Gomega) {
-		err = k8sClient.Get(ctx, client.ObjectKeyFromObject(tarPod), tarPod)
-		g.Expect(err).To(Not(HaveOccurred()))
-
-		_, cond := pod.GetPodCondition(&tarPod.Status, v1.PodReady)
-		g.Expect(cond).NotTo(BeNil())
-		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
-	}).
-		WithPolling(time.Second).
-		WithTimeout(time.Minute).
-		Should(Succeed())
-
-	By("Copying covdata from tar pod")
-
-	cmd = exec.Command("kubectl", "cp", fmt.Sprintf("%s/%s:/tmp/covdata", k3kNamespace, tarPod.Name), folder)
-	output, err = cmd.CombinedOutput()
-	Expect(err).NotTo(HaveOccurred(), string(output))
-
-	Expect(k8sClient.Delete(ctx, tarPod)).To(Succeed())
-}
-
-func getK3kLogs(ctx context.Context) io.ReadCloser {
-	var podList v1.PodList
-
-	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
-	Expect(err).To(Not(HaveOccurred()))
-
-	k3kPod := podList.Items[0]
-	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &v1.PodLogOptions{Previous: true})
-	podLogs, err := req.Stream(ctx)
-	Expect(err).To(Not(HaveOccurred()))
-
-	return podLogs
-}
 
 func writeLogs(filename string, logs io.ReadCloser) {
 	logsStr, err := io.ReadAll(logs)

@@ -64,15 +64,15 @@ test-unit:	## Run the unit tests (skips the e2e and integration tests)
 	$(GINKGO) $(GINKGO_FLAGS) --skip-file=tests/*
 
 .PHONY: test-kubelet
-test-kubelet:	## Run the k3k-kubelet tests (tests/integration/k3k-kubelet)
+test-kubelet:	## Run the k3k-kubelet controller tests (tests/integration/k3k-kubelet)
 	$(GINKGO) $(GINKGO_FLAGS) tests/integration/k3k-kubelet
 
 .PHONY: test-policy
-test-policy:	## Run the policy tests (tests/integration/policy)
+test-policy:	## Run the policy controller tests (tests/integration/policy)
 	$(GINKGO) $(GINKGO_FLAGS) tests/integration/policy
 
 .PHONY: test-cluster
-test-cluster:	## Run the cluster tests (tests/integration/cluster)
+test-cluster:	## Run the cluster controller tests (tests/integration/cluster)
 	$(GINKGO) $(GINKGO_FLAGS) tests/integration/cluster
 
 .PHONY: test-integration

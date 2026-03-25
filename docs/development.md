@@ -51,9 +51,11 @@ To see all the available Make commands you can run `make help`, i.e:
   package                        Package the k3k and k3k-kubelet Docker images
   push                           Push the K3k images to the registry
   test                           Run all the tests
-  test-unit                      Run the unit tests (skips the e2e)
-  test-controller                Run the controller tests (pkg/controller)
-  test-kubelet-controller        Run the controller tests (pkg/controller)
+  test-unit                      Run the unit tests (skips the e2e and integration tests)
+  test-kubelet                   Run the k3k-kubelet controller tests (tests/integration/k3k-kubelet)
+  test-policy                    Run the policy controller tests (tests/integration/policy)
+  test-cluster                   Run the cluster controller tests (tests/integration/cluster)
+  test-integration               Run the controller tests (pkg/controller)
   test-e2e                       Run the e2e tests
   test-cli                       Run the cli tests
   generate                       Generate the CRDs specs

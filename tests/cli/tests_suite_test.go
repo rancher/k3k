@@ -170,7 +170,7 @@ func installK3kChart(controllerImage, kubeletImage string) {
 	pwd, err := os.Getwd()
 	Expect(err).To(Not(HaveOccurred()))
 
-	k3kChart, err := loader.Load(path.Join(pwd, "../charts/k3k"))
+	k3kChart, err := loader.Load(path.Join(pwd, "../../charts/k3k"))
 	Expect(err).To(Not(HaveOccurred()))
 
 	helmActionConfig = new(action.Configuration)
@@ -341,6 +341,7 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 
 	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
 	Expect(err).To(Not(HaveOccurred()))
+	Expect(podList.Items).To(Not(BeZero()))
 
 	k3kPod := podList.Items[0]
 	k3kContainerName := k3kPod.Spec.Containers[0].Name

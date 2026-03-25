@@ -223,6 +223,82 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 		})
 	})
 
+	When("creating a Pod with downward API variables in environment variable", func() {
+		var virtualPod *v1.Pod
+
+		BeforeEach(func() {
+			p := &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "nginx-",
+					Namespace:    "default",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "nginx",
+							Image: "nginx",
+							Env: []v1.EnvVar{
+								{
+									Name: "POD_NAME",
+									ValueFrom: &v1.EnvVarSource{
+										FieldRef: &v1.ObjectFieldSelector{
+											FieldPath: "metadata.name",
+										},
+									},
+								},
+								{
+									Name: "STATUS_POD_IP",
+									ValueFrom: &v1.EnvVarSource{
+										FieldRef: &v1.ObjectFieldSelector{
+											FieldPath: "status.podIP",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			ctx := context.Background()
+
+			var err error
+
+			virtualPod, err = virtualCluster.Client.CoreV1().Pods(p.Namespace).Create(ctx, p, metav1.CreateOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+		})
+
+		It("should be scheduled and running", func() {
+			ctx := context.Background()
+
+			By("Checking the container status of the Pod in the Virtual Cluster")
+
+			Eventually(func(g Gomega) {
+				pod, err := virtualCluster.Client.CoreV1().Pods(virtualPod.Namespace).Get(ctx, virtualPod.Name, metav1.GetOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+				g.Expect(pod.Status.PodIP).NotTo(BeEmpty())
+			}).
+				WithPolling(time.Second).
+				WithTimeout(time.Minute).
+				Should(Succeed())
+
+			By("Checking the container status of the Pod in the Host Cluster")
+
+			Eventually(func(g Gomega) {
+				translator := translate.NewHostTranslator(virtualCluster.Cluster)
+				hostPodName := translator.NamespacedName(virtualPod)
+
+				pod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+			}).
+				WithPolling(time.Second).
+				WithTimeout(time.Minute).
+				Should(Succeed())
+		})
+	})
+
 	When("installing the nginx-ingress controller", func() {
 		BeforeAll(func() {
 			By("installing the nginx-ingress controller")

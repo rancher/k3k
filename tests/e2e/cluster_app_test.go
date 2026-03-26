@@ -43,7 +43,7 @@ var _ = FContext("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			}
 		)
 
-		BeforeEach(func() {
+		BeforeAll(func() {
 			var err error
 
 			ctx := context.Background()
@@ -195,7 +195,7 @@ var _ = FContext("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			}
 		)
 
-		BeforeEach(func() {
+		BeforeAll(func() {
 			var err error
 
 			ctx := context.Background()

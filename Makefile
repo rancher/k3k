@@ -60,24 +60,32 @@ test:	## Run all the tests
 	$(GINKGO) $(GINKGO_FLAGS) --label-filter=$(label-filter)
 
 .PHONY: test-unit
-test-unit:	## Run the unit tests (skips the e2e)
+test-unit:	## Run the unit tests (skips the e2e and integration tests)
 	$(GINKGO) $(GINKGO_FLAGS) --skip-file=tests/*
 
-.PHONY: test-controller
-test-controller:	## Run the controller tests (pkg/controller)
-	$(GINKGO) $(GINKGO_FLAGS) pkg/controller
+.PHONY: test-kubelet
+test-kubelet:	## Run the k3k-kubelet controller tests (tests/integration/k3k-kubelet)
+	$(GINKGO) $(GINKGO_FLAGS) tests/integration/k3k-kubelet
 
-.PHONY: test-kubelet-controller
-test-kubelet-controller:	## Run the controller tests (pkg/controller)
-	$(GINKGO) $(GINKGO_FLAGS) k3k-kubelet/controller
+.PHONY: test-policy
+test-policy:	## Run the policy controller tests (tests/integration/policy)
+	$(GINKGO) $(GINKGO_FLAGS) tests/integration/policy
+
+.PHONY: test-cluster
+test-cluster:	## Run the cluster controller tests (tests/integration/cluster)
+	$(GINKGO) $(GINKGO_FLAGS) tests/integration/cluster
+
+.PHONY: test-integration
+test-integration:	## Run the controller tests that use envtest (tests/integration)
+	$(GINKGO) $(GINKGO_FLAGS) tests/integration
 
 .PHONY: test-e2e
 test-e2e:	## Run the e2e tests
-	$(GINKGO) $(GINKGO_FLAGS) --label-filter="$(E2E_LABEL_FILTER)" tests
+	$(GINKGO) $(GINKGO_FLAGS) --label-filter="$(E2E_LABEL_FILTER)" tests/e2e
 
 .PHONY: test-cli
 test-cli:	## Run the cli tests
-	$(GINKGO) $(GINKGO_FLAGS) --label-filter=cli --flake-attempts=3 tests
+	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=3 tests/cli
 
 .PHONY: generate
 generate:	## Generate the CRDs specs

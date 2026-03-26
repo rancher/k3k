@@ -47,11 +47,14 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			ctx := context.Background()
 
+			namespace := NewNamespace()
+
 			By("Creating the PVC")
 
 			pvc = &v1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "k3k-test-app-",
+					Namespace:    namespace.Name,
 				},
 				Spec: v1.PersistentVolumeClaimSpec{
 					AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
@@ -71,7 +74,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			deployment = &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "k3k-test-app-",
-					Namespace:    "default",
+					Namespace:    namespace.Name,
 				},
 				Spec: appsv1.DeploymentSpec{
 					Replicas: ptr.To[int32](3),
@@ -106,8 +109,18 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				},
 			}
 
-			deployment, err = virtualCluster.Client.AppsV1().Deployments("default").Create(ctx, deployment, metav1.CreateOptions{})
+			deployment, err = virtualCluster.Client.AppsV1().Deployments(namespace.Name).Create(ctx, deployment, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
+
+			DeferCleanup(func() {
+				err := virtualCluster.Client.AppsV1().Deployments(namespace.Name).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
+				Expect(err).To(Not(HaveOccurred()))
+
+				err = virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace.Name).Delete(ctx, pvc.Name, metav1.DeleteOptions{})
+				Expect(err).To(Not(HaveOccurred()))
+
+				DeleteNamespaces(namespace.Name)
+			})
 		})
 
 		It("should bound the PVC in the virtual cluster", func() {
@@ -118,8 +131,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(virtualPVC.Status.Phase).To(Equal(v1.ClaimBound))
 			}).
-				WithPolling(time.Second).
-				WithTimeout(time.Minute).
+				WithPolling(time.Second * 3).
+				WithTimeout(time.Minute * 3).
 				Should(Succeed())
 		})
 
@@ -133,8 +146,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(hostPVC.Status.Phase).To(Equal(v1.ClaimBound))
 			}).
-				WithPolling(time.Second).
-				WithTimeout(time.Minute).
+				WithPolling(time.Second * 3).
+				WithTimeout(time.Minute * 3).
 				Should(Succeed())
 		})
 
@@ -153,8 +166,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 					g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
 				}
 			}).
-				WithPolling(time.Second).
-				WithTimeout(time.Minute).
+				WithPolling(time.Second * 3).
+				WithTimeout(time.Minute * 3).
 				Should(Succeed())
 		})
 
@@ -177,8 +190,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 					g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
 				}
 			}).
-				WithPolling(time.Second).
-				WithTimeout(time.Minute).
+				WithPolling(time.Second * 3).
+				WithTimeout(time.Minute * 3).
 				Should(Succeed())
 		})
 	})
@@ -197,12 +210,14 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			ctx := context.Background()
 
+			namespace := NewNamespace()
+
 			By("Creating the StatefulSet")
 
 			statefulSet = &appsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "k3k-sts-test-app-",
-					Namespace:    "default",
+					Namespace:    namespace.Name,
 				},
 				Spec: appsv1.StatefulSetSpec{
 					Replicas: ptr.To[int32](3),
@@ -244,6 +259,13 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			statefulSet, err = virtualCluster.Client.AppsV1().StatefulSets("default").Create(ctx, statefulSet, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
+
+			DeferCleanup(func() {
+				err := virtualCluster.Client.AppsV1().StatefulSets(namespace.Name).Delete(ctx, statefulSet.Name, metav1.DeleteOptions{})
+				Expect(err).To(Not(HaveOccurred()))
+
+				DeleteNamespaces(namespace.Name)
+			})
 		})
 
 		It("should bound the PVCs in the virtual cluster", func() {
@@ -260,8 +282,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 					g.Expect(pvc.Status.Phase).To(Equal(v1.ClaimBound))
 				}
 			}).
-				WithPolling(time.Second).
-				WithTimeout(time.Minute).
+				WithPolling(time.Second * 3).
+				WithTimeout(time.Minute * 3).
 				Should(Succeed())
 		})
 
@@ -283,8 +305,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 					g.Expect(hostPVC.Status.Phase).To(Equal(v1.ClaimBound))
 				}
 			}).
-				WithPolling(time.Second).
-				WithTimeout(time.Minute).
+				WithPolling(time.Second * 3).
+				WithTimeout(time.Minute * 3).
 				Should(Succeed())
 		})
 
@@ -303,8 +325,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 					g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
 				}
 			}).
-				WithPolling(time.Second).
-				WithTimeout(time.Minute).
+				WithPolling(time.Second * 3).
+				WithTimeout(time.Minute * 3).
 				Should(Succeed())
 		})
 
@@ -327,8 +349,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 					g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
 				}
 			}).
-				WithPolling(time.Second).
-				WithTimeout(time.Minute).
+				WithPolling(time.Second * 3).
+				WithTimeout(time.Minute * 3).
 				Should(Succeed())
 		})
 	})

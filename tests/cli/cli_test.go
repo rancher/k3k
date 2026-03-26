@@ -1,4 +1,4 @@
-package k3k_test
+package cli_test
 
 import (
 	"bytes"

@@ -46,7 +46,7 @@ jobs:
         version: v0.30.1
 
     - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
       if: github.repository_owner == 'rancher'
       with:
         secrets: |

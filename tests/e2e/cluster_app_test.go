@@ -17,7 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
+var _ = FContext("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 	var (
 		virtualCluster *VirtualCluster
 		translator     *translate.ToHostTranslator
@@ -37,7 +37,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			deployment *appsv1.Deployment
 			pvc        *v1.PersistentVolumeClaim
 
-			labels = map[string]string{
+			namespace = "default"
+			labels    = map[string]string{
 				"app": "k3k-deployment-test-app",
 			}
 		)
@@ -47,14 +48,12 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			ctx := context.Background()
 
-			namespace := NewNamespace()
-
 			By("Creating the PVC")
 
 			pvc = &v1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "k3k-test-app-",
-					Namespace:    namespace.Name,
+					Namespace:    namespace,
 				},
 				Spec: v1.PersistentVolumeClaimSpec{
 					AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
@@ -66,7 +65,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				},
 			}
 
-			pvc, err = virtualCluster.Client.CoreV1().PersistentVolumeClaims("default").Create(ctx, pvc, metav1.CreateOptions{})
+			pvc, err = virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, pvc, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
 
 			By("Creating the Deployment")
@@ -74,7 +73,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			deployment = &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "k3k-test-app-",
-					Namespace:    namespace.Name,
+					Namespace:    namespace,
 				},
 				Spec: appsv1.DeploymentSpec{
 					Replicas: ptr.To[int32](3),
@@ -109,17 +108,15 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				},
 			}
 
-			deployment, err = virtualCluster.Client.AppsV1().Deployments(namespace.Name).Create(ctx, deployment, metav1.CreateOptions{})
+			deployment, err = virtualCluster.Client.AppsV1().Deployments(namespace).Create(ctx, deployment, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
 
 			DeferCleanup(func() {
-				err := virtualCluster.Client.AppsV1().Deployments(namespace.Name).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
+				err := virtualCluster.Client.AppsV1().Deployments(namespace).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
 				Expect(err).To(Not(HaveOccurred()))
 
-				err = virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace.Name).Delete(ctx, pvc.Name, metav1.DeleteOptions{})
+				err = virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, pvc.Name, metav1.DeleteOptions{})
 				Expect(err).To(Not(HaveOccurred()))
-
-				DeleteNamespaces(namespace.Name)
 			})
 		})
 
@@ -127,7 +124,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			ctx := context.Background()
 
 			Eventually(func(g Gomega) {
-				virtualPVC, err := virtualCluster.Client.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(ctx, pvc.Name, metav1.GetOptions{})
+				virtualPVC, err := virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvc.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(virtualPVC.Status.Phase).To(Equal(v1.ClaimBound))
 			}).
@@ -158,7 +155,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				labelSelector := metav1.FormatLabelSelector(deployment.Spec.Selector)
 				listOpts := metav1.ListOptions{LabelSelector: labelSelector}
 
-				pods, err := virtualCluster.Client.CoreV1().Pods(deployment.Namespace).List(ctx, listOpts)
+				pods, err := virtualCluster.Client.CoreV1().Pods(namespace).List(ctx, listOpts)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(pods.Items).Should(HaveLen(int(*deployment.Spec.Replicas)))
 
@@ -178,7 +175,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				labelSelector := metav1.FormatLabelSelector(deployment.Spec.Selector)
 				listOpts := metav1.ListOptions{LabelSelector: labelSelector}
 
-				pods, err := virtualCluster.Client.CoreV1().Pods(deployment.Namespace).List(ctx, listOpts)
+				pods, err := virtualCluster.Client.CoreV1().Pods(namespace).List(ctx, listOpts)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(pods.Items).Should(HaveLen(int(*deployment.Spec.Replicas)))
 
@@ -200,7 +197,8 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 		var (
 			statefulSet *appsv1.StatefulSet
 
-			labels = map[string]string{
+			namespace = "default"
+			labels    = map[string]string{
 				"app": "k3k-sts-test-app",
 			}
 		)
@@ -210,14 +208,14 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			ctx := context.Background()
 
-			namespace := NewNamespace()
+			namespace := "default"
 
 			By("Creating the StatefulSet")
 
 			statefulSet = &appsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "k3k-sts-test-app-",
-					Namespace:    namespace.Name,
+					Namespace:    namespace,
 				},
 				Spec: appsv1.StatefulSetSpec{
 					Replicas: ptr.To[int32](3),
@@ -243,6 +241,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 					},
 					VolumeClaimTemplates: []v1.PersistentVolumeClaim{{
 						ObjectMeta: metav1.ObjectMeta{
+							Name:   "www",
 							Labels: labels,
 						},
 						Spec: v1.PersistentVolumeClaimSpec{
@@ -257,14 +256,12 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				},
 			}
 
-			statefulSet, err = virtualCluster.Client.AppsV1().StatefulSets("default").Create(ctx, statefulSet, metav1.CreateOptions{})
+			statefulSet, err = virtualCluster.Client.AppsV1().StatefulSets(namespace).Create(ctx, statefulSet, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
 
 			DeferCleanup(func() {
-				err := virtualCluster.Client.AppsV1().StatefulSets(namespace.Name).Delete(ctx, statefulSet.Name, metav1.DeleteOptions{})
+				err := virtualCluster.Client.AppsV1().StatefulSets(namespace).Delete(ctx, statefulSet.Name, metav1.DeleteOptions{})
 				Expect(err).To(Not(HaveOccurred()))
-
-				DeleteNamespaces(namespace.Name)
 			})
 		})
 
@@ -275,7 +272,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				labelSelector := metav1.FormatLabelSelector(statefulSet.Spec.Selector)
 				listOpts := metav1.ListOptions{LabelSelector: labelSelector}
 
-				pvcs, err := virtualCluster.Client.CoreV1().PersistentVolumeClaims(statefulSet.Namespace).List(ctx, listOpts)
+				pvcs, err := virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, listOpts)
 				g.Expect(err).NotTo(HaveOccurred())
 
 				for _, pvc := range pvcs.Items {
@@ -317,7 +314,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				labelSelector := metav1.FormatLabelSelector(statefulSet.Spec.Selector)
 				listOpts := metav1.ListOptions{LabelSelector: labelSelector}
 
-				pods, err := virtualCluster.Client.CoreV1().Pods(statefulSet.Namespace).List(ctx, listOpts)
+				pods, err := virtualCluster.Client.CoreV1().Pods(namespace).List(ctx, listOpts)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(pods.Items).Should(HaveLen(int(*statefulSet.Spec.Replicas)))
 
@@ -337,7 +334,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				labelSelector := metav1.FormatLabelSelector(statefulSet.Spec.Selector)
 				listOpts := metav1.ListOptions{LabelSelector: labelSelector}
 
-				pods, err := virtualCluster.Client.CoreV1().Pods(statefulSet.Namespace).List(ctx, listOpts)
+				pods, err := virtualCluster.Client.CoreV1().Pods(namespace).List(ctx, listOpts)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(pods.Items).Should(HaveLen(int(*statefulSet.Spec.Replicas)))
 

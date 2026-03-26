@@ -110,14 +110,6 @@ var _ = FContext("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			deployment, err = virtualCluster.Client.AppsV1().Deployments(namespace).Create(ctx, deployment, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
-
-			DeferCleanup(func() {
-				err := virtualCluster.Client.AppsV1().Deployments(namespace).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
-				Expect(err).To(Not(HaveOccurred()))
-
-				err = virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, pvc.Name, metav1.DeleteOptions{})
-				Expect(err).To(Not(HaveOccurred()))
-			})
 		})
 
 		It("should bound the PVC in the virtual cluster", func() {
@@ -258,11 +250,6 @@ var _ = FContext("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			statefulSet, err = virtualCluster.Client.AppsV1().StatefulSets(namespace).Create(ctx, statefulSet, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
-
-			DeferCleanup(func() {
-				err := virtualCluster.Client.AppsV1().StatefulSets(namespace).Delete(ctx, statefulSet.Name, metav1.DeleteOptions{})
-				Expect(err).To(Not(HaveOccurred()))
-			})
 		})
 
 		It("should bound the PVCs in the virtual cluster", func() {

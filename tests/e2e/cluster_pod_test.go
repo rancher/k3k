@@ -227,6 +227,10 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 		var virtualPod *v1.Pod
 
 		BeforeEach(func() {
+			ctx := context.Background()
+
+			var err error
+
 			p := &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "nginx-",
@@ -260,18 +264,12 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				},
 			}
 
-			ctx := context.Background()
-
-			var err error
-
 			virtualPod, err = virtualCluster.Client.CoreV1().Pods(p.Namespace).Create(ctx, p, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
 		})
 
-		It("should be scheduled and running", func() {
+		It("should be scheduled and running in the virtual cluster", func() {
 			ctx := context.Background()
-
-			By("Checking the container status of the Pod in the Virtual Cluster")
 
 			Eventually(func(g Gomega) {
 				pod, err := virtualCluster.Client.CoreV1().Pods(virtualPod.Namespace).Get(ctx, virtualPod.Name, metav1.GetOptions{})
@@ -282,8 +280,10 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				WithPolling(time.Second).
 				WithTimeout(time.Minute).
 				Should(Succeed())
+		})
 
-			By("Checking the container status of the Pod in the Host Cluster")
+		It("should be scheduled and running in the host cluster", func() {
+			ctx := context.Background()
 
 			Eventually(func(g Gomega) {
 				translator := translate.NewHostTranslator(virtualCluster.Cluster)

@@ -34,7 +34,7 @@ jobs:
       uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
     
     - name: Install hydrophone
-      run: go install sigs.k8s.io/hydrophone@latest
+      run: go install sigs.k8s.io/hydrophone@3de3e886a2f6f09635d8b981c195490af1584d97 #v0.7.0
 
     - name: Install k3s
       env:

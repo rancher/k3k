@@ -595,6 +595,10 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 								Except: []string{cluster.Status.ClusterCIDR},
 							},
 						},
+					},
+				},
+				{
+					To: []networkingv1.NetworkPolicyPeer{
 						{
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{
@@ -602,6 +606,10 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 								},
 							},
 						},
+					},
+				},
+				{
+					To: []networkingv1.NetworkPolicyPeer{
 						{
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{

@@ -35,7 +35,7 @@ jobs:
           skip-cache: false
 
       - name: Run formatters
-        run: golangci-lint -v fmt ./...
+        run: golangci-kube-api-linter -v fmt ./...
 
       - name: Validate
-        run: make validate
+        run: make KUBE_API_LINT=golangci-kube-api-linter validate

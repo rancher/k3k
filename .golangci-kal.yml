@@ -1,0 +1,43 @@
+version: "2"
+linters:
+  default: none
+  enable:
+    - kubeapilinter
+  settings:
+    custom:
+      kubeapilinter:
+        type: module
+        description: Kube API Linter lints Kube like APIs based on API conventions and best practices.
+        settings:
+          linters:
+            enable:
+              - statusoptional # Ensures status fields are marked as optional
+              - statussubresource # Validates status subresource configuration
+            # Linters that are not enabled by default, but recommended
+            #  - maxlength # Checks for maximum length constraints on strings and arrays
+            #  - minlength # Checks for minium length constraints on strings, arrays, maps and structs
+            #  - nobools # Prevents usage of boolean types
+            disable:
+              - nophase # Ensures no phase-like fields in the Status - should be in conditions
+              # - arrayofstruct # Ensures arrays of structs have at least one required field
+              # - commentstart # Ensures comments start with the serialized form of the type
+              # - nonpointerstructs # Ensures non-pointer structs are marked correctly with required/optional markers
+              # - optionalfields # Validates optional field conventions
+              # - requiredfields # Validates required field conventions
+          lintersConfig:
+            conditions:
+              useProtobuf: Forbid
+              usePatchStrategy: Forbid
+            defaults:
+              preferredDefaultMarker: kubebuilder:default
+  exclusions:
+    generated: strict
+    paths-except:
+      - pkg/apis/
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+run:
+  timeout: 5m
+  tests: false
+

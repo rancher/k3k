@@ -25,17 +25,17 @@ require (
 	go.uber.org/zap v1.27.1
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.18.5
-	k8s.io/api v0.35.1
-	k8s.io/apiextensions-apiserver v0.35.1
-	k8s.io/apimachinery v0.35.1
-	k8s.io/apiserver v0.35.1
-	k8s.io/cli-runtime v0.35.1
-	k8s.io/client-go v0.35.1
-	k8s.io/component-base v0.35.1
-	k8s.io/component-helpers v0.35.1
-	k8s.io/kubectl v0.35.1
-	k8s.io/kubelet v0.35.1
-	k8s.io/kubernetes v1.35.1
+	k8s.io/api v0.35.3
+	k8s.io/apiextensions-apiserver v0.35.3
+	k8s.io/apimachinery v0.35.3
+	k8s.io/apiserver v0.35.3
+	k8s.io/cli-runtime v0.35.3
+	k8s.io/client-go v0.35.3
+	k8s.io/component-base v0.35.3
+	k8s.io/component-helpers v0.35.3
+	k8s.io/kubectl v0.35.3
+	k8s.io/kubelet v0.35.3
+	k8s.io/kubernetes v1.35.3
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
 	sigs.k8s.io/controller-runtime v0.23.3
 )
@@ -205,7 +205,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	k8s.io/controller-manager v0.35.1 // indirect
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kms v0.35.1 // indirect
+	k8s.io/kms v0.35.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	oras.land/oras-go/v2 v2.6.0 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.2 // indirect

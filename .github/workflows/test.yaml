@@ -26,7 +26,7 @@ jobs:
       run: make test-unit
 
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./cover.out
@@ -78,7 +78,7 @@ jobs:
       run: go tool covdata textfmt -i=${{ github.workspace }}/covdata -o ${{ github.workspace }}/covdata/cover.out
 
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ${{ github.workspace }}/covdata/cover.out

@@ -83,7 +83,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 		})
 	})
 
-	FWhen("creating a Pod with an Affinity", func() {
+	When("creating a Pod with an Affinity", func() {
 		var pod *v1.Pod
 
 		BeforeAll(func() {

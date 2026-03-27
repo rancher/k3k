@@ -34,7 +34,6 @@ spec:
           - --agent-virtual-image={{- include "agent.virtual.registry" .}}{{ .Values.agent.virtual.image.repository }}
           - --agent-virtual-image-pull-policy={{ .Values.agent.virtual.image.pullPolicy }}
           - --kubelet-port-range={{ .Values.agent.shared.kubeletPortRange }}
-          - --webhook-port-range={{ .Values.agent.shared.webhookPortRange }}
           {{- range $key, $value := include "image.pullSecrets" (concat .Values.agent.imagePullSecrets .Values.global.imagePullSecrets) | fromYamlArray }}
           - --agent-image-pull-secret
           - {{ .name }}
@@ -54,8 +53,5 @@ spec:
           ports:
           - containerPort: 8080
             name: https
-            protocol: TCP
-          - containerPort: 9443
-            name: https-webhook
             protocol: TCP
       serviceAccountName: {{ include "k3k.serviceAccountName" . }}

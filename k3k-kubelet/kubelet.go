@@ -2,13 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"fmt"
-	"net"
-	"net/http"
-	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -26,9 +21,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	certutil "github.com/rancher/dynamiclistener/cert"
 	v1 "k8s.io/api/core/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -71,7 +64,7 @@ type kubelet struct {
 	token      string
 }
 
-func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, error) {
+func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 	hostConfig, err := clientcmd.BuildConfigFromFlags("", c.HostKubeconfig)
 	if err != nil {
 		return nil, err
@@ -84,7 +77,7 @@ func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, e
 		return nil, err
 	}
 
-	virtConfig, err := virtRestConfig(ctx, c.VirtKubeconfig, hostClient, c.ClusterName, c.ClusterNamespace, c.Token, logger)
+	virtConfig, err := virtRestConfig(ctx, c.VirtKubeconfig, hostClient, c.ClusterName, c.ClusterNamespace, c.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +86,6 @@ func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, e
 	if err != nil {
 		return nil, err
 	}
-
-	ctrl.SetLogger(logger)
 
 	hostMetricsBindAddress := ":8083"
 	virtualMetricsBindAddress := ":8084"
@@ -128,14 +119,8 @@ func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, e
 		return nil, errors.New("unable to add client go types to virtual cluster scheme: " + err.Error())
 	}
 
-	webhookServer := webhook.NewServer(webhook.Options{
-		CertDir: "/opt/rancher/k3k-webhook",
-		Port:    c.WebhookPort,
-	})
-
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
 		Scheme:                  virtualScheme,
-		WebhookServer:           webhookServer,
 		LeaderElection:          true,
 		LeaderElectionNamespace: "kube-system",
 		LeaderElectionID:        c.ClusterName,
@@ -147,10 +132,10 @@ func newKubelet(ctx context.Context, c *config, logger logr.Logger) (*kubelet, e
 		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
 	}
 
-	logger.Info("adding pod mutating webhook")
+	logger.Info("removing pod mutating webhook")
 
-	if err := k3kwebhook.AddPodMutatingWebhook(ctx, virtualMgr, hostClient, c.ClusterName, c.ClusterNamespace, c.ServiceName, logger, c.WebhookPort); err != nil {
-		return nil, errors.New("unable to add pod mutating webhook for virtual cluster: " + err.Error())
+	if err := k3kwebhook.RemovePodMutatingWebhook(ctx, virtualMgr.GetClient(), hostClient, c.ClusterName, c.ClusterNamespace); err != nil {
+		return nil, errors.New("unable to remove pod mutating webhook for virtual cluster: " + err.Error())
 	}
 
 	if err := addControllers(ctx, hostMgr, virtualMgr, c, hostClient); err != nil {
@@ -206,20 +191,6 @@ func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostCl
 	}
 
 	return service.Spec.ClusterIP, nil
-}
-
-func (k *kubelet) registerNode(agentIP string, cfg config) error {
-	providerFunc := k.newProviderFunc(cfg)
-	nodeOpts := k.nodeOpts(cfg.KubeletPort, cfg.ClusterNamespace, cfg.ClusterName, cfg.AgentHostname, agentIP)
-
-	var err error
-
-	k.node, err = nodeutil.NewNode(k.name, providerFunc, nodeutil.WithClient(k.virtClient), nodeOpts)
-	if err != nil {
-		return errors.New("unable to start kubelet: " + err.Error())
-	}
-
-	return nil
 }
 
 func (k *kubelet) start(ctx context.Context) {
@@ -287,32 +258,7 @@ func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 	}
 }
 
-func (k *kubelet) nodeOpts(srvPort int, namespace, name, hostname, agentIP string) nodeutil.NodeOpt {
-	return func(c *nodeutil.NodeConfig) error {
-		c.HTTPListenAddr = fmt.Sprintf(":%d", srvPort)
-		// set up the routes
-		mux := http.NewServeMux()
-		if err := nodeutil.AttachProviderRoutes(mux)(c); err != nil {
-			return errors.New("unable to attach routes: " + err.Error())
-		}
-
-		c.Handler = mux
-
-		tlsConfig, err := loadTLSConfig(name, namespace, k.name, hostname, k.token, agentIP)
-		if err != nil {
-			return errors.New("unable to get tls config: " + err.Error())
-		}
-
-		c.TLSConfig = tlsConfig
-
-		c.NodeSpec.Labels["kubernetes.io/role"] = "worker"
-		c.NodeSpec.Labels["node-role.kubernetes.io/worker"] = "true"
-
-		return nil
-	}
-}
-
-func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, token string, logger logr.Logger) (*rest.Config, error) {
+func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, token string) (*rest.Config, error) {
 	if virtualConfigPath != "" {
 		return clientcmd.BuildConfigFromFlags("", virtualConfigPath)
 	}
@@ -382,60 +328,6 @@ func kubeconfigBytes(url string, serverCA, clientCert, clientKey []byte) ([]byte
 	config.CurrentContext = "default"
 
 	return clientcmd.Write(*config)
-}
-
-func loadTLSConfig(clusterName, clusterNamespace, nodeName, hostname, token, agentIP string) (*tls.Config, error) {
-	var b *bootstrap.ControlRuntimeBootstrap
-
-	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(clusterName), clusterNamespace)
-
-	if err := retry.OnError(controller.Backoff, func(err error) bool {
-		return err != nil
-	}, func() error {
-		var err error
-
-		b, err = bootstrap.DecodedBootstrap(token, endpoint)
-
-		return err
-	}); err != nil {
-		return nil, errors.New("unable to decode bootstrap: " + err.Error())
-	}
-	// POD IP
-	podIP := net.ParseIP(os.Getenv("POD_IP"))
-	ip := net.ParseIP(agentIP)
-
-	altNames := certutil.AltNames{
-		DNSNames: []string{hostname},
-		IPs:      []net.IP{ip, podIP},
-	}
-
-	cert, key, err := certs.CreateClientCertKey(nodeName, nil, &altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, 0, b.ServerCA.Content, b.ServerCAKey.Content)
-	if err != nil {
-		return nil, errors.New("unable to get cert and key: " + err.Error())
-	}
-
-	clientCert, err := tls.X509KeyPair(cert, key)
-	if err != nil {
-		return nil, errors.New("unable to get key pair: " + err.Error())
-	}
-
-	// create rootCA CertPool
-	certs, err := certutil.ParseCertsPEM([]byte(b.ServerCA.Content))
-	if err != nil {
-		return nil, errors.New("unable to create ca certs: " + err.Error())
-	}
-
-	if len(certs) < 1 {
-		return nil, errors.New("ca cert is not parsed correctly")
-	}
-
-	pool := x509.NewCertPool()
-	pool.AddCert(certs[0])
-
-	return &tls.Config{
-		RootCAs:      pool,
-		Certificates: []tls.Certificate{clientCert},
-	}, nil
 }
 
 func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c *config, hostClient ctrlruntimeclient.Client) error {

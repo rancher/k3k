@@ -37,7 +37,6 @@ import (
 	compbasemetrics "k8s.io/component-base/metrics"
 	v1alpha1stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 
-	"github.com/rancher/k3k/k3k-kubelet/controller/webhook"
 	"github.com/rancher/k3k/k3k-kubelet/provider/collectors"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -441,12 +440,6 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	p.configurePodEnvs(hostPod, &virtualPod)
-
-	// fieldpath annotations
-	if err := p.configureFieldPathEnv(&virtualPod, hostPod); err != nil {
-		logger.Error(err, "Unable to fetch fieldpath annotations for pod")
-		return err
-	}
 
 	// volumes will often refer to resources in the virtual cluster
 	// but instead need to refer to the synced host cluster version
@@ -945,33 +938,4 @@ func (p *Provider) configureEnvFrom(virtualPod *corev1.Pod, envs []corev1.EnvFro
 	}
 
 	return resultingEnvVars
-}
-
-// configureFieldPathEnv will retrieve all annotations created by the pod mutating webhook
-// to assign env fieldpaths to pods, it will also make sure to change the metadata.name and metadata.namespace to the
-// assigned annotations
-func (p *Provider) configureFieldPathEnv(pod, tPod *corev1.Pod) error {
-	for name, value := range pod.Annotations {
-		if strings.Contains(name, webhook.FieldpathField) {
-			containerIndex, envName, err := webhook.ParseFieldPathAnnotationKey(name)
-			if err != nil {
-				return err
-			}
-
-			// re-adding these envs to the pod
-			tPod.Spec.Containers[containerIndex].Env = append(tPod.Spec.Containers[containerIndex].Env, corev1.EnvVar{
-				Name: envName,
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: value,
-					},
-				},
-			})
-
-			// removing the annotation from the pod
-			delete(tPod.Annotations, name)
-		}
-	}
-
-	return nil
 }

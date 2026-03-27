@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -14,7 +13,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/pkg/log"
 )
@@ -37,7 +36,7 @@ func main() {
 			}
 
 			logger = zapr.NewLogger(log.New(debug, logFormat))
-			ctrlruntimelog.SetLogger(logger)
+			ctrl.SetLogger(logger)
 
 			return nil
 		},
@@ -52,7 +51,6 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&cfg.HostKubeconfig, "host-kubeconfig", "", "Path to the host kubeconfig, if empty then virtual-kubelet will use incluster config")
 	rootCmd.PersistentFlags().StringVar(&cfg.VirtKubeconfig, "virt-kubeconfig", "", "Path to the k3k cluster kubeconfig, if empty then virtual-kubelet will create its own config from k3k cluster")
 	rootCmd.PersistentFlags().IntVar(&cfg.KubeletPort, "kubelet-port", 0, "kubelet API port number")
-	rootCmd.PersistentFlags().IntVar(&cfg.WebhookPort, "webhook-port", 0, "Webhook port number")
 	rootCmd.PersistentFlags().StringVar(&cfg.ServiceName, "service-name", "", "The service name deployed by the k3k controller")
 	rootCmd.PersistentFlags().StringVar(&cfg.AgentHostname, "agent-hostname", "", "Agent Hostname used for TLS SAN for the kubelet server")
 	rootCmd.PersistentFlags().StringVar(&cfg.ServerIP, "server-ip", "", "Server IP used for registering the virtual kubelet to the cluster")
@@ -66,18 +64,20 @@ func main() {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 
 	if err := cfg.validate(); err != nil {
 		return fmt.Errorf("failed to validate config: %w", err)
 	}
 
-	k, err := newKubelet(ctx, &cfg, logger)
+	k, err := newKubelet(ctx, &cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create new virtual kubelet instance: %w", err)
 	}
 
-	if err := k.registerNode(k.agentIP, cfg); err != nil {
+	podIP := os.Getenv("POD_IP")
+
+	if err := k.registerNode(k.agentIP, podIP, cfg); err != nil {
 		return fmt.Errorf("failed to register new node: %w", err)
 	}
 

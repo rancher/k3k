@@ -326,6 +326,13 @@ type IngressSyncConfig struct {
 	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// Enabled is an on/off switch for translating TLS secret
+	// from virtual cluster to host cluster
+	//
+	// +kubebuilder:default=true
+	// +optional
+	SyncTLSSecrets bool `json:"syncTLSSecrets,omitempty"`
 }
 
 // PersistentVolumeClaimSyncConfig specifies the sync options for PersistentVolumeClaims.

@@ -311,6 +311,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+| `syncTLSSecrets` _boolean_ | Enabled is an on/off switch for translating TLS secret<br />from virtual cluster to host cluster | true |  |
 
 
 #### LoadBalancerConfig

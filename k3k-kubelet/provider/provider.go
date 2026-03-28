@@ -398,8 +398,27 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 
 	logger = logger.WithValues("pod", hostPod.Name)
 
-	// Schedule the host pod in the same host node of the virtual kubelet
-	hostPod.Spec.NodeName = p.agentHostname
+	// Clear the NodeName to allow scheduling, and set affinity to prefer scheduling the Pod on the same host node as the virtual kubelet,
+	// unless the user has specified their own affinity, in which case the user's affinity is respected.
+
+	hostPod.Spec.NodeName = ""
+
+	if hostPod.Spec.Affinity == nil {
+		hostPod.Spec.Affinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{{
+					Weight: 100,
+					Preference: corev1.NodeSelectorTerm{
+						MatchExpressions: []corev1.NodeSelectorRequirement{{
+							Key:      "kubernetes.io/hostname",
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{p.agentHostname},
+						}},
+					},
+				}},
+			},
+		}
+	}
 
 	// The pod's own nodeSelector is ignored.
 	// The final selector is determined by the cluster spec, but overridden by a policy if present.

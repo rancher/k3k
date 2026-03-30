@@ -100,7 +100,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				DeleteNamespaces(clusterNamespace)
 			})
 
-			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.35.2-k3s1", clusterName)
+			_, stderr, err = K3kcli("cluster", "create", "--version", k3sVersion, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 		})

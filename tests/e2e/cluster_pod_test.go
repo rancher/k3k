@@ -20,13 +20,129 @@ import (
 )
 
 var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
-	var virtualCluster *VirtualCluster
+	var (
+		virtualCluster *VirtualCluster
+		translator     *translate.ToHostTranslator
+	)
 
 	BeforeAll(func() {
 		virtualCluster = NewVirtualCluster()
+		translator = translate.NewHostTranslator(virtualCluster.Cluster)
 
 		DeferCleanup(func() {
 			DeleteNamespaces(virtualCluster.Cluster.Namespace)
+		})
+	})
+
+	When("creating a Pod without any Affinity", func() {
+		var pod *v1.Pod
+
+		BeforeAll(func() {
+			var err error
+
+			ctx := context.Background()
+
+			pod = &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "nginx-",
+					Namespace:    "default",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{{
+						Name:  "nginx",
+						Image: "nginx",
+					}},
+				},
+			}
+
+			pod, err = virtualCluster.Client.CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+		})
+
+		It("should have the default Affinity", func() {
+			ctx := context.Background()
+
+			Eventually(func(g Gomega) {
+				hostPodName := translator.NamespacedName(pod)
+
+				hostPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(hostPod.Spec.Affinity).To(Not(BeNil()))
+				g.Expect(hostPod.Spec.Affinity.NodeAffinity).To(Not(BeNil()))
+				g.Expect(hostPod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution).To(Not(BeNil()))
+
+				preferredScheduling := hostPod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+				g.Expect(preferredScheduling).To(Not(BeEmpty()))
+				g.Expect(preferredScheduling[0].Weight).To(Equal(int32(100)))
+				g.Expect(preferredScheduling[0].Preference.MatchExpressions).To(Not(BeEmpty()))
+				g.Expect(preferredScheduling[0].Preference.MatchExpressions[0].Key).To(Equal("kubernetes.io/hostname"))
+			}).
+				WithPolling(time.Second).
+				WithTimeout(time.Minute).
+				Should(Succeed())
+		})
+	})
+
+	When("creating a Pod with an Affinity", func() {
+		var pod *v1.Pod
+
+		BeforeAll(func() {
+			var err error
+
+			ctx := context.Background()
+
+			pod = &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "nginx-",
+					Namespace:    "default",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{{
+						Name:  "nginx",
+						Image: "nginx",
+					}},
+					Affinity: &v1.Affinity{
+						NodeAffinity: &v1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+								NodeSelectorTerms: []v1.NodeSelectorTerm{{
+									MatchExpressions: []v1.NodeSelectorRequirement{{
+										Key:      "kubernetes.io/hostname",
+										Operator: v1.NodeSelectorOpNotIn,
+										Values:   []string{"fake"},
+									}},
+								}},
+							},
+						},
+					},
+				},
+			}
+
+			pod, err = virtualCluster.Client.CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+		})
+
+		It("should not have the default Affinity", func() {
+			ctx := context.Background()
+
+			Eventually(func(g Gomega) {
+				hostPodName := translator.NamespacedName(pod)
+
+				hostPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(hostPod.Spec.Affinity).To(Not(BeNil()))
+				g.Expect(hostPod.Spec.Affinity.NodeAffinity).To(Not(BeNil()))
+				g.Expect(hostPod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).To(Not(BeNil()))
+
+				requiredScheduling := hostPod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+				g.Expect(requiredScheduling).To(Not(BeNil()))
+				g.Expect(requiredScheduling.NodeSelectorTerms).To(Not(BeEmpty()))
+				g.Expect(requiredScheduling.NodeSelectorTerms[0].MatchExpressions).To(Not(BeEmpty()))
+				g.Expect(requiredScheduling.NodeSelectorTerms[0].MatchExpressions[0].Key).To(Equal("kubernetes.io/hostname"))
+				g.Expect(requiredScheduling.NodeSelectorTerms[0].MatchExpressions[0].Values).To(ContainElement("fake"))
+			}).
+				WithPolling(time.Second).
+				WithTimeout(time.Minute).
+				Should(Succeed())
 		})
 	})
 
@@ -140,7 +256,6 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			By("Checking the container status of the Pod in the Host Cluster")
 
 			Eventually(func(g Gomega) {
-				translator := translate.NewHostTranslator(virtualCluster.Cluster)
 				hostPodName := translator.NamespacedName(virtualPod)
 
 				pod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
@@ -207,7 +322,6 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			By("Checking the status of the Pod in the Host Cluster")
 
 			Eventually(func(g Gomega) {
-				translator := translate.NewHostTranslator(virtualCluster.Cluster)
 				hostPodName := translator.NamespacedName(virtualPod)
 
 				hPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})

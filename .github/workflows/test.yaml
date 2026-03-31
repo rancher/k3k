@@ -55,7 +55,7 @@ jobs:
         
         echo "COVERAGE=true" >> $GITHUB_ENV
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
-        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
+        echo "K3S_HOST_VERSION=v1.35.2+k3s1" >> $GITHUB_ENV
     
     - name: Build and package
       run: |

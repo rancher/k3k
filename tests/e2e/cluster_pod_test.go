@@ -59,7 +59,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			Expect(err).To(Not(HaveOccurred()))
 		})
 
-		It("should have a default Affinity", func() {
+		It("should have the default Affinity", func() {
 			ctx := context.Background()
 
 			Eventually(func(g Gomega) {
@@ -121,7 +121,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			Expect(err).To(Not(HaveOccurred()))
 		})
 
-		It("should have a default Affinity", func() {
+		It("should not have the default Affinity", func() {
 			ctx := context.Background()
 
 			Eventually(func(g Gomega) {

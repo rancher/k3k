@@ -245,7 +245,6 @@ _Appears In:_
 | *`policy`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-appliedpolicy[$$AppliedPolicy$$]__ | policy represents the status of the policy applied to this cluster. +
 This field is set by the VirtualClusterPolicy controller. + |  | 
 | *`kubeletPort`* __integer__ | KubeletPort specefies the port used by k3k-kubelet in shared mode. + |  | 
-| *`webhookPort`* __integer__ | WebhookPort specefies the port used by webhook in k3k-kubelet in shared mode. + |  | 
 | *`conditions`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta[$$Condition$$] array__ | Conditions are the individual conditions for the cluster set. + |  | 
 | *`phase`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterphase[$$ClusterPhase$$]__ | Phase is a high-level summary of the cluster's current lifecycle state. + | Unknown | Enum: [Pending Provisioning Ready Failed Terminating Unknown] +
 

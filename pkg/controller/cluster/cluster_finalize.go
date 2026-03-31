@@ -40,15 +40,11 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1beta
 		return reconcile.Result{}, err
 	}
 
-	// Deallocate ports for kubelet and webhook if used
+	// Deallocate ports for kubelet if used
 	if cluster.Spec.Mode == v1beta1.SharedClusterMode && cluster.Spec.MirrorHostNodes {
-		log.V(1).Info("dellocating ports for kubelet and webhook")
+		log.V(1).Info("dellocating ports for kubelet")
 
 		if err := c.PortAllocator.DeallocateKubeletPort(ctx, cluster.Name, cluster.Namespace, cluster.Status.KubeletPort); err != nil {
-			return reconcile.Result{}, err
-		}
-
-		if err := c.PortAllocator.DeallocateWebhookPort(ctx, cluster.Name, cluster.Namespace, cluster.Status.WebhookPort); err != nil {
 			return reconcile.Result{}, err
 		}
 	}

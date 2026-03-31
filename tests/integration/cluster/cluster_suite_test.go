@@ -68,7 +68,7 @@ var _ = BeforeSuite(func() {
 	portAllocator, err := agent.NewPortAllocator(ctx, mgr.GetClient())
 	Expect(err).NotTo(HaveOccurred())
 
-	err = mgr.Add(portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient(), "50000-51000", "51001-52000"))
+	err = mgr.Add(portAllocator.InitPortAllocatorConfig(ctx, mgr.GetClient(), "50000-51000"))
 	Expect(err).NotTo(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())

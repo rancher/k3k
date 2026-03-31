@@ -581,11 +581,6 @@ type ClusterStatus struct {
 	// +optional
 	KubeletPort int `json:"kubeletPort,omitempty"`
 
-	// WebhookPort specefies the port used by webhook in k3k-kubelet in shared mode.
-	//
-	// +optional
-	WebhookPort int `json:"webhookPort,omitempty"`
-
 	// Conditions are the individual conditions for the cluster set.
 	//
 	// +optional

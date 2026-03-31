@@ -16,7 +16,6 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
-	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
 
 var keepData bool
@@ -60,11 +59,6 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 		if keepData {
 			// skip removing tokenSecret
 			if err := RemoveOwnerReferenceFromSecret(ctx, k3kcluster.TokenSecretName(cluster.Name), client, cluster); err != nil {
-				return err
-			}
-
-			// skip removing webhook secret
-			if err := RemoveOwnerReferenceFromSecret(ctx, agent.WebhookSecretName(cluster.Name), client, cluster); err != nil {
 				return err
 			}
 		} else {

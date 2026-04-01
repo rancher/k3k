@@ -40,8 +40,12 @@ jobs:
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         K3S_HOST_VERSION: v1.35.2+k3s1
+        K3S_INSTALL_SCRIPT_HASH: 46177d4c99440b4c0311b67233823a8e8a2fc09693f6c89af1a7161e152fbfad
       run: |
-        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -
+        # master branch commit 5e578729b739458fa25bedd4d015de0b91ab3a13
+        curl -sfL -o install-k3s.sh https://raw.githubusercontent.com/k3s-io/k3s/5e578729b739458fa25bedd4d015de0b91ab3a13/install.sh
+        echo "${K3S_INSTALL_SCRIPT_HASH} install-k3s.sh" | shasum -a 256 --check
+        sudo chmod +x install-k3s.sh | sudo INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" ./install-k3s.sh
 
         kubectl cluster-info
         kubectl get nodes

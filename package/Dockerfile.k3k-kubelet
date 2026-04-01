@@ -1,5 +1,6 @@
 # TODO: swicth this to BCI-micro or scratch. Left as base right now so that debug can be done a bit easier
-FROM registry.suse.com/bci/bci-base:15.7
+# registry.suse.com/bci/bci-base:15.7
+FROM registry.suse.com/bci/bci-base@sha256:94069e4c701fc5c4d38d8f1c25ab2a80c0da89320a6d622efc1bd57fd16769a2
 
 ARG BIN_K3K_KUBELET=bin/k3k-kubelet
 

@@ -11,6 +11,7 @@ permissions:
 env:
   ARCH: amd64
   KUBECTL_VERSION: v1.35.3
+  KUBECTL_BIN_HASH_AMD64: "fd31c7d7129260e608f6faf92d5984c3267ad0b5ead3bced2fe125686e286ad6"
 
 jobs:
   conformance:

@@ -45,7 +45,7 @@ jobs:
         # master branch commit 5e578729b739458fa25bedd4d015de0b91ab3a13
         curl -sfL -o install.sh https://raw.githubusercontent.com/k3s-io/k3s/5e578729b739458fa25bedd4d015de0b91ab3a13/install.sh
         echo "${K3S_INSTALL_SCRIPT_HASH}  install.sh" | shasum -a 256 --check
-        sudo chmod +x install.sh | sudo INSTALL_K3S_VERSION=${{ env.K3S_HOST_VERSION }} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" ./install.sh
+        sudo chmod +x install.sh && sudo INSTALL_K3S_VERSION=${{ env.K3S_HOST_VERSION }} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" ./install.sh
 
     - name: Build and package and push dev images
       env:

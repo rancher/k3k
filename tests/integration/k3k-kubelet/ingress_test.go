@@ -47,6 +47,9 @@ var IngressTests = func() {
 					Ingresses: v1beta1.IngressSyncConfig{
 						Enabled: true,
 					},
+					Secrets: v1beta1.SecretSyncConfig{
+						Enabled: true,
+					},
 				},
 			},
 		}
@@ -54,6 +57,8 @@ var IngressTests = func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		err = syncer.AddIngressSyncer(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
+		Expect(err).NotTo(HaveOccurred())
+		err = syncer.AddSecretSyncer(ctx, virtManager, hostManager, cluster.Name, cluster.Namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -290,6 +295,194 @@ var IngressTests = func() {
 			WithPolling(time.Millisecond * 300).
 			WithTimeout(time.Second * 10).
 			Should(BeTrue())
+	})
+
+	It("will sync an Ingress with a TLS secret", func() {
+		ctx := context.Background()
+		ingressSecret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "ingress-secret-",
+				Namespace:    "default",
+			},
+			Data: map[string][]byte{
+				"ca.crt":  []byte("value"),
+				"tls.crt": []byte("value"),
+				"tls.key": []byte("value"),
+			},
+		}
+
+		err := virtTestEnv.k8sClient.Create(ctx, ingressSecret)
+		Expect(err).NotTo(HaveOccurred())
+
+		ingress := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "ingress-",
+				Namespace:    "default",
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{
+					{
+						Host: "test.com",
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
+									{
+										Path:     "/",
+										PathType: ptr.To(networkingv1.PathTypePrefix),
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "test-service",
+												Port: networkingv1.ServiceBackendPort{
+													Name: "test-port",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				TLS: []networkingv1.IngressTLS{
+					{
+						Hosts:      []string{"test.com"},
+						SecretName: ingressSecret.Name,
+					},
+				},
+			},
+		}
+
+		err = virtTestEnv.k8sClient.Create(ctx, ingress)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Created Ingress %s in virtual cluster", ingress.Name))
+
+		var hostIngress networkingv1.Ingress
+
+		var hostSecret v1.Secret
+
+		hostIngressName := translateName(cluster, ingress.Namespace, ingress.Name)
+
+		hostSecretName := translateName(cluster, ingress.Namespace, ingressSecret.Name)
+
+		Eventually(func() error {
+			key := client.ObjectKey{Name: hostIngressName, Namespace: namespace}
+			return hostTestEnv.k8sClient.Get(ctx, key, &hostIngress)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeNil())
+
+		Eventually(func() error {
+			key := client.ObjectKey{Name: hostSecretName, Namespace: namespace}
+			return hostTestEnv.k8sClient.Get(ctx, key, &hostSecret)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeNil())
+
+		// Verify Ingress in host cluster does reference the translated secret since TLS secret translation is enabled
+		Expect(hostIngress.Spec.TLS[0].SecretName).To(Equal(hostSecretName))
+	})
+
+	It("will not sync an Ingress with a TLS secret", func() {
+		ctx := context.Background()
+
+		cluster.Spec.Sync.Ingresses.DisableTLSSecretTranslation = true
+		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
+
+		ingressSecret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "ingress-secret-",
+				Namespace:    "default",
+			},
+			Data: map[string][]byte{
+				"ca.crt":  []byte("value"),
+				"tls.crt": []byte("value"),
+				"tls.key": []byte("value"),
+			},
+		}
+
+		err = virtTestEnv.k8sClient.Create(ctx, ingressSecret)
+		Expect(err).NotTo(HaveOccurred())
+
+		ingress := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "ingress-",
+				Namespace:    "default",
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{
+					{
+						Host: "test.com",
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
+									{
+										Path:     "/",
+										PathType: ptr.To(networkingv1.PathTypePrefix),
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "test-service",
+												Port: networkingv1.ServiceBackendPort{
+													Name: "test-port",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				TLS: []networkingv1.IngressTLS{
+					{
+						Hosts:      []string{"test.com"},
+						SecretName: ingressSecret.Name,
+					},
+				},
+			},
+		}
+
+		err = virtTestEnv.k8sClient.Create(ctx, ingress)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Created Ingress %s in virtual cluster", ingress.Name))
+
+		var hostIngress networkingv1.Ingress
+
+		var hostSecret v1.Secret
+
+		hostIngressName := translateName(cluster, ingress.Namespace, ingress.Name)
+
+		hostSecretName := translateName(cluster, ingress.Namespace, ingressSecret.Name)
+
+		Eventually(func() error {
+			key := client.ObjectKey{Name: hostIngressName, Namespace: namespace}
+			return hostTestEnv.k8sClient.Get(ctx, key, &hostIngress)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeNil())
+
+		// Secret will be translated to host cluster but the Ingress will not reference it since TLS secret translation is disabled
+		Eventually(func() error {
+			key := client.ObjectKey{Name: hostSecretName, Namespace: namespace}
+			return hostTestEnv.k8sClient.Get(ctx, key, &hostSecret)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeNil())
+
+		// Verify Ingress in host cluster has guest cluster secret reference as translation has not been performed
+		Expect(hostIngress.Spec.TLS[0].SecretName).To(Equal(ingressSecret.Name))
 	})
 
 	It("will not sync an Ingress if disabled", func() {

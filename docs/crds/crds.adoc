@@ -405,8 +405,8 @@ _Appears In:_
 | *`enabled`* __boolean__ | Enabled is an on/off switch for syncing resources. + | false | 
 | *`selector`* __object (keys:string, values:string)__ | Selector specifies set of labels of the resources that will be synced, if empty +
 then all resources of the given type will be synced. + |  | 
-| *`syncTLSSecrets`* __boolean__ | Enabled is an on/off switch for translating TLS secret +
-from virtual cluster to host cluster + | true | 
+| *`disableTLSSecretTranslation`* __boolean__ | DisableTLSSecretTranslation is an on/off switch for translating TLS secrets +
+from virtual cluster to host cluster + | false | 
 |===
 
 

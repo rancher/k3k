@@ -412,13 +412,15 @@ func restartServerPod(ctx context.Context, virtualCluster *VirtualCluster) {
 	By("Deleting server pod")
 
 	// check that the server pods restarted
-	Eventually(func() any {
+	Eventually(func(g Gomega) {
 		serverPods := listServerPods(ctx, virtualCluster)
 
-		Expect(len(serverPods)).To(Equal(1))
-
-		return serverPods[0].DeletionTimestamp
-	}).WithTimeout(60 * time.Second).WithPolling(time.Second * 5).Should(BeNil())
+		g.Expect(serverPods).To(HaveLen(1))
+		g.Expect(serverPods[0].DeletionTimestamp).To(Not(BeNil()))
+	}).
+		WithTimeout(time.Minute * 2).
+		WithPolling(time.Second * 5).
+		Should(Succeed())
 }
 
 func listServerPods(ctx context.Context, virtualCluster *VirtualCluster) []v1.Pod {

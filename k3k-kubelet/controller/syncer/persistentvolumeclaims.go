@@ -131,8 +131,19 @@ func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		}
 	}
 
+	var currentHostPVC v1.PersistentVolumeClaim
+
+	err := r.HostClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(syncedPVC), &currentHostPVC)
+	if err == nil {
+		log.V(1).Info("persistent volume claim already exist in the host cluster")
+	}
+
+	if !apierrors.IsNotFound(err) {
+		return reconcile.Result{}, err
+	}
+
 	// create the pvc on host
-	log.Info("creating the persistent volume claim for the first time on the host cluster")
+	log.Info("creating the persistent volume claim for the first time in the host cluster")
 
 	// note that we dont need to update the PVC on the host cluster, only syncing the PVC to allow being
 	// handled by the host cluster.

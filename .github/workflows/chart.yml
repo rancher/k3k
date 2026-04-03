@@ -6,6 +6,10 @@ on:
 permissions:
     contents: write
 
+env:
+  HELM_VERSION: v4.1.3
+  HELM_BIN_HASH_AMD64: 02ce9722d541238f81459938b84cf47df2fdf1187493b4bfb2346754d82a4700
+
 jobs:
   chart-release:
     runs-on: ubuntu-latest
@@ -19,11 +23,13 @@ jobs:
       run: |
         git config user.name "$GITHUB_ACTOR"
         git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-    
-    - name: Install Helm
-      uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
-      env:
-        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+    - name: Install helm
+      run: |
+        curl https://get.helm.sh/helm-${{ env.HELM_VERSION }}-linux-amd64.tar.gz | tar xvzf - --strip-components=1 -C /tmp/
+        echo "${{ env.HELM_BIN_HASH_AMD64 }}  /tmp/helm" | sha256sum -a 256 --check
+        sudo mv /tmp/helm /usr/local/bin
+        sudo chmod +x /usr/local/bin/helm
 
     - name: Run chart-releaser
       uses: helm/chart-releaser-action@cae68fefc6b5f367a0275617c9f83181ba54714f # v1.7.0

@@ -11,6 +11,10 @@ permissions:
 env:
   ARCH: amd64
   KUBERNETES_VERSION: v1.35.3
+  HELM_VERSION: v4.1.3
+  HELM_BIN_HASH_AMD64: 02ce9722d541238f81459938b84cf47df2fdf1187493b4bfb2346754d82a4700
+  K3D_VERSION: v5.8.3
+  K3D_BIN_HASH_AMD64: dbaa79a76ace7f4ca230a1ff41dc7d8a5036a8ad0309e9c54f9bf3836dbe853e
 
 jobs:
   conformance:
@@ -22,9 +26,7 @@ jobs:
         type:
         - parallel
         - serial
-    env:
-      K3D_VERSION: v5.8.3
-      K3D_BIN_HASH_AMD64: "dbaa79a76ace7f4ca230a1ff41dc7d8a5036a8ad0309e9c54f9bf3836dbe853e"
+      
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -37,15 +39,19 @@ jobs:
         go-version-file: go.mod
 
     - name: Install helm
-      uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
-    
+      run: |
+        curl https://get.helm.sh/helm-${{ env.HELM_VERSION }}-linux-amd64.tar.gz | tar xvzf - --strip-components=1 -C /tmp/
+        echo "${{ env.HELM_BIN_HASH_AMD64 }}  /tmp/helm" | sha256sum -a 256 --check
+        sudo mv /tmp/helm /usr/local/bin
+        sudo chmod +x /usr/local/bin/helm
+
     - name: Install hydrophone
       run: go install sigs.k8s.io/hydrophone@3de3e886a2f6f09635d8b981c195490af1584d97 #v0.7.0
 
     - name: Install k3d # taken from github.com/rancher/rancher/.github/workflows/integration-tests.yaml
       run: |
-        curl -sSfL -o k3d "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-linux-${ARCH}"
-        echo "${K3D_BIN_HASH_AMD64}  k3d" | shasum -a 256 --check
+        curl -sSfL -o k3d "https://github.com/k3d-io/k3d/releases/download/${{ env.K3D_VERSION }}/k3d-linux-${ARCH}"
+        echo "${{ env.K3D_BIN_HASH_AMD64 }}  k3d" | shasum -a 256 --check
         sudo mv k3d /usr/local/bin
         sudo chmod +x /usr/local/bin/k3d
 
@@ -63,7 +69,7 @@ jobs:
         k3d registry create ${REPO_NAME} --port ${REPO_PORT}
         
         k3d cluster create k3k --servers 2 \
-          --image ${{ env.KUBERNETES_VERSION }}-k3s1 \
+          --image rancher/k3s:${{ env.KUBERNETES_VERSION }}-k3s1 \
           -p "30000-30010:30000-30010@server:0" \
           --registry-use k3d-${REPO_NAME}:${REPO_PORT}
         

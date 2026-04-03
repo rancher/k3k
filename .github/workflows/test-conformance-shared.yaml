@@ -10,7 +10,7 @@ permissions:
 
 env:
   ARCH: amd64
-  KUBECTL_VERSION: v1.35.3
+  KUBERNETES_VERSION: v1.35.3
 
 jobs:
   conformance:
@@ -51,7 +51,7 @@ jobs:
 
     - name: Install k3d and kubectl
       run: |
-        curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+        curl -LO "https://dl.k8s.io/release/${{ env.KUBERNETES_VERSION }}/bin/linux/amd64/kubectl"
 
     - name: Setup Kubernetes (k3d)
       env:
@@ -63,6 +63,7 @@ jobs:
         k3d registry create ${REPO_NAME} --port ${REPO_PORT}
         
         k3d cluster create k3k --servers 2 \
+          --image ${{ env.KUBERNETES_VERSION }}-k3s1 \
           -p "30000-30010:30000-30010@server:0" \
           --registry-use k3d-${REPO_NAME}:${REPO_PORT}
         

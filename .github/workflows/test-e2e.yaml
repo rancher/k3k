@@ -10,6 +10,9 @@ on:
 permissions:
     contents: read
 
+env:
+  KUBERNETES_VERSION: v1.35.3
+
 jobs:
   tests-e2e:
     runs-on: ubuntu-latest
@@ -36,11 +39,11 @@ jobs:
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
         echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
         echo "VERSION=1h" >> $GITHUB_ENV
-        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
+        echo "K3S_HOST_VERSION=${{ env.KUBERNETES_VERSION }}+k3s1" >> $GITHUB_ENV
 
     - name: Install k3s
       run: |
-        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${{ env.K3S_HOST_VERSION }} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
 
     - name: Build and package and push dev images
       env:
@@ -115,11 +118,11 @@ jobs:
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
         echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
         echo "VERSION=1h" >> $GITHUB_ENV
-        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
+        echo "K3S_HOST_VERSION=${{ env.KUBERNETES_VERSION }}+k3s1" >> $GITHUB_ENV
 
     - name: Install k3s
       run: |
-        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${{ env.K3S_HOST_VERSION }} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
 
     - name: Build and package and push dev images
       env:

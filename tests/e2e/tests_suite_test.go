@@ -362,6 +362,7 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 
 	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
 	Expect(err).To(Not(HaveOccurred()))
+	Expect(podList.Items).NotTo(BeEmpty())
 
 	k3kPod := podList.Items[0]
 	k3kContainerName := k3kPod.Spec.Containers[0].Name
@@ -455,6 +456,7 @@ func getK3kLogs(ctx context.Context) io.ReadCloser {
 
 	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
 	Expect(err).To(Not(HaveOccurred()))
+	Expect(podList.Items).NotTo(BeEmpty())
 
 	k3kPod := podList.Items[0]
 	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &v1.PodLogOptions{Previous: true})

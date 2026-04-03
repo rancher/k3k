@@ -67,14 +67,14 @@ jobs:
       run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out
     
     - name: Upload coverage reports to Codecov (controller)
-      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ${GOCOVERDIR}/cover.out
         flags: controller
 
     - name: Upload coverage reports to Codecov (e2e)
-      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./cover.out
@@ -146,14 +146,14 @@ jobs:
       run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out
     
     - name: Upload coverage reports to Codecov (controller)
-      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ${GOCOVERDIR}/cover.out
         flags: controller
 
     - name: Upload coverage reports to Codecov (e2e)
-      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./cover.out

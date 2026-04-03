@@ -203,6 +203,18 @@ type ClusterSpec struct {
 	//
 	// +optional
 	SecretMounts []SecretMount `json:"secretMounts,omitempty"`
+
+	// SecurityContext specifies custom SecurityContext to be added
+	// to the agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	RuntimeClassName string `json:"runtimeClassName,omitempty"`
+
+	// RuntimeClassName specifies alternative runtime class for the
+	// agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,

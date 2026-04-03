@@ -246,6 +246,14 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		}
 	}
 
+	if s.cluster.Spec.SecurityContext != nil {
+		podSpec.Containers[0].SecurityContext = s.cluster.Spec.SecurityContext
+	}
+
+	if s.cluster.Spec.RuntimeClassName != "" {
+		podSpec.RuntimeClassName = &s.cluster.Spec.RuntimeClassName
+	}
+
 	// specify resource limits if specified for the servers.
 	if s.cluster.Spec.ServerLimit != nil {
 		podSpec.Containers[0].Resources = v1.ResourceRequirements{

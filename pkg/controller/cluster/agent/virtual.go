@@ -272,5 +272,13 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSp
 		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
 	}
 
+	if v.cluster.Spec.SecurityContext != nil {
+		podSpec.Containers[0].SecurityContext = v.cluster.Spec.SecurityContext
+	}
+
+	if v.cluster.Spec.RuntimeClassName != "" {
+		podSpec.RuntimeClassName = &v.cluster.Spec.RuntimeClassName
+	}
+
 	return podSpec
 }

@@ -236,6 +236,14 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
 	}
 
+	if s.cluster.Spec.SecurityContext != nil {
+		podSpec.Containers[0].SecurityContext = s.cluster.Spec.SecurityContext
+	}
+
+	if s.cluster.Spec.RuntimeClassName != "" {
+		podSpec.RuntimeClassName = &s.cluster.Spec.RuntimeClassName
+	}
+
 	return podSpec
 }
 

@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	v1 "k8s.io/api/core/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -216,9 +217,27 @@ var _ = AfterSuite(func() {
 		Expect(err).To(Not(HaveOccurred()))
 		writeLogs("k3s.log", k3sLogs)
 
+		// dump k3k controller logs
+		k3kLogs := getK3kLogs(ctx)
+		writeLogs("k3k.log", k3kLogs)
+
 		testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
 	}
 })
+
+func getK3kLogs(ctx context.Context) io.ReadCloser {
+	var podList v1.PodList
+
+	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
+	Expect(err).To(Not(HaveOccurred()))
+
+	k3kPod := podList.Items[0]
+	req := k8s.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &v1.PodLogOptions{})
+	podLogs, err := req.Stream(ctx)
+	Expect(err).To(Not(HaveOccurred()))
+
+	return podLogs
+}
 
 func writeLogs(filename string, logs io.ReadCloser) {
 	logsStr, err := io.ReadAll(logs)

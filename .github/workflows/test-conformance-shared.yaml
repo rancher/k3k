@@ -41,7 +41,7 @@ jobs:
     - name: Install helm
       run: |
         curl https://get.helm.sh/helm-${{ env.HELM_VERSION }}-linux-amd64.tar.gz | tar xvzf - --strip-components=1 -C /tmp/
-        echo "${{ env.HELM_BIN_HASH_AMD64 }}  /tmp/helm" | sha256sum -a 256 --check
+        echo "${{ env.HELM_BIN_HASH_AMD64 }}  /tmp/helm" | shasum -a 256 --check
         sudo mv /tmp/helm /usr/local/bin
         sudo chmod +x /usr/local/bin/helm
 

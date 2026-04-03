@@ -31,7 +31,7 @@ jobs:
       run: git checkout ${{ inputs.commit }}
 
     - name: Set up Go
-      uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
       with:
         go-version-file: go.mod
 
@@ -62,7 +62,7 @@ jobs:
         echo "DOCKER_PASSWORD=${{ github.token }}"  >> $GITHUB_ENV
 
     - name: Login to container registry
-      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ env.DOCKER_USERNAME }}

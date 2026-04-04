@@ -288,7 +288,9 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSp
 		runtimeClassName = v.cluster.Status.Policy.RuntimeClassName
 	}
 
-	podSpec.RuntimeClassName = &runtimeClassName
+	if runtimeClassName != "" {
+		podSpec.RuntimeClassName = &runtimeClassName
+	}
 
 	return podSpec
 }

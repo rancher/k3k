@@ -252,7 +252,9 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 		runtimeClassName = s.cluster.Status.Policy.RuntimeClassName
 	}
 
-	podSpec.RuntimeClassName = &runtimeClassName
+	if runtimeClassName != "" {
+		podSpec.RuntimeClassName = &runtimeClassName
+	}
 
 	return podSpec
 }

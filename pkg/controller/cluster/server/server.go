@@ -262,7 +262,9 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		runtimeClassName = s.cluster.Status.Policy.RuntimeClassName
 	}
 
-	podSpec.RuntimeClassName = &runtimeClassName
+	if runtimeClassName != "" {
+		podSpec.RuntimeClassName = &runtimeClassName
+	}
 
 	// specify resource limits if specified for the servers.
 	if s.cluster.Spec.ServerLimit != nil {

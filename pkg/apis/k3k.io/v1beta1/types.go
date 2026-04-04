@@ -640,6 +640,18 @@ type AppliedPolicy struct {
 	//
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
+
+	// SecurityContext specifies custom SecurityContext to be added
+	// to the agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	RuntimeClassName string `json:"runtimeClassName,omitempty"`
+
+	// RuntimeClassName specifies alternative runtime class for the
+	// agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.
@@ -747,6 +759,18 @@ type VirtualClusterPolicySpec struct {
 	// +kubebuilder:default={}
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
+
+	// SecurityContext specifies custom SecurityContext to be added
+	// to the agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	RuntimeClassName string `json:"runtimeClassName,omitempty"`
+
+	// RuntimeClassName specifies alternative runtime class for the
+	// agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

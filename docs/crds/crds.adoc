@@ -66,6 +66,10 @@ This includes both node affinity and pod affinity/anti-affinity rules. + |  |
 | *`agentAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy. +
 This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
 | *`sync`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]__ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. + |  | 
+| *`runtimeClassName`* __string__ | SecurityContext specifies custom SecurityContext to be added +
+to the agent and server pods of the cluster in virtual or shared mode. + |  | 
+| *`securityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core[$$SecurityContext$$]__ | RuntimeClassName specifies alternative runtime class for the +
+agent and server pods of the cluster in virtual or shared mode. + |  | 
 |===
 
 
@@ -779,6 +783,10 @@ This includes both node affinity and pod affinity/anti-affinity rules. + |  |
 | *`podSecurityAdmissionLevel`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-podsecurityadmissionlevel[$$PodSecurityAdmissionLevel$$]__ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. + |  | Enum: [privileged baseline restricted] +
 
 | *`sync`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]__ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. + | {  } | 
+| *`runtimeClassName`* __string__ | SecurityContext specifies custom SecurityContext to be added +
+to the agent and server pods of the cluster in virtual or shared mode. + |  | 
+| *`securityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core[$$SecurityContext$$]__ | RuntimeClassName specifies alternative runtime class for the +
+agent and server pods of the cluster in virtual or shared mode. + |  | 
 |===
 
 

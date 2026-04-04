@@ -236,13 +236,23 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
 	}
 
-	if s.cluster.Spec.SecurityContext != nil {
-		podSpec.Containers[0].SecurityContext = s.cluster.Spec.SecurityContext
+	securityContext := s.cluster.Spec.SecurityContext
+	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.SecurityContext != nil {
+		log.V(1).Info("Using securityContext configuration from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
+		securityContext = s.cluster.Status.Policy.SecurityContext
 	}
 
-	if s.cluster.Spec.RuntimeClassName != "" {
-		podSpec.RuntimeClassName = &s.cluster.Spec.RuntimeClassName
+	if securityContext != nil {
+		podSpec.Containers[0].SecurityContext = securityContext
 	}
+
+	runtimeClassName := s.cluster.Spec.RuntimeClassName
+	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.RuntimeClassName != "" {
+		log.V(1).Info("Using runtimeClassName from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
+		runtimeClassName = s.cluster.Status.Policy.RuntimeClassName
+	}
+
+	podSpec.RuntimeClassName = &runtimeClassName
 
 	return podSpec
 }

@@ -51,6 +51,8 @@ _Appears in:_
 | `serverAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
 | `agentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
 | `sync` _[SyncConfig](#syncconfig)_ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. |  |  |
+| `runtimeClassName` _string_ | SecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  |  |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
 
 
 #### Cluster
@@ -587,6 +589,8 @@ _Appears in:_
 | `disableNetworkPolicy` _boolean_ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. |  |  |
 | `podSecurityAdmissionLevel` _[PodSecurityAdmissionLevel](#podsecurityadmissionlevel)_ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. |  | Enum: [privileged baseline restricted] <br /> |
 | `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |
+| `runtimeClassName` _string_ | SecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  |  |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
 
 
 #### VirtualClusterPolicyStatus

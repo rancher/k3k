@@ -10,6 +10,9 @@ on:
 permissions:
     contents: read
 
+env:
+  KUBERNETES_VERSION: v1.35.3
+
 jobs:
   tests-e2e:
     runs-on: ubuntu-latest
@@ -36,11 +39,11 @@ jobs:
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
         echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
         echo "VERSION=1h" >> $GITHUB_ENV
-        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
+        echo "K3S_HOST_VERSION=${{ env.KUBERNETES_VERSION }}+k3s1" >> $GITHUB_ENV
 
     - name: Install k3s
       run: |
-        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${{ env.K3S_HOST_VERSION }} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
 
     - name: Build and package and push dev images
       env:
@@ -64,18 +67,26 @@ jobs:
       run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out
     
     - name: Upload coverage reports to Codecov (controller)
-      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ${GOCOVERDIR}/cover.out
         flags: controller
 
     - name: Upload coverage reports to Codecov (e2e)
-      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./cover.out
         flags: e2e
+
+    - name: Export logs
+      if: always()
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        journalctl -u k3s -o cat --no-pager > /tmp/k3s.log
+        kubectl logs -n k3k-system -l "app.kubernetes.io/name=k3k" --tail=-1 > /tmp/k3k.log
 
     - name: Archive k3s logs
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
@@ -115,11 +126,11 @@ jobs:
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
         echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
         echo "VERSION=1h" >> $GITHUB_ENV
-        echo "K3S_HOST_VERSION=v1.32.1+k3s1 >> $GITHUB_ENV"
+        echo "K3S_HOST_VERSION=${{ env.KUBERNETES_VERSION }}+k3s1" >> $GITHUB_ENV
 
     - name: Install k3s
       run: |
-        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${{ env.K3S_HOST_VERSION }} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s - 
 
     - name: Build and package and push dev images
       env:
@@ -143,29 +154,37 @@ jobs:
       run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out
     
     - name: Upload coverage reports to Codecov (controller)
-      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ${GOCOVERDIR}/cover.out
         flags: controller
 
     - name: Upload coverage reports to Codecov (e2e)
-      uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./cover.out
         flags: e2e
 
+    - name: Export logs
+      if: always()
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        journalctl -u k3s -o cat --no-pager > /tmp/k3s.log
+        kubectl logs -n k3k-system -l "app.kubernetes.io/name=k3k" --tail=-1 > /tmp/k3k.log
+
     - name: Archive k3s logs
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       if: always()
       with:
-        name: e2e-k3s-logs
+        name: e2e-slow-k3s-logs
         path: /tmp/k3s.log
 
     - name: Archive k3k logs
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       if: always()
       with:
-        name: e2e-k3k-logs
+        name: e2e-slow-k3k-logs
         path: /tmp/k3k.log

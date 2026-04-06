@@ -95,6 +95,7 @@ func (p *Provider) transformProjectedTokens(ctx context.Context, virtualPod, hos
 		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
 			continue
 		}
+
 		if volume.Projected == nil {
 			continue
 		}
@@ -108,6 +109,7 @@ func (p *Provider) transformProjectedTokens(ctx context.Context, virtualPod, hos
 			if err != nil {
 				return err
 			}
+
 			hostSecret, err := p.translateAndCreateHostTokenSecret(ctx, projectedSecret)
 			if err != nil {
 				return err

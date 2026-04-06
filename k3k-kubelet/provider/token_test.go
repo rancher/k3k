@@ -320,6 +320,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 			if tt.want != "" {
 				assert.Equal(t, tt.want, got)
 			}
+
 			assert.Less(t, len(got), 64, "name should be under 64 characters")
 		})
 	}

@@ -8,7 +8,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -160,7 +160,7 @@ func (p *Provider) requestTokenSecret(ctx context.Context, token *corev1.Service
 	virtualSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			// creating unique name for the virtual secret based on the request attributes
-			Name:      generateTokenSecretName(serviceAccountName, tokenResp),
+			Name:      generateTokenSecretName(serviceAccountName, token.Path, tokenResp),
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
@@ -195,14 +195,12 @@ func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, projec
 
 	p.Translator.TranslateTo(hostSecret)
 
-	if err := p.Host.Client.Get(ctx, client.ObjectKeyFromObject(hostSecret), hostSecret); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-
-		if err := p.Host.Client.Create(ctx, hostSecret); err != nil {
-			return nil, err
-		}
+	data := hostSecret.Data
+	if _, err := controllerutil.CreateOrUpdate(ctx, p.Host.Client, hostSecret, func() error {
+		hostSecret.Data = data
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return hostSecret, nil
@@ -289,15 +287,20 @@ func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
 	}
 }
 
-func generateTokenSecretName(serviceAccountName string, tokenReq *authv1.TokenRequest) string {
-	nameStr := "k3k-" + serviceAccountName
+func generateTokenSecretName(serviceAccountName, tokenPath string, tokenReq *authv1.TokenRequest) string {
+	nameComponents := []string{serviceAccountName}
+
 	if tokenReq.Spec.Audiences != nil {
-		nameStr += "-" + strings.Join(tokenReq.Spec.Audiences, "-")
+		nameComponents = append(nameComponents, tokenReq.Spec.Audiences...)
 	}
 
 	if tokenReq.Spec.ExpirationSeconds != nil {
-		nameStr += "-" + strconv.Itoa(int(*tokenReq.Spec.ExpirationSeconds))
+		nameComponents = append(nameComponents, strconv.Itoa(int(*tokenReq.Spec.ExpirationSeconds)))
 	}
 
-	return nameStr
+	if tokenPath != "" {
+		nameComponents = append(nameComponents, tokenPath)
+	}
+
+	return k3kcontroller.SafeConcatNameWithPrefix(nameComponents...)
 }

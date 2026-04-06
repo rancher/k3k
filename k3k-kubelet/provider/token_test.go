@@ -12,7 +12,7 @@ import (
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
 
-func Test_isKubeAccessVolumeFound(t *testing.T) {
+func Test_hasKubeAccessVolumeFound(t *testing.T) {
 	tests := []struct {
 		name string
 		pod  *corev1.Pod
@@ -73,7 +73,7 @@ func Test_isKubeAccessVolumeFound(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, isKubeAccessVolumeFound(tt.pod))
+			assert.Equal(t, tt.want, hasKubeAccessVolumeFound(tt.pod))
 		})
 	}
 }
@@ -231,11 +231,12 @@ func Test_generateTokenSecretName(t *testing.T) {
 	tests := []struct {
 		name               string
 		serviceAccountName string
+		tokenPath          string
 		tokenReq           *authv1.TokenRequest
 		want               string
 	}{
 		{
-			name:               "no audiences, no expiration",
+			name:               "no audiences, no expiration, no path",
 			serviceAccountName: "default",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{},
@@ -245,50 +246,81 @@ func Test_generateTokenSecretName(t *testing.T) {
 		{
 			name:               "no audiences, with expiration",
 			serviceAccountName: "default",
+			tokenPath:          "token",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
 					ExpirationSeconds: ptr.To(int64(3600)),
 				},
 			},
-			want: "k3k-default-3600",
+			want: "k3k-default-3600-token",
 		},
 		{
 			name:               "with single audience and expiration",
 			serviceAccountName: "my-sa",
+			tokenPath:          "token",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
 					Audiences:         []string{"api"},
 					ExpirationSeconds: ptr.To(int64(3600)),
 				},
 			},
-			want: "k3k-my-sa-api-3600",
+			want: "k3k-my-sa-api-3600-token",
 		},
 		{
 			name:               "with multiple audiences and expiration",
 			serviceAccountName: "my-sa",
+			tokenPath:          "token",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
 					Audiences:         []string{"api", "vault"},
 					ExpirationSeconds: ptr.To(int64(3600)),
 				},
 			},
-			want: "k3k-my-sa-api-vault-3600",
+			want: "k3k-my-sa-api-vault-3600-token",
 		},
 		{
 			name:               "with audiences, no expiration",
 			serviceAccountName: "my-sa",
+			tokenPath:          "vault-token",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
 					Audiences: []string{"api"},
 				},
 			},
-			want: "k3k-my-sa-api",
+			want: "k3k-my-sa-api-vault-token",
+		},
+		{
+			name:               "different paths produce different names",
+			serviceAccountName: "my-sa",
+			tokenPath:          "other-path",
+			tokenReq: &authv1.TokenRequest{
+				Spec: authv1.TokenRequestSpec{
+					Audiences:         []string{"api"},
+					ExpirationSeconds: ptr.To(int64(3600)),
+				},
+			},
+			want: "k3k-my-sa-api-3600-other-path",
+		},
+		{
+			name:               "long name gets truncated with hash",
+			serviceAccountName: "my-very-long-service-account-name",
+			tokenPath:          "some-very-long-token-path-value",
+			tokenReq: &authv1.TokenRequest{
+				Spec: authv1.TokenRequestSpec{
+					Audiences:         []string{"some-very-long-audience-string"},
+					ExpirationSeconds: ptr.To(int64(3600)),
+				},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, generateTokenSecretName(tt.serviceAccountName, tt.tokenReq))
+			got := generateTokenSecretName(tt.serviceAccountName, tt.tokenPath, tt.tokenReq)
+			if tt.want != "" {
+				assert.Equal(t, tt.want, got)
+			}
+			assert.Less(t, len(got), 64, "name should be under 64 characters")
 		})
 	}
 }

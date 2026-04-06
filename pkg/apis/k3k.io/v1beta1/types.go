@@ -427,6 +427,7 @@ type PersistenceConfig struct {
 	//
 	// +kubebuilder:default="2G"
 	// +kubebuilder:validation:XValidation:message="storageRequestSize is immutable",rule="self == oldSelf"
+	// +kubebuilder:validation:XValidation:message="storageRequestSize must be a positive value",rule="self > quantity('0')"
 	// +optional
 	StorageRequestSize *resource.Quantity `json:"storageRequestSize,omitempty"`
 }

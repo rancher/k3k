@@ -24,9 +24,6 @@ jobs:
         k8s_version:
         - v1.34.6
         - v1.35.3
-        type:
-        - parallel
-        - serial
 
     steps:
     - name: Checkout code
@@ -46,7 +43,7 @@ jobs:
         tar -xvzf helm.tar.gz --strip-components=1 -C /tmp/
         sudo mv /tmp/helm /usr/local/bin
         sudo chmod +x /usr/local/bin/helm
-    
+
     - name: Install hydrophone
       run: go install sigs.k8s.io/hydrophone@3de3e886a2f6f09635d8b981c195490af1584d97 #v0.7.0
 
@@ -60,7 +57,7 @@ jobs:
         kubectl cluster-info
         kubectl get nodes
 
-    - name: Build, package and setup K3k
+    - name: Setup K3k
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
@@ -93,23 +90,13 @@ jobs:
         kubectl get nodes
         kubectl get pods -A
     
-    - name: Run conformance tests (parallel)
-      if: matrix.type == 'parallel'
+    - name: Run conformance tests
       run: |
-        # Run conformance tests in parallel mode (skipping serial)
-        hydrophone --conformance --parallel 4 --skip='\[Serial\]' \
+        hydrophone --conformance \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
 
-    - name: Run conformance tests (serial)
-      if: matrix.type == 'serial'
-      run: |        
-        # Run serial conformance tests
-        hydrophone --focus='\[Serial\].*\[Conformance\]' \
-          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
-          --output-dir /tmp
-    
-    - name: Export logs
+    - name: Collect logs
       if: always()
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -121,27 +108,34 @@ jobs:
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       if: always()
       with:
-        name: k3s-${{ matrix.k8s_version }}-${{ matrix.type }}-logs
+        name: k3s-${{ matrix.k8s_version }}-logs
         path: /tmp/k3s.log
 
     - name: Archive K3k logs
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       if: always()
       with:
-        name: k3k-${{ matrix.k8s_version }}-${{ matrix.type }}-logs
+        name: k3k-${{ matrix.k8s_version }}-logs
         path: /tmp/k3k.log
 
     - name: Archive conformance logs
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       if: always()
       with:
-        name: conformance-${{ matrix.k8s_version }}-${{ matrix.type }}-logs
+        name: conformance-${{ matrix.k8s_version }}-logs
         path: /tmp/e2e.log
+
+    - name: Archive results
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      if: always()
+      with:
+        name: conformance-${{ matrix.k8s_version }}-results
+        path: /tmp/junit_01.xml
 
     - name: Job Summary
       if: always()
       run: |
-        echo '## 📊 Conformance Tests Results (${{ matrix.k8s_version }} - ${{ matrix.type }})' >> $GITHUB_STEP_SUMMARY
+        echo '## 📊 Conformance Tests Results (${{ matrix.k8s_version }})' >> $GITHUB_STEP_SUMMARY
         echo '| Passed | Failed | Pending | Skipped |'              >> $GITHUB_STEP_SUMMARY
         echo '|---|---|---|---|'                                    >> $GITHUB_STEP_SUMMARY
 

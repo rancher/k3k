@@ -27,10 +27,7 @@ jobs:
         k8s_version:
         - v1.34.6
         - v1.35.3
-        type:
-        - parallel
-        - serial
-      
+
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -138,33 +135,30 @@ jobs:
         kubectl get nodes
         kubectl get pods -A
     
-    - name: Run conformance tests (parallel)
-      if: matrix.type == 'parallel'
+    - name: Run conformance tests
       run: |
-        # Run conformance tests in parallel mode (skipping serial)
-        hydrophone --conformance --parallel 4 --skip='\[Serial\]' \
+        hydrophone --conformance \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
 
-    - name: Run conformance tests (serial)
-      if: matrix.type == 'serial'
-      run: |        
-        # Run serial conformance tests
-        hydrophone --focus='\[Serial\].*\[Conformance\]' \
-          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
-          --output-dir /tmp
-
-    - name: Archive conformance logs
+    - name: Archive logs
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       if: always()
       with:
-        name: conformance-${{ matrix.k8s_version }}-${{ matrix.type }}-logs
+        name: conformance-${{ matrix.k8s_version }}-logs
         path: /tmp/e2e.log
+
+    - name: Archive results
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      if: always()
+      with:
+        name: conformance-${{ matrix.k8s_version }}-results
+        path: /tmp/junit_01.xml
 
     - name: Job Summary
       if: always()
       run: |
-        echo '## 📊 Conformance Tests Results (${{ matrix.k8s_version }} - ${{ matrix.type }})' >> $GITHUB_STEP_SUMMARY
+        echo '## 📊 Conformance Tests Results (${{ matrix.k8s_version }})' >> $GITHUB_STEP_SUMMARY
         echo '| Passed | Failed | Pending | Skipped |'              >> $GITHUB_STEP_SUMMARY
         echo '|---|---|---|---|'                                    >> $GITHUB_STEP_SUMMARY
 

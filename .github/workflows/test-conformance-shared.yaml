@@ -137,7 +137,7 @@ jobs:
     
     - name: Run conformance tests
       run: |
-        hydrophone --conformance \
+        hydrophone --conformance --parallel 4 \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
 

@@ -45,7 +45,7 @@ func (p *Provider) transformTokens(ctx context.Context, virtualPod, hostPod *cor
 func (p *Provider) transformKubeAccessToken(ctx context.Context, virtualPod, hostPod *corev1.Pod) error {
 	// skip this process if the kube-api-access is already removed from the pod
 	// this is needed in case users already adds their own custom tokens like in rancher imported clusters
-	if !hasKubeAccessVolumeFound(virtualPod) {
+	if !hasKubeAccessVolume(virtualPod) {
 		return nil
 	}
 
@@ -208,7 +208,7 @@ func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, projec
 	return hostSecret, nil
 }
 
-func hasKubeAccessVolumeFound(pod *corev1.Pod) bool {
+func hasKubeAccessVolume(pod *corev1.Pod) bool {
 	for _, volume := range pod.Spec.Volumes {
 		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
 			return true
@@ -296,8 +296,8 @@ func generateTokenSecretName(serviceAccountName, tokenPath string, tokenReq *aut
 		nameComponents = append(nameComponents, tokenReq.Spec.Audiences...)
 	}
 
-	if tokenReq.Spec.ExpirationSeconds != nil {
-		nameComponents = append(nameComponents, strconv.Itoa(int(*tokenReq.Spec.ExpirationSeconds)))
+	if exp := tokenReq.Spec.ExpirationSeconds; exp != nil {
+		nameComponents = append(nameComponents, strconv.FormatInt(*exp, 10))
 	}
 
 	if tokenPath != "" {

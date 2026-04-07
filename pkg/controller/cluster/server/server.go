@@ -261,6 +261,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		log.V(1).Info("Using runtimeClassName from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
 		runtimeClassName = s.cluster.Status.Policy.RuntimeClassName
 	}
+
 	podSpec.RuntimeClassName = runtimeClassName
 
 	// specify resource limits if specified for the servers.

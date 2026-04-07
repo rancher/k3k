@@ -287,6 +287,7 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSp
 		log.V(1).Info("Using runtimeClassName from policy", "policyName", v.cluster.Status.PolicyName, "clusterName", v.cluster.Name)
 		runtimeClassName = v.cluster.Status.Policy.RuntimeClassName
 	}
+
 	podSpec.RuntimeClassName = runtimeClassName
 
 	return podSpec

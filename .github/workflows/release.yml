@@ -1,97 +1,115 @@
 name: Release
-
 on:
   push:
     tags:
-    - "v*"
+      - "v*"
   workflow_dispatch:
     inputs:
       commit:
         type: string
         description: Checkout a specific commit
-
 permissions:
-    contents: write
-    packages: write
-    id-token: write
-
+  contents: write
+  packages: write
+  id-token: write
 jobs:
   release:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      with:
-        fetch-depth: 0
-        fetch-tags: true
-    
-    - name: Checkout code at the specific commit
-      if: inputs.commit != ''
-      run: git checkout ${{ inputs.commit }}
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Checkout code at the specific commit
+        if: inputs.commit != ''
+        run: git checkout ${{ inputs.commit }}
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version-file: go.mod
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4
+        with:
+          image: tonistiigi/binfmt:qemu-v10.0.4-56
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+        with:
+          version: v0.30.1
+      - name: "Read secrets"
+        uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
+        if: github.repository_owner == 'rancher'
+        with:
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
+            secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials password | DOCKER_PASSWORD ;
+      # Manually dispatched workflows (or forks) will use ghcr.io
+      - name: Setup ghcr.io
+        if: github.event_name == 'workflow_dispatch' || github.repository_owner != 'rancher'
+        run: |
+          echo "REGISTRY=ghcr.io"                     >> $GITHUB_ENV
+          echo "DOCKER_USERNAME=${{ github.actor }}"  >> $GITHUB_ENV
+          echo "DOCKER_PASSWORD=${{ github.token }}"  >> $GITHUB_ENV
+      - name: Login to container registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+      # If the tag does not exists the workflow was manually triggered.
+      # That means we are creating temporary nightly builds, with a "fake" local tag
+      - name: Check release tag
+        id: release-tag
+        run: |
+          CURRENT_TAG=$(git describe --tag --always --match="v[0-9]*")
 
-    - name: Set up Go
-      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
-      with:
-        go-version-file: go.mod
+          if git show-ref --tags ${CURRENT_TAG} --quiet; then
+            echo "tag ${CURRENT_TAG} already exists";
+          else
+            echo "tag ${CURRENT_TAG} does not exist"
+            git tag ${CURRENT_TAG}
+          fi
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4
-      with:
-        image: tonistiigi/binfmt:qemu-v10.0.4-56
+          echo "CURRENT_TAG=${CURRENT_TAG}" >> "$GITHUB_OUTPUT"
+      - name: Setup goreleaser
+        shell: bash
+        run: |-
+          OS="Linux"
+          if [[ ${RUNNER_OS} != "Linux" ]]; then
+          	echo "Unsupported OS: ${RUNNER_OS}"
+          	exit 1
+          fi
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
-      with:
-        version: v0.30.1
+          # renovate-local: goreleaser-x86_64
+          GORELASER_VERSION="v2.15.2"
+          # renovate-local: goreleaser-x86_64=v2.15.2
+          GORELEASER_CHECKSUM_x86_64="0ebdbf0353aba566b969dde746cc4e4806f96c27aa2f3971b229a9df7611fedc"
 
-    - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
-      if: github.repository_owner == 'rancher'
-      with:
-        secrets: |
-          secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
-          secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials password | DOCKER_PASSWORD ;
+          ARCH=$(uname -m)
+          CHECKSUM="${GORELEASER_CHECKSUM_x86_64}"
+          if [[ "${ARCH}" != "x86_64" ]]; then
+          	echo "Unsupported architecture: ${ARCH}"
+          	exit 1
+          fi
 
-    # Manually dispatched workflows (or forks) will use ghcr.io
-    - name: Setup ghcr.io
-      if: github.event_name == 'workflow_dispatch' || github.repository_owner != 'rancher'
-      run: |
-        echo "REGISTRY=ghcr.io"                     >> $GITHUB_ENV
-        echo "DOCKER_USERNAME=${{ github.actor }}"  >> $GITHUB_ENV
-        echo "DOCKER_PASSWORD=${{ github.token }}"  >> $GITHUB_ENV
+          FILE="goreleaser_${OS}_${ARCH}.tar.gz"
 
-    - name: Login to container registry
-      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ env.DOCKER_USERNAME }}
-        password: ${{ env.DOCKER_PASSWORD }}
-    
-    # If the tag does not exists the workflow was manually triggered.
-    # That means we are creating temporary nightly builds, with a "fake" local tag
-    - name: Check release tag
-      id: release-tag
-      run: |
-        CURRENT_TAG=$(git describe --tag --always --match="v[0-9]*")
+          echo "Installing ${FILE}"
+          curl -LO "https://github.com/goreleaser/goreleaser/releases/download/${GORELEASER_VERSION}/${FILE}"
+          echo "${CHECKSUM} ${FILE}" | sha256sum -c
+          tar -xf "${FILE}" goreleaser
 
-        if git show-ref --tags ${CURRENT_TAG} --quiet; then
-          echo "tag ${CURRENT_TAG} already exists";
-        else
-          echo "tag ${CURRENT_TAG} does not exist"
-          git tag ${CURRENT_TAG}
-        fi
-
-        echo "CURRENT_TAG=${CURRENT_TAG}" >> "$GITHUB_OUTPUT"
-
-    - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7
-      with:
-        distribution: goreleaser
-        version: v2
-        args: --clean
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-        GORELEASER_CURRENT_TAG: ${{ steps.release-tag.outputs.CURRENT_TAG }}
-        REGISTRY: ${{ env.REGISTRY }}
-        REPO: ${{ github.repository }}
+          if sudo -l &> /dev/null; then
+          	sudo install -m 755 goreleaser /usr/local/bin/goreleaser
+          else
+          	install -m 755 goreleaser /usr/local/bin/goreleaser
+          fi
+          rm -f "${FILE}" goreleaser
+      - name: Run goreleaser
+        shell: bash
+        run: goreleaser --clean
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GORELEASER_CURRENT_TAG: ${{ steps.release-tag.outputs.CURRENT_TAG }}
+          REGISTRY: ${{ env.REGISTRY }}
+          REPO: ${{ github.repository }}

@@ -1340,8 +1340,8 @@ spec:
                 type: string
               runtimeClassName:
                 description: |-
-                  SecurityContext specifies custom SecurityContext to be added
-                  to the agent and server pods of the cluster in virtual or shared mode.
+                  RuntimeClassName specifies alternative runtime class for the
+                  agent and server pods of the cluster in virtual or shared mode.
                 type: string
               secretMounts:
                 description: |-
@@ -1433,8 +1433,9 @@ spec:
                 type: array
               securityContext:
                 description: |-
-                  RuntimeClassName specifies alternative runtime class for the
-                  agent and server pods of the cluster in virtual or shared mode.
+                  SecurityContext specifies custom SecurityContext to be added
+                  to the agent and server pods of the cluster in virtual or shared mode.
+                  This option will override the SecurityContext set by default for virtual mode.
                 properties:
                   allowPrivilegeEscalation:
                     description: |-

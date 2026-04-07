@@ -215,7 +215,7 @@ type ClusterSpec struct {
 	// agent and server pods of the cluster in virtual or shared mode.
 	//
 	// +optional
-	RuntimeClassName string `json:"runtimeClassName,omitempty"`
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,
@@ -646,7 +646,7 @@ type AppliedPolicy struct {
 	// to the agent and server pods of the cluster in virtual or shared mode.
 	//
 	// +optional
-	RuntimeClassName string `json:"runtimeClassName,omitempty"`
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 
 	// RuntimeClassName specifies alternative runtime class for the
 	// agent and server pods of the cluster in virtual or shared mode.
@@ -765,7 +765,7 @@ type VirtualClusterPolicySpec struct {
 	// to the agent and server pods of the cluster in virtual or shared mode.
 	//
 	// +optional
-	RuntimeClassName string `json:"runtimeClassName,omitempty"`
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 
 	// RuntimeClassName specifies alternative runtime class for the
 	// agent and server pods of the cluster in virtual or shared mode.

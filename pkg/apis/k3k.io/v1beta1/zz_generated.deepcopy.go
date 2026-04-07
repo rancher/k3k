@@ -55,6 +55,11 @@ func (in *AppliedPolicy) DeepCopyInto(out *AppliedPolicy) {
 		*out = new(SyncConfig)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.RuntimeClassName != nil {
+		in, out := &in.RuntimeClassName, &out.RuntimeClassName
+		*out = new(string)
+		**out = **in
+	}
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
 		*out = new(v1.SecurityContext)
@@ -241,6 +246,11 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		in, out := &in.SecurityContext, &out.SecurityContext
 		*out = new(v1.SecurityContext)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.RuntimeClassName != nil {
+		in, out := &in.RuntimeClassName, &out.RuntimeClassName
+		*out = new(string)
+		**out = **in
 	}
 }
 
@@ -755,6 +765,11 @@ func (in *VirtualClusterPolicySpec) DeepCopyInto(out *VirtualClusterPolicySpec) 
 		in, out := &in.Sync, &out.Sync
 		*out = new(SyncConfig)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.RuntimeClassName != nil {
+		in, out := &in.RuntimeClassName, &out.RuntimeClassName
+		*out = new(string)
+		**out = **in
 	}
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext

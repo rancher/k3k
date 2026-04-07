@@ -283,14 +283,11 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSp
 	}
 
 	runtimeClassName := v.cluster.Spec.RuntimeClassName
-	if v.cluster.Status.Policy != nil && v.cluster.Status.Policy.RuntimeClassName != "" {
+	if v.cluster.Status.Policy != nil && v.cluster.Status.Policy.RuntimeClassName != nil {
 		log.V(1).Info("Using runtimeClassName from policy", "policyName", v.cluster.Status.PolicyName, "clusterName", v.cluster.Name)
 		runtimeClassName = v.cluster.Status.Policy.RuntimeClassName
 	}
-
-	if runtimeClassName != "" {
-		podSpec.RuntimeClassName = &runtimeClassName
-	}
+	podSpec.RuntimeClassName = runtimeClassName
 
 	return podSpec
 }

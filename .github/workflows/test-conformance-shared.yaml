@@ -5,6 +5,10 @@ on:
     - cron: "0 1 * * *"
   workflow_dispatch:
     inputs:
+      k3k_version:
+        description: 'K3k version to test (e.g. v1.0.2). Leave empty to build from source.'
+        required: false
+        type: string
       k8s_version:
         description: 'Kubernetes version to test'
         required: false
@@ -103,7 +107,8 @@ jobs:
         kubectl cluster-info
         kubectl get nodes
 
-    - name: Setup K3k
+    - name: Setup K3k (from source)
+      if: inputs.k3k_version == ''
       env:
         REPO: k3k-registry:12345
       run: |
@@ -121,7 +126,27 @@ jobs:
         k3d image import ${REPO}/k3k-kubelet:${VERSION} -c k3k --verbose
 
         make install
+
+    - name: Setup K3k (from release)
+      if: inputs.k3k_version != ''
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        K3K_VERSION="${{ inputs.k3k_version }}"
+        CHART_VERSION="${K3K_VERSION#v}"
+
+        helm repo add k3k https://rancher.github.io/k3k
+        helm repo update
+        helm install --namespace k3k-system --create-namespace --version "${CHART_VERSION}" k3k k3k/k3k
         
+        wget -qO k3kcli "https://github.com/rancher/k3k/releases/download/${{ inputs.k3k_version }}/k3kcli-linux-amd64"
+        sudo mv k3kcli /usr/local/bin/k3kcli
+        sudo chmod +x /usr/local/bin/k3kcli
+
+    - name: Wait for K3k controller
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
         echo "Wait for K3k controller to be available"
         kubectl wait -n k3k-system pod --for condition=Ready -l "app.kubernetes.io/name=k3k" --timeout=5m
 

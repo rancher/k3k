@@ -121,8 +121,8 @@ jobs:
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
-        echo "Wait for K3k controller to be available"
-        kubectl wait -n k3k-system pod --for condition=Ready -l "app.kubernetes.io/name=k3k" --timeout=5m
+        echo "Wait for K3k controller deployment to be available"
+        kubectl wait -n k3k-system deployment -l "app.kubernetes.io/name=k3k" --for=condition=Available --timeout=5m
 
     - name: Check k3kcli
       run: k3kcli -v

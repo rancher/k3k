@@ -1984,6 +1984,12 @@ spec:
                       enabled: false
                     description: Ingresses resources sync configuration.
                     properties:
+                      disableTLSSecretTranslation:
+                        default: false
+                        description: |-
+                          DisableTLSSecretTranslation is an on/off switch for translating TLS secrets
+                          from virtual cluster to host cluster
+                        type: boolean
                       enabled:
                         default: false
                         description: Enabled is an on/off switch for syncing resources.

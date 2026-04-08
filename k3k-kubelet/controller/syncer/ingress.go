@@ -92,11 +92,20 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, err
 	}
 
+	appliedSync := cluster.Spec.Sync.DeepCopy()
+
+	// If a policy is applied to the virtual cluster we need to use its SyncConfig, if available
+	if cluster.Status.Policy != nil && cluster.Status.Policy.Sync != nil {
+		appliedSync = cluster.Status.Policy.Sync
+	}
+
+	syncConfig := appliedSync.Ingresses
+
 	if err := r.VirtualClient.Get(ctx, req.NamespacedName, &virtIngress); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
-	syncedIngress := r.ingress(&virtIngress)
+	syncedIngress := r.ingress(&virtIngress, syncConfig.DisableTLSSecretTranslation)
 
 	if err := controllerutil.SetOwnerReference(&cluster, syncedIngress, r.HostClient.Scheme()); err != nil {
 		return reconcile.Result{}, err
@@ -143,7 +152,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	return reconcile.Result{}, r.HostClient.Update(ctx, syncedIngress)
 }
 
-func (s *IngressReconciler) ingress(obj *networkingv1.Ingress) *networkingv1.Ingress {
+func (s *IngressReconciler) ingress(obj *networkingv1.Ingress, disableTLSSecretTranslation bool) *networkingv1.Ingress {
 	hostIngress := obj.DeepCopy()
 	s.Translator.TranslateTo(hostIngress)
 
@@ -157,6 +166,17 @@ func (s *IngressReconciler) ingress(obj *networkingv1.Ingress) *networkingv1.Ing
 			}
 		}
 	}
-	// don't sync finalizers to the host
+
+	// TLS Secret translation disable, return early without translating TLS secrets in the ingress spec
+	if disableTLSSecretTranslation {
+		return hostIngress
+	}
+	// ensure tls secrets are also translated
+	for i := range hostIngress.Spec.TLS {
+		if hostIngress.Spec.TLS[i].SecretName != "" {
+			hostIngress.Spec.TLS[i].SecretName = s.Translator.TranslateName(obj.GetNamespace(), hostIngress.Spec.TLS[i].SecretName)
+		}
+	}
+
 	return hostIngress
 }

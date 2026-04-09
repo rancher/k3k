@@ -4,33 +4,57 @@ on:
   schedule:
     - cron: "0 1 * * *"
   workflow_dispatch:
+    inputs:
+      k3k_version:
+        description: 'K3k version to test (e.g. v1.0.2). Leave empty to build from source.'
+        required: false
+        type: string
+      k8s_version:
+        description: 'Kubernetes version to test'
+        required: false
+        type: choice
+        options:
+          - ""
+          - "v1.34.6"
+          - "v1.35.3"
 
 permissions:
     contents: read
 
 env:
-  ARCH: amd64
+  K8S_VERSIONS: "v1.34.6,v1.35.3"
   HELM_VERSION: v4.1.3
   HELM_BIN_HASH_AMD64: 02ce9722d541238f81459938b84cf47df2fdf1187493b4bfb2346754d82a4700
   K3D_VERSION: v5.8.3
   K3D_BIN_HASH_AMD64: dbaa79a76ace7f4ca230a1ff41dc7d8a5036a8ad0309e9c54f9bf3836dbe853e
 
 jobs:
-  conformance:
+  setup:
     runs-on: ubuntu-latest
-    env:
-      KUBERNETES_VERSION: ${{ matrix.k8s_version }}
+    outputs:
+      k8s_versions: ${{ steps.set-matrix.outputs.k8s_versions }}
+    steps:
+      - id: set-matrix
+        run: |
+          if [[ -z "${{ inputs.k8s_version }}" ]]; then
+            JSON_ARRAY=$(jq -nc '"${{ env.K8S_VERSIONS }}" | split(",")')
+            echo "k8s_versions=${JSON_ARRAY}" >> "$GITHUB_OUTPUT"
+          else
+            echo "k8s_versions=[\"${{ inputs.k8s_version }}\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+  conformance:
+    needs: setup
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        k8s_version:
-        - v1.34.6
-        - v1.35.3
-        type:
-        - parallel
-        - serial
-      
+        k8s_version: ${{ fromJSON(needs.setup.outputs.k8s_versions) }}
+
+    env:
+      KUBERNETES_VERSION: ${{ matrix.k8s_version }}
+
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -55,7 +79,7 @@ jobs:
 
     - name: Install k3d # taken from github.com/rancher/rancher/.github/workflows/integration-tests.yaml
       run: |
-        curl -sSfL -o k3d "https://github.com/k3d-io/k3d/releases/download/${{ env.K3D_VERSION }}/k3d-linux-${ARCH}"
+        curl -sSfL -o k3d "https://github.com/k3d-io/k3d/releases/download/${{ env.K3D_VERSION }}/k3d-linux-amd64"
         echo "${{ env.K3D_BIN_HASH_AMD64 }}  k3d" | sha256sum --check
         sudo mv k3d /usr/local/bin
         sudo chmod +x /usr/local/bin/k3d
@@ -83,7 +107,8 @@ jobs:
         kubectl cluster-info
         kubectl get nodes
 
-    - name: Setup K3k
+    - name: Setup K3k (from source)
+      if: inputs.k3k_version == ''
       env:
         REPO: k3k-registry:12345
       run: |
@@ -101,9 +126,29 @@ jobs:
         k3d image import ${REPO}/k3k-kubelet:${VERSION} -c k3k --verbose
 
         make install
+
+    - name: Setup K3k (from release)
+      if: inputs.k3k_version != ''
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        K3K_VERSION="${{ inputs.k3k_version }}"
+        CHART_VERSION="${K3K_VERSION#v}"
+
+        helm repo add k3k https://rancher.github.io/k3k
+        helm repo update
+        helm install --namespace k3k-system --create-namespace --version "${CHART_VERSION}" k3k k3k/k3k
         
-        echo "Wait for K3k controller to be available"
-        kubectl wait -n k3k-system pod --for condition=Ready -l "app.kubernetes.io/name=k3k" --timeout=5m
+        wget -qO k3kcli "https://github.com/rancher/k3k/releases/download/${{ inputs.k3k_version }}/k3kcli-linux-amd64"
+        sudo mv k3kcli /usr/local/bin/k3kcli
+        sudo chmod +x /usr/local/bin/k3kcli
+
+    - name: Wait for K3k controller
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        echo "Wait for K3k controller deployment to be available"
+        kubectl wait -n k3k-system deployment -l "app.kubernetes.io/name=k3k" --for=condition=Available --timeout=5m
 
     - name: Check k3kcli
       run: k3kcli -v
@@ -138,33 +183,30 @@ jobs:
         kubectl get nodes
         kubectl get pods -A
     
-    - name: Run conformance tests (parallel)
-      if: matrix.type == 'parallel'
+    - name: Run conformance tests
       run: |
-        # Run conformance tests in parallel mode (skipping serial)
-        hydrophone --conformance --parallel 4 --skip='\[Serial\]' \
+        hydrophone --conformance --parallel 4 \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
 
-    - name: Run conformance tests (serial)
-      if: matrix.type == 'serial'
-      run: |        
-        # Run serial conformance tests
-        hydrophone --focus='\[Serial\].*\[Conformance\]' \
-          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
-          --output-dir /tmp
-
-    - name: Archive conformance logs
+    - name: Archive logs
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       if: always()
       with:
-        name: conformance-${{ matrix.k8s_version }}-${{ matrix.type }}-logs
+        name: conformance-${{ matrix.k8s_version }}-logs
         path: /tmp/e2e.log
+
+    - name: Archive results
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      if: always()
+      with:
+        name: conformance-${{ matrix.k8s_version }}-results
+        path: /tmp/junit_01.xml
 
     - name: Job Summary
       if: always()
       run: |
-        echo '## 📊 Conformance Tests Results (${{ matrix.k8s_version }} - ${{ matrix.type }})' >> $GITHUB_STEP_SUMMARY
+        echo '## 📊 Conformance Tests Results (${{ matrix.k8s_version }})' >> $GITHUB_STEP_SUMMARY
         echo '| Passed | Failed | Pending | Skipped |'              >> $GITHUB_STEP_SUMMARY
         echo '|---|---|---|---|'                                    >> $GITHUB_STEP_SUMMARY
 

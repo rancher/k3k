@@ -2,6 +2,8 @@ version: "2"
 
 linters:
   enable:
+  - misspell
+  - wsl_v5
   exclusions:
     rules:
     # Allow dot imports for Ginkgo/Gomega in test framework
@@ -12,21 +14,21 @@ linters:
 
 formatters:
   enable:
-    - gci
-    - gofmt
-    - gofumpt
+  - gci
+  - gofmt
+  - gofumpt
   settings:
     gci:
       # The default order is `standard > default > custom > blank > dot > alias > localmodule`.
       custom-order: true
       sections:
-        - standard
-        - default
-        - alias
-        - localmodule
-        - dot
-        - blank
+      - standard
+      - default
+      - alias
+      - localmodule
+      - dot
+      - blank
     gofmt:
       rewrite-rules:
-        - pattern: 'interface{}'
-          replacement: 'any'
+      - pattern: 'interface{}'
+        replacement: 'any'

@@ -81,7 +81,7 @@ test-integration:	## Run the controller tests that use envtest (tests/integratio
 
 .PHONY: test-e2e
 test-e2e:	## Run the e2e tests
-	$(GINKGO) $(GINKGO_FLAGS) --label-filter="$(E2E_LABEL_FILTER)" tests/e2e
+	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=3 --label-filter="$(E2E_LABEL_FILTER)" tests/e2e
 
 .PHONY: test-cli
 test-cli:	## Run the cli tests

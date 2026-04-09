@@ -203,6 +203,19 @@ type ClusterSpec struct {
 	//
 	// +optional
 	SecretMounts []SecretMount `json:"secretMounts,omitempty"`
+
+	// SecurityContext specifies custom SecurityContext to be added
+	// to the agent and server pods of the cluster in virtual or shared mode.
+	// This option will override the SecurityContext set by default for virtual mode.
+	//
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+
+	// RuntimeClassName specifies alternative runtime class for the
+	// agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,
@@ -635,6 +648,18 @@ type AppliedPolicy struct {
 	//
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
+
+	// SecurityContext specifies custom SecurityContext to be added
+	// to the agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
+
+	// RuntimeClassName specifies alternative runtime class for the
+	// agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.
@@ -742,6 +767,18 @@ type VirtualClusterPolicySpec struct {
 	// +kubebuilder:default={}
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
+
+	// SecurityContext specifies custom SecurityContext to be added
+	// to the agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
+
+	// RuntimeClassName specifies alternative runtime class for the
+	// agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

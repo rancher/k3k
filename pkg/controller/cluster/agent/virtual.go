@@ -272,5 +272,23 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSp
 		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
 	}
 
+	securityContext := v.cluster.Spec.SecurityContext
+	if v.cluster.Status.Policy != nil && v.cluster.Status.Policy.SecurityContext != nil {
+		log.V(1).Info("Using securityContext configuration from policy", "policyName", v.cluster.Status.PolicyName, "clusterName", v.cluster.Name)
+		securityContext = v.cluster.Status.Policy.SecurityContext
+	}
+
+	if securityContext != nil {
+		podSpec.Containers[0].SecurityContext = securityContext
+	}
+
+	runtimeClassName := v.cluster.Spec.RuntimeClassName
+	if v.cluster.Status.Policy != nil && v.cluster.Status.Policy.RuntimeClassName != nil {
+		log.V(1).Info("Using runtimeClassName from policy", "policyName", v.cluster.Status.PolicyName, "clusterName", v.cluster.Name)
+		runtimeClassName = v.cluster.Status.Policy.RuntimeClassName
+	}
+
+	podSpec.RuntimeClassName = runtimeClassName
+
 	return podSpec
 }

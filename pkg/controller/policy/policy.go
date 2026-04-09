@@ -473,12 +473,14 @@ func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, 
 		origStatus := cluster.Status.DeepCopy()
 
 		cluster.Status.Policy = &v1beta1.AppliedPolicy{
-			Name:           policy.Name,
-			PriorityClass:  &policy.Spec.DefaultPriorityClass,
-			NodeSelector:   policy.Spec.DefaultNodeSelector,
-			Sync:           policy.Spec.Sync,
-			ServerAffinity: policy.Spec.DefaultServerAffinity,
-			AgentAffinity:  policy.Spec.DefaultAgentAffinity,
+			Name:             policy.Name,
+			PriorityClass:    &policy.Spec.DefaultPriorityClass,
+			NodeSelector:     policy.Spec.DefaultNodeSelector,
+			Sync:             policy.Spec.Sync,
+			ServerAffinity:   policy.Spec.DefaultServerAffinity,
+			AgentAffinity:    policy.Spec.DefaultAgentAffinity,
+			SecurityContext:  policy.Spec.SecurityContext,
+			RuntimeClassName: policy.Spec.RuntimeClassName,
 		}
 
 		if !reflect.DeepEqual(origStatus, &cluster.Status) {

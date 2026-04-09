@@ -2,8 +2,13 @@ version: "2"
 
 linters:
   enable:
-    - misspell
-    - wsl_v5
+  exclusions:
+    rules:
+    # Allow dot imports for Ginkgo/Gomega in test framework
+    - path: tests/framework/
+      text: "dot imports"
+      linters:
+      - staticcheck
 
 formatters:
   enable:

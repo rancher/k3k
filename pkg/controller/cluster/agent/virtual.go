@@ -137,6 +137,7 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 
 func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSpec {
 	log := ctrl.LoggerFrom(ctx)
+
 	var limit v1.ResourceList
 
 	args := v.cluster.Spec.AgentArgs

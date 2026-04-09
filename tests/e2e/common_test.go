@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -16,8 +14,6 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +23,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -91,41 +88,11 @@ func NewVirtualClusters(n int) []*VirtualCluster {
 }
 
 func NewNamespace() *v1.Namespace {
-	GinkgoHelper()
-
-	namespace := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "ns-", Labels: map[string]string{"e2e": "true"}}}
-	namespace, err := k8s.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
-	Expect(err).To(Not(HaveOccurred()))
-
-	return namespace
+	return fwk3k.CreateNamespace(k8s)
 }
 
 func DeleteNamespaces(names ...string) {
-	GinkgoHelper()
-
-	if _, found := os.LookupEnv("KEEP_NAMESPACES"); found {
-		By(fmt.Sprintf("Keeping namespace %v", names))
-		return
-	}
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(names))
-
-	for _, name := range names {
-		go func() {
-			defer wg.Done()
-			defer GinkgoRecover()
-
-			By(fmt.Sprintf("Deleting namespace %s", name))
-
-			err := k8s.CoreV1().Namespaces().Delete(context.Background(), name, metav1.DeleteOptions{
-				GracePeriodSeconds: ptr.To[int64](0),
-			})
-			Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
-		}()
-	}
-
-	wg.Wait()
+	fwk3k.DeleteNamespaces(k8s, names...)
 }
 
 func NewCluster(namespace string) *v1beta1.Cluster {
@@ -463,17 +430,4 @@ func isArgFound(pod *v1.Pod, arg string) bool {
 	}
 
 	return false
-}
-
-func getServerIP(ctx context.Context, cfg *rest.Config) (string, error) {
-	if k3sContainer != nil {
-		return k3sContainer.ContainerIP(ctx)
-	}
-
-	u, err := url.Parse(cfg.Host)
-	if err != nil {
-		return "", err
-	}
-	// If Host includes a port, u.Hostname() extracts just the hostname part
-	return u.Hostname(), nil
 }

@@ -26,8 +26,10 @@ func RemovePodMutatingWebhook(ctx context.Context, virtualClient, hostClient ctr
 		},
 	}
 
-	if err := hostClient.Delete(ctx, webhookSecret); !apierrors.IsNotFound(err) {
-		return err
+	if err := hostClient.Delete(ctx, webhookSecret); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	webhook := &admissionregistrationv1.MutatingWebhookConfiguration{
@@ -40,8 +42,10 @@ func RemovePodMutatingWebhook(ctx context.Context, virtualClient, hostClient ctr
 		},
 	}
 
-	if err := virtualClient.Delete(ctx, webhook); !apierrors.IsNotFound(err) {
-		return err
+	if err := virtualClient.Delete(ctx, webhook); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil

@@ -42,7 +42,7 @@ var _ = BeforeSuite(func() {
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 
-	scheme := fwclient.NewPolicyScheme()
+	scheme := fwclient.NewScheme()
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 

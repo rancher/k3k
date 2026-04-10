@@ -45,7 +45,7 @@ func NewVirtualCluster() *VirtualCluster { // By default, create an ephemeral cl
 func NewVirtualClusterWithType(persistenceType v1beta1.PersistenceMode) *VirtualCluster {
 	GinkgoHelper()
 
-	namespace := NewNamespace()
+	namespace := fwk3k.CreateNamespace(k8s)
 
 	cluster := NewCluster(namespace.Name)
 	cluster.Spec.Persistence.Type = persistenceType
@@ -85,14 +85,6 @@ func NewVirtualClusters(n int) []*VirtualCluster {
 	wg.Wait()
 
 	return clusters
-}
-
-func NewNamespace() *v1.Namespace {
-	return fwk3k.CreateNamespace(k8s)
-}
-
-func DeleteNamespaces(names ...string) {
-	fwk3k.DeleteNamespaces(k8s, names...)
 }
 
 func NewCluster(namespace string) *v1beta1.Cluster {

@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -27,14 +28,14 @@ var _ = When("a cluster with secretMounts configuration is used to load addons",
 	BeforeEach(func() {
 		ctx := context.Background()
 
-		namespace := NewNamespace()
+		namespace := fwk3k.CreateNamespace(k8s)
 
 		// Create the addon secret
 		err := createAddonSecret(ctx, namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
 		DeferCleanup(func() {
-			DeleteNamespaces(namespace.Name)
+			fwk3k.DeleteNamespaces(k8s, namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -96,14 +97,14 @@ var _ = When("a cluster with addon configuration is used with addons secret in t
 	BeforeEach(func() {
 		ctx := context.Background()
 
-		namespace := NewNamespace()
+		namespace := fwk3k.CreateNamespace(k8s)
 
 		// Create the addon secret
 		err := createAddonSecret(ctx, namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
 		DeferCleanup(func() {
-			DeleteNamespaces(namespace.Name)
+			fwk3k.DeleteNamespaces(k8s, namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -154,15 +155,15 @@ var _ = When("a cluster with addon configuration is used with addons secret in t
 	BeforeEach(func() {
 		ctx := context.Background()
 
-		namespace := NewNamespace()
-		secretNamespace := NewNamespace()
+		namespace := fwk3k.CreateNamespace(k8s)
+		secretNamespace := fwk3k.CreateNamespace(k8s)
 
 		// Create the addon secret
 		err := createAddonSecret(ctx, secretNamespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
 		DeferCleanup(func() {
-			DeleteNamespaces(namespace.Name, secretNamespace.Name)
+			fwk3k.DeleteNamespaces(k8s, namespace.Name, secretNamespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)

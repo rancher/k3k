@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -27,7 +28,25 @@ func GetK3kPodLogs(ctx context.Context, k8sClient client.Client, clientset kuber
 	Expect(podList.Items).NotTo(BeEmpty())
 
 	k3kPod := podList.Items[0]
-	req := clientset.CoreV1().Pods(k3kPod.Namespace).GetLogs(k3kPod.Name, &v1.PodLogOptions{Previous: true})
+
+	// Fetch complete pod object to access status information
+	pod, err := clientset.CoreV1().Pods(k3kPod.Namespace).Get(ctx, k3kPod.Name, metav1.GetOptions{})
+	Expect(err).To(Not(HaveOccurred()))
+
+	// Detect if the container has been restarted (e.g., for coverage dumping in E2E tests)
+	fetchPrevious := false
+
+	if len(pod.Status.ContainerStatuses) > 0 {
+		containerStatus := pod.Status.ContainerStatuses[0]
+
+		if containerStatus.RestartCount > 0 {
+			fetchPrevious = true
+
+			GinkgoWriter.Printf("Container has been restarted %d time(s), fetching previous logs\n", containerStatus.RestartCount)
+		}
+	}
+
+	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{Previous: fetchPrevious})
 	podLogs, err := req.Stream(ctx)
 	Expect(err).To(Not(HaveOccurred()))
 

@@ -87,44 +87,46 @@ var _ = BeforeSuite(func() {
 			repo = "rancher"
 		}
 
-		k3sHostVersion := os.Getenv("K3S_HOST_VERSION")
-		if k3sHostVersion == "" {
-			k3sHostVersion = k3sVersion
-		}
-
-		k3sContainer, kubeconfigPath = fwcontainer.SetupK3s(ctx, k3sHostVersion, repo+"/k3k", repo+"/k3k-kubelet")
-
-		scheme := fwclient.NewScheme()
-		config, err := fwclient.InitFromKubeconfig(ctx, scheme, k3sContainer)
-		Expect(err).NotTo(HaveOccurred())
-
-		hostIP = config.HostIP
-		restcfg = config.RestConfig
-		k8s = config.Clientset
-		k8sClient = config.Client
-
-		// Install k3k chart
-		installer := fwcontainer.NewHelmInstaller(repo+"/k3k", repo+"/k3k-kubelet", kubeconfigPath)
-		kubeconfig, err := os.ReadFile(kubeconfigPath)
-		Expect(err).NotTo(HaveOccurred())
-
-		restClientGetter, err := fwclient.NewRESTClientGetter(kubeconfig)
-		Expect(err).NotTo(HaveOccurred())
-
-		installer.InstallK3kChart(restClientGetter)
+		installK3SDocker(ctx, repo+"/k3k", repo+"/k3k-kubelet")
+		initKubernetesClient(ctx)
+		installK3kChart(repo+"/k3k", repo+"/k3k-kubelet")
 	} else {
-		scheme := fwclient.NewScheme()
-		config, err := fwclient.InitFromKubeconfig(ctx, scheme, nil)
-		Expect(err).NotTo(HaveOccurred())
-
-		hostIP = config.HostIP
-		restcfg = config.RestConfig
-		k8s = config.Clientset
-		k8sClient = config.Client
+		initKubernetesClient(ctx)
 	}
 
 	patchPVC(ctx, k8s)
 })
+
+func installK3SDocker(ctx context.Context, controllerImage, kubeletImage string) {
+	k3sHostVersion := os.Getenv("K3S_HOST_VERSION")
+	if k3sHostVersion == "" {
+		k3sHostVersion = k3sVersion
+	}
+
+	k3sContainer, kubeconfigPath = fwcontainer.SetupK3s(ctx, k3sHostVersion, controllerImage, kubeletImage)
+}
+
+func initKubernetesClient(ctx context.Context) {
+	scheme := fwclient.NewScheme()
+	config, err := fwclient.InitFromKubeconfig(ctx, scheme, k3sContainer)
+	Expect(err).NotTo(HaveOccurred())
+
+	hostIP = config.HostIP
+	restcfg = config.RestConfig
+	k8s = config.Clientset
+	k8sClient = config.Client
+}
+
+func installK3kChart(controllerImage, kubeletImage string) {
+	installer := fwcontainer.NewHelmInstaller(controllerImage, kubeletImage, kubeconfigPath)
+	kubeconfig, err := os.ReadFile(kubeconfigPath)
+	Expect(err).NotTo(HaveOccurred())
+
+	restClientGetter, err := fwclient.NewRESTClientGetter(kubeconfig)
+	Expect(err).NotTo(HaveOccurred())
+
+	installer.InstallK3kChart(restClientGetter)
+}
 
 func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
 	deployments, err := clientset.AppsV1().Deployments(k3kNamespace).List(ctx, metav1.ListOptions{})

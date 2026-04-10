@@ -95,11 +95,11 @@ var _ = AfterSuite(func() {
 		// dump k3s logs
 		k3sLogs, err := k3sContainer.Logs(ctx)
 		Expect(err).To(Not(HaveOccurred()))
-		fwlog.WriteToTemp("k3s.log", k3sLogs)
+		fwlog.WriteLogs("k3s.log", k3sLogs)
 
 		// dump k3k controller logs
 		k3kLogs := fwlog.GetK3kPodLogs(ctx, k8sClient, k8s, k3kNamespace)
-		fwlog.WriteToTemp("k3k.log", k3kLogs)
+		fwlog.WriteLogs("k3k.log", k3kLogs)
 
 		testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
 	}

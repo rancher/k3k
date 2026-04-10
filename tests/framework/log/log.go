@@ -53,9 +53,9 @@ func GetK3kPodLogs(ctx context.Context, k8sClient client.Client, clientset kuber
 	return podLogs
 }
 
-// WriteToTemp writes the provided logs to a temporary file with the specified filename.
+// WriteLogs writes the provided logs to a temporary file with the specified filename.
 // The file is written to os.TempDir() and the full path is logged to GinkgoWriter.
-func WriteToTemp(filename string, logs io.ReadCloser) {
+func WriteLogs(filename string, logs io.ReadCloser) {
 	GinkgoHelper()
 
 	logsStr, err := io.ReadAll(logs)

@@ -253,6 +253,7 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 	}
 
 	podSpec.RuntimeClassName = runtimeClassName
+
 	return podSpec
 }
 

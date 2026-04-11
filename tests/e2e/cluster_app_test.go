@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -28,7 +29,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 		translator = translate.NewHostTranslator(virtualCluster.Cluster)
 
 		DeferCleanup(func() {
-			DeleteNamespaces(virtualCluster.Cluster.Namespace)
+			fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
 		})
 	})
 

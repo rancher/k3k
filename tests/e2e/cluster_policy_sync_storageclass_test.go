@@ -15,6 +15,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/policy"
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -109,7 +110,7 @@ var _ = When("a shared mode cluster is created in a namespace with a policy", Or
 		}
 
 		DeferCleanup(func() {
-			DeleteNamespaces(ns.Name)
+			fwk3k.DeleteNamespaces(k8s, ns.Name)
 
 			err = k8s.StorageV1().StorageClasses().Delete(ctx, storageClassEnabled.Name, metav1.DeleteOptions{})
 			Expect(err).To(Not(HaveOccurred()))

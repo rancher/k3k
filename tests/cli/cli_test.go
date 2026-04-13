@@ -131,9 +131,14 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stdout).To(BeEmpty())
 			Expect(stderr).To(ContainSubstring(`Policy '%s' deleted`, policyName))
 
-			stdout, stderr, err = K3kcli("policy", "list")
-			Expect(err).To(Not(HaveOccurred()), string(stderr))
-			Expect(stdout).To(Not(ContainSubstring(policyName)))
+			Eventually(func(g Gomega) {
+				stdout, stderr, err = K3kcli("policy", "list")
+				g.Expect(err).To(Not(HaveOccurred()), string(stderr))
+				g.Expect(stdout).To(Not(ContainSubstring(policyName)))
+			}).
+				WithTimeout(time.Second * 5).
+				WithPolling(time.Second).
+				Should(Succeed())
 		})
 
 		It("can bound a policy to a namespace", func() {

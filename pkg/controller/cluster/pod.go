@@ -59,8 +59,16 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	}
 
 	if !pod.DeletionTimestamp.IsZero() {
-		virtName := pod.GetAnnotations()[translate.ResourceNameAnnotation]
-		virtNamespace := pod.GetAnnotations()[translate.ResourceNamespaceAnnotation]
+		annotations := pod.GetAnnotations()
+		virtName, hasName := annotations[translate.ResourceNameAnnotation]
+		virtNamespace, hasNamespace := annotations[translate.ResourceNamespaceAnnotation]
+
+		// Some pods are owned by the cluster but don't have the annotations set (i.e. system pods)
+		// They don't exist in the virtual cluster, so we can skip them
+		if !hasName || !hasNamespace {
+			log.V(1).Info("Pod does not have virtual pod annotations, skipping deletion", "pod", pod.Name, "namespace", pod.Namespace)
+			return reconcile.Result{}, nil
+		}
 
 		virtPod := corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{

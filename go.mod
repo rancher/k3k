@@ -24,7 +24,7 @@ require (
 	go.etcd.io/etcd/client/v3 v3.6.10
 	go.uber.org/zap v1.27.1
 	gopkg.in/yaml.v3 v3.0.1
-	helm.sh/helm/v3 v3.20.1
+	helm.sh/helm/v3 v3.20.2
 	k8s.io/api v0.35.3
 	k8s.io/apiextensions-apiserver v0.35.3
 	k8s.io/apimachinery v0.35.3

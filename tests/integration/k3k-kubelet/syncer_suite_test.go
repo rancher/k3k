@@ -10,17 +10,16 @@ import (
 
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	fwclient "github.com/rancher/k3k/tests/framework/client"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -95,7 +94,7 @@ func NewTestEnv() *TestEnv {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "charts", "k3k", "templates", "crds")},
 		ErrorIfCRDPathMissing: true,
 		BinaryAssetsDirectory: tempDir,
-		Scheme:                buildScheme(),
+		Scheme:                fwclient.NewScheme(),
 	}
 
 	cfg, err := testEnv.Start()
@@ -112,17 +111,6 @@ func NewTestEnv() *TestEnv {
 		k8s:         k8s,
 		k8sClient:   k8sClient,
 	}
-}
-
-func buildScheme() *runtime.Scheme {
-	scheme := runtime.NewScheme()
-
-	err := clientgoscheme.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-	err = v1beta1.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	return scheme
 }
 
 var _ = Describe("Kubelet Controller", func() {

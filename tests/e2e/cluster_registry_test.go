@@ -13,6 +13,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/policy"
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,7 +36,7 @@ var _ = When("a cluster with private registry configuration is used", Label("e2e
 		}
 		Expect(k8sClient.Create(ctx, vcp)).To(Succeed())
 
-		namespace := NewNamespace()
+		namespace := fwk3k.CreateNamespace(k8s)
 
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
 		Expect(err).To(Not(HaveOccurred()))
@@ -46,7 +47,7 @@ var _ = When("a cluster with private registry configuration is used", Label("e2e
 		Expect(k8sClient.Update(ctx, namespace)).To(Succeed())
 
 		DeferCleanup(func() {
-			DeleteNamespaces(namespace.Name)
+			fwk3k.DeleteNamespaces(k8s, namespace.Name)
 			Expect(k8sClient.Delete(ctx, vcp)).To(Succeed())
 		})
 

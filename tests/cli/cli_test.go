@@ -13,6 +13,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/policy"
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -54,11 +55,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := NewNamespace()
+			namespace := fwk3k.CreateNamespace(k8s)
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				DeleteNamespaces(namespace.Name)
+				fwk3k.DeleteNamespaces(k8s, namespace.Name)
 			})
 
 			_, stderr, err = K3kcli("cluster", "create", "--namespace", clusterNamespace, clusterName)
@@ -93,11 +94,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := NewNamespace()
+			namespace := fwk3k.CreateNamespace(k8s)
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				DeleteNamespaces(clusterNamespace)
+				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
 			})
 
 			_, stderr, err = K3kcli("cluster", "create", "--version", "v1.33.5-k3s1", clusterName)
@@ -142,11 +143,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				err    error
 			)
 
-			namespace := NewNamespace()
+			namespace := fwk3k.CreateNamespace(k8s)
 			namespaceName := namespace.Name
 
 			DeferCleanup(func() {
-				DeleteNamespaces(namespaceName)
+				fwk3k.DeleteNamespaces(k8s, namespaceName)
 			})
 
 			By("Creating a policy and binding to a namespace")
@@ -213,11 +214,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			clusterName := "cluster-" + rand.String(5)
 
-			namespace := NewNamespace()
+			namespace := fwk3k.CreateNamespace(k8s)
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				DeleteNamespaces(clusterNamespace)
+				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
 			})
 
 			// Create the cluster first
@@ -247,11 +248,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			clusterName := "cluster-" + rand.String(5)
 
-			namespace := NewNamespace()
+			namespace := fwk3k.CreateNamespace(k8s)
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				DeleteNamespaces(clusterNamespace)
+				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
 			})
 
 			// Create the cluster with initial version
@@ -280,11 +281,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			clusterName := "cluster-" + rand.String(5)
 
-			namespace := NewNamespace()
+			namespace := fwk3k.CreateNamespace(k8s)
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				DeleteNamespaces(clusterNamespace)
+				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
 			})
 
 			// Create the cluster with a version
@@ -325,11 +326,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			clusterName := "cluster-" + rand.String(5)
 
-			namespace := NewNamespace()
+			namespace := fwk3k.CreateNamespace(k8s)
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				DeleteNamespaces(clusterNamespace)
+				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
 			})
 
 			// Create the cluster first
@@ -359,11 +360,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			clusterName := "cluster-" + rand.String(5)
 
-			namespace := NewNamespace()
+			namespace := fwk3k.CreateNamespace(k8s)
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				DeleteNamespaces(clusterNamespace)
+				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
 			})
 
 			// Create the cluster first
@@ -394,11 +395,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := NewNamespace()
+			namespace := fwk3k.CreateNamespace(k8s)
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				DeleteNamespaces(clusterNamespace)
+				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
 			})
 
 			_, stderr, err = K3kcli("cluster", "create", "--namespace", clusterNamespace, clusterName)

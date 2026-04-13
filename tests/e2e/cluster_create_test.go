@@ -5,6 +5,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -13,10 +15,10 @@ var _ = When("creating a shared mode cluster", Label(e2eTestLabel), Label(slowTe
 	var virtualCluster *VirtualCluster
 
 	BeforeEach(func() {
-		namespace := NewNamespace()
+		namespace := fwk3k.CreateNamespace(k8s)
 
 		DeferCleanup(func() {
-			DeleteNamespaces(namespace.Name)
+			fwk3k.DeleteNamespaces(k8s, namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)

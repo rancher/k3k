@@ -1,4 +1,4 @@
-package cli_test
+package client
 
 import (
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -10,14 +10,19 @@ import (
 	memory "k8s.io/client-go/discovery/cached"
 )
 
+// RESTClientGetter is a Kubernetes REST client getter implementation that satisfies
+// the genericclioptions.RESTClientGetter interface. This is used primarily for Helm
+// operations in tests.
 type RESTClientGetter struct {
 	clientconfig    clientcmd.ClientConfig
 	restConfig      *rest.Config
 	discoveryClient discovery.CachedDiscoveryInterface
 }
 
+// NewRESTClientGetter creates a new RESTClientGetter from kubeconfig bytes.
+// This is used for Helm operations in tests.
 func NewRESTClientGetter(kubeconfig []byte) (*RESTClientGetter, error) {
-	clientconfig, err := clientcmd.NewClientConfigFromBytes([]byte(kubeconfig))
+	clientconfig, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -39,18 +44,22 @@ func NewRESTClientGetter(kubeconfig []byte) (*RESTClientGetter, error) {
 	}, nil
 }
 
+// ToRESTConfig returns the REST config.
 func (r *RESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 	return r.restConfig, nil
 }
 
+// ToDiscoveryClient returns the cached discovery client.
 func (r *RESTClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
 	return r.discoveryClient, nil
 }
 
+// ToRESTMapper returns a REST mapper from the discovery client.
 func (r *RESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
 	return restmapper.NewDeferredDiscoveryRESTMapper(r.discoveryClient), nil
 }
 
+// ToRawKubeConfigLoader returns the raw kubeconfig loader.
 func (r *RESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
 	return r.clientconfig
 }

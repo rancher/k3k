@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -29,6 +30,8 @@ const (
 	PolicyNameLabelKey          = "policy.k3k.io/policy-name"
 	ManagedByLabelKey           = "app.kubernetes.io/managed-by"
 	VirtualPolicyControllerName = "k3k-policy-controller"
+
+	policyFinalizerName = "policy.k3k.io/finalizer"
 )
 
 type VirtualClusterPolicyReconciler struct {
@@ -254,6 +257,22 @@ func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reco
 	var policy v1beta1.VirtualClusterPolicy
 	if err := c.Client.Get(ctx, req.NamespacedName, &policy); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// if DeletionTimestamp is not Zero -> finalize the object
+	if !policy.DeletionTimestamp.IsZero() {
+		return c.finalizePolicy(ctx, &policy)
+	}
+
+	// add finalizer
+	if controllerutil.AddFinalizer(&policy, policyFinalizerName) {
+		log.V(1).Info("Updating VirtualClusterPolicy adding finalizer")
+
+		if err := c.Client.Update(ctx, &policy); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	orig := policy.DeepCopy()

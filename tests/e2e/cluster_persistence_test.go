@@ -14,6 +14,7 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -26,7 +27,7 @@ var _ = When("an ephemeral cluster is installed", Label(e2eTestLabel), Label(per
 		virtualCluster = NewVirtualCluster()
 
 		DeferCleanup(func() {
-			DeleteNamespaces(virtualCluster.Cluster.Namespace)
+			fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
 		})
 	})
 
@@ -119,7 +120,7 @@ var _ = When("a dynamic cluster is installed", Label(e2eTestLabel), Label(persis
 	})
 
 	AfterEach(func() {
-		DeleteNamespaces(virtualCluster.Cluster.Namespace)
+		fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
 	})
 
 	It("can create a nginx pod", func() {
@@ -152,10 +153,10 @@ var _ = When("a dynamic cluster is installed", Label(e2eTestLabel), Label(persis
 	It("can delete a HA cluster", func() {
 		ctx := context.Background()
 
-		namespace := NewNamespace()
+		namespace := fwk3k.CreateNamespace(k8s)
 
 		DeferCleanup(func() {
-			DeleteNamespaces(virtualCluster.Cluster.Namespace)
+			fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
 		})
 
 		cluster := NewCluster(namespace.Name)

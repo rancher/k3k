@@ -2,30 +2,18 @@ package cli_test
 
 import (
 	"context"
-	"io"
-	"maps"
 	"os"
-	"path"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/go-logr/zapr"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/k3s"
-	"go.uber.org/zap"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	fwclient "github.com/rancher/k3k/tests/framework/client"
+	fwcontainer "github.com/rancher/k3k/tests/framework/container"
+	fwlog "github.com/rancher/k3k/tests/framework/log"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -44,12 +32,11 @@ func TestTests(t *testing.T) {
 }
 
 var (
-	k3sContainer     *k3s.K3sContainer
-	restcfg          *rest.Config
-	k8s              *kubernetes.Clientset
-	k8sClient        client.Client
-	kubeconfigPath   string
-	helmActionConfig *action.Configuration
+	k3sContainer   *k3s.K3sContainer
+	restcfg        *rest.Config
+	k8s            *kubernetes.Clientset
+	k8sClient      client.Client
+	kubeconfigPath string
 )
 
 var _ = BeforeSuite(func() {
@@ -64,147 +51,41 @@ var _ = BeforeSuite(func() {
 		}
 
 		installK3SDocker(ctx, repo+"/k3k", repo+"/k3k-kubelet")
-		initKubernetesClient()
+		initKubernetesClient(ctx)
 		installK3kChart(repo+"/k3k", repo+"/k3k-kubelet")
 	} else {
-		initKubernetesClient()
+		initKubernetesClient(ctx)
 	}
 })
 
-func initKubernetesClient() {
-	var (
-		err        error
-		kubeconfig []byte
-	)
-
-	logger, err := zap.NewDevelopment()
-	Expect(err).NotTo(HaveOccurred())
-
-	log.SetLogger(zapr.NewLogger(logger))
-
-	kubeconfigPath := os.Getenv("KUBECONFIG")
-	Expect(kubeconfigPath).To(Not(BeEmpty()))
-
-	kubeconfig, err = os.ReadFile(kubeconfigPath)
-	Expect(err).To(Not(HaveOccurred()))
-
-	restcfg, err = clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-	Expect(err).To(Not(HaveOccurred()))
-
-	k8s, err = kubernetes.NewForConfig(restcfg)
-	Expect(err).To(Not(HaveOccurred()))
-
-	scheme := buildScheme()
-	k8sClient, err = client.New(restcfg, client.Options{Scheme: scheme})
-	Expect(err).NotTo(HaveOccurred())
-}
-
-func buildScheme() *runtime.Scheme {
-	scheme := runtime.NewScheme()
-
-	err := clientgoscheme.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-	err = v1beta1.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	return scheme
-}
-
 func installK3SDocker(ctx context.Context, controllerImage, kubeletImage string) {
-	var (
-		err        error
-		kubeconfig []byte
-	)
-
 	k3sHostVersion := os.Getenv("K3S_HOST_VERSION")
 	if k3sHostVersion == "" {
 		k3sHostVersion = k3sVersion
 	}
 
-	k3sHostVersion = strings.ReplaceAll(k3sHostVersion, "+", "-")
+	k3sContainer, kubeconfigPath = fwcontainer.SetupK3s(ctx, k3sHostVersion, controllerImage, kubeletImage)
+}
 
-	k3sContainer, err = k3s.Run(ctx, "rancher/k3s:"+k3sHostVersion)
-	Expect(err).To(Not(HaveOccurred()))
+func initKubernetesClient(ctx context.Context) {
+	scheme := fwclient.NewScheme()
+	config, err := fwclient.InitFromKubeconfig(ctx, scheme, k3sContainer)
+	Expect(err).NotTo(HaveOccurred())
 
-	containerIP, err := k3sContainer.ContainerIP(ctx)
-	Expect(err).To(Not(HaveOccurred()))
-
-	GinkgoWriter.Println("K3s containerIP: " + containerIP)
-
-	kubeconfig, err = k3sContainer.GetKubeConfig(context.Background())
-	Expect(err).To(Not(HaveOccurred()))
-
-	tmpFile, err := os.CreateTemp("", "kubeconfig-")
-	Expect(err).To(Not(HaveOccurred()))
-
-	_, err = tmpFile.Write(kubeconfig)
-	Expect(err).To(Not(HaveOccurred()))
-	Expect(tmpFile.Close()).To(Succeed())
-	kubeconfigPath = tmpFile.Name()
-
-	err = k3sContainer.LoadImages(ctx, controllerImage+":dev", kubeletImage+":dev")
-	Expect(err).To(Not(HaveOccurred()))
-	DeferCleanup(os.Remove, kubeconfigPath)
-
-	Expect(os.Setenv("KUBECONFIG", kubeconfigPath)).To(Succeed())
-	GinkgoWriter.Printf("KUBECONFIG set to: %s\n", kubeconfigPath)
+	restcfg = config.RestConfig
+	k8s = config.Clientset
+	k8sClient = config.Client
 }
 
 func installK3kChart(controllerImage, kubeletImage string) {
-	pwd, err := os.Getwd()
-	Expect(err).To(Not(HaveOccurred()))
-
-	k3kChart, err := loader.Load(path.Join(pwd, "../../charts/k3k"))
-	Expect(err).To(Not(HaveOccurred()))
-
-	helmActionConfig = new(action.Configuration)
-
+	installer := fwcontainer.NewHelmInstaller(controllerImage, kubeletImage, kubeconfigPath)
 	kubeconfig, err := os.ReadFile(kubeconfigPath)
-	Expect(err).To(Not(HaveOccurred()))
+	Expect(err).NotTo(HaveOccurred())
 
-	restClientGetter, err := NewRESTClientGetter(kubeconfig)
-	Expect(err).To(Not(HaveOccurred()))
+	restClientGetter, err := fwclient.NewRESTClientGetter(kubeconfig)
+	Expect(err).NotTo(HaveOccurred())
 
-	err = helmActionConfig.Init(restClientGetter, k3kNamespace, os.Getenv("HELM_DRIVER"), func(format string, v ...any) {
-		GinkgoWriter.Printf("[Helm] "+format+"\n", v...)
-	})
-	Expect(err).To(Not(HaveOccurred()))
-
-	iCli := action.NewInstall(helmActionConfig)
-	iCli.ReleaseName = "k3k"
-	iCli.Namespace = k3kNamespace
-	iCli.CreateNamespace = true
-	iCli.Timeout = time.Minute
-	iCli.Wait = true
-
-	controllerMap, _ := k3kChart.Values["controller"].(map[string]any)
-
-	extraEnvArray, _ := controllerMap["extraEnv"].([]map[string]any)
-	extraEnvArray = append(extraEnvArray, map[string]any{
-		"name":  "DEBUG",
-		"value": "true",
-	})
-	controllerMap["extraEnv"] = extraEnvArray
-
-	imageMap, _ := controllerMap["image"].(map[string]any)
-	maps.Copy(imageMap, map[string]any{
-		"repository": controllerImage,
-		"tag":        "dev",
-		"pullPolicy": "IfNotPresent",
-	})
-
-	agentMap, _ := k3kChart.Values["agent"].(map[string]any)
-	sharedAgentMap, _ := agentMap["shared"].(map[string]any)
-	sharedAgentImageMap, _ := sharedAgentMap["image"].(map[string]any)
-	maps.Copy(sharedAgentImageMap, map[string]any{
-		"repository": kubeletImage,
-		"tag":        "dev",
-	})
-
-	release, err := iCli.Run(k3kChart, k3kChart.Values)
-	Expect(err).To(Not(HaveOccurred()))
-
-	GinkgoWriter.Printf("Helm release '%s' installed in '%s' namespace\n", release.Name, release.Namespace)
+	installer.InstallK3kChart(restClientGetter)
 }
 
 var _ = AfterSuite(func() {
@@ -214,21 +95,12 @@ var _ = AfterSuite(func() {
 		// dump k3s logs
 		k3sLogs, err := k3sContainer.Logs(ctx)
 		Expect(err).To(Not(HaveOccurred()))
-		writeLogs("k3s.log", k3sLogs)
+		fwlog.WriteLogs("k3s.log", k3sLogs)
+
+		// dump k3k controller logs
+		k3kLogs := fwlog.GetK3kPodLogs(ctx, k8sClient, k8s, k3kNamespace)
+		fwlog.WriteLogs("k3k.log", k3kLogs)
 
 		testcontainers.CleanupContainer(GinkgoTB(), k3sContainer)
 	}
 })
-
-func writeLogs(filename string, logs io.ReadCloser) {
-	logsStr, err := io.ReadAll(logs)
-	Expect(err).To(Not(HaveOccurred()))
-
-	tempfile := path.Join(os.TempDir(), filename)
-	err = os.WriteFile(tempfile, []byte(logsStr), 0o644)
-	Expect(err).To(Not(HaveOccurred()))
-
-	GinkgoWriter.Println("logs written to: " + filename)
-
-	_ = logs.Close()
-}

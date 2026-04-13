@@ -5,7 +5,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +24,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileNetworkPolicy(ctx context.Cont
 	if c.ClusterCIDR != "" {
 		cidrList = []string{c.ClusterCIDR}
 	} else {
-		var nodeList v1.NodeList
+		var nodeList corev1.NodeList
 		if err := c.Client.List(ctx, &nodeList); err != nil {
 			return err
 		}

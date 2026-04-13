@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -17,8 +17,8 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 	}
 
 	type expectedVolumes struct {
-		vols      []v1.Volume
-		volMounts []v1.VolumeMount
+		vols      []corev1.Volume
+		volMounts []corev1.VolumeMount
 	}
 
 	tests := []struct {
@@ -53,7 +53,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-1",
 						},
 						MountPath: "/mount-dir-1",
@@ -62,10 +62,10 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("secret-1", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("secret-1", "/mount-dir-1", ""),
 				},
 			},
@@ -75,13 +75,13 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-1",
 						},
 						MountPath: "/mount-dir-1",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-2",
 						},
 						MountPath: "/mount-dir-2",
@@ -90,11 +90,11 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("secret-1", nil),
 					expectedVolume("secret-2", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("secret-1", "/mount-dir-1", ""),
 					expectedVolumeMount("secret-2", "/mount-dir-2", ""),
 				},
@@ -105,9 +105,9 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-1",
-							Items: []v1.KeyToPath{
+							Items: []corev1.KeyToPath{
 								{
 									Key:  "key-1",
 									Path: "path-1",
@@ -120,10 +120,10 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
-					expectedVolume("secret-1", []v1.KeyToPath{{Key: "key-1", Path: "path-1"}}),
+				vols: []corev1.Volume{
+					expectedVolume("secret-1", []corev1.KeyToPath{{Key: "key-1", Path: "path-1"}}),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("secret-1", "/mount-dir-1", ""),
 				},
 			},
@@ -133,9 +133,9 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-1",
-							Items: []v1.KeyToPath{
+							Items: []corev1.KeyToPath{
 								{
 									Key:  "key-1",
 									Path: "path-1",
@@ -145,9 +145,9 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						MountPath: "/mount-dir-1",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-2",
-							Items: []v1.KeyToPath{
+							Items: []corev1.KeyToPath{
 								{
 									Key:  "key-2",
 									Path: "path-2",
@@ -160,11 +160,11 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
-					expectedVolume("secret-1", []v1.KeyToPath{{Key: "key-1", Path: "path-1"}}),
-					expectedVolume("secret-2", []v1.KeyToPath{{Key: "key-2", Path: "path-2"}}),
+				vols: []corev1.Volume{
+					expectedVolume("secret-1", []corev1.KeyToPath{{Key: "key-1", Path: "path-1"}}),
+					expectedVolume("secret-2", []corev1.KeyToPath{{Key: "key-2", Path: "path-2"}}),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("secret-1", "/mount-dir-1", ""),
 					expectedVolumeMount("secret-2", "/mount-dir-2", ""),
 				},
@@ -175,19 +175,19 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "z-secret",
 						},
 						MountPath: "/z",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "a-secret",
 						},
 						MountPath: "/a",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "m-secret",
 						},
 						MountPath: "/m",
@@ -196,12 +196,12 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("z-secret", nil),
 					expectedVolume("a-secret", nil),
 					expectedVolume("m-secret", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("z-secret", "/z", ""),
 					expectedVolumeMount("a-secret", "/a", ""),
 					expectedVolumeMount("m-secret", "/m", ""),
@@ -216,7 +216,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						MountPath: "/mount-dir-1",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-2",
 						},
 						MountPath: "/mount-dir-2",
@@ -225,10 +225,10 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("secret-2", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("secret-2", "/mount-dir-2", ""),
 				},
 			},
@@ -238,13 +238,13 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-1",
 						},
 						MountPath: "",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-2",
 						},
 						MountPath: "/mount-dir-2",
@@ -253,10 +253,10 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("secret-2", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("secret-2", "/mount-dir-2", ""),
 				},
 			},
@@ -266,7 +266,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-1",
 						},
 						MountPath: "/etc/rancher/k3s/registries.yaml",
@@ -276,10 +276,10 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("secret-1", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("secret-1", "/etc/rancher/k3s/registries.yaml", "registries.yaml"),
 				},
 			},
@@ -290,21 +290,21 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "server-secret",
 						},
 						MountPath: "/server",
 						Role:      "server",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "agent-secret",
 						},
 						MountPath: "/agent",
 						Role:      "agent",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "all-secret",
 						},
 						MountPath: "/all",
@@ -314,11 +314,11 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("server-secret", nil),
 					expectedVolume("all-secret", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("server-secret", "/server", ""),
 					expectedVolumeMount("all-secret", "/all", ""),
 				},
@@ -329,21 +329,21 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "server-secret",
 						},
 						MountPath: "/server",
 						Role:      "server",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "agent-secret",
 						},
 						MountPath: "/agent",
 						Role:      "agent",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "all-secret",
 						},
 						MountPath: "/all",
@@ -353,11 +353,11 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "agent",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("agent-secret", nil),
 					expectedVolume("all-secret", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("agent-secret", "/agent", ""),
 					expectedVolumeMount("all-secret", "/all", ""),
 				},
@@ -368,14 +368,14 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "no-role-secret",
 						},
 						MountPath: "/no-role",
 						Role:      "",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "server-secret",
 						},
 						MountPath: "/server",
@@ -385,10 +385,10 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "agent",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("no-role-secret", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("no-role-secret", "/no-role", ""),
 				},
 			},
@@ -398,7 +398,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "registry-config",
 						},
 						MountPath: "/etc/rancher/k3s/registries.yaml",
@@ -406,14 +406,14 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 						Role:      "all",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "server-config",
 						},
 						MountPath: "/etc/server",
 						Role:      "server",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "agent-config",
 						},
 						MountPath: "/etc/agent",
@@ -423,11 +423,11 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("registry-config", nil),
 					expectedVolume("server-config", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("registry-config", "/etc/rancher/k3s/registries.yaml", "registries.yaml"),
 					expectedVolumeMount("server-config", "/etc/server", ""),
 				},
@@ -438,14 +438,14 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-1",
 						},
 						MountPath: "/secret-1",
 						Role:      "all",
 					},
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "secret-2",
 						},
 						MountPath: "/secret-2",
@@ -455,11 +455,11 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 				role: "server",
 			},
 			expectedData: expectedVolumes{
-				vols: []v1.Volume{
+				vols: []corev1.Volume{
 					expectedVolume("secret-1", nil),
 					expectedVolume("secret-2", nil),
 				},
-				volMounts: []v1.VolumeMount{
+				volMounts: []corev1.VolumeMount{
 					expectedVolumeMount("secret-1", "/secret-1", ""),
 					expectedVolumeMount("secret-2", "/secret-2", ""),
 				},
@@ -470,7 +470,7 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 			args: args{
 				secretMounts: []v1beta1.SecretMount{
 					{
-						SecretVolumeSource: v1.SecretVolumeSource{
+						SecretVolumeSource: corev1.SecretVolumeSource{
 							SecretName: "server-only",
 						},
 						MountPath: "/server-only",
@@ -496,14 +496,14 @@ func Test_BuildSecretMountsVolume(t *testing.T) {
 	}
 }
 
-func expectedVolume(name string, items []v1.KeyToPath) v1.Volume {
-	return v1.Volume{
+func expectedVolume(name string, items []corev1.KeyToPath) corev1.Volume {
+	return corev1.Volume{
 		Name: name,
-		VolumeSource: v1.VolumeSource{
-			Projected: &v1.ProjectedVolumeSource{
-				Sources: []v1.VolumeProjection{
-					{Secret: &v1.SecretProjection{
-						LocalObjectReference: v1.LocalObjectReference{
+		VolumeSource: corev1.VolumeSource{
+			Projected: &corev1.ProjectedVolumeSource{
+				Sources: []corev1.VolumeProjection{
+					{Secret: &corev1.SecretProjection{
+						LocalObjectReference: corev1.LocalObjectReference{
 							Name: name,
 						},
 						Items: items,
@@ -514,8 +514,8 @@ func expectedVolume(name string, items []v1.KeyToPath) v1.Volume {
 	}
 }
 
-func expectedVolumeMount(name, mountPath, subPath string) v1.VolumeMount {
-	return v1.VolumeMount{
+func expectedVolumeMount(name, mountPath, subPath string) corev1.VolumeMount {
+	return corev1.VolumeMount{
 		Name:      name,
 		MountPath: mountPath,
 		SubPath:   subPath,

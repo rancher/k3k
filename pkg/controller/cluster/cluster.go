@@ -25,8 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -154,12 +154,12 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.Cluster{}).
-		Watches(&v1.Namespace{}, namespaceEventHandler(&reconciler)).
+		Watches(&corev1.Namespace{}, namespaceEventHandler(&reconciler)).
 		Watches(&storagev1.StorageClass{},
 			handler.EnqueueRequestsFromMapFunc(reconciler.mapStorageClassToCluster),
 		).
-		Owns(&apps.StatefulSet{}).
-		Owns(&v1.Service{}).
+		Owns(&appsv1.StatefulSet{}).
+		Owns(&corev1.Service{}).
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
@@ -207,8 +207,8 @@ func namespaceEventHandler(r *ClusterReconciler) handler.Funcs {
 		DeleteFunc: func(context.Context, event.DeleteEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {},
 		// When a Namespace is updated, if it has the "policy.k3k.io/policy-name" label
 		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			oldNs, okOld := e.ObjectOld.(*v1.Namespace)
-			newNs, okNew := e.ObjectNew.(*v1.Namespace)
+			oldNs, okOld := e.ObjectOld.(*corev1.Namespace)
+			newNs, okNew := e.ObjectNew.(*corev1.Namespace)
 
 			if !okOld || !okNew {
 				return
@@ -323,7 +323,7 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1bet
 func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	var ns v1.Namespace
+	var ns corev1.Namespace
 	if err := c.Client.Get(ctx, client.ObjectKey{Name: cluster.Namespace}, &ns); err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 		return err
 	}
 
-	bootstrapSecret := &v1.Secret{
+	bootstrapSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
 			Namespace: cluster.Namespace,
@@ -493,7 +493,7 @@ func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster 
 		return err
 	}
 
-	kubeconfigSecret := &v1.Secret{
+	kubeconfigSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "kubeconfig"),
 			Namespace: cluster.Namespace,
@@ -651,7 +651,7 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 	return nil
 }
 
-func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v1beta1.Cluster) (*v1.Service, error) {
+func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v1beta1.Cluster) (*corev1.Service, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring Cluster Service")
 
@@ -957,9 +957,9 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 
 	log.V(1).Info("Looking up Service CIDR from a failing service creation")
 
-	failingSvc := v1.Service{
+	failingSvc := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "fail", Namespace: "default"},
-		Spec:       v1.ServiceSpec{ClusterIP: "1.1.1.1"},
+		Spec:       corev1.ServiceSpec{ClusterIP: "1.1.1.1"},
 	}
 
 	if err := c.Client.Create(ctx, &failingSvc); err != nil {
@@ -990,7 +990,7 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 	listOpts := &client.ListOptions{Namespace: "kube-system"}
 	matchingLabels.ApplyToList(listOpts)
 
-	var podList v1.PodList
+	var podList corev1.PodList
 	if err := c.Client.List(ctx, &podList, listOpts); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return "", err

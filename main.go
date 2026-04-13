@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -152,9 +152,9 @@ func run(cmd *cobra.Command, args []string) error {
 
 func validate() error {
 	if config.SharedAgentImagePullPolicy != "" {
-		if config.SharedAgentImagePullPolicy != string(v1.PullAlways) &&
-			config.SharedAgentImagePullPolicy != string(v1.PullIfNotPresent) &&
-			config.SharedAgentImagePullPolicy != string(v1.PullNever) {
+		if config.SharedAgentImagePullPolicy != string(corev1.PullAlways) &&
+			config.SharedAgentImagePullPolicy != string(corev1.PullIfNotPresent) &&
+			config.SharedAgentImagePullPolicy != string(corev1.PullNever) {
 			return errors.New("invalid value for shared agent image policy")
 		}
 	}

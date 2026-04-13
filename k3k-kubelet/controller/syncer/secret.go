@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -52,7 +52,7 @@ func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clus
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
-		For(&v1.Secret{}).WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
+		For(&corev1.Secret{}).WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
 		Complete(&reconciler)
 }
 
@@ -92,7 +92,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 		return reconcile.Result{}, err
 	}
 
-	var virtualSecret v1.Secret
+	var virtualSecret corev1.Secret
 
 	if err := s.VirtualClient.Get(ctx, req.NamespacedName, &virtualSecret); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
@@ -128,7 +128,7 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 		}
 	}
 
-	var hostSecret v1.Secret
+	var hostSecret corev1.Secret
 	if err := s.HostClient.Get(ctx, types.NamespacedName{Name: syncedSecret.Name, Namespace: syncedSecret.Namespace}, &hostSecret); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the Secret for the first time on the host cluster")
@@ -146,11 +146,11 @@ func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (re
 
 // translateSecret will translate a given secret created in the virtual cluster and
 // translates it to host cluster object
-func (s *SecretSyncer) translateSecret(secret *v1.Secret) *v1.Secret {
+func (s *SecretSyncer) translateSecret(secret *corev1.Secret) *corev1.Secret {
 	hostSecret := secret.DeepCopy()
 
-	if hostSecret.Type == v1.SecretTypeServiceAccountToken {
-		hostSecret.Type = v1.SecretTypeOpaque
+	if hostSecret.Type == corev1.SecretTypeServiceAccountToken {
+		hostSecret.Type = corev1.SecretTypeOpaque
 	}
 
 	s.Translator.TranslateTo(hostSecret)

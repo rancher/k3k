@@ -118,6 +118,10 @@ endif
 lint:	## Find any linting issues in the project
 	$(GOLANGCI_LINT) run --timeout=5m
 
+.PHONY: lint-fix
+lint-fix:	## Fix any linting issues in the project
+	$(GOLANGCI_LINT) run --fix --timeout=5m
+
 .PHONY: fmt
 fmt:	## Format source files in the project
 ifndef CI

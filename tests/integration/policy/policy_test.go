@@ -9,7 +9,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,10 +52,10 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 		})
 
 		When("bound to a namespace", func() {
-			var namespace *v1.Namespace
+			var namespace *corev1.Namespace
 
 			BeforeEach(func() {
-				namespace = &v1.Namespace{
+				namespace = &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "ns-",
 					},
@@ -177,7 +177,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 				bindPolicyToNamespace(namespace, policy)
 
-				var ns v1.Namespace
+				var ns corev1.Namespace
 
 				// Check privileged
 
@@ -279,7 +279,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 				bindPolicyToNamespace(namespace, policy)
 
-				var ns v1.Namespace
+				var ns corev1.Namespace
 
 				// wait a bit for the namespace to be updated
 				Eventually(func() bool {
@@ -470,9 +470,9 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("updates the cluster policy status with the DefaultServerAffinity and DefaultAgentAffinity", func() {
-				serverAffinity := &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+				serverAffinity := &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
 							{Weight: 10},
 						},
 					},
@@ -522,9 +522,9 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 			})
 
 			It("overrides the cluster ServerAffinity and AgentAffinity with the DefaultServerAffinity and DefaultAgentAffinity from the policy", func() {
-				serverAffinity := &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+				serverAffinity := &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
 							{Weight: 10},
 						},
 					},
@@ -582,17 +582,17 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 			It("should create a ResourceQuota if Quota is enabled", func() {
 				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
-					Quota: &v1.ResourceQuotaSpec{
-						Hard: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse("800m"),
-							v1.ResourceMemory: resource.MustParse("1Gi"),
+					Quota: &corev1.ResourceQuotaSpec{
+						Hard: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("800m"),
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
 						},
 					},
 				})
 
 				bindPolicyToNamespace(namespace, policy)
 
-				var resourceQuota v1.ResourceQuota
+				var resourceQuota corev1.ResourceQuota
 
 				Eventually(func() error {
 					key := types.NamespacedName{
@@ -611,17 +611,17 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 			It("should delete the ResourceQuota if Quota is deleted", func() {
 				policy := newPolicy(v1beta1.VirtualClusterPolicySpec{
-					Quota: &v1.ResourceQuotaSpec{
-						Hard: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse("800m"),
-							v1.ResourceMemory: resource.MustParse("1Gi"),
+					Quota: &corev1.ResourceQuotaSpec{
+						Hard: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("800m"),
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
 						},
 					},
 				})
 
 				bindPolicyToNamespace(namespace, policy)
 
-				var resourceQuota v1.ResourceQuota
+				var resourceQuota corev1.ResourceQuota
 
 				Eventually(func() error {
 					key := types.NamespacedName{
@@ -660,17 +660,17 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 
 			It("should delete the ResourceQuota if unbound", func() {
 				clusterPolicy := newPolicy(v1beta1.VirtualClusterPolicySpec{
-					Quota: &v1.ResourceQuotaSpec{
-						Hard: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse("800m"),
-							v1.ResourceMemory: resource.MustParse("1Gi"),
+					Quota: &corev1.ResourceQuotaSpec{
+						Hard: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("800m"),
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
 						},
 					},
 				})
 
 				bindPolicyToNamespace(namespace, clusterPolicy)
 
-				var resourceQuota v1.ResourceQuota
+				var resourceQuota corev1.ResourceQuota
 
 				Eventually(func() error {
 					key := types.NamespacedName{
@@ -722,7 +722,7 @@ func newPolicy(spec v1beta1.VirtualClusterPolicySpec) *v1beta1.VirtualClusterPol
 	return policy
 }
 
-func bindPolicyToNamespace(namespace *v1.Namespace, pol *v1beta1.VirtualClusterPolicy) {
+func bindPolicyToNamespace(namespace *corev1.Namespace, pol *v1beta1.VirtualClusterPolicy) {
 	GinkgoHelper()
 
 	if len(namespace.Labels) == 0 {

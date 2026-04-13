@@ -1,15 +1,15 @@
 package mounts
 
 import (
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount, role string) ([]v1.Volume, []v1.VolumeMount) {
+func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount, role string) ([]corev1.Volume, []corev1.VolumeMount) {
 	var (
-		vols      []v1.Volume
-		volMounts []v1.VolumeMount
+		vols      []corev1.Volume
+		volMounts []corev1.VolumeMount
 	)
 
 	for _, secretMount := range secretMounts {
@@ -28,11 +28,11 @@ func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount, role string) 
 	return vols, volMounts
 }
 
-func buildSecretMountVolume(secretMount v1beta1.SecretMount) (v1.Volume, v1.VolumeMount) {
-	projectedVolSources := []v1.VolumeProjection{
+func buildSecretMountVolume(secretMount v1beta1.SecretMount) (corev1.Volume, corev1.VolumeMount) {
+	projectedVolSources := []corev1.VolumeProjection{
 		{
-			Secret: &v1.SecretProjection{
-				LocalObjectReference: v1.LocalObjectReference{
+			Secret: &corev1.SecretProjection{
+				LocalObjectReference: corev1.LocalObjectReference{
 					Name: secretMount.SecretName,
 				},
 				Items:    secretMount.Items,
@@ -41,16 +41,16 @@ func buildSecretMountVolume(secretMount v1beta1.SecretMount) (v1.Volume, v1.Volu
 		},
 	}
 
-	vol := v1.Volume{
+	vol := corev1.Volume{
 		Name: secretMount.SecretName,
-		VolumeSource: v1.VolumeSource{
-			Projected: &v1.ProjectedVolumeSource{
+		VolumeSource: corev1.VolumeSource{
+			Projected: &corev1.ProjectedVolumeSource{
 				Sources: projectedVolSources,
 			},
 		},
 	}
 
-	volMount := v1.VolumeMount{
+	volMount := corev1.VolumeMount{
 		Name:      secretMount.SecretName,
 		MountPath: secretMount.MountPath,
 		SubPath:   secretMount.SubPath,

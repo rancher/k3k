@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -26,7 +26,7 @@ func Test_K3S_Image(t *testing.T) {
 			args: args{
 				k3sImage: "rancher/k3s",
 				cluster: &v1beta1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
@@ -42,7 +42,7 @@ func Test_K3S_Image(t *testing.T) {
 			args: args{
 				k3sImage: "rancher/k3s",
 				cluster: &v1beta1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
@@ -58,7 +58,7 @@ func Test_K3S_Image(t *testing.T) {
 			args: args{
 				k3sImage: "rancher/k3s",
 				cluster: &v1beta1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},

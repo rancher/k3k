@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -52,7 +52,7 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 			Message: reconcileErr.Error(),
 		})
 
-		c.Eventf(cluster, v1.EventTypeWarning, ReasonValidationFailed, reconcileErr.Error())
+		c.Eventf(cluster, corev1.EventTypeWarning, ReasonValidationFailed, reconcileErr.Error())
 
 		return
 	}
@@ -79,7 +79,7 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 			Message: reconcileErr.Error(),
 		})
 
-		c.Eventf(cluster, v1.EventTypeWarning, ReasonProvisioningFailed, reconcileErr.Error())
+		c.Eventf(cluster, corev1.EventTypeWarning, ReasonProvisioningFailed, reconcileErr.Error())
 
 		return
 	}
@@ -95,7 +95,7 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 
 	// Only emit event on transition to Ready
 	if !meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, ConditionReady, metav1.ConditionTrue) {
-		c.Eventf(cluster, v1.EventTypeNormal, ReasonProvisioned, newCondition.Message)
+		c.Eventf(cluster, corev1.EventTypeNormal, ReasonProvisioned, newCondition.Message)
 	}
 
 	meta.SetStatusCondition(&cluster.Status.Conditions, newCondition)

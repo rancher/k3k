@@ -10,7 +10,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -19,10 +19,10 @@ import (
 
 // CreateNamespace creates a new namespace with a generated name and the "e2e: true" label.
 // The namespace is created using the provided Kubernetes clientset.
-func CreateNamespace(clientset kubernetes.Interface) *v1.Namespace {
+func CreateNamespace(clientset kubernetes.Interface) *corev1.Namespace {
 	GinkgoHelper()
 
-	namespace := &v1.Namespace{
+	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "ns-",
 			Labels: map[string]string{

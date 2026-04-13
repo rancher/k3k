@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,12 +47,12 @@ func Add(mgr manager.Manager, clusterCIDR string, maxConcurrentReconciles int) e
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.VirtualClusterPolicy{}).
-		Watches(&v1.Namespace{}, namespaceEventHandler()).
-		Watches(&v1.Node{}, nodeEventHandler(&reconciler)).
+		Watches(&corev1.Namespace{}, namespaceEventHandler()).
+		Watches(&corev1.Node{}, nodeEventHandler(&reconciler)).
 		Watches(&v1beta1.Cluster{}, clusterEventHandler(&reconciler)).
 		Owns(&networkingv1.NetworkPolicy{}).
-		Owns(&v1.ResourceQuota{}).
-		Owns(&v1.LimitRange{}).
+		Owns(&corev1.ResourceQuota{}).
+		Owns(&corev1.LimitRange{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
@@ -62,7 +62,7 @@ func namespaceEventHandler() handler.Funcs {
 	return handler.Funcs{
 		// When a Namespace is created, if it has the "policy.k3k.io/policy-name" label
 		CreateFunc: func(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			ns, ok := e.Object.(*v1.Namespace)
+			ns, ok := e.Object.(*corev1.Namespace)
 			if !ok {
 				return
 			}
@@ -73,8 +73,8 @@ func namespaceEventHandler() handler.Funcs {
 		},
 		// When a Namespace is updated, if it has the "policy.k3k.io/policy-name" label
 		UpdateFunc: func(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			oldNs, okOld := e.ObjectOld.(*v1.Namespace)
-			newNs, okNew := e.ObjectNew.(*v1.Namespace)
+			oldNs, okOld := e.ObjectOld.(*corev1.Namespace)
+			newNs, okNew := e.ObjectNew.(*corev1.Namespace)
 
 			if !okOld || !okNew {
 				return
@@ -112,7 +112,7 @@ func namespaceEventHandler() handler.Funcs {
 		// When a namespace is deleted all the resources in the namespace are deleted
 		// but we trigger the reconciliation to eventually perform some cluster-wide cleanup if necessary
 		DeleteFunc: func(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			ns, ok := e.Object.(*v1.Namespace)
+			ns, ok := e.Object.(*corev1.Namespace)
 			if !ok {
 				return
 			}
@@ -152,8 +152,8 @@ func nodeEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 				return
 			}
 
-			oldNode, okOld := e.ObjectOld.(*v1.Node)
-			newNode, okNew := e.ObjectNew.(*v1.Node)
+			oldNode, okOld := e.ObjectOld.(*corev1.Node)
+			newNode, okNew := e.ObjectNew.(*corev1.Node)
 
 			if !okOld || !okNew {
 				return
@@ -199,7 +199,7 @@ func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 				return
 			}
 
-			var ns v1.Namespace
+			var ns corev1.Namespace
 			if err := r.Client.Get(ctx, types.NamespacedName{Name: cluster.Namespace}, &ns); err != nil {
 				return
 			}
@@ -218,7 +218,7 @@ func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 				return
 			}
 
-			var ns v1.Namespace
+			var ns corev1.Namespace
 			if err := r.Client.Get(ctx, types.NamespacedName{Name: oldCluster.Namespace}, &ns); err != nil {
 				return
 			}
@@ -306,7 +306,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context
 		PolicyNameLabelKey: policy.Name,
 	}
 
-	var namespaces v1.NamespaceList
+	var namespaces corev1.NamespaceList
 	if err := c.Client.List(ctx, &namespaces, listOpts); err != nil {
 		return err
 	}
@@ -355,7 +355,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, nam
 
 	if policy.Spec.Quota == nil {
 		// check if resourceQuota object exists and deletes it.
-		var toDeleteResourceQuota v1.ResourceQuota
+		var toDeleteResourceQuota corev1.ResourceQuota
 
 		key := types.NamespacedName{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
@@ -372,7 +372,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileQuota(ctx context.Context, nam
 	}
 
 	// create/update resource Quota
-	resourceQuota := &v1.ResourceQuota{
+	resourceQuota := &corev1.ResourceQuota{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ResourceQuota",
 			APIVersion: "v1",
@@ -410,7 +410,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, nam
 
 	// delete limitrange if spec.limits isnt specified.
 	if policy.Spec.Limit == nil {
-		var toDeleteLimitRange v1.LimitRange
+		var toDeleteLimitRange corev1.LimitRange
 
 		key := types.NamespacedName{
 			Name:      k3kcontroller.SafeConcatNameWithPrefix(policy.Name),
@@ -426,7 +426,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, nam
 		return c.Client.Delete(ctx, &toDeleteLimitRange)
 	}
 
-	limitRange := &v1.LimitRange{
+	limitRange := &corev1.LimitRange{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "LimitRange",
 			APIVersion: "v1",
@@ -458,7 +458,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileLimit(ctx context.Context, nam
 	return err
 }
 
-func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, namespace *v1.Namespace, policy *v1beta1.VirtualClusterPolicy) error {
+func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, namespace *corev1.Namespace, policy *v1beta1.VirtualClusterPolicy) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Reconciling Clusters")
 

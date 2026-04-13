@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,7 +67,7 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 			matchingLabels.ApplyToList(&listOpts)
 			deleteOpts := &ctrlclient.DeleteAllOfOptions{ListOptions: listOpts}
 
-			if err := client.DeleteAllOf(ctx, &v1.PersistentVolumeClaim{}, deleteOpts); err != nil {
+			if err := client.DeleteAllOf(ctx, &corev1.PersistentVolumeClaim{}, deleteOpts); err != nil {
 				return ctrlclient.IgnoreNotFound(err)
 			}
 		}
@@ -81,7 +81,7 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 }
 
 func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl ctrlclient.Client, cluster v1beta1.Cluster) error {
-	var secret v1.Secret
+	var secret corev1.Secret
 
 	key := types.NamespacedName{
 		Name:      name,

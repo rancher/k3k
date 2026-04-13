@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,7 +49,7 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
-		For(&v1.Service{}).WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
+		For(&corev1.Service{}).WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
 		Complete(&reconciler)
 }
 
@@ -62,7 +62,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	var (
-		virtService v1.Service
+		virtService corev1.Service
 		cluster     v1beta1.Cluster
 	)
 
@@ -105,7 +105,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// create or update the service on host
-	var hostService v1.Service
+	var hostService corev1.Service
 	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: syncedService.Name, Namespace: r.ClusterNamespace}, &hostService); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the service for the first time on the host cluster")
@@ -145,7 +145,7 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
-func (s *ServiceReconciler) service(obj *v1.Service) *v1.Service {
+func (s *ServiceReconciler) service(obj *corev1.Service) *corev1.Service {
 	hostService := obj.DeepCopy()
 	s.Translator.TranslateTo(hostService)
 	// don't sync finalizers to the host

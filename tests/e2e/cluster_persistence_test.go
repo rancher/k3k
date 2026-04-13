@@ -10,7 +10,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -42,11 +42,11 @@ var _ = When("an ephemeral cluster is installed", Label(e2eTestLabel), Label(per
 		hostTranslator := translate.NewHostTranslator(virtualCluster.Cluster)
 		namespacedName := hostTranslator.NamespacedName(pod)
 
-		err := k8s.CoreV1().Pods(namespacedName.Namespace).Delete(ctx, namespacedName.Name, v1.DeleteOptions{})
+		err := k8s.CoreV1().Pods(namespacedName.Namespace).Delete(ctx, namespacedName.Name, metav1.DeleteOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 
 		Eventually(func() bool {
-			_, err := virtualCluster.Client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, v1.GetOptions{})
+			_, err := virtualCluster.Client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
 			return apierrors.IsNotFound(err)
 		}).
 			WithPolling(time.Second * 5).
@@ -67,7 +67,7 @@ var _ = When("an ephemeral cluster is installed", Label(e2eTestLabel), Label(per
 
 		GinkgoWriter.Printf("deleting pod %s/%s\n", serverPod.Namespace, serverPod.Name)
 
-		err = k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).Delete(ctx, serverPod.Name, v1.DeleteOptions{})
+		err = k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).Delete(ctx, serverPod.Name, metav1.DeleteOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 
 		By("Deleting server pod")
@@ -138,7 +138,7 @@ var _ = When("a dynamic cluster is installed", Label(e2eTestLabel), Label(persis
 		Eventually(func() []corev1.Pod {
 			By("listing the pods in the namespace")
 
-			podList, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{})
+			podList, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{})
 			Expect(err).To(Not(HaveOccurred()))
 
 			GinkgoLogr.Info("podlist", "len", len(podList.Items))
@@ -181,7 +181,7 @@ var _ = When("a dynamic cluster is installed", Label(e2eTestLabel), Label(persis
 		Eventually(func() []corev1.Pod {
 			By("listing the pods in the namespace")
 
-			podList, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, v1.ListOptions{})
+			podList, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{})
 			Expect(err).To(Not(HaveOccurred()))
 
 			GinkgoLogr.Info("podlist", "len", len(podList.Items))

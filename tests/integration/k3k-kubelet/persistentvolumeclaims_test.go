@@ -9,7 +9,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
@@ -28,7 +28,7 @@ var PVCTests = func() {
 	BeforeEach(func() {
 		ctx := context.Background()
 
-		ns := v1.Namespace{
+		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{GenerateName: "ns-"},
 		}
 		err := hostTestEnv.k8sClient.Create(ctx, &ns)
@@ -50,7 +50,7 @@ var PVCTests = func() {
 	})
 
 	AfterEach(func() {
-		ns := v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 		err := hostTestEnv.k8sClient.Delete(context.Background(), &ns)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -58,7 +58,7 @@ var PVCTests = func() {
 	It("creates a pvc on the host cluster and virtual pv in virtual cluster", func() {
 		ctx := context.Background()
 
-		pvc := &v1.PersistentVolumeClaim{
+		pvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "pvc-",
 				Namespace:    "default",
@@ -66,13 +66,13 @@ var PVCTests = func() {
 					"foo": "bar",
 				},
 			},
-			Spec: v1.PersistentVolumeClaimSpec{
+			Spec: corev1.PersistentVolumeClaimSpec{
 				StorageClassName: ptr.To("test-sc"),
-				AccessModes: []v1.PersistentVolumeAccessMode{
-					v1.ReadOnlyMany,
+				AccessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadOnlyMany,
 				},
-				Resources: v1.VolumeResourceRequirements{
-					Requests: v1.ResourceList{
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
 						"storage": resource.MustParse("1G"),
 					},
 				},
@@ -84,7 +84,7 @@ var PVCTests = func() {
 
 		By(fmt.Sprintf("Created PVC %s in virtual cluster", pvc.Name))
 
-		var hostPVC v1.PersistentVolumeClaim
+		var hostPVC corev1.PersistentVolumeClaim
 
 		hostPVCName := translateName(cluster, pvc.Namespace, pvc.Name)
 
@@ -102,7 +102,7 @@ var PVCTests = func() {
 
 		GinkgoWriter.Printf("labels: %v\n", hostPVC.Labels)
 
-		var virtualPV v1.PersistentVolume
+		var virtualPV corev1.PersistentVolume
 
 		key := client.ObjectKey{Name: pvc.Name}
 

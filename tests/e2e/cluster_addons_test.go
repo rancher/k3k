@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -42,7 +42,7 @@ var _ = When("a cluster with secretMounts configuration is used to load addons",
 
 		cluster.Spec.SecretMounts = []v1beta1.SecretMount{
 			{
-				SecretVolumeSource: v1.SecretVolumeSource{
+				SecretVolumeSource: corev1.SecretVolumeSource{
 					SecretName: addonsSecretName,
 				},
 				MountPath: secretMountManifestMountPath,
@@ -83,7 +83,7 @@ var _ = When("a cluster with secretMounts configuration is used to load addons",
 		Eventually(func(g Gomega) {
 			nginxPod, err := virtualCluster.Client.CoreV1().Pods("default").Get(ctx, "nginx-addon", metav1.GetOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
-			g.Expect(nginxPod.Status.Phase).To(Equal(v1.PodRunning))
+			g.Expect(nginxPod.Status.Phase).To(Equal(corev1.PodRunning))
 		}).
 			WithTimeout(time.Minute * 3).
 			WithPolling(time.Second * 5).
@@ -141,7 +141,7 @@ var _ = When("a cluster with addon configuration is used with addons secret in t
 		Eventually(func(g Gomega) {
 			nginxPod, err := virtualCluster.Client.CoreV1().Pods("default").Get(ctx, "nginx-addon", metav1.GetOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
-			g.Expect(nginxPod.Status.Phase).To(Equal(v1.PodRunning))
+			g.Expect(nginxPod.Status.Phase).To(Equal(corev1.PodRunning))
 		}).
 			WithTimeout(time.Minute * 3).
 			WithPolling(time.Second * 5).
@@ -204,7 +204,7 @@ var _ = When("a cluster with addon configuration is used with addons secret in t
 		Eventually(func(g Gomega) {
 			nginxPod, err := virtualCluster.Client.CoreV1().Pods("default").Get(ctx, "nginx-addon", metav1.GetOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
-			g.Expect(nginxPod.Status.Phase).To(Equal(v1.PodRunning))
+			g.Expect(nginxPod.Status.Phase).To(Equal(corev1.PodRunning))
 		}).
 			WithTimeout(time.Minute * 3).
 			WithPolling(time.Second * 5).
@@ -218,7 +218,7 @@ func createAddonSecret(ctx context.Context, namespace string) error {
 		return err
 	}
 
-	secret := &v1.Secret{
+	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",

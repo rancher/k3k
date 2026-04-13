@@ -20,8 +20,8 @@ import (
 
 	certutil "github.com/rancher/dynamiclistener/cert"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -53,9 +53,9 @@ func AddStatefulSetController(ctx context.Context, mgr manager.Manager, maxConcu
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&apps.StatefulSet{}).
+		For(&appsv1.StatefulSet{}).
 		WithEventFilter(newClusterPredicate()).
-		Owns(&v1.Pod{}).
+		Owns(&corev1.Pod{}).
 		Named(statefulsetController).
 		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
@@ -65,7 +65,7 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Reconciling StatefulSet")
 
-	var sts apps.StatefulSet
+	var sts appsv1.StatefulSet
 	if err := p.Client.Get(ctx, req.NamespacedName, &sts); err != nil {
 		// we can ignore the IsNotFound error
 		// if the stateful set was deleted we have already cleaned up the pods
@@ -115,7 +115,7 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	return reconcile.Result{}, nil
 }
 
-func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1beta1.Cluster, pod *v1.Pod) error {
+func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1beta1.Cluster, pod *corev1.Pod) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Handling Server Pod")
 
@@ -266,7 +266,7 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 }
 
 func (p *StatefulSetReconciler) clusterToken(ctx context.Context, cluster *v1beta1.Cluster) (string, error) {
-	var tokenSecret v1.Secret
+	var tokenSecret corev1.Secret
 
 	nn := types.NamespacedName{
 		Name:      TokenSecretName(cluster.Name),
@@ -288,7 +288,7 @@ func (p *StatefulSetReconciler) clusterToken(ctx context.Context, cluster *v1bet
 	return string(tokenSecret.Data["token"]), nil
 }
 
-func (p *StatefulSetReconciler) handleDeletion(ctx context.Context, sts *apps.StatefulSet) (ctrl.Result, error) {
+func (p *StatefulSetReconciler) handleDeletion(ctx context.Context, sts *appsv1.StatefulSet) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	podList, err := p.listPods(ctx, sts)
@@ -313,7 +313,7 @@ func (p *StatefulSetReconciler) handleDeletion(ctx context.Context, sts *apps.St
 	return reconcile.Result{}, nil
 }
 
-func (p *StatefulSetReconciler) listPods(ctx context.Context, sts *apps.StatefulSet) (*v1.PodList, error) {
+func (p *StatefulSetReconciler) listPods(ctx context.Context, sts *appsv1.StatefulSet) (*corev1.PodList, error) {
 	selector, err := metav1.LabelSelectorAsSelector(sts.Spec.Selector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create selector from statefulset: %w", err)
@@ -324,7 +324,7 @@ func (p *StatefulSetReconciler) listPods(ctx context.Context, sts *apps.Stateful
 		LabelSelector: selector,
 	}
 
-	var podList v1.PodList
+	var podList corev1.PodList
 	if err := p.Client.List(ctx, &podList, listOpts); err != nil {
 		return nil, ctrlruntimeclient.IgnoreNotFound(err)
 	}

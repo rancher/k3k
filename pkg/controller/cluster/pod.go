@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,7 +34,7 @@ func AddPodController(ctx context.Context, mgr manager.Manager, maxConcurrentRec
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1.Pod{}).
+		For(&corev1.Pod{}).
 		Named(podController).
 		WithEventFilter(newClusterPredicate()).
 		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
@@ -45,7 +45,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Reconciling Pod")
 
-	var pod v1.Pod
+	var pod corev1.Pod
 	if err := r.Client.Get(ctx, req.NamespacedName, &pod); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
@@ -62,7 +62,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 		virtName := pod.GetAnnotations()[translate.ResourceNameAnnotation]
 		virtNamespace := pod.GetAnnotations()[translate.ResourceNamespaceAnnotation]
 
-		virtPod := v1.Pod{
+		virtPod := corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      virtName,
 				Namespace: virtNamespace,

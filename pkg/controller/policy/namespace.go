@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -19,7 +19,7 @@ import (
 )
 
 // reconcileNamespacePodSecurityLabels will update the labels of the namespace to reconcile the PSA level specified in the VirtualClusterPolicy
-func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, namespace *v1.Namespace, policy *v1beta1.VirtualClusterPolicy) {
+func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, namespace *corev1.Namespace, policy *v1beta1.VirtualClusterPolicy) {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Reconciling PSA labels")
 
@@ -50,7 +50,7 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Cleanup Namespace resources")
 
-	var namespaces v1.NamespaceList
+	var namespaces corev1.NamespaceList
 	if err := c.Client.List(ctx, &namespaces); err != nil {
 		return err
 	}
@@ -104,11 +104,11 @@ func (c *VirtualClusterPolicyReconciler) cleanupNamespaces(ctx context.Context) 
 			return err
 		}
 
-		if err := c.Client.DeleteAllOf(ctx, &v1.ResourceQuota{}, deleteOpts...); err != nil {
+		if err := c.Client.DeleteAllOf(ctx, &corev1.ResourceQuota{}, deleteOpts...); err != nil {
 			return err
 		}
 
-		if err := c.Client.DeleteAllOf(ctx, &v1.LimitRange{}, deleteOpts...); err != nil {
+		if err := c.Client.DeleteAllOf(ctx, &corev1.LimitRange{}, deleteOpts...); err != nil {
 			return err
 		}
 	}

@@ -7,7 +7,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -27,7 +27,7 @@ var SecretTests = func() {
 	BeforeEach(func() {
 		ctx := context.Background()
 
-		ns := v1.Namespace{
+		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{GenerateName: "ns-"},
 		}
 		err := hostTestEnv.k8sClient.Create(ctx, &ns)
@@ -49,7 +49,7 @@ var SecretTests = func() {
 	})
 
 	AfterEach(func() {
-		ns := v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 		err := hostTestEnv.k8sClient.Delete(context.Background(), &ns)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -57,7 +57,7 @@ var SecretTests = func() {
 	It("creates a Secret on the host cluster", func() {
 		ctx := context.Background()
 
-		secret := &v1.Secret{
+		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "secret-",
 				Namespace:    "default",
@@ -75,7 +75,7 @@ var SecretTests = func() {
 
 		By(fmt.Sprintf("Created Secret %s in virtual cluster", secret.Name))
 
-		var hostSecret v1.Secret
+		var hostSecret corev1.Secret
 
 		hostSecretName := translateName(cluster, secret.Namespace, secret.Name)
 
@@ -98,7 +98,7 @@ var SecretTests = func() {
 	It("updates a Secret on the host cluster", func() {
 		ctx := context.Background()
 
-		secret := &v1.Secret{
+		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "secret-",
 				Namespace:    "default",
@@ -113,7 +113,7 @@ var SecretTests = func() {
 
 		By(fmt.Sprintf("Created secret %s in virtual cluster", secret.Name))
 
-		var hostSecret v1.Secret
+		var hostSecret corev1.Secret
 
 		hostSecretName := translateName(cluster, secret.Namespace, secret.Name)
 
@@ -157,7 +157,7 @@ var SecretTests = func() {
 	It("deletes a secret on the host cluster", func() {
 		ctx := context.Background()
 
-		secret := &v1.Secret{
+		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "secret-",
 				Namespace:    "default",
@@ -172,7 +172,7 @@ var SecretTests = func() {
 
 		By(fmt.Sprintf("Created secret %s in virtual cluster", secret.Name))
 
-		var hostSecret v1.Secret
+		var hostSecret corev1.Secret
 
 		hostSecretName := translateName(cluster, secret.Namespace, secret.Name)
 
@@ -208,7 +208,7 @@ var SecretTests = func() {
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 
-		secret := &v1.Secret{
+		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "secret-",
 				Namespace:    "default",
@@ -223,7 +223,7 @@ var SecretTests = func() {
 
 		By(fmt.Sprintf("Created secret %s in virtual cluster", secret.Name))
 
-		var hostSecret v1.Secret
+		var hostSecret corev1.Secret
 
 		hostSecretName := translateName(cluster, secret.Namespace, secret.Name)
 

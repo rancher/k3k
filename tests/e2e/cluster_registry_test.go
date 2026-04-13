@@ -8,7 +8,7 @@ import (
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -60,14 +60,14 @@ var _ = When("a cluster with private registry configuration is used", Label("e2e
 		// Using subPath allows mounting individual files while keeping parent directories writable
 		cluster.Spec.SecretMounts = []v1beta1.SecretMount{
 			{
-				SecretVolumeSource: v1.SecretVolumeSource{
+				SecretVolumeSource: corev1.SecretVolumeSource{
 					SecretName: "k3s-registry-config",
 				},
 				MountPath: "/etc/rancher/k3s/registries.yaml",
 				SubPath:   "registries.yaml",
 			},
 			{
-				SecretVolumeSource: v1.SecretVolumeSource{
+				SecretVolumeSource: corev1.SecretVolumeSource{
 					SecretName: "private-registry-ca-cert",
 				},
 				MountPath: "/etc/rancher/k3s/tls/ca.crt",
@@ -126,13 +126,13 @@ var _ = When("a cluster with private registry configuration is used", Label("e2e
 
 		// creating a pod with image that uses any registry other than docker.io should fail
 		// for example public.ecr.aws/docker/library/alpine:latest
-		alpinePod := &v1.Pod{
+		alpinePod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "alpine-",
 				Namespace:    "default",
 			},
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{
 					Name:  "alpine",
 					Image: "public.ecr.aws/docker/library/alpine:latest",
 				}},

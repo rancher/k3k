@@ -4,6 +4,7 @@ linters:
   enable:
   - misspell
   - wsl_v5
+  - importas
   exclusions:
     rules:
     # Allow dot imports for Ginkgo/Gomega in test framework
@@ -11,6 +12,20 @@ linters:
       text: "dot imports"
       linters:
       - staticcheck
+  settings:
+    importas:
+      # Enforce import aliases for k8s packages
+      alias:
+      - pkg: k8s.io/apimachinery/pkg/apis/meta/v1
+        alias: metav1
+      - pkg: k8s.io/apimachinery/pkg/api/errors
+        alias: apierrors
+      - pkg: k8s.io/api/core/v1
+        alias: corev1
+      - pkg: k8s.io/api/apps/v1
+        alias: appsv1
+      - pkg: k8s.io/api/networking/v1
+        alias: networkingv1
 
 formatters:
   enable:

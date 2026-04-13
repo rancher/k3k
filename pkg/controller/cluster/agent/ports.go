@@ -11,7 +11,7 @@ import (
 	"k8s.io/kubernetes/pkg/registry/core/service/portallocator"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,7 +28,7 @@ const (
 type PortAllocator struct {
 	ctrlruntimeclient.Client
 
-	KubeletCM *v1.ConfigMap
+	KubeletCM *corev1.ConfigMap
 }
 
 func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client) (*PortAllocator, error) {
@@ -40,7 +40,7 @@ func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client) (*Po
 		return nil, fmt.Errorf("failed to find k3k controller namespace")
 	}
 
-	var kubeletPortRangeCM v1.ConfigMap
+	var kubeletPortRangeCM corev1.ConfigMap
 
 	kubeletPortRangeCM.Name = kubeletPortRangeConfigMapName
 	kubeletPortRangeCM.Namespace = portRangeConfigMapNamespace
@@ -57,7 +57,7 @@ func (a *PortAllocator) InitPortAllocatorConfig(ctx context.Context, client ctrl
 	})
 }
 
-func (a *PortAllocator) getOrCreate(ctx context.Context, configmap *v1.ConfigMap, portRange string) error {
+func (a *PortAllocator) getOrCreate(ctx context.Context, configmap *corev1.ConfigMap, portRange string) error {
 	nn := types.NamespacedName{
 		Name:      configmap.Name,
 		Namespace: configmap.Namespace,
@@ -94,7 +94,7 @@ func (a *PortAllocator) DeallocateKubeletPort(ctx context.Context, clusterName, 
 }
 
 // allocatePort will assign port to the cluster from a port Range configured for k3k
-func (a *PortAllocator) allocatePort(ctx context.Context, clusterName, clusterNamespace string, configMap *v1.ConfigMap) (int, error) {
+func (a *PortAllocator) allocatePort(ctx context.Context, clusterName, clusterNamespace string, configMap *corev1.ConfigMap) (int, error) {
 	portRange, ok := configMap.Data[rangeKey]
 	if !ok {
 		return 0, fmt.Errorf("port range is not initialized")
@@ -145,7 +145,7 @@ func (a *PortAllocator) allocatePort(ctx context.Context, clusterName, clusterNa
 }
 
 // deallocatePort will remove the port used by the cluster from the port range
-func (a *PortAllocator) deallocatePort(ctx context.Context, clusterName, clusterNamespace string, configMap *v1.ConfigMap, port int) error {
+func (a *PortAllocator) deallocatePort(ctx context.Context, clusterName, clusterNamespace string, configMap *corev1.ConfigMap, port int) error {
 	portRange, ok := configMap.Data[rangeKey]
 	if !ok {
 		return fmt.Errorf("port range is not initialized")
@@ -211,7 +211,7 @@ func serializePortMap(m map[string]int) (string, error) {
 	return string(out), nil
 }
 
-func saveSnapshot(portAllocator *portallocator.PortAllocator, snapshot *core.RangeAllocation, configMap *v1.ConfigMap, portsMap map[string]int) error {
+func saveSnapshot(portAllocator *portallocator.PortAllocator, snapshot *core.RangeAllocation, configMap *corev1.ConfigMap, portsMap map[string]int) error {
 	// save the new snapshot
 	if err := portAllocator.Snapshot(snapshot); err != nil {
 		return err

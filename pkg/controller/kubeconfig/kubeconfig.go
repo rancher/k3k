@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
@@ -100,7 +100,7 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1bet
 		Namespace: cluster.Namespace,
 	}
 
-	var k3kService v1.Service
+	var k3kService corev1.Service
 	if err := client.Get(ctx, key, &k3kService); err != nil {
 		return "", err
 	}
@@ -113,13 +113,13 @@ func getURLFromService(ctx context.Context, client client.Client, cluster *v1bet
 	}
 
 	switch k3kService.Spec.Type {
-	case v1.ServiceTypeNodePort:
+	case corev1.ServiceTypeNodePort:
 		ip = hostServerIP
 
 		if len(k3kService.Spec.Ports) > 0 {
 			port = k3kService.Spec.Ports[0].NodePort
 		}
-	case v1.ServiceTypeLoadBalancer:
+	case corev1.ServiceTypeLoadBalancer:
 		if len(k3kService.Status.LoadBalancer.Ingress) > 0 {
 			ip = k3kService.Status.LoadBalancer.Ingress[0].IP
 		} else {

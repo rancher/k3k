@@ -15,7 +15,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
@@ -131,10 +131,10 @@ func CreateCluster(cluster *v1beta1.Cluster) {
 		var serversReady, agentsReady int
 
 		for _, k3sPod := range podList.Items {
-			_, cond := pod.GetPodCondition(&k3sPod.Status, v1.PodReady)
+			_, cond := pod.GetPodCondition(&k3sPod.Status, corev1.PodReady)
 
 			// pod not ready
-			if cond == nil || cond.Status != v1.ConditionTrue {
+			if cond == nil || cond.Status != corev1.ConditionTrue {
 				continue
 			}
 
@@ -244,20 +244,20 @@ func NewVirtualK8sClientAndKubeconfig(cluster *v1beta1.Cluster) (*kubernetes.Cli
 	return virtualK8sClient, restcfg, configData
 }
 
-func (c *VirtualCluster) NewNginxPod(namespace string) (*v1.Pod, string) {
+func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {
 	GinkgoHelper()
 
 	if namespace == "" {
 		namespace = "default"
 	}
 
-	nginxPod := &v1.Pod{
+	nginxPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "nginx-",
 			Namespace:    namespace,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
 				Name:  "nginx",
 				Image: "nginx",
 			}},
@@ -278,7 +278,7 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*v1.Pod, string) {
 		nginxPod, err = c.Client.CoreV1().Pods(nginxPod.Namespace).Get(ctx, nginxPod.Name, metav1.GetOptions{})
 		g.Expect(err).To(Not(HaveOccurred()))
 
-		_, cond := pod.GetPodCondition(&nginxPod.Status, v1.PodReady)
+		_, cond := pod.GetPodCondition(&nginxPod.Status, corev1.PodReady)
 		g.Expect(cond).NotTo(BeNil())
 		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).
@@ -312,7 +312,7 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*v1.Pod, string) {
 					pod.Name, resourceNamespace, resourceName, pod.Status.Phase, podIP,
 				)
 
-				return pod.Status.Phase == v1.PodRunning && podIP != ""
+				return pod.Status.Phase == corev1.PodRunning && podIP != ""
 			}
 		}
 
@@ -326,8 +326,8 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*v1.Pod, string) {
 }
 
 // ExecCmd exec command on specific pod and wait the command's output.
-func (c *VirtualCluster) ExecCmd(pod *v1.Pod, command string) (string, string, error) {
-	option := &v1.PodExecOptions{
+func (c *VirtualCluster) ExecCmd(pod *corev1.Pod, command string) (string, string, error) {
+	option := &corev1.PodExecOptions{
 		Command: []string{"sh", "-c", command},
 		Stdout:  true,
 		Stderr:  true,
@@ -382,7 +382,7 @@ func restartServerPod(ctx context.Context, virtualCluster *VirtualCluster) {
 		Should(Succeed())
 }
 
-func listServerPods(ctx context.Context, virtualCluster *VirtualCluster) []v1.Pod {
+func listServerPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
 	labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
 
 	serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
@@ -391,7 +391,7 @@ func listServerPods(ctx context.Context, virtualCluster *VirtualCluster) []v1.Po
 	return serverPods.Items
 }
 
-func listAgentPods(ctx context.Context, virtualCluster *VirtualCluster) []v1.Pod {
+func listAgentPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
 	labelSelector := fmt.Sprintf("cluster=%s,type=agent,mode=%s", virtualCluster.Cluster.Name, virtualCluster.Cluster.Spec.Mode)
 
 	agentPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
@@ -401,7 +401,7 @@ func listAgentPods(ctx context.Context, virtualCluster *VirtualCluster) []v1.Pod
 }
 
 // getEnv will get an environment variable from a pod it will return empty string if not found
-func getEnv(pod *v1.Pod, envName string) (string, bool) {
+func getEnv(pod *corev1.Pod, envName string) (string, bool) {
 	container := pod.Spec.Containers[0]
 	for _, envVar := range container.Env {
 		if envVar.Name == envName {
@@ -413,7 +413,7 @@ func getEnv(pod *v1.Pod, envName string) (string, bool) {
 }
 
 // isArgFound will return true if the argument passed to the function is found in container args
-func isArgFound(pod *v1.Pod, arg string) bool {
+func isArgFound(pod *corev1.Pod, arg string) bool {
 	container := pod.Spec.Containers[0]
 	for _, cmd := range container.Command {
 		if strings.Contains(cmd, arg) {

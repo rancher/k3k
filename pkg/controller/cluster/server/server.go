@@ -14,8 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -54,7 +54,7 @@ func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePull
 	}
 }
 
-func (s *Server) podSpec(ctx context.Context, image, name string, persistent bool, startupCmd string) v1.PodSpec {
+func (s *Server) podSpec(ctx context.Context, image, name string, persistent bool, startupCmd string) corev1.PodSpec {
 	log := ctrl.LoggerFrom(ctx)
 
 	// Use the server affinity from the policy status if it exists, otherwise fall back to the spec.
@@ -64,17 +64,17 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		serverAffinity = s.cluster.Status.Policy.ServerAffinity
 	}
 
-	podSpec := v1.PodSpec{
+	podSpec := corev1.PodSpec{
 		Affinity:          serverAffinity,
 		NodeSelector:      s.cluster.Spec.NodeSelector,
 		PriorityClassName: s.cluster.Spec.PriorityClass,
-		Volumes: []v1.Volume{
+		Volumes: []corev1.Volume{
 			{
 				Name: "initconfig",
-				VolumeSource: v1.VolumeSource{
-					Secret: &v1.SecretVolumeSource{
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
 						SecretName: configSecretName(s.cluster.Name, true),
-						Items: []v1.KeyToPath{
+						Items: []corev1.KeyToPath{
 							{
 								Key:  "config.yaml",
 								Path: "config.yaml",
@@ -85,10 +85,10 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 			},
 			{
 				Name: "config",
-				VolumeSource: v1.VolumeSource{
-					Secret: &v1.SecretVolumeSource{
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
 						SecretName: configSecretName(s.cluster.Name, false),
-						Items: []v1.KeyToPath{
+						Items: []corev1.KeyToPath{
 							{
 								Key:  "config.yaml",
 								Path: "config.yaml",
@@ -99,59 +99,59 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 			},
 			{
 				Name: "run",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varrun",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlibcni",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlog",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlibkubelet",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 		},
-		Containers: []v1.Container{
+		Containers: []corev1.Container{
 			{
 				Name:            name,
 				Image:           image,
-				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
-				Env: []v1.EnvVar{
+				ImagePullPolicy: corev1.PullPolicy(s.imagePullPolicy),
+				Env: []corev1.EnvVar{
 					{
 						Name: "POD_NAME",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
 								FieldPath: "metadata.name",
 							},
 						},
 					},
 					{
 						Name: "POD_IP",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
 								FieldPath: "status.podIP",
 							},
 						},
 					},
 				},
-				VolumeMounts: []v1.VolumeMount{
+				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      "config",
 						MountPath: "/opt/rancher/k3s/server",
@@ -205,32 +205,32 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 
 	podSpec.Containers[0].Command = cmd
 	if !persistent {
-		podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 			Name: "varlibrancherk3s",
-			VolumeSource: v1.VolumeSource{
-				EmptyDir: &v1.EmptyDirVolumeSource{},
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		)
 	}
 
 	// Adding readiness probes to statefulset
-	podSpec.Containers[0].ReadinessProbe = &v1.Probe{
+	podSpec.Containers[0].ReadinessProbe = &corev1.Probe{
 		InitialDelaySeconds: 60,
 		FailureThreshold:    5,
 		TimeoutSeconds:      10,
-		ProbeHandler: v1.ProbeHandler{
-			TCPSocket: &v1.TCPSocketAction{
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(6443),
 			},
 		},
 	}
-	podSpec.Containers[0].LivenessProbe = &v1.Probe{
+	podSpec.Containers[0].LivenessProbe = &corev1.Probe{
 		InitialDelaySeconds: 10,
 		FailureThreshold:    3,
 		PeriodSeconds:       3,
-		ProbeHandler: v1.ProbeHandler{
-			Exec: &v1.ExecAction{
+		ProbeHandler: corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
 				Command: []string{
 					"sh",
 					"-c",
@@ -241,7 +241,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	}
 	// start the pod unprivileged in shared mode
 	if s.mode == agent.VirtualNodeMode {
-		podSpec.Containers[0].SecurityContext = &v1.SecurityContext{
+		podSpec.Containers[0].SecurityContext = &corev1.SecurityContext{
 			Privileged: ptr.To(true),
 		}
 	}
@@ -266,7 +266,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 
 	// specify resource limits if specified for the servers.
 	if s.cluster.Spec.ServerLimit != nil {
-		podSpec.Containers[0].Resources = v1.ResourceRequirements{
+		podSpec.Containers[0].Resources = corev1.ResourceRequirements{
 			Limits: s.cluster.Spec.ServerLimit,
 		}
 	}
@@ -275,16 +275,16 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 
 	// add image pull secrets
 	for _, imagePullSecret := range s.imagePullSecrets {
-		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
 	}
 
 	return podSpec
 }
 
-func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) {
+func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error) {
 	var (
 		replicas   int32
-		pvClaim    v1.PersistentVolumeClaim
+		pvClaim    corev1.PersistentVolumeClaim
 		err        error
 		persistent bool
 	)
@@ -304,8 +304,8 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	}
 
 	var (
-		volumes      []v1.Volume
-		volumeMounts []v1.VolumeMount
+		volumes      []corev1.Volume
+		volumeMounts []corev1.VolumeMount
 	)
 
 	if len(s.cluster.Spec.Addons) > 0 {
@@ -354,7 +354,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
 
-	ss := &apps.StatefulSet{
+	ss := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "StatefulSet",
 			APIVersion: "apps/v1",
@@ -364,11 +364,11 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 			Namespace: s.cluster.Namespace,
 			Labels:    selector.MatchLabels,
 		},
-		Spec: apps.StatefulSetSpec{
+		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
 			ServiceName: headlessServiceName(s.cluster.Name),
 			Selector:    &selector,
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector.MatchLabels,
 				},
@@ -377,14 +377,14 @@ func (s *Server) StatefulServer(ctx context.Context) (*apps.StatefulSet, error) 
 		},
 	}
 	if s.cluster.Spec.Persistence.Type == v1beta1.DynamicPersistenceMode {
-		ss.Spec.VolumeClaimTemplates = []v1.PersistentVolumeClaim{pvClaim}
+		ss.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{pvClaim}
 	}
 
 	return ss, nil
 }
 
-func (s *Server) setupDynamicPersistence() v1.PersistentVolumeClaim {
-	return v1.PersistentVolumeClaim{
+func (s *Server) setupDynamicPersistence() corev1.PersistentVolumeClaim {
+	return corev1.PersistentVolumeClaim{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PersistentVolumeClaim",
 			APIVersion: "v1",
@@ -393,11 +393,11 @@ func (s *Server) setupDynamicPersistence() v1.PersistentVolumeClaim {
 			Name:      "varlibrancherk3s",
 			Namespace: s.cluster.Namespace,
 		},
-		Spec: v1.PersistentVolumeClaimSpec{
-			AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			StorageClassName: s.cluster.Spec.Persistence.StorageClassName,
-			Resources: v1.VolumeResourceRequirements{
-				Requests: v1.ResourceList{
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
 					"storage": *s.cluster.Spec.Persistence.StorageRequestSize,
 				},
 			},
@@ -434,7 +434,7 @@ func (s *Server) setupStartCommand() (string, error) {
 	return output.String(), nil
 }
 
-func (s *Server) buildCABundleVolumes(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
+func (s *Server) buildCABundleVolumes(ctx context.Context) ([]corev1.Volume, []corev1.VolumeMount, error) {
 	if s.cluster.Spec.CustomCAs == nil {
 		return nil, nil, fmt.Errorf("customCAs not found")
 	}
@@ -450,13 +450,13 @@ func (s *Server) buildCABundleVolumes(ctx context.Context) ([]v1.Volume, []v1.Vo
 	}
 
 	var (
-		volumes       []v1.Volume
-		mounts        []v1.VolumeMount
+		volumes       []corev1.Volume
+		mounts        []corev1.VolumeMount
 		sortedCertIDs = sortedKeys(caCertMap)
 	)
 
 	for _, certName := range sortedCertIDs {
-		var certSecret v1.Secret
+		var certSecret corev1.Secret
 
 		secretName := string(caCertMap[certName])
 		key := types.NamespacedName{Name: secretName, Namespace: s.cluster.Namespace}
@@ -483,18 +483,18 @@ func (s *Server) buildCABundleVolumes(ctx context.Context) ([]v1.Volume, []v1.Vo
 	return volumes, mounts, nil
 }
 
-func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMount string) (*v1.Volume, []v1.VolumeMount) {
+func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMount string) (*corev1.Volume, []corev1.VolumeMount) {
 	var (
-		volume *v1.Volume
-		mounts []v1.VolumeMount
+		volume *corev1.Volume
+		mounts []corev1.VolumeMount
 	)
 
 	// avoid re-adding secretName in case of combined secret
 
-	volume = &v1.Volume{
+	volume = &corev1.Volume{
 		Name: volumeName,
-		VolumeSource: v1.VolumeSource{
-			Secret: &v1.SecretVolumeSource{SecretName: secretName},
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{SecretName: secretName},
 		},
 	}
 
@@ -509,7 +509,7 @@ func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMou
 
 	// add the mount for the cert except for the service account token
 	if certName != "service" {
-		mounts = append(mounts, v1.VolumeMount{
+		mounts = append(mounts, corev1.VolumeMount{
 			Name:      volumeName,
 			MountPath: fmt.Sprintf("/var/lib/rancher/k3s/server/tls%s/%s.crt", etcdPrefix, mountFile),
 			SubPath:   subPathMount + ".crt",
@@ -517,7 +517,7 @@ func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMou
 	}
 
 	// add the mount for the key
-	mounts = append(mounts, v1.VolumeMount{
+	mounts = append(mounts, corev1.VolumeMount{
 		Name:      volumeName,
 		MountPath: fmt.Sprintf("/var/lib/rancher/k3s/server/tls%s/%s.key", etcdPrefix, mountFile),
 		SubPath:   subPathMount + ".key",
@@ -526,10 +526,10 @@ func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMou
 	return volume, mounts
 }
 
-func (s *Server) buildAddonsVolumes(ctx context.Context) ([]v1.Volume, []v1.VolumeMount, error) {
+func (s *Server) buildAddonsVolumes(ctx context.Context) ([]corev1.Volume, []corev1.VolumeMount, error) {
 	var (
-		volumes []v1.Volume
-		mounts  []v1.VolumeMount
+		volumes []corev1.Volume
+		mounts  []corev1.VolumeMount
 	)
 
 	for _, addon := range s.cluster.Spec.Addons {
@@ -543,14 +543,14 @@ func (s *Server) buildAddonsVolumes(ctx context.Context) ([]v1.Volume, []v1.Volu
 			Namespace: namespace,
 		}
 
-		var addons v1.Secret
+		var addons corev1.Secret
 		if err := s.client.Get(ctx, nn, &addons); err != nil {
 			return nil, nil, err
 		}
 
 		// skip creating the addon secret if it already exists and in the same namespace as the cluster
 		if namespace != s.cluster.Namespace {
-			clusterAddons := v1.Secret{
+			clusterAddons := corev1.Secret{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Secret",
 					APIVersion: "v1",
@@ -570,17 +570,17 @@ func (s *Server) buildAddonsVolumes(ctx context.Context) ([]v1.Volume, []v1.Volu
 		}
 
 		name := "addon-" + addon.SecretRef
-		volume := v1.Volume{
+		volume := corev1.Volume{
 			Name: name,
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
 					SecretName: addon.SecretRef,
 				},
 			},
 		}
 		volumes = append(volumes, volume)
 
-		volumeMount := v1.VolumeMount{
+		volumeMount := corev1.VolumeMount{
 			Name:      name,
 			MountPath: "/var/lib/rancher/k3s/server/manifests/" + addon.SecretRef,
 			ReadOnly:  true,

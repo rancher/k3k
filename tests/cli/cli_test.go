@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/policy"
@@ -165,7 +165,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				Expect(stderr).To(ContainSubstring(`Policy '%s' deleted`, policy1Name))
 			})
 
-			var ns v1.Namespace
+			var ns corev1.Namespace
 
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: namespaceName}, &ns)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))

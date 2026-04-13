@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -69,7 +69,7 @@ func policyCreateAction(appCtx *AppContext, config *VirtualClusterPolicyCreateCo
 }
 
 func createNamespace(ctx context.Context, client client.Client, name, policyName string) error {
-	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
 
 	if policyName != "" {
 		ns.Labels = map[string]string{
@@ -125,7 +125,7 @@ func bindPolicyToNamespaces(ctx context.Context, client client.Client, config *V
 	var errs []error
 
 	for _, namespace := range config.namespaces {
-		var ns v1.Namespace
+		var ns corev1.Namespace
 		if err := client.Get(ctx, types.NamespacedName{Name: namespace}, &ns); err != nil {
 			if apierrors.IsNotFound(err) {
 				logrus.Warnf(`Namespace '%s' not found, skipping`, namespace)

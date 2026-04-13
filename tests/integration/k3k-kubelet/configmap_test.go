@@ -7,7 +7,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -27,7 +27,7 @@ var ConfigMapTests = func() {
 	BeforeEach(func() {
 		ctx := context.Background()
 
-		ns := v1.Namespace{
+		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{GenerateName: "ns-"},
 		}
 		err := hostTestEnv.k8sClient.Create(ctx, &ns)
@@ -49,7 +49,7 @@ var ConfigMapTests = func() {
 	})
 
 	AfterEach(func() {
-		ns := v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 		err := hostTestEnv.k8sClient.Delete(context.Background(), &ns)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -57,7 +57,7 @@ var ConfigMapTests = func() {
 	It("creates a ConfigMap on the host cluster", func() {
 		ctx := context.Background()
 
-		configMap := &v1.ConfigMap{
+		configMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "cm-",
 				Namespace:    "default",
@@ -75,7 +75,7 @@ var ConfigMapTests = func() {
 
 		By(fmt.Sprintf("Created configmap %s in virtual cluster", configMap.Name))
 
-		var hostConfigMap v1.ConfigMap
+		var hostConfigMap corev1.ConfigMap
 
 		hostConfigMapName := translateName(cluster, configMap.Namespace, configMap.Name)
 
@@ -98,7 +98,7 @@ var ConfigMapTests = func() {
 	It("updates a ConfigMap on the host cluster", func() {
 		ctx := context.Background()
 
-		configMap := &v1.ConfigMap{
+		configMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "cm-",
 				Namespace:    "default",
@@ -113,7 +113,7 @@ var ConfigMapTests = func() {
 
 		By(fmt.Sprintf("Created configmap %s in virtual cluster", configMap.Name))
 
-		var hostConfigMap v1.ConfigMap
+		var hostConfigMap corev1.ConfigMap
 
 		hostConfigMapName := translateName(cluster, configMap.Namespace, configMap.Name)
 
@@ -159,7 +159,7 @@ var ConfigMapTests = func() {
 	It("deletes a configMap on the host cluster", func() {
 		ctx := context.Background()
 
-		configMap := &v1.ConfigMap{
+		configMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "cm-",
 				Namespace:    "default",
@@ -174,7 +174,7 @@ var ConfigMapTests = func() {
 
 		By(fmt.Sprintf("Created configmap %s in virtual cluster", configMap.Name))
 
-		var hostConfigMap v1.ConfigMap
+		var hostConfigMap corev1.ConfigMap
 
 		hostConfigMapName := translateName(cluster, configMap.Namespace, configMap.Name)
 
@@ -210,7 +210,7 @@ var ConfigMapTests = func() {
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 
-		configMap := &v1.ConfigMap{
+		configMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "cm-",
 				Namespace:    "default",
@@ -225,7 +225,7 @@ var ConfigMapTests = func() {
 
 		By(fmt.Sprintf("Created configmap %s in virtual cluster", configMap.Name))
 
-		var hostConfigMap v1.ConfigMap
+		var hostConfigMap corev1.ConfigMap
 
 		hostConfigMapName := translateName(cluster, configMap.Namespace, configMap.Name)
 

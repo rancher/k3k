@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,7 +29,7 @@ func (c *ClusterReconciler) token(ctx context.Context, cluster *v1beta1.Cluster)
 		Namespace: cluster.Spec.TokenSecretRef.Namespace,
 	}
 
-	var tokenSecret v1.Secret
+	var tokenSecret corev1.Secret
 
 	if err := c.Client.Get(ctx, nn, &tokenSecret); err != nil {
 		return "", err
@@ -51,7 +51,7 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1be
 		Namespace: cluster.Namespace,
 	}
 
-	var tokenSecret v1.Secret
+	var tokenSecret corev1.Secret
 	if err := c.Client.Get(ctx, key, &tokenSecret); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return "", err
@@ -94,8 +94,8 @@ func random(size int) (string, error) {
 	return hex.EncodeToString(token), err
 }
 
-func TokenSecretObj(token, name, namespace string) v1.Secret {
-	return v1.Secret{
+func TokenSecretObj(token, name, namespace string) corev1.Secret {
+	return corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Secret",

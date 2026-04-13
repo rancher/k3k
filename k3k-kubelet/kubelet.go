@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -148,7 +148,7 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 	}
 
 	// get the cluster's DNS IP to be injected to pods
-	var dnsService v1.Service
+	var dnsService corev1.Service
 
 	dnsName := controller.SafeConcatNameWithPrefix(c.ClusterName, "kube-dns")
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: dnsName, Namespace: c.ClusterNamespace}, &dnsService); err != nil {
@@ -179,7 +179,7 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 }
 
 func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostClient ctrlruntimeclient.Client) (string, error) {
-	var service v1.Service
+	var service corev1.Service
 
 	serviceKey := types.NamespacedName{
 		Namespace: clusterNamespace,

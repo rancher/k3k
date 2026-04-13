@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -135,18 +135,18 @@ func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
 
 	k3kDeployment := &deployments.Items[0]
 
-	pvc := &v1.PersistentVolumeClaim{
+	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "coverage-data-pvc",
 			Namespace: k3kNamespace,
 		},
-		Spec: v1.PersistentVolumeClaimSpec{
-			AccessModes: []v1.PersistentVolumeAccessMode{
-				v1.ReadWriteOnce,
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
 			},
-			Resources: v1.VolumeResourceRequirements{
-				Requests: v1.ResourceList{
-					v1.ResourceStorage: resource.MustParse("100M"),
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("100M"),
 				},
 			},
 		},
@@ -164,21 +164,21 @@ func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
 		}
 	}
 
-	k3kSpec.Volumes = append(k3kSpec.Volumes, v1.Volume{
+	k3kSpec.Volumes = append(k3kSpec.Volumes, corev1.Volume{
 		Name: "tmp-covdata",
-		VolumeSource: v1.VolumeSource{
-			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 				ClaimName: "coverage-data-pvc",
 			},
 		},
 	})
 
-	k3kSpec.Containers[0].VolumeMounts = append(k3kSpec.Containers[0].VolumeMounts, v1.VolumeMount{
+	k3kSpec.Containers[0].VolumeMounts = append(k3kSpec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      "tmp-covdata",
 		MountPath: "/tmp/covdata",
 	})
 
-	k3kSpec.Containers[0].Env = append(k3kSpec.Containers[0].Env, v1.EnvVar{
+	k3kSpec.Containers[0].Env = append(k3kSpec.Containers[0].Env, corev1.EnvVar{
 		Name:  "GOCOVERDIR",
 		Value: "/tmp/covdata",
 	})
@@ -205,7 +205,7 @@ func patchPVC(ctx context.Context, clientset *kubernetes.Clientset) {
 		}
 
 		g.Expect(availableCond.Type).To(Equal(appsv1.DeploymentAvailable))
-		g.Expect(availableCond.Status).To(Equal(v1.ConditionTrue))
+		g.Expect(availableCond.Status).To(Equal(corev1.ConditionTrue))
 	}).
 		WithPolling(time.Second).
 		WithTimeout(time.Second * 30).
@@ -242,7 +242,7 @@ var _ = AfterSuite(func() {
 func dumpK3kCoverageData(ctx context.Context, folder string) {
 	By("Restarting k3k controller")
 
-	var podList v1.PodList
+	var podList corev1.PodList
 
 	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
 	Expect(err).To(Not(HaveOccurred()))
@@ -265,12 +265,12 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 			Name:      k3kPod.Name,
 		}
 
-		var controllerPod v1.Pod
+		var controllerPod corev1.Pod
 
 		err = k8sClient.Get(ctx, key, &controllerPod)
 		g.Expect(err).To(Not(HaveOccurred()))
 
-		_, cond := pod.GetPodCondition(&controllerPod.Status, v1.PodReady)
+		_, cond := pod.GetPodCondition(&controllerPod.Status, corev1.PodReady)
 		g.Expect(cond).NotTo(BeNil())
 		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).
@@ -283,25 +283,25 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 
 	GinkgoWriter.Printf("Downloading covdata from k3k controller %s/%s to %s\n", k3kNamespace, k3kPod.Name, folder)
 
-	tarPod := &v1.Pod{
+	tarPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "tar",
 			Namespace: k3kNamespace,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
 				Name:    "tar",
 				Image:   "busybox",
 				Command: []string{"/bin/sh", "-c", "sleep 3600"},
-				VolumeMounts: []v1.VolumeMount{{
+				VolumeMounts: []corev1.VolumeMount{{
 					Name:      "tmp-covdata",
 					MountPath: "/tmp/covdata",
 				}},
 			}},
-			Volumes: []v1.Volume{{
+			Volumes: []corev1.Volume{{
 				Name: "tmp-covdata",
-				VolumeSource: v1.VolumeSource{
-					PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 						ClaimName: "coverage-data-pvc",
 					},
 				},
@@ -318,7 +318,7 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 		err = k8sClient.Get(ctx, client.ObjectKeyFromObject(tarPod), tarPod)
 		g.Expect(err).To(Not(HaveOccurred()))
 
-		_, cond := pod.GetPodCondition(&tarPod.Status, v1.PodReady)
+		_, cond := pod.GetPodCondition(&tarPod.Status, corev1.PodReady)
 		g.Expect(cond).NotTo(BeNil())
 		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).
@@ -356,13 +356,13 @@ func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.
 		SubResource("exec")
 	scheme := runtime.NewScheme()
 
-	if err := v1.AddToScheme(scheme); err != nil {
+	if err := corev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("error adding to scheme: %v", err)
 	}
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
 
-	req.VersionedParams(&v1.PodExecOptions{
+	req.VersionedParams(&corev1.PodExecOptions{
 		Command: command,
 		Stdin:   stdin != nil,
 		Stdout:  stdout != nil,
@@ -390,8 +390,8 @@ func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.
 	return stderr.Bytes(), nil
 }
 
-func caCertSecret(name, namespace string, crt, key []byte) *v1.Secret {
-	return &v1.Secret{
+func caCertSecret(name, namespace string, crt, key []byte) *corev1.Secret {
+	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -478,18 +478,18 @@ func privateRegistry(ctx context.Context, namespace string) error {
 					"app": "private-registry",
 				},
 			},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app": "private-registry",
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
 						{
 							Name:  "private-registry",
 							Image: registryImage,
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "config",
 									MountPath: "/etc/docker/registry/",
@@ -505,27 +505,27 @@ func privateRegistry(ctx context.Context, namespace string) error {
 							},
 						},
 					},
-					Volumes: []v1.Volume{
+					Volumes: []corev1.Volume{
 						{
 							Name: "config",
-							VolumeSource: v1.VolumeSource{
-								Secret: &v1.SecretVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
 									SecretName: "private-registry-config",
 								},
 							},
 						},
 						{
 							Name: "ca-cert",
-							VolumeSource: v1.VolumeSource{
-								Secret: &v1.SecretVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
 									SecretName: "private-registry-ca-cert",
 								},
 							},
 						},
 						{
 							Name: "registry-cert",
-							VolumeSource: v1.VolumeSource{
-								Secret: &v1.SecretVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
 									SecretName: "private-registry-cert",
 								},
 							},
@@ -540,7 +540,7 @@ func privateRegistry(ctx context.Context, namespace string) error {
 		return err
 	}
 
-	registryService := &v1.Service{
+	registryService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "private-registry",
 			Namespace: namespace,
@@ -549,11 +549,11 @@ func privateRegistry(ctx context.Context, namespace string) error {
 			Kind:       "Service",
 			APIVersion: "v1",
 		},
-		Spec: v1.ServiceSpec{
+		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{
 				"app": "private-registry",
 			},
-			Ports: []v1.ServicePort{
+			Ports: []corev1.ServicePort{
 				{
 					Name:       "registry-port",
 					Port:       5000,
@@ -598,10 +598,10 @@ func buildRegistryNetPolicy(ctx context.Context, namespace string) error {
 	return k8sClient.Create(ctx, &np)
 }
 
-func buildRegistryConfigSecret(tlsMap map[string]string, namespace, name string, tlsSecret bool) (*v1.Secret, error) {
-	secretType := v1.SecretTypeOpaque
+func buildRegistryConfigSecret(tlsMap map[string]string, namespace, name string, tlsSecret bool) (*corev1.Secret, error) {
+	secretType := corev1.SecretTypeOpaque
 	if tlsSecret {
-		secretType = v1.SecretTypeTLS
+		secretType = corev1.SecretTypeTLS
 	}
 
 	data := make(map[string][]byte)
@@ -615,7 +615,7 @@ func buildRegistryConfigSecret(tlsMap map[string]string, namespace, name string,
 		data[key] = b
 	}
 
-	secret := &v1.Secret{
+	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",

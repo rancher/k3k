@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -28,7 +28,7 @@ var ServiceTests = func() {
 	BeforeEach(func() {
 		ctx := context.Background()
 
-		ns := v1.Namespace{
+		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{GenerateName: "ns-"},
 		}
 		err := hostTestEnv.k8sClient.Create(ctx, &ns)
@@ -50,7 +50,7 @@ var ServiceTests = func() {
 	})
 
 	AfterEach(func() {
-		ns := v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 		err := hostTestEnv.k8sClient.Delete(context.Background(), &ns)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -58,7 +58,7 @@ var ServiceTests = func() {
 	It("creates a service on the host cluster", func() {
 		ctx := context.Background()
 
-		service := &v1.Service{
+		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "service-",
 				Namespace:    "default",
@@ -66,9 +66,9 @@ var ServiceTests = func() {
 					"foo": "bar",
 				},
 			},
-			Spec: v1.ServiceSpec{
-				Type: v1.ServiceTypeNodePort,
-				Ports: []v1.ServicePort{
+			Spec: corev1.ServiceSpec{
+				Type: corev1.ServiceTypeNodePort,
+				Ports: []corev1.ServicePort{
 					{
 						Name:       "test-port",
 						Port:       8888,
@@ -83,7 +83,7 @@ var ServiceTests = func() {
 
 		By(fmt.Sprintf("Created service %s in virtual cluster", service.Name))
 
-		var hostService v1.Service
+		var hostService corev1.Service
 
 		hostServiceName := translateName(cluster, service.Namespace, service.Name)
 
@@ -97,7 +97,7 @@ var ServiceTests = func() {
 
 		By(fmt.Sprintf("Created Service %s in host cluster", hostServiceName))
 
-		Expect(hostService.Spec.Type).To(Equal(v1.ServiceTypeNodePort))
+		Expect(hostService.Spec.Type).To(Equal(corev1.ServiceTypeNodePort))
 		Expect(hostService.Spec.Ports[0].Name).To(Equal("test-port"))
 		Expect(hostService.Spec.Ports[0].Port).To(Equal(int32(8888)))
 
@@ -107,7 +107,7 @@ var ServiceTests = func() {
 	It("updates a service on the host cluster", func() {
 		ctx := context.Background()
 
-		service := &v1.Service{
+		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "service-",
 				Namespace:    "default",
@@ -115,9 +115,9 @@ var ServiceTests = func() {
 					"foo": "bar",
 				},
 			},
-			Spec: v1.ServiceSpec{
-				Type: v1.ServiceTypeNodePort,
-				Ports: []v1.ServicePort{
+			Spec: corev1.ServiceSpec{
+				Type: corev1.ServiceTypeNodePort,
+				Ports: []corev1.ServicePort{
 					{
 						Name:       "test-port",
 						Port:       8888,
@@ -132,7 +132,7 @@ var ServiceTests = func() {
 
 		By(fmt.Sprintf("Created service %s in virtual cluster", service.Name))
 
-		var hostService v1.Service
+		var hostService corev1.Service
 
 		hostServiceName := translateName(cluster, service.Namespace, service.Name)
 
@@ -146,7 +146,7 @@ var ServiceTests = func() {
 
 		By(fmt.Sprintf("Created Service %s in host cluster", hostServiceName))
 
-		Expect(hostService.Spec.Type).To(Equal(v1.ServiceTypeNodePort))
+		Expect(hostService.Spec.Type).To(Equal(corev1.ServiceTypeNodePort))
 		Expect(hostService.Spec.Ports[0].Name).To(Equal("test-port"))
 		Expect(hostService.Spec.Ports[0].Port).To(Equal(int32(8888)))
 
@@ -176,14 +176,14 @@ var ServiceTests = func() {
 	It("deletes a service on the host cluster", func() {
 		ctx := context.Background()
 
-		service := &v1.Service{
+		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "service-",
 				Namespace:    "default",
 			},
-			Spec: v1.ServiceSpec{
-				Type: v1.ServiceTypeNodePort,
-				Ports: []v1.ServicePort{
+			Spec: corev1.ServiceSpec{
+				Type: corev1.ServiceTypeNodePort,
+				Ports: []corev1.ServicePort{
 					{
 						Name:       "test-port",
 						Port:       8888,
@@ -198,7 +198,7 @@ var ServiceTests = func() {
 
 		By(fmt.Sprintf("Created service %s in virtual cluster", service.Name))
 
-		var hostService v1.Service
+		var hostService corev1.Service
 
 		hostServiceName := translateName(cluster, service.Namespace, service.Name)
 
@@ -212,7 +212,7 @@ var ServiceTests = func() {
 
 		By(fmt.Sprintf("Created service %s in host cluster", hostServiceName))
 
-		Expect(hostService.Spec.Type).To(Equal(v1.ServiceTypeNodePort))
+		Expect(hostService.Spec.Type).To(Equal(corev1.ServiceTypeNodePort))
 		Expect(hostService.Spec.Ports[0].Name).To(Equal("test-port"))
 		Expect(hostService.Spec.Ports[0].Port).To(Equal(int32(8888)))
 
@@ -237,14 +237,14 @@ var ServiceTests = func() {
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
 
-		service := &v1.Service{
+		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "service-",
 				Namespace:    "default",
 			},
-			Spec: v1.ServiceSpec{
-				Type: v1.ServiceTypeNodePort,
-				Ports: []v1.ServicePort{
+			Spec: corev1.ServiceSpec{
+				Type: corev1.ServiceTypeNodePort,
+				Ports: []corev1.ServicePort{
 					{
 						Name:       "test-port",
 						Port:       8888,
@@ -259,7 +259,7 @@ var ServiceTests = func() {
 
 		By(fmt.Sprintf("Created service %s in virtual cluster", service.Name))
 
-		var hostService v1.Service
+		var hostService corev1.Service
 
 		hostServiceName := translateName(cluster, service.Namespace, service.Name)
 

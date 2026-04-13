@@ -7,8 +7,8 @@ import (
 
 	"k8s.io/utils/ptr"
 
-	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -65,7 +65,7 @@ func (v *VirtualAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.O
 func (v *VirtualAgent) config(ctx context.Context) error {
 	config := virtualAgentData(v.serviceIP, v.token)
 
-	configSecret := &v1.Secret{
+	configSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -110,7 +110,7 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volMounts...)
 	}
 
-	deployment := &apps.Deployment{
+	deployment := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
@@ -120,10 +120,10 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 			Namespace: v.cluster.Namespace,
 			Labels:    selector.MatchLabels,
 		},
-		Spec: apps.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
 			Replicas: v.cluster.Spec.Agents,
 			Selector: &selector,
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector.MatchLabels,
 				},
@@ -135,10 +135,10 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 	return v.ensureObject(ctx, deployment)
 }
 
-func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSpec {
+func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.PodSpec {
 	log := ctrl.LoggerFrom(ctx)
 
-	var limit v1.ResourceList
+	var limit corev1.ResourceList
 
 	args := v.cluster.Spec.AgentArgs
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
@@ -150,16 +150,16 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSp
 		agentAffinity = v.cluster.Status.Policy.AgentAffinity
 	}
 
-	podSpec := v1.PodSpec{
+	podSpec := corev1.PodSpec{
 		Affinity:     agentAffinity,
 		NodeSelector: v.cluster.Spec.NodeSelector,
-		Volumes: []v1.Volume{
+		Volumes: []corev1.Volume{
 			{
 				Name: "config",
-				VolumeSource: v1.VolumeSource{
-					Secret: &v1.SecretVolumeSource{
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
 						SecretName: configSecretName(v.cluster.Name),
-						Items: []v1.KeyToPath{
+						Items: []corev1.KeyToPath{
 							{
 								Key:  "config.yaml",
 								Path: "config.yaml",
@@ -170,58 +170,58 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSp
 			},
 			{
 				Name: "run",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varrun",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlibcni",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlog",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlibkubelet",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlibrancherk3s",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 		},
-		Containers: []v1.Container{
+		Containers: []corev1.Container{
 			{
 				Name:            name,
 				Image:           image,
-				ImagePullPolicy: v1.PullPolicy(v.ImagePullPolicy),
-				SecurityContext: &v1.SecurityContext{
+				ImagePullPolicy: corev1.PullPolicy(v.ImagePullPolicy),
+				SecurityContext: &corev1.SecurityContext{
 					Privileged: ptr.To(true),
 				},
 				Args: args,
 				Command: []string{
 					"/bin/k3s",
 				},
-				Resources: v1.ResourceRequirements{
+				Resources: corev1.ResourceRequirements{
 					Limits: limit,
 				},
 				Env: v.cluster.Spec.AgentEnvs,
-				VolumeMounts: []v1.VolumeMount{
+				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      "config",
 						MountPath: "/opt/rancher/k3s/",
@@ -264,13 +264,13 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) v1.PodSp
 
 	// specify resource limits if specified for the servers.
 	if v.cluster.Spec.WorkerLimit != nil {
-		podSpec.Containers[0].Resources = v1.ResourceRequirements{
+		podSpec.Containers[0].Resources = corev1.ResourceRequirements{
 			Limits: v.cluster.Spec.WorkerLimit,
 		}
 	}
 
 	for _, imagePullSecret := range v.imagePullSecrets {
-		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
 	}
 
 	securityContext := v.cluster.Spec.SecurityContext

@@ -7,8 +7,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -74,7 +74,7 @@ func (s *SharedAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Ob
 func (s *SharedAgent) config(ctx context.Context) error {
 	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP, s.kubeletPort)
 
-	configSecret := &v1.Secret{
+	configSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -115,7 +115,7 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 		"mode":    "shared",
 	}
 
-	deploy := &apps.DaemonSet{
+	deploy := &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DaemonSet",
 			APIVersion: "apps/v1",
@@ -125,11 +125,11 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 			Namespace: s.cluster.Namespace,
 			Labels:    labels,
 		},
-		Spec: apps.DaemonSetSpec{
+		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
 				},
@@ -141,15 +141,15 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 	return s.ensureObject(ctx, deploy)
 }
 
-func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
+func (s *SharedAgent) podSpec(ctx context.Context) corev1.PodSpec {
 	log := ctrl.LoggerFrom(ctx)
 
 	hostNetwork := false
-	dnsPolicy := v1.DNSClusterFirst
+	dnsPolicy := corev1.DNSClusterFirst
 
 	if s.cluster.Spec.MirrorHostNodes {
 		hostNetwork = true
-		dnsPolicy = v1.DNSClusterFirstWithHostNet
+		dnsPolicy = corev1.DNSClusterFirstWithHostNet
 	}
 
 	image := s.image
@@ -165,19 +165,19 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 		agentAffinity = s.cluster.Status.Policy.AgentAffinity
 	}
 
-	podSpec := v1.PodSpec{
+	podSpec := corev1.PodSpec{
 		Affinity:           agentAffinity,
 		HostNetwork:        hostNetwork,
 		DNSPolicy:          dnsPolicy,
 		ServiceAccountName: s.Name(),
 		NodeSelector:       s.cluster.Spec.NodeSelector,
-		Volumes: []v1.Volume{
+		Volumes: []corev1.Volume{
 			{
 				Name: "config",
-				VolumeSource: v1.VolumeSource{
-					Secret: &v1.SecretVolumeSource{
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
 						SecretName: configSecretName(s.cluster.Name),
-						Items: []v1.KeyToPath{
+						Items: []corev1.KeyToPath{
 							{
 								Key:  "config.yaml",
 								Path: "config.yaml",
@@ -187,19 +187,19 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 				},
 			},
 		},
-		Containers: []v1.Container{
+		Containers: []corev1.Container{
 			{
 				Name:            s.Name(),
 				Image:           image,
-				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
-				Resources: v1.ResourceRequirements{
-					Limits: v1.ResourceList{},
+				ImagePullPolicy: corev1.PullPolicy(s.imagePullPolicy),
+				Resources: corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{},
 				},
-				Env: append([]v1.EnvVar{
+				Env: append([]corev1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "spec.nodeName",
 							},
@@ -207,25 +207,25 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 					},
 					{
 						Name: "POD_IP",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "status.podIP",
 							},
 						},
 					},
 				}, s.cluster.Spec.AgentEnvs...),
-				VolumeMounts: []v1.VolumeMount{
+				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      "config",
 						MountPath: "/opt/rancher/k3k/",
 						ReadOnly:  false,
 					},
 				},
-				Ports: []v1.ContainerPort{
+				Ports: []corev1.ContainerPort{
 					{
 						Name:          "kubelet-port",
-						Protocol:      v1.ProtocolTCP,
+						Protocol:      corev1.ProtocolTCP,
 						ContainerPort: int32(s.kubeletPort),
 					},
 				},
@@ -233,7 +233,7 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 		},
 	}
 	for _, imagePullSecret := range s.imagePullSecrets {
-		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
 	}
 
 	securityContext := s.cluster.Spec.SecurityContext
@@ -258,7 +258,7 @@ func (s *SharedAgent) podSpec(ctx context.Context) v1.PodSpec {
 }
 
 func (s *SharedAgent) service(ctx context.Context) error {
-	svc := &v1.Service{
+	svc := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
@@ -267,17 +267,17 @@ func (s *SharedAgent) service(ctx context.Context) error {
 			Name:      s.Name(),
 			Namespace: s.cluster.Namespace,
 		},
-		Spec: v1.ServiceSpec{
-			Type: v1.ServiceTypeClusterIP,
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
 				"cluster": s.cluster.Name,
 				"type":    "agent",
 				"mode":    "shared",
 			},
-			Ports: []v1.ServicePort{
+			Ports: []corev1.ServicePort{
 				{
 					Name:     "k3s-kubelet-port",
-					Protocol: v1.ProtocolTCP,
+					Protocol: corev1.ProtocolTCP,
 					Port:     int32(s.kubeletPort),
 				},
 			},
@@ -290,7 +290,7 @@ func (s *SharedAgent) service(ctx context.Context) error {
 func (s *SharedAgent) dnsService(ctx context.Context) error {
 	dnsServiceName := controller.SafeConcatNameWithPrefix(s.cluster.Name, "kube-dns")
 
-	svc := &v1.Service{
+	svc := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
@@ -299,28 +299,28 @@ func (s *SharedAgent) dnsService(ctx context.Context) error {
 			Name:      dnsServiceName,
 			Namespace: s.cluster.Namespace,
 		},
-		Spec: v1.ServiceSpec{
-			Type: v1.ServiceTypeClusterIP,
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
 				translate.ClusterNameLabel: s.cluster.Name,
 				"k8s-app":                  "kube-dns",
 			},
-			Ports: []v1.ServicePort{
+			Ports: []corev1.ServicePort{
 				{
 					Name:       "dns",
-					Protocol:   v1.ProtocolUDP,
+					Protocol:   corev1.ProtocolUDP,
 					Port:       53,
 					TargetPort: intstr.FromInt32(53),
 				},
 				{
 					Name:       "dns-tcp",
-					Protocol:   v1.ProtocolTCP,
+					Protocol:   corev1.ProtocolTCP,
 					Port:       53,
 					TargetPort: intstr.FromInt32(53),
 				},
 				{
 					Name:       "metrics",
-					Protocol:   v1.ProtocolTCP,
+					Protocol:   corev1.ProtocolTCP,
 					Port:       9153,
 					TargetPort: intstr.FromInt32(9153),
 				},
@@ -332,7 +332,7 @@ func (s *SharedAgent) dnsService(ctx context.Context) error {
 }
 
 func (s *SharedAgent) serviceAccount(ctx context.Context) error {
-	svcAccount := &v1.ServiceAccount{
+	svcAccount := &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
 			APIVersion: "v1",

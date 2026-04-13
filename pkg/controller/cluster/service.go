@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -32,7 +32,7 @@ func AddServiceController(ctx context.Context, mgr manager.Manager, maxConcurren
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(serviceController).
-		For(&v1.Service{}).
+		For(&corev1.Service{}).
 		WithEventFilter(newClusterPredicate()).
 		Complete(&reconciler)
 }
@@ -41,7 +41,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Reconciling Service")
 
-	var hostService v1.Service
+	var hostService corev1.Service
 	if err := r.HostClient.Get(ctx, req.NamespacedName, &hostService); err != nil {
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
@@ -74,7 +74,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		Namespace: virtualServiceNamespace,
 	}
 
-	var virtualService v1.Service
+	var virtualService corev1.Service
 	if err := virtualClient.Get(ctx, virtualServiceKey, &virtualService); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get virtual service: %v", err)
 	}

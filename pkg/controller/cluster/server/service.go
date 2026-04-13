@@ -3,15 +3,15 @@ package server
 import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 )
 
-func Service(cluster *v1beta1.Cluster) *v1.Service {
-	service := &v1.Service{
+func Service(cluster *v1beta1.Cluster) *corev1.Service {
+	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
@@ -20,7 +20,7 @@ func Service(cluster *v1beta1.Cluster) *v1.Service {
 			Name:      ServiceName(cluster.Name),
 			Namespace: cluster.Namespace,
 		},
-		Spec: v1.ServiceSpec{
+		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{
 				"cluster": cluster.Name,
 				"role":    "server",
@@ -28,22 +28,22 @@ func Service(cluster *v1beta1.Cluster) *v1.Service {
 		},
 	}
 
-	k3sServerPort := v1.ServicePort{
+	k3sServerPort := corev1.ServicePort{
 		Name:       "k3s-server-port",
-		Protocol:   v1.ProtocolTCP,
+		Protocol:   corev1.ProtocolTCP,
 		Port:       httpsPort,
 		TargetPort: intstr.FromInt(k3sServerPort),
 	}
 
-	etcdPort := v1.ServicePort{
+	etcdPort := corev1.ServicePort{
 		Name:     "k3s-etcd-port",
-		Protocol: v1.ProtocolTCP,
+		Protocol: corev1.ProtocolTCP,
 		Port:     etcdPort,
 	}
 
 	// If no expose is specified, default to ClusterIP
 	if cluster.Spec.Expose == nil {
-		service.Spec.Type = v1.ServiceTypeClusterIP
+		service.Spec.Type = corev1.ServiceTypeClusterIP
 		service.Spec.Ports = append(service.Spec.Ports, k3sServerPort, etcdPort)
 	}
 
@@ -53,14 +53,14 @@ func Service(cluster *v1beta1.Cluster) *v1.Service {
 
 		switch {
 		case expose.LoadBalancer != nil:
-			service.Spec.Type = v1.ServiceTypeLoadBalancer
+			service.Spec.Type = corev1.ServiceTypeLoadBalancer
 			addLoadBalancerPorts(service, *expose.LoadBalancer, k3sServerPort, etcdPort)
 		case expose.NodePort != nil:
-			service.Spec.Type = v1.ServiceTypeNodePort
+			service.Spec.Type = corev1.ServiceTypeNodePort
 			addNodePortPorts(service, *expose.NodePort, k3sServerPort, etcdPort)
 		default:
 			// default to clusterIP for ingress or empty expose config
-			service.Spec.Type = v1.ServiceTypeClusterIP
+			service.Spec.Type = corev1.ServiceTypeClusterIP
 			service.Spec.Ports = append(service.Spec.Ports, k3sServerPort, etcdPort)
 		}
 	}
@@ -69,7 +69,7 @@ func Service(cluster *v1beta1.Cluster) *v1.Service {
 }
 
 // addLoadBalancerPorts adds the load balancer ports to the service
-func addLoadBalancerPorts(service *v1.Service, loadbalancerConfig v1beta1.LoadBalancerConfig, k3sServerPort, etcdPort v1.ServicePort) {
+func addLoadBalancerPorts(service *corev1.Service, loadbalancerConfig v1beta1.LoadBalancerConfig, k3sServerPort, etcdPort corev1.ServicePort) {
 	// If the server port is not specified, use the default port
 	if loadbalancerConfig.ServerPort == nil {
 		service.Spec.Ports = append(service.Spec.Ports, k3sServerPort)
@@ -90,7 +90,7 @@ func addLoadBalancerPorts(service *v1.Service, loadbalancerConfig v1beta1.LoadBa
 }
 
 // addNodePortPorts adds the node port ports to the service
-func addNodePortPorts(service *v1.Service, nodePortConfig v1beta1.NodePortConfig, k3sServerPort, etcdPort v1.ServicePort) {
+func addNodePortPorts(service *corev1.Service, nodePortConfig v1beta1.NodePortConfig, k3sServerPort, etcdPort corev1.ServicePort) {
 	// If the server port is not specified Kubernetes will set the node port to a random port between 30000-32767
 	if nodePortConfig.ServerPort == nil {
 		service.Spec.Ports = append(service.Spec.Ports, k3sServerPort)
@@ -120,8 +120,8 @@ func addNodePortPorts(service *v1.Service, nodePortConfig v1beta1.NodePortConfig
 	}
 }
 
-func (s *Server) StatefulServerService() *v1.Service {
-	return &v1.Service{
+func (s *Server) StatefulServerService() *corev1.Service {
+	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
@@ -130,23 +130,23 @@ func (s *Server) StatefulServerService() *v1.Service {
 			Name:      headlessServiceName(s.cluster.Name),
 			Namespace: s.cluster.Namespace,
 		},
-		Spec: v1.ServiceSpec{
-			Type:      v1.ServiceTypeClusterIP,
-			ClusterIP: v1.ClusterIPNone,
+		Spec: corev1.ServiceSpec{
+			Type:      corev1.ServiceTypeClusterIP,
+			ClusterIP: corev1.ClusterIPNone,
 			Selector: map[string]string{
 				"cluster": s.cluster.Name,
 				"role":    "server",
 			},
-			Ports: []v1.ServicePort{
+			Ports: []corev1.ServicePort{
 				{
 					Name:       "k3s-server-port",
-					Protocol:   v1.ProtocolTCP,
+					Protocol:   corev1.ProtocolTCP,
 					Port:       httpsPort,
 					TargetPort: intstr.FromInt(k3sServerPort),
 				},
 				{
 					Name:     "k3s-etcd-port",
-					Protocol: v1.ProtocolTCP,
+					Protocol: corev1.ProtocolTCP,
 					Port:     etcdPort,
 				},
 			},

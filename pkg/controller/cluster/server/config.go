@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
 
-func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
+func (s *Server) Config(init bool, serviceIP string) (*corev1.Secret, error) {
 	name := configSecretName(s.cluster.Name, init)
 
 	sans := sets.NewString(s.cluster.Spec.TLSSANs...)
@@ -30,7 +30,7 @@ func (s *Server) Config(init bool, serviceIP string) (*v1.Secret, error) {
 		config = initConfigData(s.cluster, s.token)
 	}
 
-	return &v1.Secret{
+	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",

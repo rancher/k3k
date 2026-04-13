@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -168,7 +168,7 @@ func GetFromSecret(ctx context.Context, client client.Client, cluster *v1beta1.C
 		Namespace: cluster.Namespace,
 	}
 
-	var bootstrapSecret v1.Secret
+	var bootstrapSecret corev1.Secret
 	if err := client.Get(ctx, key, &bootstrapSecret); err != nil {
 		return nil, err
 	}

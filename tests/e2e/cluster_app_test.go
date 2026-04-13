@@ -8,7 +8,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -36,7 +36,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 	When("creating a Deployment with a PVC", func() {
 		var (
 			deployment *appsv1.Deployment
-			pvc        *v1.PersistentVolumeClaim
+			pvc        *corev1.PersistentVolumeClaim
 
 			namespace = "default"
 			labels    = map[string]string{
@@ -51,16 +51,16 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			By("Creating the PVC")
 
-			pvc = &v1.PersistentVolumeClaim{
+			pvc = &corev1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "k3k-test-app-",
 					Namespace:    namespace,
 				},
-				Spec: v1.PersistentVolumeClaimSpec{
-					AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-					Resources: v1.VolumeResourceRequirements{
-						Requests: v1.ResourceList{
-							v1.ResourceStorage: resource.MustParse("1Gi"),
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: resource.MustParse("1Gi"),
 						},
 					},
 				},
@@ -81,25 +81,25 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 					Selector: &metav1.LabelSelector{
 						MatchLabels: labels,
 					},
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: labels,
 						},
-						Spec: v1.PodSpec{
-							Containers: []v1.Container{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
 								{
 									Name:  "nginx",
 									Image: "nginx",
-									VolumeMounts: []v1.VolumeMount{{
+									VolumeMounts: []corev1.VolumeMount{{
 										Name:      "data-volume",
 										MountPath: "/data",
 									}},
 								},
 							},
-							Volumes: []v1.Volume{{
+							Volumes: []corev1.Volume{{
 								Name: "data-volume",
-								VolumeSource: v1.VolumeSource{
-									PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+								VolumeSource: corev1.VolumeSource{
+									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 										ClaimName: pvc.Name,
 									},
 								},
@@ -119,7 +119,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			Eventually(func(g Gomega) {
 				virtualPVC, err := virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvc.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(virtualPVC.Status.Phase).To(Equal(v1.ClaimBound))
+				g.Expect(virtualPVC.Status.Phase).To(Equal(corev1.ClaimBound))
 			}).
 				WithPolling(time.Second * 3).
 				WithTimeout(time.Minute * 3).
@@ -134,7 +134,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 				hostPVC, err := k8s.CoreV1().PersistentVolumeClaims(hostPVCName.Namespace).Get(ctx, hostPVCName.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(hostPVC.Status.Phase).To(Equal(v1.ClaimBound))
+				g.Expect(hostPVC.Status.Phase).To(Equal(corev1.ClaimBound))
 			}).
 				WithPolling(time.Second * 3).
 				WithTimeout(time.Minute * 3).
@@ -153,7 +153,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				g.Expect(pods.Items).Should(HaveLen(int(*deployment.Spec.Replicas)))
 
 				for _, pod := range pods.Items {
-					g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+					g.Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 				}
 			}).
 				WithPolling(time.Second * 3).
@@ -177,7 +177,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 					pod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
 					g.Expect(err).NotTo(HaveOccurred())
-					g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+					g.Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 				}
 			}).
 				WithPolling(time.Second * 3).
@@ -215,16 +215,16 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 					Selector: &metav1.LabelSelector{
 						MatchLabels: labels,
 					},
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: labels,
 						},
-						Spec: v1.PodSpec{
-							Containers: []v1.Container{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
 								{
 									Name:  "nginx",
 									Image: "nginx",
-									VolumeMounts: []v1.VolumeMount{{
+									VolumeMounts: []corev1.VolumeMount{{
 										Name:      "www",
 										MountPath: "/usr/share/nginx/html",
 									}},
@@ -232,16 +232,16 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 							},
 						},
 					},
-					VolumeClaimTemplates: []v1.PersistentVolumeClaim{{
+					VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:   "www",
 							Labels: labels,
 						},
-						Spec: v1.PersistentVolumeClaimSpec{
-							AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-							Resources: v1.VolumeResourceRequirements{
-								Requests: v1.ResourceList{
-									v1.ResourceStorage: resource.MustParse("1Gi"),
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceStorage: resource.MustParse("1Gi"),
 								},
 							},
 						},
@@ -264,7 +264,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 
 				for _, pvc := range pvcs.Items {
-					g.Expect(pvc.Status.Phase).To(Equal(v1.ClaimBound))
+					g.Expect(pvc.Status.Phase).To(Equal(corev1.ClaimBound))
 				}
 			}).
 				WithPolling(time.Second * 3).
@@ -287,7 +287,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 					hostPVC, err := k8s.CoreV1().PersistentVolumeClaims(hostPVCName.Namespace).Get(ctx, hostPVCName.Name, metav1.GetOptions{})
 					g.Expect(err).NotTo(HaveOccurred())
-					g.Expect(hostPVC.Status.Phase).To(Equal(v1.ClaimBound))
+					g.Expect(hostPVC.Status.Phase).To(Equal(corev1.ClaimBound))
 				}
 			}).
 				WithPolling(time.Second * 3).
@@ -307,7 +307,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				g.Expect(pods.Items).Should(HaveLen(int(*statefulSet.Spec.Replicas)))
 
 				for _, pod := range pods.Items {
-					g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+					g.Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 				}
 			}).
 				WithPolling(time.Second * 3).
@@ -331,7 +331,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 					pod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
 					g.Expect(err).NotTo(HaveOccurred())
-					g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+					g.Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 				}
 			}).
 				WithPolling(time.Second * 3).

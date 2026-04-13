@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -36,20 +36,20 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 	})
 
 	When("creating a Pod without any Affinity", func() {
-		var pod *v1.Pod
+		var pod *corev1.Pod
 
 		BeforeAll(func() {
 			var err error
 
 			ctx := context.Background()
 
-			pod = &v1.Pod{
+			pod = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "nginx-",
 					Namespace:    "default",
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
 						Name:  "nginx",
 						Image: "nginx",
 					}},
@@ -85,30 +85,30 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 	})
 
 	When("creating a Pod with an Affinity", func() {
-		var pod *v1.Pod
+		var pod *corev1.Pod
 
 		BeforeAll(func() {
 			var err error
 
 			ctx := context.Background()
 
-			pod = &v1.Pod{
+			pod = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "nginx-",
 					Namespace:    "default",
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
 						Name:  "nginx",
 						Image: "nginx",
 					}},
-					Affinity: &v1.Affinity{
-						NodeAffinity: &v1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-								NodeSelectorTerms: []v1.NodeSelectorTerm{{
-									MatchExpressions: []v1.NodeSelectorRequirement{{
+					Affinity: &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+									MatchExpressions: []corev1.NodeSelectorRequirement{{
 										Key:      "kubernetes.io/hostname",
-										Operator: v1.NodeSelectorOpNotIn,
+										Operator: corev1.NodeSelectorOpNotIn,
 										Values:   []string{"fake"},
 									}},
 								}},
@@ -148,10 +148,10 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 	})
 
 	When("creating a Pod with an invalid configuration", func() {
-		var virtualPod *v1.Pod
+		var virtualPod *corev1.Pod
 
 		BeforeEach(func() {
-			p := &v1.Pod{
+			p := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "nginx-",
 					Namespace:    "default",
@@ -162,30 +162,30 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 						"notmysubpath": "mypath",
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
 						{
 							Name:  "nginx",
 							Image: "nginx",
-							Env: []v1.EnvVar{
+							Env: []corev1.EnvVar{
 								{
 									Name: "POD_NAME",
-									ValueFrom: &v1.EnvVarSource{
-										FieldRef: &v1.ObjectFieldSelector{
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
 											FieldPath: "metadata.name",
 										},
 									},
 								},
 								{
 									Name: "ANNOTATION",
-									ValueFrom: &v1.EnvVarSource{
-										FieldRef: &v1.ObjectFieldSelector{
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
 											FieldPath: "metadata.annotations['mysubpath']",
 										},
 									},
 								},
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "workdir",
 									MountPath: "/volume_mount",
@@ -198,9 +198,9 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 							},
 						},
 					},
-					Volumes: []v1.Volume{{
+					Volumes: []corev1.Volume{{
 						Name:         "workdir",
-						VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}},
+						VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 					}},
 				},
 			}
@@ -222,7 +222,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				pod, err := virtualCluster.Client.CoreV1().Pods(virtualPod.Namespace).Get(ctx, virtualPod.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 
-				g.Expect(pod.Status.Phase).To(Equal(v1.PodPending))
+				g.Expect(pod.Status.Phase).To(Equal(corev1.PodPending))
 
 				envVars := pod.Spec.Containers[0].Env
 				g.Expect(envVars).NotTo(BeEmpty())
@@ -262,7 +262,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				pod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 
-				g.Expect(pod.Status.Phase).To(Equal(v1.PodPending))
+				g.Expect(pod.Status.Phase).To(Equal(corev1.PodPending))
 
 				envVars := pod.Spec.Containers[0].Env
 				g.Expect(envVars).NotTo(BeEmpty())
@@ -312,7 +312,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				vPod, err := virtualCluster.Client.CoreV1().Pods(virtualPod.Namespace).Get(ctx, virtualPod.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 
-				_, cond := pod.GetPodCondition(&vPod.Status, v1.PodReady)
+				_, cond := pod.GetPodCondition(&vPod.Status, corev1.PodReady)
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 			}).
@@ -328,7 +328,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				hPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 
-				_, cond := pod.GetPodCondition(&hPod.Status, v1.PodReady)
+				_, cond := pod.GetPodCondition(&hPod.Status, corev1.PodReady)
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 			}).
@@ -339,36 +339,36 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 	})
 
 	When("creating a Pod with downward API variables in environment variable", func() {
-		var virtualPod *v1.Pod
+		var virtualPod *corev1.Pod
 
 		BeforeEach(func() {
 			ctx := context.Background()
 
 			var err error
 
-			p := &v1.Pod{
+			p := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "nginx-",
 					Namespace:    "default",
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
 						{
 							Name:  "nginx",
 							Image: "nginx",
-							Env: []v1.EnvVar{
+							Env: []corev1.EnvVar{
 								{
 									Name: "POD_NAME",
-									ValueFrom: &v1.EnvVarSource{
-										FieldRef: &v1.ObjectFieldSelector{
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
 											FieldPath: "metadata.name",
 										},
 									},
 								},
 								{
 									Name: "STATUS_POD_IP",
-									ValueFrom: &v1.EnvVarSource{
-										FieldRef: &v1.ObjectFieldSelector{
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
 											FieldPath: "status.podIP",
 										},
 									},
@@ -389,7 +389,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			Eventually(func(g Gomega) {
 				pod, err := virtualCluster.Client.CoreV1().Pods(virtualPod.Namespace).Get(ctx, virtualPod.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+				g.Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 				g.Expect(pod.Status.PodIP).NotTo(BeEmpty())
 			}).
 				WithPolling(time.Second).
@@ -406,7 +406,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 				pod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+				g.Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 			}).
 				WithPolling(time.Second).
 				WithTimeout(time.Minute).
@@ -438,7 +438,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(pods.Items).NotTo(BeEmpty())
 
-				g.Expect(pods.Items[0].Status.Phase).To(Equal(v1.PodSucceeded))
+				g.Expect(pods.Items[0].Status.Phase).To(Equal(corev1.PodSucceeded))
 			}).
 				WithPolling(time.Second).
 				WithTimeout(2 * time.Minute).

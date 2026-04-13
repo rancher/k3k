@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -21,7 +21,7 @@ import (
 func GetK3kPodLogs(ctx context.Context, k8sClient client.Client, clientset kubernetes.Interface, namespace string) io.ReadCloser {
 	GinkgoHelper()
 
-	var podList v1.PodList
+	var podList corev1.PodList
 
 	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: namespace})
 	Expect(err).To(Not(HaveOccurred()))
@@ -46,7 +46,7 @@ func GetK3kPodLogs(ctx context.Context, k8sClient client.Client, clientset kuber
 		}
 	}
 
-	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{Previous: fetchPrevious})
+	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{Previous: fetchPrevious})
 	podLogs, err := req.Stream(ctx)
 	Expect(err).To(Not(HaveOccurred()))
 

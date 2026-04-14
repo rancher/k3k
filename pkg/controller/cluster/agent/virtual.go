@@ -296,6 +296,7 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 		log.V(1).Info("Using hostUsers from policy", "policyName", v.cluster.Status.PolicyName, "clusterName", v.cluster.Name)
 		hostUsers = v.cluster.Status.Policy.HostUsers
 	}
+
 	podSpec.HostUsers = hostUsers
 
 	return podSpec

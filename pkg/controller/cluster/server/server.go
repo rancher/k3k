@@ -269,6 +269,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		log.V(1).Info("Using hostUsers from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
 		hostUsers = s.cluster.Status.Policy.HostUsers
 	}
+
 	podSpec.HostUsers = hostUsers
 
 	// specify resource limits if specified for the servers.

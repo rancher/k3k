@@ -15,6 +15,10 @@ permissions:
     packages: write
     id-token: write
 
+env:
+  GORELEASER_VERSION: v2.15.2
+  GORELEASER_CHECKSUM_x86_64: 0ebdbf0353aba566b969dde746cc4e4806f96c27aa2f3971b229a9df7611fedc
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -25,7 +29,7 @@ jobs:
       with:
         fetch-depth: 0
         fetch-tags: true
-    
+
     - name: Checkout code at the specific commit
       if: inputs.commit != ''
       run: git checkout ${{ inputs.commit }}
@@ -67,7 +71,7 @@ jobs:
         registry: ${{ env.REGISTRY }}
         username: ${{ env.DOCKER_USERNAME }}
         password: ${{ env.DOCKER_PASSWORD }}
-    
+
     # If the tag does not exists the workflow was manually triggered.
     # That means we are creating temporary nightly builds, with a "fake" local tag
     - name: Check release tag
@@ -84,14 +88,35 @@ jobs:
 
         echo "CURRENT_TAG=${CURRENT_TAG}" >> "$GITHUB_OUTPUT"
 
+    - name: Setup goreleaser
+      env:
+        FILENAME: goreleaser.tar.gz
+      run: |-
+        curl -sSfL -o ${{ env.FILENAME }} https://github.com/goreleaser/goreleaser/releases/download/${{ env.GORELEASER_VERSION }}/goreleaser_Linux_x86_64.tar.gz
+        echo "${{ env.GORELEASER_CHECKSUM_x86_64 }}  ${{ env.FILENAME }}" | sha256sum --check
+        tar -xvzf "${{ env.FILENAME }}" goreleaser
+        sudo install -m 755 goreleaser /usr/local/bin/goreleaser
+
+        rm -f "${{ env.FILENAME }}" goreleaser
+
     - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7
-      with:
-        distribution: goreleaser
-        version: v2
-        args: --clean
       env:
         GITHUB_TOKEN: ${{ github.token }}
         GORELEASER_CURRENT_TAG: ${{ steps.release-tag.outputs.CURRENT_TAG }}
         REGISTRY: ${{ env.REGISTRY }}
         REPO: ${{ github.repository }}
+      run: |-
+        goreleaser --clean
+
+        if [[ ! -f dist/metadata.json ]] || [[ ! -s dist/metadata.json ]]; then
+          echo "Missing required file: dist/metadata.json"
+          exit 1
+        fi
+
+        if [[ ! -f dist/artifacts.json ]] || [[ ! -s dist/artifacts.json ]]; then
+          echo "Missing required file: dist/artifacts.json"
+          exit 1
+        fi
+
+        echo "metadata=$(tr -d '\n\r' < dist/metadata.json)" >> "${GITHUB_OUTPUT}"
+        echo "artifacts=$(tr -d '\n\r' < dist/artifacts.json)" >> "${GITHUB_OUTPUT}"

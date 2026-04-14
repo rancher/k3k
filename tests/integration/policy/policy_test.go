@@ -361,9 +361,6 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 				})
 				bindPolicyToNamespace(namespace, policy)
 
-				err := k8sClient.Update(ctx, policy)
-				Expect(err).To(Not(HaveOccurred()))
-
 				cluster := &v1beta1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "cluster-",
@@ -376,7 +373,7 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					},
 				}
 
-				err = k8sClient.Create(ctx, cluster)
+				err := k8sClient.Create(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait a bit

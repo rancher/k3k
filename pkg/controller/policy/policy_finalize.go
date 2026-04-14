@@ -71,13 +71,13 @@ func (c *VirtualClusterPolicyReconciler) cleanupPolicyResources(ctx context.Cont
 
 	// For each namespace bound to this policy
 	for _, ns := range namespaces.Items {
-		nsLog := log.WithValues("namespace", ns.Name)
-		nsCtx := ctrl.LoggerInto(ctx, nsLog)
+		log = log.WithValues("namespace", ns.Name)
+		ctx = ctrl.LoggerInto(ctx, log)
 
-		nsLog.V(1).Info("Cleaning up namespace")
+		log.V(1).Info("Cleaning up namespace")
 
 		// Clear policy fields from all clusters in this namespace
-		if err := c.clearPolicyFieldsForClustersInNamespace(nsCtx, ns.Name); err != nil {
+		if err := c.clearPolicyFieldsForClustersInNamespace(ctx, ns.Name); err != nil {
 			cleanupErrs = append(cleanupErrs, fmt.Errorf("failed to clear cluster policy fields in namespace %s: %w", ns.Name, err))
 			// Continue cleanup even if this fails
 		}
@@ -95,7 +95,7 @@ func (c *VirtualClusterPolicyReconciler) cleanupPolicyResources(ctx context.Cont
 		}
 
 		if !reflect.DeepEqual(orig.Labels, ns.Labels) {
-			nsLog.V(1).Info("Updating namespace to remove policy labels")
+			log.V(1).Info("Updating namespace to remove policy labels")
 
 			if err := c.Client.Update(ctx, &ns); err != nil {
 				cleanupErrs = append(cleanupErrs, fmt.Errorf("failed to update namespace %s labels: %w", ns.Name, err))

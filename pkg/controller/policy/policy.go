@@ -270,8 +270,6 @@ func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reco
 		if err := c.Client.Update(ctx, &policy); err != nil {
 			return reconcile.Result{}, err
 		}
-
-		return reconcile.Result{Requeue: true}, nil
 	}
 
 	orig := policy.DeepCopy()

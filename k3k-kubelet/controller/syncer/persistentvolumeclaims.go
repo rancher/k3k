@@ -191,6 +191,13 @@ func (r *PVCReconciler) createVirtualPersistentVolume(ctx context.Context, pvc v
 
 	pvcPatch.Annotations[volume.AnnBoundByController] = "yes"
 	pvcPatch.Annotations[volume.AnnBindCompleted] = "yes"
+	pvcPatch.Spec.VolumeName = pv.Name
+
+	// Update spec to set the volumeName binding
+	if err := r.VirtualClient.Update(ctx, pvcPatch); err != nil {
+		return err
+	}
+
 	pvcPatch.Status.Phase = v1.ClaimBound
 	pvcPatch.Status.AccessModes = pvcPatch.Spec.AccessModes
 

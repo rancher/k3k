@@ -178,6 +178,9 @@ var _ = When("a cluster's status is tracked", Label(e2eTestLabel), Label(statusT
 				Expect(k8sClient.Delete(ctx, priorityClassVCP)).To(Succeed())
 			})
 
+			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(vcp), vcp)
+			Expect(err).NotTo(HaveOccurred())
+
 			vcp.Spec.DefaultPriorityClass = priorityClassVCP.Name
 			Expect(k8sClient.Update(ctx, vcp)).To(Succeed())
 

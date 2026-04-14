@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -39,15 +40,16 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			pvc        *v1.PersistentVolumeClaim
 
 			namespace = "default"
-			labels    = map[string]string{
-				"app": "k3k-deployment-test-app",
-			}
 		)
 
-		BeforeAll(func() {
+		BeforeEach(func() {
 			var err error
 
 			ctx := context.Background()
+
+			labels := map[string]string{
+				"app": "k3k-deployment-test-app-" + rand.String(5),
+			}
 
 			By("Creating the PVC")
 
@@ -68,6 +70,11 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			pvc, err = virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, pvc, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
+
+			DeferCleanup(func() {
+				err := virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, pvc.Name, metav1.DeleteOptions{})
+				Expect(err).To(Not(HaveOccurred()))
+			})
 
 			By("Creating the Deployment")
 
@@ -111,6 +118,11 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			deployment, err = virtualCluster.Client.AppsV1().Deployments(namespace).Create(ctx, deployment, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
+
+			DeferCleanup(func() {
+				err := virtualCluster.Client.AppsV1().Deployments(namespace).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
+				Expect(err).To(Not(HaveOccurred()))
+			})
 		})
 
 		It("should bound the PVC in the virtual cluster", func() {
@@ -191,19 +203,18 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 			statefulSet *appsv1.StatefulSet
 
 			namespace = "default"
-			labels    = map[string]string{
-				"app": "k3k-sts-test-app",
-			}
 		)
 
-		BeforeAll(func() {
+		BeforeEach(func() {
 			var err error
 
 			ctx := context.Background()
 
-			namespace := "default"
-
 			By("Creating the StatefulSet")
+
+			labels := map[string]string{
+				"app": "k3k-sts-test-app-" + rand.String(5),
+			}
 
 			statefulSet = &appsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -251,6 +262,11 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 
 			statefulSet, err = virtualCluster.Client.AppsV1().StatefulSets(namespace).Create(ctx, statefulSet, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
+
+			DeferCleanup(func() {
+				err := virtualCluster.Client.AppsV1().StatefulSets(namespace).Delete(ctx, statefulSet.Name, metav1.DeleteOptions{})
+				Expect(err).To(Not(HaveOccurred()))
+			})
 		})
 
 		It("should bound the PVCs in the virtual cluster", func() {
@@ -279,7 +295,7 @@ var _ = Context("In a shared cluster", Label(e2eTestLabel), Ordered, func() {
 				labelSelector := metav1.FormatLabelSelector(statefulSet.Spec.Selector)
 				listOpts := metav1.ListOptions{LabelSelector: labelSelector}
 
-				pvcs, err := virtualCluster.Client.CoreV1().PersistentVolumeClaims(statefulSet.Namespace).List(ctx, listOpts)
+				pvcs, err := virtualCluster.Client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, listOpts)
 				g.Expect(err).NotTo(HaveOccurred())
 
 				for _, pvc := range pvcs.Items {

@@ -264,7 +264,6 @@ func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reco
 		return c.finalizePolicy(ctx, &policy)
 	}
 
-	// add finalizer
 	if controllerutil.AddFinalizer(&policy, policyFinalizerName) {
 		log.V(1).Info("Updating VirtualClusterPolicy adding finalizer")
 

@@ -264,6 +264,13 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 
 	podSpec.RuntimeClassName = runtimeClassName
 
+	hostUsers := s.cluster.Spec.HostUsers
+	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.HostUsers != nil {
+		log.V(1).Info("Using hostUsers from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
+		hostUsers = s.cluster.Status.Policy.HostUsers
+	}
+	podSpec.HostUsers = hostUsers
+
 	// specify resource limits if specified for the servers.
 	if s.cluster.Spec.ServerLimit != nil {
 		podSpec.Containers[0].Resources = corev1.ResourceRequirements{

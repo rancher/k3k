@@ -216,6 +216,12 @@ type ClusterSpec struct {
 	//
 	// +optional
 	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
+
+	// HostUsers enables Linux User Namespace option for the
+	// agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	HostUsers *bool `json:"hostUsers,omitempty"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,
@@ -660,6 +666,12 @@ type AppliedPolicy struct {
 	//
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+
+	// HostUsers enables Linux User Namespace option for the
+	// agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	HostUsers *bool `json:"hostUsers,omitempty"`
 }
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.
@@ -779,6 +791,12 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+
+	// HostUsers enables Linux User Namespace option for the
+	// agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	HostUsers *bool `json:"hostUsers,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

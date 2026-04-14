@@ -1820,6 +1820,11 @@ spec:
               disableNetworkPolicy:
                 description: DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation.
                 type: boolean
+              hostUsers:
+                description: |-
+                  HostUsers enables Linux User Namespace option for the
+                  agent and server pods of the cluster in virtual or shared mode.
+                type: boolean
               limit:
                 description: |-
                   Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy

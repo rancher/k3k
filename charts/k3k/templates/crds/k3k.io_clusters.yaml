@@ -1276,6 +1276,11 @@ spec:
                 x-kubernetes-validations:
                 - message: ingress, loadbalancer and nodePort are mutually exclusive; only one can be set
                   rule: '[has(self.ingress), has(self.loadBalancer), has(self.nodePort)].filter(x, x).size() <= 1'
+              hostUsers:
+                description: |-
+                  HostUsers enables Linux User Namespace option for the
+                  agent and server pods of the cluster in virtual or shared mode.
+                type: boolean
               mirrorHostNodes:
                 description: |-
                   MirrorHostNodes controls whether node objects from the host cluster
@@ -3815,6 +3820,11 @@ spec:
                             x-kubernetes-list-type: atomic
                         type: object
                     type: object
+                  hostUsers:
+                    description: |-
+                      HostUsers enables Linux User Namespace option for the
+                      agent and server pods of the cluster in virtual or shared mode.
+                    type: boolean
                   name:
                     description: name is the name of the VirtualClusterPolicy currently applied to this cluster.
                     minLength: 1

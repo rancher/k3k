@@ -71,9 +71,9 @@ jobs:
         curl -sSfL -o ${{ env.FILENAME }} https://get.helm.sh/helm-${{ env.HELM_VERSION }}-linux-amd64.tar.gz
         echo "${{ env.HELM_CHECKSUM_AMD64 }}  ${{ env.FILENAME }}" | sha256sum --check
         tar -xvzf ${{ env.FILENAME }} linux-amd64/helm
-        sudo install -m 755 helm /usr/local/bin/helm
+        sudo install -m 755 linux-amd64/helm /usr/local/bin/helm
 
-        rm -f "${{ env.FILENAME }}" helm
+        rm -fr "${{ env.FILENAME }}" linux-amd64/helm
 
     - name: Install hydrophone
       run: go install sigs.k8s.io/hydrophone@3de3e886a2f6f09635d8b981c195490af1584d97 #v0.7.0

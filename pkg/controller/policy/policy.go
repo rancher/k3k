@@ -497,6 +497,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, 
 			AgentAffinity:    policy.Spec.DefaultAgentAffinity,
 			SecurityContext:  policy.Spec.SecurityContext,
 			RuntimeClassName: policy.Spec.RuntimeClassName,
+			HostUsers:        policy.Spec.HostUsers,
 		}
 
 		if !reflect.DeepEqual(origStatus, &cluster.Status) {

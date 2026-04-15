@@ -1276,6 +1276,13 @@ spec:
                 x-kubernetes-validations:
                 - message: ingress, loadbalancer and nodePort are mutually exclusive; only one can be set
                   rule: '[has(self.ingress), has(self.loadBalancer), has(self.nodePort)].filter(x, x).size() <= 1'
+              hostUsers:
+                description: |-
+                  HostUsers sets the user namespace for server and agent pods.
+                  If set to true or not present, the pod will be run in the host user namespace.
+                  When set to false, a new userns is created for the pod.
+                  This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
+                type: boolean
               mirrorHostNodes:
                 description: |-
                   MirrorHostNodes controls whether node objects from the host cluster
@@ -3815,6 +3822,13 @@ spec:
                             x-kubernetes-list-type: atomic
                         type: object
                     type: object
+                  hostUsers:
+                    description: |-
+                      HostUsers sets the user namespace for server and agent pods.
+                      If set to true or not present, the pod will be run in the host user namespace.
+                      When set to false, a new userns is created for the pod.
+                      This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
+                    type: boolean
                   name:
                     description: name is the name of the VirtualClusterPolicy currently applied to this cluster.
                     minLength: 1

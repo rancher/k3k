@@ -216,6 +216,14 @@ type ClusterSpec struct {
 	//
 	// +optional
 	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
+
+	// HostUsers sets the user namespace for server and agent pods.
+	// If set to true or not present, the pod will be run in the host user namespace.
+	// When set to false, a new userns is created for the pod.
+	// This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
+	//
+	// +optional
+	HostUsers *bool `json:"hostUsers,omitempty"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,
@@ -660,6 +668,14 @@ type AppliedPolicy struct {
 	//
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+
+	// HostUsers sets the user namespace for server and agent pods.
+	// If set to true or not present, the pod will be run in the host user namespace.
+	// When set to false, a new userns is created for the pod.
+	// This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
+	//
+	// +optional
+	HostUsers *bool `json:"hostUsers,omitempty"`
 }
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.
@@ -779,6 +795,14 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+
+	// HostUsers sets the user namespace for server and agent pods.
+	// If set to true or not present, the pod will be run in the host user namespace.
+	// When set to false, a new userns is created for the pod.
+	// This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
+	//
+	// +optional
+	HostUsers *bool `json:"hostUsers,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

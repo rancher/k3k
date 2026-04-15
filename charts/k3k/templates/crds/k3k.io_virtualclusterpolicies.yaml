@@ -1820,6 +1820,13 @@ spec:
               disableNetworkPolicy:
                 description: DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation.
                 type: boolean
+              hostUsers:
+                description: |-
+                  HostUsers sets the user namespace for server and agent pods.
+                  If set to true or not present, the pod will be run in the host user namespace.
+                  When set to false, a new userns is created for the pod.
+                  This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
+                type: boolean
               limit:
                 description: |-
                   Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy

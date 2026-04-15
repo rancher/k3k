@@ -254,6 +254,14 @@ func (s *SharedAgent) podSpec(ctx context.Context) corev1.PodSpec {
 
 	podSpec.RuntimeClassName = runtimeClassName
 
+	hostUsers := s.cluster.Spec.HostUsers
+	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.HostUsers != nil {
+		log.V(1).Info("Using hostUsers from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
+		hostUsers = s.cluster.Status.Policy.HostUsers
+	}
+
+	podSpec.HostUsers = hostUsers
+
 	return podSpec
 }
 

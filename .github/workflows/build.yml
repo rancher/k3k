@@ -9,6 +9,10 @@ on:
 permissions:
     contents: read
 
+env:
+  GORELEASER_VERSION: v2.15.2
+  GORELEASER_CHECKSUM_x86_64: 0ebdbf0353aba566b969dde746cc4e4806f96c27aa2f3971b229a9df7611fedc
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,15 +33,36 @@ jobs:
     - name: Set up QEMU
       uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4
 
+    - name: Setup goreleaser
+      env:
+        FILENAME: goreleaser.tar.gz
+      run: |-
+        curl -sSfL -o ${{ env.FILENAME }} https://github.com/goreleaser/goreleaser/releases/download/${{ env.GORELEASER_VERSION }}/goreleaser_Linux_x86_64.tar.gz
+        echo "${{ env.GORELEASER_CHECKSUM_x86_64 }}  ${{ env.FILENAME }}" | sha256sum --check
+        tar -xvzf "${{ env.FILENAME }}" goreleaser
+        sudo install -m 755 goreleaser /usr/local/bin/goreleaser
+
+        rm -f "${{ env.FILENAME }}" goreleaser
+
     - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7
-      with:
-        distribution: goreleaser
-        version: v2
-        args: --clean --snapshot
       env:
         REPO: ${{ github.repository }}
         REGISTRY: ""
+      run: |-
+        goreleaser --clean --snapshot
+
+        if [[ ! -f dist/metadata.json ]] || [[ ! -s dist/metadata.json ]]; then
+          echo "Missing required file: dist/metadata.json"
+          exit 1
+        fi
+
+        if [[ ! -f dist/artifacts.json ]] || [[ ! -s dist/artifacts.json ]]; then
+          echo "Missing required file: dist/artifacts.json"
+          exit 1
+        fi
+
+        echo "metadata=$(tr -d '\n\r' < dist/metadata.json)" >> "${GITHUB_OUTPUT}"
+        echo "artifacts=$(tr -d '\n\r' < dist/artifacts.json)" >> "${GITHUB_OUTPUT}"
 
     - name: Run Trivy vulnerability scanner (k3kcli)
       uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0

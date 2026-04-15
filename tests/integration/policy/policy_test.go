@@ -428,6 +428,9 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					Should(Succeed())
 
 				// update the VirtualClusterPolicy
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(policy), policy)
+				Expect(err).To(Not(HaveOccurred()))
+
 				policy.Spec.DefaultNodeSelector["label-2"] = "value-2"
 				err = k8sClient.Update(ctx, policy)
 				Expect(err).To(Not(HaveOccurred()))
@@ -481,8 +484,6 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					DefaultAgentAffinity:  agentAffinity,
 				})
 				bindPolicyToNamespace(namespace, policy)
-				err := k8sClient.Update(ctx, policy)
-				Expect(err).To(Not(HaveOccurred()))
 
 				cluster := &v1beta1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
@@ -495,7 +496,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 						Agents:  ptr.To[int32](0),
 					},
 				}
-				err = k8sClient.Create(ctx, cluster)
+
+				err := k8sClient.Create(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait a bit
@@ -533,8 +535,6 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					DefaultAgentAffinity:  agentAffinity,
 				})
 				bindPolicyToNamespace(namespace, policy)
-				err := k8sClient.Update(ctx, policy)
-				Expect(err).To(Not(HaveOccurred()))
 
 				// Cluster values that will get overwritten by the policy in the cluster status
 				clusterAgentAffinity := agentAffinity.DeepCopy()
@@ -554,7 +554,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 						ServerAffinity: clusterServerAffinity,
 					},
 				}
-				err = k8sClient.Create(ctx, cluster)
+
+				err := k8sClient.Create(ctx, cluster)
 				Expect(err).To(Not(HaveOccurred()))
 
 				// wait a bit
@@ -698,6 +699,159 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					WithTimeout(time.Second * 10).
 					WithPolling(time.Second).
 					Should(BeTrue())
+			})
+
+			It("should clean up namespace labels and cluster status when policy is deleted", func() {
+				baseline := v1beta1.BaselinePodSecurityAdmissionLevel
+
+				vcp := newPolicy(v1beta1.VirtualClusterPolicySpec{
+					PodSecurityAdmissionLevel: &baseline,
+					DefaultPriorityClass:      "test-priority",
+				})
+
+				bindPolicyToNamespace(namespace, vcp)
+
+				// Create a cluster in the namespace
+				cluster := &v1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "cluster-",
+						Namespace:    namespace.Name,
+					},
+					Spec: v1beta1.ClusterSpec{
+						Mode:    v1beta1.SharedClusterMode,
+						Servers: ptr.To[int32](1),
+						Agents:  ptr.To[int32](0),
+					},
+				}
+
+				err := k8sClient.Create(ctx, cluster)
+				Expect(err).To(Not(HaveOccurred()))
+
+				var ns corev1.Namespace
+
+				// Verify namespace has policy label and PSA labels
+				Eventually(func(g Gomega) {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
+					g.Expect(err).To(Not(HaveOccurred()))
+
+					g.Expect(ns.Labels).Should(HaveKeyWithValue(policy.PolicyNameLabelKey, vcp.Name))
+					g.Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "baseline"))
+					g.Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "latest"))
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(Succeed())
+
+				// Verify cluster has policy status set
+				Eventually(func(g Gomega) {
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, cluster)
+					g.Expect(err).To(Not(HaveOccurred()))
+
+					g.Expect(cluster.Status.PolicyName).To(Equal(vcp.Name))
+
+					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.PriorityClass).To(Not(BeNil()))
+					g.Expect(*cluster.Status.Policy.PriorityClass).To(Equal("test-priority"))
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(Succeed())
+
+				// Delete the policy
+				err = k8sClient.Delete(ctx, vcp)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// Verify policy label is removed from namespace
+				Eventually(func(g Gomega) {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
+					g.Expect(err).To(Not(HaveOccurred()))
+					g.Expect(ns.Labels).Should(Not(HaveKey(policy.PolicyNameLabelKey)))
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(Succeed())
+
+				// Verify PSA labels are removed from namespace (since policy set them)
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/enforce")))
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/enforce-version")))
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/warn")))
+				Expect(ns.Labels).Should(Not(HaveKey("pod-security.kubernetes.io/warn-version")))
+
+				// Verify Policy cleared from cluster status
+				Eventually(func(g Gomega) {
+					key := types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}
+					err = k8sClient.Get(ctx, key, cluster)
+					g.Expect(err).To(Not(HaveOccurred()))
+
+					g.Expect(cluster.Status.PolicyName).To(BeEmpty())
+					g.Expect(cluster.Status.Policy).To(BeNil())
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(Succeed())
+
+				// Verify policy is actually deleted
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(vcp), vcp)
+					return apierrors.IsNotFound(err)
+				}).
+					WithTimeout(time.Minute).
+					WithPolling(time.Second).
+					Should(BeTrue())
+			})
+
+			It("should NOT remove PSA labels if policy did not set them", func() {
+				// Create policy without PSA labels
+				vcp := newPolicy(v1beta1.VirtualClusterPolicySpec{
+					DefaultPriorityClass: "test-priority",
+				})
+
+				bindPolicyToNamespace(namespace, vcp)
+
+				var ns corev1.Namespace
+
+				// Manually set PSA labels on namespace
+				Eventually(func(g Gomega) {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
+					g.Expect(err).To(Not(HaveOccurred()))
+					g.Expect(ns.Labels).Should(HaveKeyWithValue(policy.PolicyNameLabelKey, vcp.Name))
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(Succeed())
+
+				// Add PSA labels manually
+				ns.Labels["pod-security.kubernetes.io/enforce"] = "restricted"
+				ns.Labels["pod-security.kubernetes.io/enforce-version"] = "v1.28"
+
+				err := k8sClient.Update(ctx, &ns)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// Verify PSA labels are present
+				err = k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
+				Expect(err).To(Not(HaveOccurred()))
+
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "restricted"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "v1.28"))
+
+				// Delete the policy
+				err = k8sClient.Delete(ctx, vcp)
+				Expect(err).To(Not(HaveOccurred()))
+
+				// Verify policy label is removed
+				Eventually(func(g Gomega) {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace.Name}, &ns)
+					g.Expect(err).To(Not(HaveOccurred()))
+					g.Expect(ns.Labels).Should(Not(HaveKey(policy.PolicyNameLabelKey)))
+				}).
+					WithTimeout(time.Second * 10).
+					WithPolling(time.Second).
+					Should(Succeed())
+
+				// Verify PSA labels are NOT removed (since policy didn't set them)
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "restricted"))
+				Expect(ns.Labels).Should(HaveKeyWithValue("pod-security.kubernetes.io/enforce-version", "v1.28"))
 			})
 		})
 	})

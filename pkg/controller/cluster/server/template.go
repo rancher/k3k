@@ -100,8 +100,8 @@ configure_cgroups() {
 	fi
 
 	root_cgroup_raw=$(cat /proc/self/cgroup)
-        root_cgroup_stripped="${root_cgroup_raw#0::}"
-        root_cgroup_parent=$(dirname "$root_cgroup_stripped")
+	root_cgroup_stripped="${root_cgroup_raw#0::}"
+	root_cgroup_parent=$(dirname "$root_cgroup_stripped")
 
 	info "Current CGROUPS for $POD_NAME: ${root_cgroup_raw}"
 

@@ -53,7 +53,7 @@ _Appears in:_
 | `sync` _[SyncConfig](#syncconfig)_ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. |  |  |
 | `runtimeClassName` _string_ | SecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  |  |
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
-| `hostUsers` _boolean_ | HostUsers enables Linux User Namespace option for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
+| `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
 
 
 #### Cluster
@@ -594,7 +594,7 @@ _Appears in:_
 | `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |
 | `runtimeClassName` _string_ | SecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  |  |
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
-| `hostUsers` _boolean_ | HostUsers enables Linux User Namespace option for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
+| `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
 
 
 #### VirtualClusterPolicyStatus

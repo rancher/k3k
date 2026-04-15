@@ -217,8 +217,10 @@ type ClusterSpec struct {
 	// +optional
 	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 
-	// HostUsers enables Linux User Namespace option for the
-	// agent and server pods of the cluster in virtual or shared mode.
+	// HostUsers sets the user namespace for server and agent pods.
+	// If set to true or not present, the pod will be run in the host user namespace.
+	// When set to false, a new userns is created for the pod.
+	// This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
 	//
 	// +optional
 	HostUsers *bool `json:"hostUsers,omitempty"`

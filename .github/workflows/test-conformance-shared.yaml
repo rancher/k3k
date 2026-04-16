@@ -88,7 +88,7 @@ jobs:
 
         rm -f k3d
 
-    - name: Install k3d and kubectl
+    - name: Install kubectl
       run: |
         curl -LO "https://dl.k8s.io/release/${{ env.KUBERNETES_VERSION }}/bin/linux/amd64/kubectl"
         curl -LO "https://dl.k8s.io/release/${{ env.KUBERNETES_VERSION }}/bin/linux/amd64/kubectl.sha256"
@@ -133,8 +133,6 @@ jobs:
 
     - name: Setup K3k (from release)
       if: inputs.k3k_version != ''
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
         K3K_VERSION="${{ inputs.k3k_version }}"
         CHART_VERSION="${K3K_VERSION#v}"
@@ -148,8 +146,6 @@ jobs:
         sudo chmod +x /usr/local/bin/k3kcli
 
     - name: Wait for K3k controller
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
         echo "Wait for K3k controller deployment to be available"
         kubectl wait -n k3k-system deployment -l "app.kubernetes.io/name=k3k" --for=condition=Available --timeout=5m

@@ -213,9 +213,6 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 				Name:            s.Name(),
 				Image:           image,
 				ImagePullPolicy: v1.PullPolicy(s.imagePullPolicy),
-				Resources: v1.ResourceRequirements{
-					Limits: v1.ResourceList{},
-				},
 				Env: append([]v1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",
@@ -267,6 +264,12 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, v1.LocalObjectReference{Name: imagePullSecret})
 	}
 
+	// specify resource limits if specified for the agents.
+	if s.cluster.Spec.WorkerLimit != nil {
+		podSpec.Containers[0].Resources = v1.ResourceRequirements{
+			Limits: s.cluster.Spec.WorkerLimit,
+		}
+	}
 	return podSpec
 }
 

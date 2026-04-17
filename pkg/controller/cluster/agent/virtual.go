@@ -150,6 +150,10 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 		agentAffinity = v.cluster.Status.Policy.AgentAffinity
 	}
 
+	if v.ImageRegistry != "" {
+		image = v.ImageRegistry + "/" + image
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity:     agentAffinity,
 		NodeSelector: v.cluster.Spec.NodeSelector,

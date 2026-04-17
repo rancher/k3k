@@ -9,7 +9,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -304,7 +303,7 @@ func Test_sharedAgentData(t *testing.T) {
 			name: "simple config",
 			args: args{
 				cluster: &v1beta1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
@@ -334,7 +333,7 @@ func Test_sharedAgentData(t *testing.T) {
 			name: "version in status",
 			args: args{
 				cluster: &v1beta1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
@@ -367,7 +366,7 @@ func Test_sharedAgentData(t *testing.T) {
 			name: "missing version in spec",
 			args: args{
 				cluster: &v1beta1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},

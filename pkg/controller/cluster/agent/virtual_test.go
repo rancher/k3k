@@ -4,26 +4,28 @@ import (
 	"context"
 	"testing"
 
-	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-func baseVirtualAgentPodSpec(v VirtualAgent) v1.PodSpec {
-	return v1.PodSpec{
+func baseVirtualAgentPodSpec(v VirtualAgent) corev1.PodSpec {
+	return corev1.PodSpec{
 		Affinity:     nil,
 		NodeSelector: v.cluster.Spec.NodeSelector,
-		Volumes: []v1.Volume{
+		Volumes: []corev1.Volume{
 			{
 				Name: "config",
-				VolumeSource: v1.VolumeSource{
-					Secret: &v1.SecretVolumeSource{
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
 						SecretName: configSecretName(v.cluster.Name),
-						Items: []v1.KeyToPath{
+						Items: []corev1.KeyToPath{
 							{
 								Key:  "config.yaml",
 								Path: "config.yaml",
@@ -34,54 +36,54 @@ func baseVirtualAgentPodSpec(v VirtualAgent) v1.PodSpec {
 			},
 			{
 				Name: "run",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varrun",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlibcni",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlog",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlibkubelet",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
 				Name: "varlibrancherk3s",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 		},
-		Containers: []v1.Container{
+		Containers: []corev1.Container{
 			{
 				Name:            "k3k-agent",
 				Image:           v.Image,
-				ImagePullPolicy: v1.PullPolicy(v.ImagePullPolicy),
-				SecurityContext: &v1.SecurityContext{
+				ImagePullPolicy: corev1.PullPolicy(v.ImagePullPolicy),
+				SecurityContext: &corev1.SecurityContext{
 					Privileged: ptr.To(true),
 				},
 				Args: []string{"agent", "--config", "/opt/rancher/k3s/config.yaml"},
 				Command: []string{
 					"/bin/k3s",
 				},
-				VolumeMounts: []v1.VolumeMount{
+				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      "config",
 						MountPath: "/opt/rancher/k3s/",
@@ -121,7 +123,6 @@ func baseVirtualAgentPodSpec(v VirtualAgent) v1.PodSpec {
 			},
 		},
 	}
-
 }
 
 func Test_virtualAgentData(t *testing.T) {
@@ -166,7 +167,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 	tests := []struct {
 		name            string
 		virtualAgent    VirtualAgent
-		expectedPodSpec func(VirtualAgent) v1.PodSpec
+		expectedPodSpec func(VirtualAgent) corev1.PodSpec
 	}{
 		{
 			name: "default virtual mode cluster",
@@ -186,7 +187,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				return baseVirtualAgentPodSpec(sa)
 			},
 		},
@@ -205,9 +206,10 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				ImageRegistry:   "registry.example.com",
 				ImagePullPolicy: "Always",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
 				spec.Containers[0].Image = "registry.example.com/rancher/k3k:v1.2.3"
+
 				return spec
 			},
 		},
@@ -230,12 +232,13 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
 				spec.NodeSelector = map[string]string{
 					"disktype":             "ssd",
 					"topology.k8s.io/zone": "us-east-1a",
 				}
+
 				return spec
 			},
 		},
@@ -258,9 +261,10 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(va VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(va VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(va)
 				spec.Containers[0].Args = append(spec.Containers[0].Args, "fake-arg-1=true", "fake-arg-2=true")
+
 				return spec
 			},
 		},
@@ -274,7 +278,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							AgentEnvs: []v1.EnvVar{
+							AgentEnvs: []corev1.EnvVar{
 								{Name: "CUSTOM_VAR", Value: "custom-value"},
 								{Name: "ANOTHER_VAR", Value: "another-value"},
 							},
@@ -283,12 +287,13 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.Containers[0].Env = []v1.EnvVar{
-					v1.EnvVar{Name: "CUSTOM_VAR", Value: "custom-value"},
-					v1.EnvVar{Name: "ANOTHER_VAR", Value: "another-value"},
+				spec.Containers[0].Env = []corev1.EnvVar{
+					{Name: "CUSTOM_VAR", Value: "custom-value"},
+					{Name: "ANOTHER_VAR", Value: "another-value"},
 				}
+
 				return spec
 			},
 		},
@@ -302,15 +307,16 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							AgentAffinity: nodeAffinity("kubernetes.io/os", v1.NodeSelectorOpIn, "linux"),
+							AgentAffinity: nodeAffinity("kubernetes.io/os", corev1.NodeSelectorOpIn, "linux"),
 						},
 					},
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.Affinity = nodeAffinity("kubernetes.io/os", v1.NodeSelectorOpIn, "linux")
+				spec.Affinity = nodeAffinity("kubernetes.io/os", corev1.NodeSelectorOpIn, "linux")
+
 				return spec
 			},
 		},
@@ -324,20 +330,21 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							AgentAffinity: nodeAffinity("spec-key", v1.NodeSelectorOpIn, "spec-value"),
+							AgentAffinity: nodeAffinity("spec-key", corev1.NodeSelectorOpIn, "spec-value"),
 						},
 						Status: v1beta1.ClusterStatus{
 							Policy: &v1beta1.AppliedPolicy{
-								AgentAffinity: nodeAffinity("policy-key", v1.NodeSelectorOpIn, "policy-value"),
+								AgentAffinity: nodeAffinity("policy-key", corev1.NodeSelectorOpIn, "policy-value"),
 							},
 						},
 					},
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.Affinity = nodeAffinity("policy-key", v1.NodeSelectorOpIn, "policy-value")
+				spec.Affinity = nodeAffinity("policy-key", corev1.NodeSelectorOpIn, "policy-value")
+
 				return spec
 			},
 		},
@@ -356,12 +363,13 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 
 				imagePullSecrets: []string{"secret-1", "secret-2"},
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.ImagePullSecrets = []v1.LocalObjectReference{
+				spec.ImagePullSecrets = []corev1.LocalObjectReference{
 					{Name: "secret-1"},
 					{Name: "secret-2"},
 				}
+
 				return spec
 			},
 		},
@@ -375,7 +383,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							SecurityContext: &v1.SecurityContext{
+							SecurityContext: &corev1.SecurityContext{
 								Privileged: ptr.To(true),
 							},
 						},
@@ -383,11 +391,12 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.Containers[0].SecurityContext = &v1.SecurityContext{
+				spec.Containers[0].SecurityContext = &corev1.SecurityContext{
 					Privileged: ptr.To(true),
 				}
+
 				return spec
 			},
 		},
@@ -401,13 +410,13 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							SecurityContext: &v1.SecurityContext{
+							SecurityContext: &corev1.SecurityContext{
 								Privileged: ptr.To(true),
 							},
 						},
 						Status: v1beta1.ClusterStatus{
 							Policy: &v1beta1.AppliedPolicy{
-								SecurityContext: &v1.SecurityContext{
+								SecurityContext: &corev1.SecurityContext{
 									Privileged:             ptr.To(false),
 									ReadOnlyRootFilesystem: ptr.To(true),
 								},
@@ -417,12 +426,13 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.Containers[0].SecurityContext = &v1.SecurityContext{
+				spec.Containers[0].SecurityContext = &corev1.SecurityContext{
 					Privileged:             ptr.To(false),
 					ReadOnlyRootFilesystem: ptr.To(true),
 				}
+
 				return spec
 			},
 		},
@@ -442,9 +452,10 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
 				spec.RuntimeClassName = ptr.To("kata")
+
 				return spec
 			},
 		},
@@ -469,9 +480,10 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
 				spec.RuntimeClassName = ptr.To("gvisor")
+
 				return spec
 			},
 		},
@@ -491,9 +503,10 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
 				spec.HostUsers = ptr.To(false)
+
 				return spec
 			},
 		},
@@ -518,9 +531,10 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
 				spec.HostUsers = ptr.To(false)
+
 				return spec
 			},
 		},
@@ -534,23 +548,24 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							WorkerLimit: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("500m"),
-								v1.ResourceMemory: resource.MustParse("256Mi"),
+							WorkerLimit: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("500m"),
+								corev1.ResourceMemory: resource.MustParse("256Mi"),
 							},
 						},
 					},
 				},
 				Image: "rancher/k3k:latest",
 			},
-			expectedPodSpec: func(sa VirtualAgent) v1.PodSpec {
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.Containers[0].Resources = v1.ResourceRequirements{
-					Limits: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("500m"),
-						v1.ResourceMemory: resource.MustParse("256Mi"),
+				spec.Containers[0].Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("256Mi"),
 					},
 				}
+
 				return spec
 			},
 		},

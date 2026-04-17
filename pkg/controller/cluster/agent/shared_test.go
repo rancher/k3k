@@ -6,29 +6,29 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-func baseSharedAgentPodSpec(sharedAgent SharedAgent) v1.PodSpec {
-	return v1.PodSpec{
+func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
+	return corev1.PodSpec{
 		Affinity:           nil,
 		HostNetwork:        false,
-		DNSPolicy:          v1.DNSClusterFirst,
+		DNSPolicy:          corev1.DNSClusterFirst,
 		ServiceAccountName: sharedAgent.Name(),
 		NodeSelector:       nil,
-		Volumes: []v1.Volume{
+		Volumes: []corev1.Volume{
 			{
 				Name: "config",
-				VolumeSource: v1.VolumeSource{
-					Secret: &v1.SecretVolumeSource{
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
 						SecretName: configSecretName(sharedAgent.cluster.Name),
-						Items: []v1.KeyToPath{
+						Items: []corev1.KeyToPath{
 							{
 								Key:  "config.yaml",
 								Path: "config.yaml",
@@ -38,16 +38,16 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) v1.PodSpec {
 				},
 			},
 		},
-		Containers: []v1.Container{
+		Containers: []corev1.Container{
 			{
 				Name:            sharedAgent.Name(),
 				Image:           sharedAgent.image,
-				ImagePullPolicy: v1.PullPolicy(sharedAgent.imagePullPolicy),
-				Env: []v1.EnvVar{
+				ImagePullPolicy: corev1.PullPolicy(sharedAgent.imagePullPolicy),
+				Env: []corev1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "spec.nodeName",
 							},
@@ -55,41 +55,40 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) v1.PodSpec {
 					},
 					{
 						Name: "POD_IP",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "status.podIP",
 							},
 						},
 					},
 				},
-				VolumeMounts: []v1.VolumeMount{
+				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      "config",
 						MountPath: "/opt/rancher/k3k/",
 						ReadOnly:  false,
 					},
 				},
-				Ports: []v1.ContainerPort{
+				Ports: []corev1.ContainerPort{
 					{
 						Name:          "kubelet-port",
-						Protocol:      v1.ProtocolTCP,
+						Protocol:      corev1.ProtocolTCP,
 						ContainerPort: int32(sharedAgent.kubeletPort),
 					},
 				},
 			},
 		},
 	}
-
 }
 
-func nodeAffinity(key string, op v1.NodeSelectorOperator, value string) *corev1.Affinity {
-	return &v1.Affinity{
-		NodeAffinity: &v1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-				NodeSelectorTerms: []v1.NodeSelectorTerm{
+func nodeAffinity(key string, op corev1.NodeSelectorOperator, value string) *corev1.Affinity {
+	return &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
 					{
-						MatchExpressions: []v1.NodeSelectorRequirement{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
 							{Key: key, Operator: op, Values: []string{value}},
 						},
 					},
@@ -103,7 +102,7 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 	tests := []struct {
 		name            string
 		sharedAgent     SharedAgent
-		expectedPodSpec func(SharedAgent) v1.PodSpec
+		expectedPodSpec func(SharedAgent) corev1.PodSpec
 	}{
 		{
 			name: "default shared cluster",
@@ -124,7 +123,7 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				return baseSharedAgentPodSpec(sa)
 			},
 		},
@@ -145,10 +144,10 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.HostNetwork = true
-				spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+				spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 
 				return spec
 			},
@@ -169,7 +168,7 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				imagePullPolicy: "Always",
 				kubeletPort:     10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.Containers[0].Image = "registry.example.com/rancher/k3k-kubelet:v1.2.3"
 
@@ -196,7 +195,7 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.NodeSelector = map[string]string{
 					"disktype":             "ssd",
@@ -216,7 +215,7 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							AgentEnvs: []v1.EnvVar{
+							AgentEnvs: []corev1.EnvVar{
 								{Name: "CUSTOM_VAR", Value: "custom-value"},
 								{Name: "ANOTHER_VAR", Value: "another-value"},
 							},
@@ -226,11 +225,11 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.Containers[0].Env = append(spec.Containers[0].Env,
-					v1.EnvVar{Name: "CUSTOM_VAR", Value: "custom-value"},
-					v1.EnvVar{Name: "ANOTHER_VAR", Value: "another-value"},
+					corev1.EnvVar{Name: "CUSTOM_VAR", Value: "custom-value"},
+					corev1.EnvVar{Name: "ANOTHER_VAR", Value: "another-value"},
 				)
 
 				return spec
@@ -246,16 +245,16 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							AgentAffinity: nodeAffinity("kubernetes.io/os", v1.NodeSelectorOpIn, "linux"),
+							AgentAffinity: nodeAffinity("kubernetes.io/os", corev1.NodeSelectorOpIn, "linux"),
 						},
 					},
 				},
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Affinity = nodeAffinity("kubernetes.io/os", v1.NodeSelectorOpIn, "linux")
+				spec.Affinity = nodeAffinity("kubernetes.io/os", corev1.NodeSelectorOpIn, "linux")
 
 				return spec
 			},
@@ -270,11 +269,11 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							AgentAffinity: nodeAffinity("spec-key", v1.NodeSelectorOpIn, "spec-value"),
+							AgentAffinity: nodeAffinity("spec-key", corev1.NodeSelectorOpIn, "spec-value"),
 						},
 						Status: v1beta1.ClusterStatus{
 							Policy: &v1beta1.AppliedPolicy{
-								AgentAffinity: nodeAffinity("policy-key", v1.NodeSelectorOpIn, "policy-value"),
+								AgentAffinity: nodeAffinity("policy-key", corev1.NodeSelectorOpIn, "policy-value"),
 							},
 						},
 					},
@@ -282,9 +281,9 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Affinity = nodeAffinity("policy-key", v1.NodeSelectorOpIn, "policy-value")
+				spec.Affinity = nodeAffinity("policy-key", corev1.NodeSelectorOpIn, "policy-value")
 
 				return spec
 			},
@@ -304,9 +303,9 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				kubeletPort:      10250,
 				imagePullSecrets: []string{"secret-1", "secret-2"},
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.ImagePullSecrets = []v1.LocalObjectReference{
+				spec.ImagePullSecrets = []corev1.LocalObjectReference{
 					{Name: "secret-1"},
 					{Name: "secret-2"},
 				}
@@ -324,7 +323,7 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							SecurityContext: &v1.SecurityContext{
+							SecurityContext: &corev1.SecurityContext{
 								Privileged: ptr.To(true),
 							},
 						},
@@ -333,9 +332,9 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Containers[0].SecurityContext = &v1.SecurityContext{
+				spec.Containers[0].SecurityContext = &corev1.SecurityContext{
 					Privileged: ptr.To(true),
 				}
 
@@ -352,13 +351,13 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							SecurityContext: &v1.SecurityContext{
+							SecurityContext: &corev1.SecurityContext{
 								Privileged: ptr.To(true),
 							},
 						},
 						Status: v1beta1.ClusterStatus{
 							Policy: &v1beta1.AppliedPolicy{
-								SecurityContext: &v1.SecurityContext{
+								SecurityContext: &corev1.SecurityContext{
 									Privileged:             ptr.To(false),
 									ReadOnlyRootFilesystem: ptr.To(true),
 								},
@@ -369,9 +368,9 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Containers[0].SecurityContext = &v1.SecurityContext{
+				spec.Containers[0].SecurityContext = &corev1.SecurityContext{
 					Privileged:             ptr.To(false),
 					ReadOnlyRootFilesystem: ptr.To(true),
 				}
@@ -396,7 +395,7 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.RuntimeClassName = ptr.To("kata")
 
@@ -425,7 +424,7 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.RuntimeClassName = ptr.To("gvisor")
 
@@ -449,7 +448,7 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.HostUsers = ptr.To(false)
 
@@ -478,9 +477,10 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.HostUsers = ptr.To(false)
+
 				return spec
 			},
 		},
@@ -494,9 +494,9 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							WorkerLimit: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("500m"),
-								v1.ResourceMemory: resource.MustParse("256Mi"),
+							WorkerLimit: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("500m"),
+								corev1.ResourceMemory: resource.MustParse("256Mi"),
 							},
 						},
 					},
@@ -504,12 +504,12 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				image:       "rancher/k3k-kubelet:latest",
 				kubeletPort: 10250,
 			},
-			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Containers[0].Resources = v1.ResourceRequirements{
-					Limits: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("500m"),
-						v1.ResourceMemory: resource.MustParse("256Mi"),
+				spec.Containers[0].Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("256Mi"),
 					},
 				}
 

@@ -192,9 +192,6 @@ func (s *SharedAgent) podSpec(ctx context.Context) corev1.PodSpec {
 				Name:            s.Name(),
 				Image:           image,
 				ImagePullPolicy: corev1.PullPolicy(s.imagePullPolicy),
-				Resources: corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{},
-				},
 				Env: append([]corev1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",
@@ -261,6 +258,13 @@ func (s *SharedAgent) podSpec(ctx context.Context) corev1.PodSpec {
 	}
 
 	podSpec.HostUsers = hostUsers
+
+	// specify resource limits if specified for the agents.
+	if s.cluster.Spec.WorkerLimit != nil {
+		podSpec.Containers[0].Resources = corev1.ResourceRequirements{
+			Limits: s.cluster.Spec.WorkerLimit,
+		}
+	}
 
 	return podSpec
 }

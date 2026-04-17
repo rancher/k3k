@@ -27,7 +27,7 @@ safe_mode() {
 	if [ -d "{{.ETCD_DIR}}" ]; then
 
 		info "Starting K3s in Safe Mode (Network Policy Disabled) to patch Node IP from ${CURRENT_IP} to ${POD_IP}"
-		/bin/k3s server --disable-network-policy --config $1 {{.EXTRA_ARGS}} > /dev/null 2>&1 &
+		/bin/k3s server --disable-network-policy --config $1 $EXTRA_ARGS > /dev/null 2>&1 &
 		PID=$!
 
 		# Start the loop to wait for the nodeIP to change
@@ -58,7 +58,7 @@ start_single_node() {
 	if [ -d "{{.ETCD_DIR}}" ]; then
 		info "Existing data found in single node setup. Performing cluster-reset to ensure quorum..."
 
-		if ! /bin/k3s server --cluster-reset --config {{.INIT_CONFIG}} {{.EXTRA_ARGS}} > /dev/null 2>&1; then
+		if ! /bin/k3s server --cluster-reset --config {{.INIT_CONFIG}} $EXTRA_ARGS > /dev/null 2>&1; then
 			fatal "cluster reset failed!"
 		fi
 		info "Cluster reset complete. Removing Reset flag file."
@@ -71,7 +71,7 @@ start_single_node() {
 	info "Adding pod IP file."
 	echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-	/bin/k3s server --config {{.INIT_CONFIG}} {{.EXTRA_ARGS}} 2>&1 | tee /var/log/k3s.log
+	/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
 }
 
 start_ha_node() {
@@ -81,16 +81,37 @@ start_ha_node() {
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		/bin/k3s server --config {{.INIT_CONFIG}} {{.EXTRA_ARGS}} 2>&1 | tee /var/log/k3s.log
+		/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
 	else
 		safe_mode {{.SERVER_CONFIG}}
 
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		/bin/k3s server --config {{.SERVER_CONFIG}} {{.EXTRA_ARGS}} 2>&1 | tee /var/log/k3s.info 
+		/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.info 
 	fi
 }
+
+# Configuring cgroups for k3s process in virtual mode
+configure_cgroups() {
+	# only configure the cgroups if the runtime used is the default and the mode is virtual
+	if [ -n "{{.RUNTIME_CLASS}}" ] || [ "{{.K3K_MODE}}" != "virtual" ]; then
+		return
+	fi
+
+	root_cgroup_raw=$(cat /proc/self/cgroup)
+	root_cgroup_stripped="${root_cgroup_raw#0::}"
+	root_cgroup_parent=$(dirname "$root_cgroup_stripped")
+
+	info "Current CGROUPS for $POD_NAME: ${root_cgroup_raw}"
+
+	# overriding kubelet cgroup and the cgroup root for pods, this will prevent k3s
+	# automatic placement see: https://github.com/k3s-io/k3s/blob/main/pkg/cgroups/cgroups_linux.go#L114-L127
+	EXTRA_ARGS="$EXTRA_ARGS --kubelet-arg=kubelet-cgroups=$root_cgroup_parent/k3s --kubelet-arg=cgroup-root=$root_cgroup_parent"
+}
+
+EXTRA_ARGS={{.EXTRA_ARGS}}
+configure_cgroups
 
 case "{{.CLUSTER_MODE}}" in
     "ha")

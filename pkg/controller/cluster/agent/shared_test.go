@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -15,11 +16,10 @@ import (
 
 func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 	return corev1.PodSpec{
-		Affinity:           nil,
 		HostNetwork:        false,
 		DNSPolicy:          corev1.DNSClusterFirst,
 		ServiceAccountName: sharedAgent.Name(),
-		NodeSelector:       nil,
+		NodeSelector:       sharedAgent.cluster.Spec.NodeSelector,
 		Volumes: []corev1.Volume{
 			{
 				Name: "config",
@@ -35,17 +35,39 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 					},
 				},
 			},
+			{
+				Name: "webhook-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: WebhookSecretName(sharedAgent.cluster.Name),
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "tls.crt",
+								Path: "tls.crt",
+							},
+							{
+								Key:  "tls.key",
+								Path: "tls.key",
+							},
+							{
+								Key:  "ca.crt",
+								Path: "ca.crt",
+							},
+						},
+					},
+				},
+			},
 		},
 		Containers: []corev1.Container{
 			{
 				Name:            sharedAgent.Name(),
 				Image:           sharedAgent.image,
-				ImagePullPolicy: corev1.PullPolicy(sharedAgent.imagePullPolicy),
-				Env: []corev1.EnvVar{
+				ImagePullPolicy: v1.PullPolicy(sharedAgent.imagePullPolicy),
+				Env: append([]v1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "spec.nodeName",
 							},
@@ -53,26 +75,36 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 					},
 					{
 						Name: "POD_IP",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "status.podIP",
 							},
 						},
 					},
-				},
-				VolumeMounts: []corev1.VolumeMount{
+				}),
+				VolumeMounts: []v1.VolumeMount{
 					{
 						Name:      "config",
 						MountPath: "/opt/rancher/k3k/",
 						ReadOnly:  false,
 					},
+					{
+						Name:      "webhook-certs",
+						MountPath: "/opt/rancher/k3k-webhook",
+						ReadOnly:  false,
+					},
 				},
-				Ports: []corev1.ContainerPort{
+				Ports: []v1.ContainerPort{
 					{
 						Name:          "kubelet-port",
-						Protocol:      corev1.ProtocolTCP,
+						Protocol:      v1.ProtocolTCP,
 						ContainerPort: int32(sharedAgent.kubeletPort),
+					},
+					{
+						Name:          "webhook-port",
+						Protocol:      v1.ProtocolTCP,
+						ContainerPort: int32(sharedAgent.webhookPort),
 					},
 				},
 			},

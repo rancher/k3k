@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,13 +22,13 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) v1.PodSpec {
 		DNSPolicy:          v1.DNSClusterFirst,
 		ServiceAccountName: sharedAgent.Name(),
 		NodeSelector:       nil,
-		Volumes: []corev1.Volume{
+		Volumes: []v1.Volume{
 			{
 				Name: "config",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
+				VolumeSource: v1.VolumeSource{
+					Secret: &v1.SecretVolumeSource{
 						SecretName: configSecretName(sharedAgent.cluster.Name),
-						Items: []corev1.KeyToPath{
+						Items: []v1.KeyToPath{
 							{
 								Key:  "config.yaml",
 								Path: "config.yaml",
@@ -39,16 +38,16 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) v1.PodSpec {
 				},
 			},
 		},
-		Containers: []corev1.Container{
+		Containers: []v1.Container{
 			{
 				Name:            sharedAgent.Name(),
 				Image:           sharedAgent.image,
-				ImagePullPolicy: corev1.PullPolicy(sharedAgent.imagePullPolicy),
-				Env: []corev1.EnvVar{
+				ImagePullPolicy: v1.PullPolicy(sharedAgent.imagePullPolicy),
+				Env: []v1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "spec.nodeName",
 							},
@@ -56,25 +55,25 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) v1.PodSpec {
 					},
 					{
 						Name: "POD_IP",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "status.podIP",
 							},
 						},
 					},
 				},
-				VolumeMounts: []corev1.VolumeMount{
+				VolumeMounts: []v1.VolumeMount{
 					{
 						Name:      "config",
 						MountPath: "/opt/rancher/k3k/",
 						ReadOnly:  false,
 					},
 				},
-				Ports: []corev1.ContainerPort{
+				Ports: []v1.ContainerPort{
 					{
 						Name:          "kubelet-port",
-						Protocol:      corev1.ProtocolTCP,
+						Protocol:      v1.ProtocolTCP,
 						ContainerPort: int32(sharedAgent.kubeletPort),
 					},
 				},
@@ -84,13 +83,13 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) v1.PodSpec {
 
 }
 
-func nodeAffinity(key string, op corev1.NodeSelectorOperator, value string) *corev1.Affinity {
-	return &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+func nodeAffinity(key string, op v1.NodeSelectorOperator, value string) *corev1.Affinity {
+	return &v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
 					{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
+						MatchExpressions: []v1.NodeSelectorRequirement{
 							{Key: key, Operator: op, Values: []string{value}},
 						},
 					},
@@ -100,10 +99,7 @@ func nodeAffinity(key string, op corev1.NodeSelectorOperator, value string) *cor
 	}
 }
 
-func Test_podSpec(t *testing.T) {
-	type args struct {
-	}
-
+func Test_sharedAgentPodSpec(t *testing.T) {
 	tests := []struct {
 		name            string
 		sharedAgent     SharedAgent
@@ -153,6 +149,7 @@ func Test_podSpec(t *testing.T) {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.HostNetwork = true
 				spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+
 				return spec
 			},
 		},
@@ -175,6 +172,7 @@ func Test_podSpec(t *testing.T) {
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.Containers[0].Image = "registry.example.com/rancher/k3k-kubelet:v1.2.3"
+
 				return spec
 			},
 		},
@@ -204,6 +202,7 @@ func Test_podSpec(t *testing.T) {
 					"disktype":             "ssd",
 					"topology.k8s.io/zone": "us-east-1a",
 				}
+
 				return spec
 			},
 		},
@@ -217,7 +216,7 @@ func Test_podSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							AgentEnvs: []corev1.EnvVar{
+							AgentEnvs: []v1.EnvVar{
 								{Name: "CUSTOM_VAR", Value: "custom-value"},
 								{Name: "ANOTHER_VAR", Value: "another-value"},
 							},
@@ -230,9 +229,10 @@ func Test_podSpec(t *testing.T) {
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.Containers[0].Env = append(spec.Containers[0].Env,
-					corev1.EnvVar{Name: "CUSTOM_VAR", Value: "custom-value"},
-					corev1.EnvVar{Name: "ANOTHER_VAR", Value: "another-value"},
+					v1.EnvVar{Name: "CUSTOM_VAR", Value: "custom-value"},
+					v1.EnvVar{Name: "ANOTHER_VAR", Value: "another-value"},
 				)
+
 				return spec
 			},
 		},
@@ -246,7 +246,7 @@ func Test_podSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							AgentAffinity: nodeAffinity("kubernetes.io/os", corev1.NodeSelectorOpIn, "linux"),
+							AgentAffinity: nodeAffinity("kubernetes.io/os", v1.NodeSelectorOpIn, "linux"),
 						},
 					},
 				},
@@ -255,7 +255,8 @@ func Test_podSpec(t *testing.T) {
 			},
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Affinity = nodeAffinity("kubernetes.io/os", corev1.NodeSelectorOpIn, "linux")
+				spec.Affinity = nodeAffinity("kubernetes.io/os", v1.NodeSelectorOpIn, "linux")
+
 				return spec
 			},
 		},
@@ -269,11 +270,11 @@ func Test_podSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							AgentAffinity: nodeAffinity("spec-key", corev1.NodeSelectorOpIn, "spec-value"),
+							AgentAffinity: nodeAffinity("spec-key", v1.NodeSelectorOpIn, "spec-value"),
 						},
 						Status: v1beta1.ClusterStatus{
 							Policy: &v1beta1.AppliedPolicy{
-								AgentAffinity: nodeAffinity("policy-key", corev1.NodeSelectorOpIn, "policy-value"),
+								AgentAffinity: nodeAffinity("policy-key", v1.NodeSelectorOpIn, "policy-value"),
 							},
 						},
 					},
@@ -283,7 +284,8 @@ func Test_podSpec(t *testing.T) {
 			},
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Affinity = nodeAffinity("policy-key", corev1.NodeSelectorOpIn, "policy-value")
+				spec.Affinity = nodeAffinity("policy-key", v1.NodeSelectorOpIn, "policy-value")
+
 				return spec
 			},
 		},
@@ -304,10 +306,11 @@ func Test_podSpec(t *testing.T) {
 			},
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.ImagePullSecrets = []corev1.LocalObjectReference{
+				spec.ImagePullSecrets = []v1.LocalObjectReference{
 					{Name: "secret-1"},
 					{Name: "secret-2"},
 				}
+
 				return spec
 			},
 		},
@@ -321,7 +324,7 @@ func Test_podSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							SecurityContext: &corev1.SecurityContext{
+							SecurityContext: &v1.SecurityContext{
 								Privileged: ptr.To(true),
 							},
 						},
@@ -332,9 +335,10 @@ func Test_podSpec(t *testing.T) {
 			},
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+				spec.Containers[0].SecurityContext = &v1.SecurityContext{
 					Privileged: ptr.To(true),
 				}
+
 				return spec
 			},
 		},
@@ -348,13 +352,13 @@ func Test_podSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							SecurityContext: &corev1.SecurityContext{
+							SecurityContext: &v1.SecurityContext{
 								Privileged: ptr.To(true),
 							},
 						},
 						Status: v1beta1.ClusterStatus{
 							Policy: &v1beta1.AppliedPolicy{
-								SecurityContext: &corev1.SecurityContext{
+								SecurityContext: &v1.SecurityContext{
 									Privileged:             ptr.To(false),
 									ReadOnlyRootFilesystem: ptr.To(true),
 								},
@@ -367,10 +371,11 @@ func Test_podSpec(t *testing.T) {
 			},
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+				spec.Containers[0].SecurityContext = &v1.SecurityContext{
 					Privileged:             ptr.To(false),
 					ReadOnlyRootFilesystem: ptr.To(true),
 				}
+
 				return spec
 			},
 		},
@@ -394,6 +399,7 @@ func Test_podSpec(t *testing.T) {
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.RuntimeClassName = ptr.To("kata")
+
 				return spec
 			},
 		},
@@ -422,6 +428,7 @@ func Test_podSpec(t *testing.T) {
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.RuntimeClassName = ptr.To("gvisor")
+
 				return spec
 			},
 		},
@@ -445,6 +452,7 @@ func Test_podSpec(t *testing.T) {
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
 				spec.HostUsers = ptr.To(false)
+
 				return spec
 			},
 		},
@@ -486,9 +494,9 @@ func Test_podSpec(t *testing.T) {
 							Namespace: "shared-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							WorkerLimit: corev1.ResourceList{
-								corev1.ResourceCPU:    resource.MustParse("500m"),
-								corev1.ResourceMemory: resource.MustParse("256Mi"),
+							WorkerLimit: v1.ResourceList{
+								v1.ResourceCPU:    resource.MustParse("500m"),
+								v1.ResourceMemory: resource.MustParse("256Mi"),
 							},
 						},
 					},
@@ -498,12 +506,13 @@ func Test_podSpec(t *testing.T) {
 			},
 			expectedPodSpec: func(sa SharedAgent) v1.PodSpec {
 				spec := baseSharedAgentPodSpec(sa)
-				spec.Containers[0].Resources = corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("500m"),
-						corev1.ResourceMemory: resource.MustParse("256Mi"),
+				spec.Containers[0].Resources = v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("500m"),
+						v1.ResourceMemory: resource.MustParse("256Mi"),
 					},
 				}
+
 				return spec
 			},
 		},

@@ -270,6 +270,7 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 			Limits: s.cluster.Spec.WorkerLimit,
 		}
 	}
+
 	return podSpec
 }
 

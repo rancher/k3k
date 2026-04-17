@@ -5,12 +5,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
-
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -75,22 +74,6 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 						Name:          "kubelet-port",
 						Protocol:      corev1.ProtocolTCP,
 						ContainerPort: int32(sharedAgent.kubeletPort),
-					},
-				},
-			},
-		},
-	}
-}
-
-func nodeAffinity(key string, op corev1.NodeSelectorOperator, value string) *corev1.Affinity {
-	return &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							{Key: key, Operator: op, Values: []string{value}},
-						},
 					},
 				},
 			},

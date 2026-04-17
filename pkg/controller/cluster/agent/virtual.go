@@ -137,6 +137,10 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 func (v *VirtualAgent) podSpec(image, name string) v1.PodSpec {
 	var limit v1.ResourceList
 
+	if v.ImageRegistry != "" {
+		image = v.ImageRegistry + "/" + image
+	}
+
 	args := v.cluster.Spec.AgentArgs
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 

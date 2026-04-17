@@ -5,11 +5,315 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/api/resource"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
+
+func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
+	return corev1.PodSpec{
+		HostNetwork:        false,
+		DNSPolicy:          corev1.DNSClusterFirst,
+		ServiceAccountName: sharedAgent.Name(),
+		NodeSelector:       sharedAgent.cluster.Spec.NodeSelector,
+		Volumes: []corev1.Volume{
+			{
+				Name: "config",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: configSecretName(sharedAgent.cluster.Name),
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "config.yaml",
+								Path: "config.yaml",
+							},
+						},
+					},
+				},
+			},
+			{
+				Name: "webhook-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: WebhookSecretName(sharedAgent.cluster.Name),
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "tls.crt",
+								Path: "tls.crt",
+							},
+							{
+								Key:  "tls.key",
+								Path: "tls.key",
+							},
+							{
+								Key:  "ca.crt",
+								Path: "ca.crt",
+							},
+						},
+					},
+				},
+			},
+		},
+		Containers: []corev1.Container{
+			{
+				Name:            sharedAgent.Name(),
+				Image:           sharedAgent.image,
+				ImagePullPolicy: corev1.PullPolicy(sharedAgent.imagePullPolicy),
+				Env: []corev1.EnvVar{
+					{
+						Name: "AGENT_HOSTNAME",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "spec.nodeName",
+							},
+						},
+					},
+					{
+						Name: "POD_IP",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "status.podIP",
+							},
+						},
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "config",
+						MountPath: "/opt/rancher/k3k/",
+						ReadOnly:  false,
+					},
+					{
+						Name:      "webhook-certs",
+						MountPath: "/opt/rancher/k3k-webhook",
+						ReadOnly:  false,
+					},
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "kubelet-port",
+						Protocol:      corev1.ProtocolTCP,
+						ContainerPort: int32(sharedAgent.kubeletPort),
+					},
+					{
+						Name:          "webhook-port",
+						Protocol:      corev1.ProtocolTCP,
+						ContainerPort: int32(sharedAgent.webhookPort),
+					},
+				},
+			},
+		},
+	}
+}
+
+func Test_sharedAgentPodSpec(t *testing.T) {
+	tests := []struct {
+		name            string
+		sharedAgent     SharedAgent
+		expectedPodSpec func(SharedAgent) corev1.PodSpec
+	}{
+		{
+			name: "default shared cluster",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "Cluster",
+							APIVersion: "k3k.io/v1beta",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-default",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				return baseSharedAgentPodSpec(sa)
+			},
+		},
+		{
+			name: "mirror host nodes enables host networking",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-mirror",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							MirrorHostNodes: true,
+						},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.HostNetwork = true
+				spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
+
+				return spec
+			},
+		},
+		{
+			name: "image registry is prepended and image pull policy is applied",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-image",
+							Namespace: "shared-test",
+						},
+					},
+				},
+				image:           "rancher/k3k-kubelet:v1.2.3",
+				imageRegistry:   "registry.example.com",
+				imagePullPolicy: "Always",
+				kubeletPort:     10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.Containers[0].Image = "registry.example.com/rancher/k3k-kubelet:v1.2.3"
+
+				return spec
+			},
+		},
+		{
+			name: "node selector from spec is set on pod",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-nodeselector",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							NodeSelector: map[string]string{
+								"disktype":             "ssd",
+								"topology.k8s.io/zone": "us-east-1a",
+							},
+						},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.NodeSelector = map[string]string{
+					"disktype":             "ssd",
+					"topology.k8s.io/zone": "us-east-1a",
+				}
+
+				return spec
+			},
+		},
+		{
+			name: "agent envs from spec are appended to default env",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-agentenvs",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							AgentEnvs: []corev1.EnvVar{
+								{Name: "CUSTOM_VAR", Value: "custom-value"},
+								{Name: "ANOTHER_VAR", Value: "another-value"},
+							},
+						},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.Containers[0].Env = append(spec.Containers[0].Env,
+					corev1.EnvVar{Name: "CUSTOM_VAR", Value: "custom-value"},
+					corev1.EnvVar{Name: "ANOTHER_VAR", Value: "another-value"},
+				)
+
+				return spec
+			},
+		},
+		{
+			name: "image pull secrets are set on pod",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-pullsecrets",
+							Namespace: "shared-test",
+						},
+					},
+				},
+				image:            "rancher/k3k-kubelet:latest",
+				kubeletPort:      10250,
+				imagePullSecrets: []string{"secret-1", "secret-2"},
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.ImagePullSecrets = []corev1.LocalObjectReference{
+					{Name: "secret-1"},
+					{Name: "secret-2"},
+				}
+
+				return spec
+			},
+		},
+		{
+			name: "worker limit sets container resource limits",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-workerlimit",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							WorkerLimit: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("500m"),
+								corev1.ResourceMemory: resource.MustParse("256Mi"),
+							},
+						},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.Containers[0].Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("256Mi"),
+					},
+				}
+
+				return spec
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			podSpec := tt.sharedAgent.podSpec()
+			assert.Equal(t, tt.expectedPodSpec(tt.sharedAgent), podSpec)
+		})
+	}
+}
 
 func Test_sharedAgentData(t *testing.T) {
 	type args struct {
@@ -30,7 +334,7 @@ func Test_sharedAgentData(t *testing.T) {
 			name: "simple config",
 			args: args{
 				cluster: &v1beta1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
@@ -60,7 +364,7 @@ func Test_sharedAgentData(t *testing.T) {
 			name: "version in status",
 			args: args{
 				cluster: &v1beta1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},
@@ -93,7 +397,7 @@ func Test_sharedAgentData(t *testing.T) {
 			name: "missing version in spec",
 			args: args{
 				cluster: &v1beta1.Cluster{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mycluster",
 						Namespace: "ns-1",
 					},

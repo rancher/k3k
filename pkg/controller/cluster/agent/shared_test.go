@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -62,12 +61,12 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 			{
 				Name:            sharedAgent.Name(),
 				Image:           sharedAgent.image,
-				ImagePullPolicy: v1.PullPolicy(sharedAgent.imagePullPolicy),
-				Env: append([]v1.EnvVar{
+				ImagePullPolicy: corev1.PullPolicy(sharedAgent.imagePullPolicy),
+				Env: []corev1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "spec.nodeName",
 							},
@@ -75,15 +74,15 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 					},
 					{
 						Name: "POD_IP",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
 								APIVersion: "v1",
 								FieldPath:  "status.podIP",
 							},
 						},
 					},
-				}),
-				VolumeMounts: []v1.VolumeMount{
+				},
+				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      "config",
 						MountPath: "/opt/rancher/k3k/",
@@ -95,15 +94,15 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 						ReadOnly:  false,
 					},
 				},
-				Ports: []v1.ContainerPort{
+				Ports: []corev1.ContainerPort{
 					{
 						Name:          "kubelet-port",
-						Protocol:      v1.ProtocolTCP,
+						Protocol:      corev1.ProtocolTCP,
 						ContainerPort: int32(sharedAgent.kubeletPort),
 					},
 					{
 						Name:          "webhook-port",
-						Protocol:      v1.ProtocolTCP,
+						Protocol:      corev1.ProtocolTCP,
 						ContainerPort: int32(sharedAgent.webhookPort),
 					},
 				},

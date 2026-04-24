@@ -423,6 +423,11 @@ func (s *Server) setupStartCommand() (string, error) {
 		mode = "ha"
 	}
 
+	var runtimeClass string
+	if s.cluster.Spec.RuntimeClassName != nil {
+		runtimeClass = *s.cluster.Spec.RuntimeClassName
+	}
+
 	tmplCmd, err := template.New("").Parse(tmpl)
 	if err != nil {
 		return "", err
@@ -435,6 +440,7 @@ func (s *Server) setupStartCommand() (string, error) {
 		"CLUSTER_MODE":  mode,
 		"K3K_MODE":      string(s.cluster.Spec.Mode),
 		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
+		"RUNTIME_CLASS": runtimeClass,
 	}); err != nil {
 		return "", err
 	}

@@ -32,6 +32,16 @@ entries:
     - https://github.com/rancher/k3k/releases/download/chart-1.1.0-rc2/k3k-1.1.0-rc2.tgz
     version: 1.1.0-rc2
   - apiVersion: v2
+    appVersion: v1.0.3-rc1
+    created: "2026-04-24T17:01:29.509418768Z"
+    description: A Helm chart for K3K
+    digest: ab0755e4103d844ee4098955bd8311ade9efdca4a1dc02ac5e98f12c9a869bc8
+    name: k3k
+    type: application
+    urls:
+    - https://github.com/rancher/k3k/releases/download/chart-1.0.3-rc1/k3k-1.0.3-rc1.tgz
+    version: 1.0.3-rc1
+  - apiVersion: v2
     appVersion: v1.0.2
     created: "2026-02-16T14:56:30.465967547Z"
     description: A Helm chart for K3K
@@ -371,4 +381,4 @@ entries:
     urls:
     - https://github.com/rancher/k3k/releases/download/chart-0.1.0-r1/k3k-0.1.0-r1.tgz
     version: 0.1.0-r1
-generated: "2026-04-15T14:38:41.242748393Z"
+generated: "2026-04-24T17:01:29.509798021Z"

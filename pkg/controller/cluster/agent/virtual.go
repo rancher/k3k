@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 	"k8s.io/utils/ptr"
@@ -323,6 +324,49 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 	}
 
 	podSpec.HostUsers = hostUsers
+
+	if podSpec.RuntimeClassName != nil && strings.HasPrefix(*podSpec.RuntimeClassName, "kata") {
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+			Name: "dev-kmsg",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/dev/kmsg",
+				},
+			},
+		})
+
+		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      "dev-kmsg",
+			MountPath: "/dev/kmsg",
+		})
+
+		// Remove all EmptyDir volumes and their corresponding mounts.
+		emptyDirNames := make(map[string]bool)
+
+		var filteredVolumes []corev1.Volume
+
+		for _, vol := range podSpec.Volumes {
+			if vol.EmptyDir != nil {
+				emptyDirNames[vol.Name] = true
+			} else {
+				filteredVolumes = append(filteredVolumes, vol)
+			}
+		}
+
+		podSpec.Volumes = filteredVolumes
+
+		for i := range podSpec.Containers {
+			var filteredMounts []corev1.VolumeMount
+
+			for _, mount := range podSpec.Containers[i].VolumeMounts {
+				if !emptyDirNames[mount.Name] {
+					filteredMounts = append(filteredMounts, mount)
+				}
+			}
+
+			podSpec.Containers[i].VolumeMounts = filteredMounts
+		}
+	}
 
 	return podSpec
 }

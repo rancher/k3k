@@ -125,6 +125,63 @@ func baseVirtualAgentPodSpec(v VirtualAgent) corev1.PodSpec {
 	}
 }
 
+func kataVirtualAgentPodSpec(v VirtualAgent) corev1.PodSpec {
+	return corev1.PodSpec{
+		Affinity:         nil,
+		NodeSelector:     v.cluster.Spec.NodeSelector,
+		RuntimeClassName: ptr.To("kata"),
+		Volumes: []corev1.Volume{
+			{
+				Name: "config",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: configSecretName(v.cluster.Name),
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "config.yaml",
+								Path: "config.yaml",
+							},
+						},
+					},
+				},
+			},
+			{
+				Name: "dev-kmsg",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/dev/kmsg",
+					},
+				},
+			},
+		},
+		Containers: []corev1.Container{
+			{
+				Name:            "k3k-agent",
+				Image:           v.Image,
+				ImagePullPolicy: corev1.PullPolicy(v.ImagePullPolicy),
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: ptr.To(true),
+				},
+				Args: []string{"agent", "--config", "/opt/rancher/k3s/config.yaml"},
+				Command: []string{
+					"/bin/k3s",
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "config",
+						MountPath: "/opt/rancher/k3s/",
+						ReadOnly:  false,
+					},
+					{
+						Name:      "dev-kmsg",
+						MountPath: "/dev/kmsg",
+					},
+				},
+			},
+		},
+	}
+}
+
 func Test_virtualAgentData(t *testing.T) {
 	type args struct {
 		serviceIP string
@@ -454,8 +511,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				Image: "rancher/k3k:latest",
 			},
 			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
-				spec := baseVirtualAgentPodSpec(sa)
-				spec.RuntimeClassName = ptr.To("kata")
+				spec := kataVirtualAgentPodSpec(sa)
 
 				return spec
 			},

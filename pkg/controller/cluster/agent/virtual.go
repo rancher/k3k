@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"k8s.io/utils/ptr"
 
@@ -30,6 +31,7 @@ type VirtualAgent struct {
 	ImagePullPolicy  string
 	ImageRegistry    string
 	imagePullSecrets []string
+	isKata           bool
 }
 
 func NewVirtualAgent(config *Config, serviceIP, token, Image, ImagePullPolicy string, imagePullSecrets []string) *VirtualAgent {
@@ -40,6 +42,7 @@ func NewVirtualAgent(config *Config, serviceIP, token, Image, ImagePullPolicy st
 		Image:            Image,
 		ImagePullPolicy:  ImagePullPolicy,
 		imagePullSecrets: imagePullSecrets,
+		isKata:           config.cluster.Spec.RuntimeClassName != nil && strings.HasPrefix(*config.cluster.Spec.RuntimeClassName, "kata"),
 	}
 }
 
@@ -85,7 +88,10 @@ func (v *VirtualAgent) config(ctx context.Context) error {
 func virtualAgentData(serviceIP, token string) string {
 	return fmt.Sprintf(`server: https://%s
 token: %s
-with-node-id: true`, serviceIP, token)
+with-node-id: true
+log: /var/log/k3s.log
+alsologtostderr: true`,
+		serviceIP, token)
 }
 
 func (v *VirtualAgent) deployment(ctx context.Context) error {
@@ -302,6 +308,26 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 	}
 
 	podSpec.HostUsers = hostUsers
+
+	if v.isKata {
+		podSpec.Volumes = append(podSpec.Volumes, []corev1.Volume{
+			{
+				Name: "dev-kmsg",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/dev/kmsg",
+					},
+				},
+			},
+		}...)
+
+		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, []corev1.VolumeMount{
+			{
+				Name:      "dev-kmsg",
+				MountPath: "/dev/kmsg",
+			},
+		}...)
+	}
 
 	return podSpec
 }

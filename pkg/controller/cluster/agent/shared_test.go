@@ -566,6 +566,8 @@ func Test_sharedAgentData(t *testing.T) {
 				"version":          "v1.2.3",
 				"mirrorHostNodes":  "false",
 				"kubeletPort":      "10250",
+				"log":              "/var/log/k3s.log",
+				"alsologtostderr":  "true",
 			},
 		},
 		{
@@ -597,6 +599,8 @@ func Test_sharedAgentData(t *testing.T) {
 				"version":          "v1.2.3",
 				"mirrorHostNodes":  "false",
 				"kubeletPort":      "10250",
+				"log":              "/var/log/k3s.log",
+				"alsologtostderr":  "true",
 			},
 		},
 		{
@@ -625,6 +629,8 @@ func Test_sharedAgentData(t *testing.T) {
 				"version":          "v1.3.3",
 				"mirrorHostNodes":  "false",
 				"kubeletPort":      "10250",
+				"log":              "/var/log/k3s.log",
+				"alsologtostderr":  "true",
 			},
 		},
 	}

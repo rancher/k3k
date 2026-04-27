@@ -83,6 +83,10 @@ func serverOptions(cluster *v1beta1.Cluster, token string) string {
 	if cluster.Spec.Mode != agent.VirtualNodeMode {
 		opts = opts + "disable-agent: true\negress-selector-mode: disabled\ndisable:\n- servicelb\n- traefik\n- metrics-server\n- local-storage\n"
 	}
+
+	// log to both file and console.
+	opts = opts + "log: /var/log/k3s.log\nalsologtostderr: true\n"
+
 	// TODO: Add extra args to the options
 
 	return opts

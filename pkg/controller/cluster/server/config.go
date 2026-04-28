@@ -61,6 +61,7 @@ func serverOptions(cluster *v1beta1.Cluster, token string, configOptions ...stri
 		opts = append(opts, i)
 	}
 
+	// TODO: generate token if not found
 	if token != "" {
 		opts = append(opts, "token: "+token)
 	}

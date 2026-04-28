@@ -459,7 +459,6 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				spec.RuntimeClassName = ptr.To("kata")
 
 				spec.Volumes = append(spec.Volumes, corev1.Volume{
-
 					Name: "dev-kmsg",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -469,7 +468,6 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				})
 
 				spec.Containers[0].VolumeMounts = append(spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-
 					Name:      "dev-kmsg",
 					MountPath: "/dev/kmsg",
 				})
@@ -503,7 +501,6 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				spec.RuntimeClassName = ptr.To("gvisor")
 
 				spec.Volumes = append(spec.Volumes, corev1.Volume{
-
 					Name: "dev-kmsg",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -513,7 +510,6 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 				})
 
 				spec.Containers[0].VolumeMounts = append(spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-
 					Name:      "dev-kmsg",
 					MountPath: "/dev/kmsg",
 				})

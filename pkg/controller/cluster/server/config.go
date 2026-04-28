@@ -57,9 +57,7 @@ func initConfigData(cluster *v1beta1.Cluster, token string) string {
 func serverOptions(cluster *v1beta1.Cluster, token string, configOptions ...string) string {
 	var opts []string
 
-	for _, i := range configOptions {
-		opts = append(opts, i)
-	}
+	opts = append(opts, configOptions...)
 
 	// TODO: generate token if not found
 	if token != "" {

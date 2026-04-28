@@ -309,7 +309,6 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 
 	if v.cluster.Spec.RuntimeClassName != nil && strings.HasPrefix(*v.cluster.Spec.RuntimeClassName, "kata") {
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-
 			Name: "dev-kmsg",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -319,7 +318,6 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 		})
 
 		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, corev1.VolumeMount{
-
 			Name:      "dev-kmsg",
 			MountPath: "/dev/kmsg",
 		})

@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -46,50 +47,60 @@ func (s *Server) Config(init bool, serviceIP string) (*corev1.Secret, error) {
 }
 
 func serverConfigData(serviceIP string, cluster *v1beta1.Cluster, token string) string {
-	return "cluster-init: true\nserver: https://" + serviceIP + "\n" + serverOptions(cluster, token)
+	return serverOptions(cluster, token, "cluster-init: true", "server: https://"+serviceIP)
 }
 
 func initConfigData(cluster *v1beta1.Cluster, token string) string {
-	return "cluster-init: true\n" + serverOptions(cluster, token)
+	return serverOptions(cluster, token, "cluster-init: true")
 }
 
-func serverOptions(cluster *v1beta1.Cluster, token string) string {
-	var opts string
+func serverOptions(cluster *v1beta1.Cluster, token string, configOptions ...string) string {
+	var opts []string
 
-	// TODO: generate token if not found
+	for _, i := range configOptions {
+		opts = append(opts, i)
+	}
+
 	if token != "" {
-		opts = "token: " + token + "\n"
+		opts = append(opts, "token: "+token)
 	}
 
 	if cluster.Status.ClusterCIDR != "" {
-		opts = opts + "cluster-cidr: " + cluster.Status.ClusterCIDR + "\n"
+		opts = append(opts, "cluster-cidr: "+cluster.Status.ClusterCIDR)
 	}
 
 	if cluster.Status.ServiceCIDR != "" {
-		opts = opts + "service-cidr: " + cluster.Status.ServiceCIDR + "\n"
+		opts = append(opts, "service-cidr: "+cluster.Status.ServiceCIDR)
 	}
 
 	if cluster.Spec.ClusterDNS != "" {
-		opts = opts + "cluster-dns: " + cluster.Spec.ClusterDNS + "\n"
+		opts = append(opts, "cluster-dns: "+cluster.Spec.ClusterDNS)
 	}
 
 	if len(cluster.Status.TLSSANs) > 0 {
-		opts = opts + "tls-san:\n"
+		opts = append(opts, "tls-san:")
 		for _, addr := range cluster.Status.TLSSANs {
-			opts = opts + "- " + addr + "\n"
+			opts = append(opts, "- "+addr)
 		}
 	}
 
 	if cluster.Spec.Mode != agent.VirtualNodeMode {
-		opts = opts + "disable-agent: true\negress-selector-mode: disabled\ndisable:\n- servicelb\n- traefik\n- metrics-server\n- local-storage\n"
+		opts = append(opts, "disable-agent: true")
+		opts = append(opts, "egress-selector-mode: disabled")
+		opts = append(opts, "disable:")
+		opts = append(opts, "- servicelb")
+		opts = append(opts, "- traefik")
+		opts = append(opts, "- metrics-server")
+		opts = append(opts, "- local-storage")
 	}
 
 	// log to both file and console.
-	opts = opts + "log: /var/log/k3s.log\nalsologtostderr: true\n"
+	opts = append(opts, "log: /var/log/k3s.log")
+	opts = append(opts, "alsologtostderr: true")
 
 	// TODO: Add extra args to the options
 
-	return opts
+	return strings.Join(opts, "\n")
 }
 
 func configSecretName(clusterName string, init bool) string {

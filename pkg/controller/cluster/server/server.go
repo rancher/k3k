@@ -40,7 +40,6 @@ type Server struct {
 	image            string
 	imagePullPolicy  string
 	imagePullSecrets []string
-	isKata           bool
 }
 
 func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePullPolicy string, imagePullSecrets []string) *Server {
@@ -198,7 +197,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		},
 	}
 
-	if s.isKata {
+	if s.cluster.Spec.RuntimeClassName != nil && strings.HasPrefix(*s.cluster.Spec.RuntimeClassName, "kata") {
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 			Name: "dev-kmsg",
 			VolumeSource: corev1.VolumeSource{

@@ -74,6 +74,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 	var quotas corev1.ResourceQuotaList
 	if err := hostClient.List(ctx, &quotas, &client.ListOptions{Namespace: virtualCluster.Namespace}); err != nil {
 		logger.Error(err, "error getting namespace for updating node capacity")
+		return
 	}
 
 	if len(quotas.Items) > 0 {
@@ -81,6 +82,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 
 		if err := virtualClient.List(ctx, &virtualNodeList); err != nil {
 			logger.Error(err, "error listing virtual nodes for stable capacity distribution")
+			return
 		}
 
 		virtResourceMap := make(map[string]corev1.ResourceList)
@@ -90,6 +92,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 
 		if err := hostClient.List(ctx, &hostNodeList); err != nil {
 			logger.Error(err, "error listing host nodes for stable capacity distribution")
+			return
 		}
 
 		hostResourceMap := make(map[string]corev1.ResourceList)

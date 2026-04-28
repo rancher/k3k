@@ -74,20 +74,15 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 	var quotas corev1.ResourceQuotaList
 	if err := hostClient.List(ctx, &quotas, &client.ListOptions{Namespace: virtualCluster.Namespace}); err != nil {
 		logger.Error(err, "error getting namespace for updating node capacity")
+		return
 	}
 
 	if len(quotas.Items) > 0 {
-		resourceLists := []corev1.ResourceList{allocatable}
-		for _, q := range quotas.Items {
-			resourceLists = append(resourceLists, q.Status.Hard)
-		}
-
-		mergedResourceLists := mergeResourceLists(resourceLists...)
-
 		var virtualNodeList, hostNodeList corev1.NodeList
 
 		if err := virtualClient.List(ctx, &virtualNodeList); err != nil {
 			logger.Error(err, "error listing virtual nodes for stable capacity distribution")
+			return
 		}
 
 		virtResourceMap := make(map[string]corev1.ResourceList)
@@ -97,6 +92,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 
 		if err := hostClient.List(ctx, &hostNodeList); err != nil {
 			logger.Error(err, "error listing host nodes for stable capacity distribution")
+			return
 		}
 
 		hostResourceMap := make(map[string]corev1.ResourceList)
@@ -107,8 +103,18 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 			}
 		}
 
-		m := distributeQuotas(hostResourceMap, virtResourceMap, mergedResourceLists)
-		allocatable = m[virtualNodeName]
+		var resourceLists []corev1.ResourceList
+		for _, q := range quotas.Items {
+			resourceLists = append(resourceLists, q.Status.Hard)
+		}
+
+		mergedQuota := mergeQuotas(resourceLists...)
+
+		// get the node's quota and merge it with the current values
+		m := distributeQuotas(hostResourceMap, virtResourceMap, mergedQuota)
+		for name, value := range m[virtualNodeName] {
+			allocatable[name] = value
+		}
 	}
 
 	var virtualNode corev1.Node
@@ -125,10 +131,10 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 	}
 }
 
-// mergeResourceLists takes multiple resource lists and returns a single list that represents
-// the most restrictive set of resources. For each resource name, it selects the minimum
+// mergeQuotas takes multiple resource quotas lists and returns a single list that represents
+// the most restrictive set of resource quotas. For each resource name, it selects the minimum
 // quantity found across all the provided lists.
-func mergeResourceLists(resourceLists ...corev1.ResourceList) corev1.ResourceList {
+func mergeQuotas(resourceLists ...corev1.ResourceList) corev1.ResourceList {
 	merged := corev1.ResourceList{}
 
 	for _, resourceList := range resourceLists {

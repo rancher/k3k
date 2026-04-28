@@ -52,7 +52,6 @@ func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePull
 		image:            image,
 		imagePullPolicy:  imagePullPolicy,
 		imagePullSecrets: imagePullSecrets,
-		isKata:           cluster.Spec.RuntimeClassName != nil && strings.HasPrefix(*cluster.Spec.RuntimeClassName, "kata"),
 	}
 }
 
@@ -200,23 +199,19 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	}
 
 	if s.isKata {
-		podSpec.Volumes = append(podSpec.Volumes, []corev1.Volume{
-			{
-				Name: "dev-kmsg",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/dev/kmsg",
-					},
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+			Name: "dev-kmsg",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/dev/kmsg",
 				},
 			},
-		}...)
+		})
 
-		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, []corev1.VolumeMount{
-			{
-				Name:      "dev-kmsg",
-				MountPath: "/dev/kmsg",
-			},
-		}...)
+		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      "dev-kmsg",
+			MountPath: "/dev/kmsg",
+		})
 	}
 
 	cmd := []string{

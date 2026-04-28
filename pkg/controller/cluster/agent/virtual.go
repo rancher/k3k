@@ -309,7 +309,7 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 
 	podSpec.HostUsers = hostUsers
 
-	if v.isKata {
+	if cluster.Spec.RuntimeClassName != nil && strings.HasPrefix(*cluster.Spec.RuntimeClassName, "kata") {
 		podSpec.Volumes = append(podSpec.Volumes, []corev1.Volume{
 			{
 				Name: "dev-kmsg",

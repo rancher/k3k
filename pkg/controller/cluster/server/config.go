@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	"go.yaml.in/yaml/v2"
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"

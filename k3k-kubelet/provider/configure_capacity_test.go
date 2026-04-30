@@ -33,7 +33,7 @@ func Test_distributeQuotas(t *testing.T) {
 			name:            "no virtual nodes",
 			virtResourceMap: map[string]corev1.ResourceList{},
 			quotas: corev1.ResourceList{
-				corev1.ResourceCPU: resource.MustParse("2"),
+				corev1.ResourceLimitsCPU: resource.MustParse("2"),
 			},
 			want: map[string]corev1.ResourceList{},
 		},
@@ -66,8 +66,8 @@ func Test_distributeQuotas(t *testing.T) {
 				"node-4": largeAllocatable,
 			},
 			quotas: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
-				corev1.ResourceMemory: resource.MustParse("4Gi"),
+				corev1.ResourceLimitsCPU:    resource.MustParse("2"),
+				corev1.ResourceLimitsMemory: resource.MustParse("4Gi"),
 			},
 			want: map[string]corev1.ResourceList{
 				"node-1": {
@@ -91,8 +91,8 @@ func Test_distributeQuotas(t *testing.T) {
 				"node-2": largeAllocatable,
 			},
 			quotas: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
-				corev1.ResourceMemory: resource.MustParse("4Gi"),
+				corev1.ResourceLimitsCPU:    resource.MustParse("2"),
+				corev1.ResourceLimitsMemory: resource.MustParse("4Gi"),
 			},
 			want: map[string]corev1.ResourceList{
 				"node-1": {
@@ -118,7 +118,7 @@ func Test_distributeQuotas(t *testing.T) {
 				"node-3": largeAllocatable,
 			},
 			quotas: corev1.ResourceList{
-				corev1.ResourceCPU: resource.MustParse("2"),
+				corev1.ResourceLimitsCPU: resource.MustParse("2"),
 			},
 			want: map[string]corev1.ResourceList{
 				"node-1": {corev1.ResourceCPU: resource.MustParse("667m")},
@@ -139,8 +139,8 @@ func Test_distributeQuotas(t *testing.T) {
 				"node-3": largeAllocatable,
 			},
 			quotas: corev1.ResourceList{
-				corev1.ResourceCPU:  resource.MustParse("2"),
-				corev1.ResourcePods: resource.MustParse("11"),
+				corev1.ResourceLimitsCPU: resource.MustParse("2"),
+				corev1.ResourcePods:      resource.MustParse("11"),
 			},
 			want: map[string]corev1.ResourceList{
 				"node-1": {
@@ -178,8 +178,8 @@ func Test_distributeQuotas(t *testing.T) {
 				},
 			},
 			quotas: corev1.ResourceList{
-				corev1.ResourceCPU: resource.MustParse("3"),
-				"nvidia.com/gpu":   resource.MustParse("4"),
+				corev1.ResourceLimitsCPU:                       resource.MustParse("3"),
+				corev1.ResourceName("requests.nvidia.com/gpu"): resource.MustParse("4"),
 			},
 			want: map[string]corev1.ResourceList{
 				"node-1": {
@@ -210,7 +210,7 @@ func Test_distributeQuotas(t *testing.T) {
 				},
 			},
 			quotas: corev1.ResourceList{
-				corev1.ResourceCPU: resource.MustParse("6"),
+				corev1.ResourceLimitsCPU: resource.MustParse("6"),
 			},
 			// Even split would be 3 each, but node-2 only has 2 CPU.
 			// node-2 gets capped at 2, the remaining 1 goes to node-1.
@@ -234,13 +234,54 @@ func Test_distributeQuotas(t *testing.T) {
 				},
 			},
 			quotas: corev1.ResourceList{
-				"nvidia.com/gpu": resource.MustParse("4"),
+				corev1.ResourceName("requests.nvidia.com/gpu"): resource.MustParse("4"),
 			},
 			// Even split would be 2 each, but node-2 only has 1 GPU.
 			// node-2 gets capped at 1, the remaining 1 goes to node-1.
 			want: map[string]corev1.ResourceList{
 				"node-1": {"nvidia.com/gpu": resource.MustParse("3")},
 				"node-2": {"nvidia.com/gpu": resource.MustParse("1")},
+			},
+		},
+		{
+			name: "bare cpu and requests.* core resources are skipped",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": largeAllocatable,
+				"node-2": largeAllocatable,
+			},
+			quotas: corev1.ResourceList{
+				corev1.ResourceCPU:                      resource.MustParse("2"),
+				corev1.ResourceRequestsCPU:              resource.MustParse("2"),
+				corev1.ResourceRequestsMemory:           resource.MustParse("4Gi"),
+				corev1.ResourceRequestsEphemeralStorage: resource.MustParse("4Gi"),
+			},
+			want: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+			},
+		},
+		{
+			name: "limits.cpu wins when mixed with requests.cpu",
+			virtResourceMap: map[string]corev1.ResourceList{
+				"node-1": {},
+				"node-2": {},
+			},
+			hostResourceMap: map[string]corev1.ResourceList{
+				"node-1": largeAllocatable,
+				"node-2": largeAllocatable,
+			},
+			// requests.cpu must not contribute to the cpu capacity; only limits.cpu does.
+			quotas: corev1.ResourceList{
+				corev1.ResourceLimitsCPU:   resource.MustParse("2"),
+				corev1.ResourceRequestsCPU: resource.MustParse("50"),
+			},
+			want: map[string]corev1.ResourceList{
+				"node-1": {corev1.ResourceCPU: resource.MustParse("1")},
+				"node-2": {corev1.ResourceCPU: resource.MustParse("1")},
 			},
 		},
 		{
@@ -262,7 +303,7 @@ func Test_distributeQuotas(t *testing.T) {
 				},
 			},
 			quotas: corev1.ResourceList{
-				"nvidia.com/gpu": resource.MustParse("10"),
+				corev1.ResourceName("requests.nvidia.com/gpu"): resource.MustParse("10"),
 			},
 			// Total host capacity is 4, quota is 10. Each node gets its full capacity.
 			want: map[string]corev1.ResourceList{

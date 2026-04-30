@@ -305,6 +305,95 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 				return spec
 			},
 		},
+		{
+			name: "worker resources sets pods resource limits/requests",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-workerResources",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							WorkerResources: &corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("200m"),
+									corev1.ResourceMemory: resource.MustParse("256Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
+								},
+							},
+						},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.Resources = &corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("200m"),
+						corev1.ResourceMemory: resource.MustParse("256Mi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					},
+				}
+
+				return spec
+			},
+		},
+		{
+			name: "worker resources takes precedence over WorkerLimit",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-workerResources",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							WorkerLimit: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("128Mi"),
+							},
+							WorkerResources: &corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("200m"),
+									corev1.ResourceMemory: resource.MustParse("256Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
+								},
+							},
+						},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.Resources = &corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("200m"),
+						corev1.ResourceMemory: resource.MustParse("256Mi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					},
+				}
+				spec.Containers[0].Resources = corev1.ResourceRequirements{}
+
+				return spec
+			},
+		},
 	}
 
 	for _, tt := range tests {

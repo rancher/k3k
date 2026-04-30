@@ -150,6 +150,8 @@ _Appears in:_
 | `addons` _[Addon](#addon) array_ | Addons specifies secrets containing raw YAML to deploy on cluster startup. |  |  |
 | `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit specifies resource limits for server nodes. |  |  |
 | `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  |  |
+| `serverResources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core)_ | ServerResources specifies resources limits and requests for server nodes. |  |  |
+| `workerResources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core)_ | WorkerResources specifies resources limits and requests for worker nodes. |  |  |
 | `mirrorHostNodes` _boolean_ | MirrorHostNodes controls whether node objects from the host cluster<br />are mirrored into the virtual cluster. |  |  |
 | `customCAs` _[CustomCAs](#customcas)_ | CustomCAs specifies the cert/key pairs for custom CA certificates. |  |  |
 | `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |

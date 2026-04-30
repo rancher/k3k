@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -171,7 +172,14 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 
 	// Distribute each resource type from the policy's hard quota
 	for resourceName, totalQuantity := range quotas {
-		_, useMilli := milliScaleResources[resourceName]
+		// for node capacity it only makes sense to use limits for infrastructure resources like
+		// limits.cpu and limits.memory and for extended resources it only uses requests
+		filteredResourceName, eligibleResource := filterQuotaResource(resourceName)
+		if !eligibleResource {
+			continue
+		}
+
+		_, useMilli := milliScaleResources[filteredResourceName]
 
 		// eligible nodes for each distribution cycle
 		var eligibleNodes []string
@@ -185,7 +193,7 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 				continue
 			}
 
-			resourceQuantity, found := hostNodeResources[resourceName]
+			resourceQuantity, found := hostNodeResources[filteredResourceName]
 			if !found {
 				// skip the node if the resource does not exist on the host node
 				continue
@@ -225,11 +233,11 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 				nodeQuantity = min(nodeQuantity, hostCap[virtualNodeName])
 
 				if nodeQuantity > 0 {
-					existing := resourceMap[virtualNodeName][resourceName]
+					existing := resourceMap[virtualNodeName][filteredResourceName]
 					if useMilli {
-						resourceMap[virtualNodeName][resourceName] = *resource.NewMilliQuantity(existing.MilliValue()+nodeQuantity, totalQuantity.Format)
+						resourceMap[virtualNodeName][filteredResourceName] = *resource.NewMilliQuantity(existing.MilliValue()+nodeQuantity, totalQuantity.Format)
 					} else {
-						resourceMap[virtualNodeName][resourceName] = *resource.NewQuantity(existing.Value()+nodeQuantity, totalQuantity.Format)
+						resourceMap[virtualNodeName][filteredResourceName] = *resource.NewQuantity(existing.Value()+nodeQuantity, totalQuantity.Format)
 					}
 				}
 
@@ -246,4 +254,25 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 	}
 
 	return resourceMap
+}
+
+func filterQuotaResource(resourceName corev1.ResourceName) (corev1.ResourceName, bool) {
+	// skip requests. for core infrastructure resources
+	if resourceName == corev1.ResourceCPU ||
+		resourceName == corev1.ResourceMemory ||
+		resourceName == corev1.ResourceEphemeralStorage ||
+		resourceName == corev1.ResourceRequestsCPU ||
+		resourceName == corev1.ResourceRequestsMemory ||
+		resourceName == corev1.ResourceRequestsEphemeralStorage {
+		return resourceName, false
+	}
+
+	// for other resources, strip limits and requests prefix
+	// for example "requests.nvidia.com/gpu" will return back "nvidia.com/gpu"
+	// to update the virtual node capacity properly
+	filteredResourceName := strings.TrimPrefix(resourceName.String(), "requests.")
+	filteredResourceName = strings.TrimPrefix(filteredResourceName, "limits.")
+
+	return corev1.ResourceName(filteredResourceName), true
+
 }

@@ -104,7 +104,9 @@ serviceName: %s
 token: %v
 mirrorHostNodes: %t
 version: %s
-kubeletPort: %d`,
+kubeletPort: %d
+log: /var/log/k3s.log
+alsologtostderr: true`,
 		cluster.Name, cluster.Namespace, ip, serviceName, token, cluster.Spec.MirrorHostNodes, version, kubeletPort)
 }
 

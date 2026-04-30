@@ -271,6 +271,13 @@ func (s *SharedAgent) podSpec() v1.PodSpec {
 		}
 	}
 
+	// specifying WorkerResources will take precedence over WorkerLimits
+	if s.cluster.Spec.WorkerResources != nil {
+		// removing container previous limit
+		podSpec.Containers[0].Resources = v1.ResourceRequirements{}
+		podSpec.Resources = s.cluster.Spec.WorkerResources
+	}
+
 	return podSpec
 }
 

@@ -201,6 +201,8 @@ Example: ["--node-name=my-agent-node"] + |  |
 | *`addons`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-addon[$$Addon$$] array__ | Addons specifies secrets containing raw YAML to deploy on cluster startup. + |  | 
 | *`serverLimit`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core[$$ResourceList$$]__ | ServerLimit specifies resource limits for server nodes. + |  | 
 | *`workerLimit`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core[$$ResourceList$$]__ | WorkerLimit specifies resource limits for agent nodes. + |  | 
+| *`serverResources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | ServerResources specifies resources limits and requests for server nodes. + |  | 
+| *`workerResources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | WorkerResources specifies resources limits and requests for worker nodes. + |  | 
 | *`mirrorHostNodes`* __boolean__ | MirrorHostNodes controls whether node objects from the host cluster +
 are mirrored into the virtual cluster. + |  | 
 | *`customCAs`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customcas[$$CustomCAs$$]__ | CustomCAs specifies the cert/key pairs for custom CA certificates. + |  | 

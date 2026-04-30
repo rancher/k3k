@@ -242,6 +242,13 @@ func (s *Server) podSpec(image, name string, persistent bool, startupCmd string)
 		}
 	}
 
+	// specifying ServerResources will take precedence over ServerLimits
+	if s.cluster.Spec.ServerResources != nil {
+		// removing container previous limit
+		podSpec.Containers[0].Resources = v1.ResourceRequirements{}
+		podSpec.Resources = s.cluster.Spec.ServerResources
+	}
+
 	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, s.cluster.Spec.ServerEnvs...)
 
 	// add image pull secrets

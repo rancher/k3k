@@ -273,6 +273,13 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 		}
 	}
 
+	// specifying WorkerResources will take precedence over WorkerLimits
+	if v.cluster.Spec.WorkerResources != nil {
+		// removing container previous limit
+		podSpec.Containers[0].Resources = corev1.ResourceRequirements{}
+		podSpec.Resources = v.cluster.Spec.WorkerResources
+	}
+
 	for _, imagePullSecret := range v.imagePullSecrets {
 		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
 	}

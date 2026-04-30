@@ -169,6 +169,16 @@ type ClusterSpec struct {
 	// +optional
 	WorkerLimit corev1.ResourceList `json:"workerLimit,omitempty"`
 
+	// ServerResources specifies resources limits and requests for server nodes.
+	//
+	// +optional
+	ServerResources *corev1.ResourceRequirements `json:"serverResources,omitempty"`
+
+	// WorkerResources specifies resources limits and requests for worker nodes.
+	//
+	// +optional
+	WorkerResources *corev1.ResourceRequirements `json:"workerResources,omitempty"`
+
 	// ServerAffinity specifies the affinity rules for server pods.
 	// This includes both node affinity and pod affinity/anti-affinity rules.
 	//

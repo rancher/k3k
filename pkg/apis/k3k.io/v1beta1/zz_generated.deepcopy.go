@@ -220,6 +220,16 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*out)[key] = val.DeepCopy()
 		}
 	}
+	if in.ServerResources != nil {
+		in, out := &in.ServerResources, &out.ServerResources
+		*out = new(v1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.WorkerResources != nil {
+		in, out := &in.WorkerResources, &out.WorkerResources
+		*out = new(v1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.ServerAffinity != nil {
 		in, out := &in.ServerAffinity, &out.ServerAffinity
 		*out = new(v1.Affinity)

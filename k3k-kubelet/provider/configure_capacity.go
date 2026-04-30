@@ -274,5 +274,4 @@ func filterQuotaResource(resourceName corev1.ResourceName) (corev1.ResourceName,
 	filteredResourceName = strings.TrimPrefix(filteredResourceName, "limits.")
 
 	return corev1.ResourceName(filteredResourceName), true
-
 }

@@ -22,12 +22,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PORT_ISSUE_TOKEN }}
         run: |
-          if gh api orgs/${GITHUB_REPOSITORY_OWNER}/members --paginate | jq -e --arg GITHUB_ACTOR "$GITHUB_ACTOR" '.[] | select(.login == $GITHUB_ACTOR)' > /dev/null; then
+          set -o pipefail
+          response="$(gh api -i "orgs/${GITHUB_REPOSITORY_OWNER}/members/${GITHUB_ACTOR}" 2>&1)" || status=$?
+
+          if [ -n "${status:-}" ]; then
+              echo "Failed to check whether ${GITHUB_ACTOR} is a member of ${GITHUB_REPOSITORY_OWNER}" >> "$GITHUB_STEP_SUMMARY"
+              echo "$response" >> "$GITHUB_STEP_SUMMARY"
+              exit "$status"
+          fi
+
+          http_status="$(printf '%s\n' "$response" | awk 'toupper($1) ~ /^HTTP\/[0-9.]+$/ {code=$2} END {print code}')"
+
+          if [ "$http_status" = "204" ]; then
               echo "${GITHUB_ACTOR} is a member"
-              echo "is_member=true" >> $GITHUB_OUTPUT
+              echo "is_member=true" >> "$GITHUB_OUTPUT"
+          elif [ "$http_status" = "404" ]; then
+              echo "${GITHUB_ACTOR} is not a member of ${GITHUB_REPOSITORY_OWNER}" >> "$GITHUB_STEP_SUMMARY"
+              echo "is_member=false" >> "$GITHUB_OUTPUT"
           else
-              echo "${GITHUB_ACTOR} is not a member of ${GITHUB_REPOSITORY_OWNER}" >> $GITHUB_STEP_SUMMARY
-              echo "is_member=false" >> $GITHUB_OUTPUT
+              echo "Unexpected response while checking whether ${GITHUB_ACTOR} is a member of ${GITHUB_REPOSITORY_OWNER} (HTTP ${http_status:-unknown})" >> "$GITHUB_STEP_SUMMARY"
+              echo "$response" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
           fi
       - name: Check milestone
         if: steps.membership.outputs.is_member == 'true'

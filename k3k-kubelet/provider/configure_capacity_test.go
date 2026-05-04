@@ -316,7 +316,8 @@ func Test_distributeQuotas(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := distributeQuotas(tt.hostResourceMap, tt.virtResourceMap, tt.quotas)
+			filteredQuota := filterQuotas(tt.quotas)
+			got := distributeQuotas(tt.hostResourceMap, tt.virtResourceMap, filteredQuota)
 
 			assert.Equal(t, len(tt.want), len(got), "Number of nodes in result should match")
 

@@ -38,6 +38,19 @@ var milliScaleResources = map[corev1.ResourceName]struct{}{
 	corev1.ResourceLimitsEphemeralStorage:   {},
 }
 
+// coreResources is a set of the core infrastructure resource requests, if a quota resource
+// is in this map then it should not be reflected to the virtual node capacity.
+var coreResources = map[corev1.ResourceName]struct{}{
+	corev1.ResourceCPU:                      {},
+	corev1.ResourceMemory:                   {},
+	corev1.ResourceStorage:                  {},
+	corev1.ResourceEphemeralStorage:         {},
+	corev1.ResourceRequestsCPU:              {},
+	corev1.ResourceRequestsMemory:           {},
+	corev1.ResourceRequestsStorage:          {},
+	corev1.ResourceRequestsEphemeralStorage: {},
+}
+
 // StartNodeCapacityUpdater starts a goroutine that periodically updates the capacity
 // of the virtual node based on host node capacity and any applied ResourceQuotas.
 func startNodeCapacityUpdater(ctx context.Context, logger logr.Logger, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, virtualNodeName string) {
@@ -110,6 +123,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 		}
 
 		mergedQuota := mergeQuotas(resourceLists...)
+		mergedQuota = filterQuotas(mergedQuota)
 
 		// get the node's quota and merge it with the current values
 		m := distributeQuotas(hostResourceMap, virtResourceMap, mergedQuota)
@@ -172,14 +186,7 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 
 	// Distribute each resource type from the policy's hard quota
 	for resourceName, totalQuantity := range quotas {
-		// for node capacity it only makes sense to use limits for infrastructure resources like
-		// limits.cpu and limits.memory and for extended resources it only uses requests
-		filteredResourceName, eligibleResource := filterQuotaResource(resourceName)
-		if !eligibleResource {
-			continue
-		}
-
-		_, useMilli := milliScaleResources[filteredResourceName]
+		_, useMilli := milliScaleResources[resourceName]
 
 		// eligible nodes for each distribution cycle
 		var eligibleNodes []string
@@ -193,7 +200,7 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 				continue
 			}
 
-			resourceQuantity, found := hostNodeResources[filteredResourceName]
+			resourceQuantity, found := hostNodeResources[resourceName]
 			if !found {
 				// skip the node if the resource does not exist on the host node
 				continue
@@ -233,11 +240,11 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 				nodeQuantity = min(nodeQuantity, hostCap[virtualNodeName])
 
 				if nodeQuantity > 0 {
-					existing := resourceMap[virtualNodeName][filteredResourceName]
+					existing := resourceMap[virtualNodeName][resourceName]
 					if useMilli {
-						resourceMap[virtualNodeName][filteredResourceName] = *resource.NewMilliQuantity(existing.MilliValue()+nodeQuantity, totalQuantity.Format)
+						resourceMap[virtualNodeName][resourceName] = *resource.NewMilliQuantity(existing.MilliValue()+nodeQuantity, totalQuantity.Format)
 					} else {
-						resourceMap[virtualNodeName][filteredResourceName] = *resource.NewQuantity(existing.Value()+nodeQuantity, totalQuantity.Format)
+						resourceMap[virtualNodeName][resourceName] = *resource.NewQuantity(existing.Value()+nodeQuantity, totalQuantity.Format)
 					}
 				}
 
@@ -256,22 +263,21 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 	return resourceMap
 }
 
-func filterQuotaResource(resourceName corev1.ResourceName) (corev1.ResourceName, bool) {
-	// skip requests. for core infrastructure resources
-	if resourceName == corev1.ResourceCPU ||
-		resourceName == corev1.ResourceMemory ||
-		resourceName == corev1.ResourceEphemeralStorage ||
-		resourceName == corev1.ResourceRequestsCPU ||
-		resourceName == corev1.ResourceRequestsMemory ||
-		resourceName == corev1.ResourceRequestsEphemeralStorage {
-		return resourceName, false
+// filterQuotas filters a resource list from any resource that is not eligible to be used for node capacity
+// like core resources requests, it also strips requests/limits prefixes from other extended resources
+// for example "requests.nvidia.com/gpu" will return back "nvidia.com/gpu"
+func filterQuotas(resources corev1.ResourceList) corev1.ResourceList {
+	filteredResources := make(map[corev1.ResourceName]resource.Quantity)
+
+	for resourceName, resourceValue := range resources {
+		if _, ok := coreResources[resourceName]; ok {
+			continue
+		}
+
+		filteredResourceName := strings.TrimPrefix(resourceName.String(), "requests.")
+		filteredResourceName = strings.TrimPrefix(filteredResourceName, "limits.")
+		filteredResources[corev1.ResourceName(filteredResourceName)] = resourceValue
 	}
 
-	// for other resources, strip limits and requests prefix
-	// for example "requests.nvidia.com/gpu" will return back "nvidia.com/gpu"
-	// to update the virtual node capacity properly
-	filteredResourceName := strings.TrimPrefix(resourceName.String(), "requests.")
-	filteredResourceName = strings.TrimPrefix(filteredResourceName, "limits.")
-
-	return corev1.ResourceName(filteredResourceName), true
+	return filteredResources
 }

@@ -336,3 +336,79 @@ func Test_distributeQuotas(t *testing.T) {
 		})
 	}
 }
+
+func Test_filterQuotas(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := corev1.AddToScheme(scheme)
+	assert.NoError(t, err)
+
+	tests := []struct {
+		name   string
+		quotas corev1.ResourceList
+		want   corev1.ResourceList
+	}{
+		{
+			name: "no quotas",
+			want: corev1.ResourceList{},
+		}, {
+			name: "filter core infrastructure request resources with no requests prefix",
+			quotas: corev1.ResourceList{
+				corev1.ResourceCPU:              resource.MustParse("500m"),
+				corev1.ResourceMemory:           resource.MustParse("1Gi"),
+				corev1.ResourceStorage:          resource.MustParse("5Gi"),
+				corev1.ResourceEphemeralStorage: resource.MustParse("5Gi"),
+			},
+			want: corev1.ResourceList{},
+		}, {
+			name: "filter core infrastructure request resources with requests prefix",
+			quotas: corev1.ResourceList{
+				corev1.ResourceRequestsCPU:              resource.MustParse("500m"),
+				corev1.ResourceRequestsMemory:           resource.MustParse("1Gi"),
+				corev1.ResourceRequestsStorage:          resource.MustParse("5Gi"),
+				corev1.ResourceRequestsEphemeralStorage: resource.MustParse("5Gi"),
+			},
+			want: corev1.ResourceList{},
+		}, {
+			name: "trim limits prefix in core infrastructure resources",
+			quotas: corev1.ResourceList{
+				corev1.ResourceLimitsCPU:              resource.MustParse("500m"),
+				corev1.ResourceLimitsMemory:           resource.MustParse("1Gi"),
+				corev1.ResourceLimitsEphemeralStorage: resource.MustParse("5Gi"),
+			},
+			want: corev1.ResourceList{
+				corev1.ResourceCPU:              resource.MustParse("500m"),
+				corev1.ResourceMemory:           resource.MustParse("1Gi"),
+				corev1.ResourceEphemeralStorage: resource.MustParse("5Gi"),
+			},
+		}, {
+			name: "trim requests prefix in extended resources",
+			quotas: corev1.ResourceList{
+				"requests.nvidia.com/gpu": resource.MustParse("2"),
+			},
+			want: corev1.ResourceList{
+				"nvidia.com/gpu": resource.MustParse("2"),
+			},
+		}, {
+			name: "will not filter extended resources or object counts",
+			quotas: corev1.ResourceList{
+				"nvidia.com/gpu":    resource.MustParse("2"),
+				corev1.ResourcePods: resource.MustParse("5"),
+			},
+			want: corev1.ResourceList{
+				"nvidia.com/gpu":    resource.MustParse("2"),
+				corev1.ResourcePods: resource.MustParse("5"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filteredQuota := filterQuotas(tt.quotas)
+
+			for expectedResourceName, expectedResourceQty := range tt.want {
+				actualResourceQty, ok := filteredQuota[expectedResourceName]
+				assert.True(t, ok, "%s resource is not found in filtered quotas", expectedResourceName)
+				assert.True(t, expectedResourceQty.Equal(actualResourceQty), "Filtered Resource %s did not match. want: %s, got: %s", expectedResourceName, expectedResourceQty.String(), actualResourceQty.String())
+			}
+		})
+	}
+}

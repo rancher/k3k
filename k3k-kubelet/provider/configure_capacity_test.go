@@ -125,9 +125,21 @@ func Test_distributeQuotas(t *testing.T) {
 				corev1.ResourceCPU: resource.MustParse("2"),
 			},
 			want: map[string]corev1.ResourceList{
-				"node-1": {corev1.ResourceCPU: resource.MustParse("667m"), corev1.ResourceMemory: resource.MustParse("100Gi"), corev1.ResourcePods: resource.MustParse("1000")},
-				"node-2": {corev1.ResourceCPU: resource.MustParse("667m"), corev1.ResourceMemory: resource.MustParse("100Gi"), corev1.ResourcePods: resource.MustParse("1000")},
-				"node-3": {corev1.ResourceCPU: resource.MustParse("666m"), corev1.ResourceMemory: resource.MustParse("100Gi"), corev1.ResourcePods: resource.MustParse("1000")},
+				"node-1": {
+					corev1.ResourceCPU:    resource.MustParse("667m"),
+					corev1.ResourceMemory: resource.MustParse("100Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
+				},
+				"node-2": {
+					corev1.ResourceCPU:    resource.MustParse("667m"),
+					corev1.ResourceMemory: resource.MustParse("100Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
+				},
+				"node-3": {
+					corev1.ResourceCPU:    resource.MustParse("666m"),
+					corev1.ResourceMemory: resource.MustParse("100Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
+				},
 			},
 		},
 		{

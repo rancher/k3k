@@ -184,6 +184,16 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 	resourceMap := make(map[string]corev1.ResourceList, len(virtResourceMap))
 	maps.Copy(resourceMap, virtResourceMap)
 
+	// fill out any allocatable resource that does not exist in quota
+	for vn := range virtResourceMap {
+		if hostResources, ok := hostResourceMap[vn]; ok {
+			for resourceName, resourceQty := range hostResources {
+				if _, ok := quotas[resourceName]; !ok {
+					resourceMap[vn][resourceName] = resourceQty
+				}
+			}
+		}
+	}
 	// Distribute each resource type from the policy's hard quota
 	for resourceName, totalQuantity := range quotas {
 		_, useMilli := milliScaleResources[resourceName]

@@ -86,10 +86,7 @@ func (v *VirtualAgent) config(ctx context.Context) error {
 func virtualAgentData(serviceIP, token string) string {
 	return fmt.Sprintf(`server: https://%s
 token: %s
-with-node-id: true
-log: /var/log/k3s.log
-alsologtostderr: true`,
-		serviceIP, token)
+with-node-id: true`, serviceIP, token)
 }
 
 func (v *VirtualAgent) deployment(ctx context.Context) error {

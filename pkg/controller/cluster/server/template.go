@@ -71,7 +71,7 @@ start_single_node() {
 	info "Adding pod IP file."
 	echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-	exec /bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS
+	/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
 }
 
 start_ha_node() {
@@ -81,14 +81,14 @@ start_ha_node() {
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		exec /bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS
+		/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
 	else
 		safe_mode {{.SERVER_CONFIG}}
 
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		exec /bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS
+		/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.info 
 	fi
 }
 

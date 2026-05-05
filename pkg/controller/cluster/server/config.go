@@ -93,10 +93,6 @@ func serverOptions(cluster *v1beta1.Cluster, token string, configOptions ...stri
 		opts = append(opts, "- local-storage")
 	}
 
-	// log to both file and console.
-	opts = append(opts, "log: /var/log/k3s.log")
-	opts = append(opts, "alsologtostderr: true")
-
 	// TODO: Add extra args to the options
 
 	return strings.Join(opts, "\n")

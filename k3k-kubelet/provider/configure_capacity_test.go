@@ -49,8 +49,8 @@ func Test_distributeQuotas(t *testing.T) {
 			},
 			quotas: corev1.ResourceList{},
 			want: map[string]corev1.ResourceList{
-				"node-1": {},
-				"node-2": {},
+				"node-1": largeAllocatable,
+				"node-2": largeAllocatable,
 			},
 		},
 		{
@@ -73,10 +73,12 @@ func Test_distributeQuotas(t *testing.T) {
 				"node-1": {
 					corev1.ResourceCPU:    resource.MustParse("1"),
 					corev1.ResourceMemory: resource.MustParse("2Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
 				},
 				"node-2": {
 					corev1.ResourceCPU:    resource.MustParse("1"),
 					corev1.ResourceMemory: resource.MustParse("2Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
 				},
 			},
 		},
@@ -98,10 +100,12 @@ func Test_distributeQuotas(t *testing.T) {
 				"node-1": {
 					corev1.ResourceCPU:    resource.MustParse("1"),
 					corev1.ResourceMemory: resource.MustParse("2Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
 				},
 				"node-2": {
 					corev1.ResourceCPU:    resource.MustParse("1"),
 					corev1.ResourceMemory: resource.MustParse("2Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
 				},
 			},
 		},
@@ -121,9 +125,21 @@ func Test_distributeQuotas(t *testing.T) {
 				corev1.ResourceCPU: resource.MustParse("2"),
 			},
 			want: map[string]corev1.ResourceList{
-				"node-1": {corev1.ResourceCPU: resource.MustParse("667m")},
-				"node-2": {corev1.ResourceCPU: resource.MustParse("667m")},
-				"node-3": {corev1.ResourceCPU: resource.MustParse("666m")},
+				"node-1": {
+					corev1.ResourceCPU:    resource.MustParse("667m"),
+					corev1.ResourceMemory: resource.MustParse("100Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
+				},
+				"node-2": {
+					corev1.ResourceCPU:    resource.MustParse("667m"),
+					corev1.ResourceMemory: resource.MustParse("100Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
+				},
+				"node-3": {
+					corev1.ResourceCPU:    resource.MustParse("666m"),
+					corev1.ResourceMemory: resource.MustParse("100Gi"),
+					corev1.ResourcePods:   resource.MustParse("1000"),
+				},
 			},
 		},
 		{
@@ -144,16 +160,19 @@ func Test_distributeQuotas(t *testing.T) {
 			},
 			want: map[string]corev1.ResourceList{
 				"node-1": {
-					corev1.ResourceCPU:  resource.MustParse("667m"),
-					corev1.ResourcePods: resource.MustParse("4"),
+					corev1.ResourceCPU:    resource.MustParse("667m"),
+					corev1.ResourcePods:   resource.MustParse("4"),
+					corev1.ResourceMemory: resource.MustParse("100Gi"),
 				},
 				"node-2": {
-					corev1.ResourceCPU:  resource.MustParse("667m"),
-					corev1.ResourcePods: resource.MustParse("4"),
+					corev1.ResourceCPU:    resource.MustParse("667m"),
+					corev1.ResourcePods:   resource.MustParse("4"),
+					corev1.ResourceMemory: resource.MustParse("100Gi"),
 				},
 				"node-3": {
-					corev1.ResourceCPU:  resource.MustParse("666m"),
-					corev1.ResourcePods: resource.MustParse("3"),
+					corev1.ResourceCPU:    resource.MustParse("666m"),
+					corev1.ResourcePods:   resource.MustParse("3"),
+					corev1.ResourceMemory: resource.MustParse("100Gi"),
 				},
 			},
 		},
@@ -275,6 +294,7 @@ func Test_distributeQuotas(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// quotas are assumed to be filtered and merged into one list. there is a dedicated test for filtering quotas
 			got := distributeQuotas(tt.hostResourceMap, tt.virtResourceMap, tt.quotas)
 
 			assert.Equal(t, len(tt.want), len(got), "Number of nodes in result should match")
@@ -290,6 +310,167 @@ func Test_distributeQuotas(t *testing.T) {
 					assert.True(t, ok, "Resource %s not found for node %s", resName, nodeName)
 					assert.True(t, expectedQty.Equal(actualQty), "Resource %s for node %s did not match. want: %s, got: %s", resName, nodeName, expectedQty.String(), actualQty.String())
 				}
+			}
+		})
+	}
+}
+
+func Test_mergeQuotas(t *testing.T) {
+	tests := []struct {
+		name       string
+		quotasList []corev1.ResourceList
+		want       corev1.ResourceList
+	}{
+		{
+			name:       "no resource lists",
+			quotasList: []corev1.ResourceList{},
+			want:       corev1.ResourceList{},
+		},
+		{
+			name: "single resource list",
+			quotasList: []corev1.ResourceList{
+				{
+					corev1.ResourceCPU:    resource.MustParse("4"),
+					corev1.ResourceMemory: resource.MustParse("8Gi"),
+				},
+			},
+			want: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceMemory: resource.MustParse("8Gi"),
+			},
+		},
+		{
+			name: "most restrictive value wins",
+			quotasList: []corev1.ResourceList{
+				{
+					corev1.ResourceCPU:    resource.MustParse("8"),
+					corev1.ResourceMemory: resource.MustParse("16Gi"),
+				},
+				{
+					corev1.ResourceCPU:    resource.MustParse("4"),
+					corev1.ResourceMemory: resource.MustParse("32Gi"),
+				},
+			},
+			want: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceMemory: resource.MustParse("16Gi"),
+			},
+		},
+		{
+			name: "resource only in one list is included",
+			quotasList: []corev1.ResourceList{
+				{
+					corev1.ResourceCPU: resource.MustParse("4"),
+				},
+				{
+					corev1.ResourceCPU:    resource.MustParse("8"),
+					corev1.ResourceMemory: resource.MustParse("16Gi"),
+				},
+			},
+			want: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceMemory: resource.MustParse("16Gi"),
+			},
+		},
+		{
+			name: "three lists pick minimum across all",
+			quotasList: []corev1.ResourceList{
+				{corev1.ResourceCPU: resource.MustParse("10")},
+				{corev1.ResourceCPU: resource.MustParse("6")},
+				{corev1.ResourceCPU: resource.MustParse("8")},
+			},
+			want: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("6"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mergeQuotas(tt.quotasList...)
+
+			assert.Equal(t, len(tt.want), len(got), "Number of resources in merged quota should match")
+
+			for resName, expectedQty := range tt.want {
+				actualQty, ok := got[resName]
+				assert.True(t, ok, "Resource %s not found in merged quota", resName)
+				assert.True(t, expectedQty.Equal(actualQty), "Resource %s did not match. want: %s, got: %s", resName, expectedQty.String(), actualQty.String())
+			}
+		})
+	}
+}
+
+func Test_filterQuotas(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := corev1.AddToScheme(scheme)
+	assert.NoError(t, err)
+
+	tests := []struct {
+		name   string
+		quotas corev1.ResourceList
+		want   corev1.ResourceList
+	}{
+		{
+			name: "no quotas",
+			want: corev1.ResourceList{},
+		}, {
+			name: "filter core infrastructure request resources with no requests prefix",
+			quotas: corev1.ResourceList{
+				corev1.ResourceCPU:              resource.MustParse("500m"),
+				corev1.ResourceMemory:           resource.MustParse("1Gi"),
+				corev1.ResourceStorage:          resource.MustParse("5Gi"),
+				corev1.ResourceEphemeralStorage: resource.MustParse("5Gi"),
+			},
+			want: corev1.ResourceList{},
+		}, {
+			name: "filter core infrastructure request resources with requests prefix",
+			quotas: corev1.ResourceList{
+				corev1.ResourceRequestsCPU:              resource.MustParse("500m"),
+				corev1.ResourceRequestsMemory:           resource.MustParse("1Gi"),
+				corev1.ResourceRequestsStorage:          resource.MustParse("5Gi"),
+				corev1.ResourceRequestsEphemeralStorage: resource.MustParse("5Gi"),
+			},
+			want: corev1.ResourceList{},
+		}, {
+			name: "trim limits prefix in core infrastructure resources",
+			quotas: corev1.ResourceList{
+				corev1.ResourceLimitsCPU:              resource.MustParse("500m"),
+				corev1.ResourceLimitsMemory:           resource.MustParse("1Gi"),
+				corev1.ResourceLimitsEphemeralStorage: resource.MustParse("5Gi"),
+			},
+			want: corev1.ResourceList{
+				corev1.ResourceCPU:              resource.MustParse("500m"),
+				corev1.ResourceMemory:           resource.MustParse("1Gi"),
+				corev1.ResourceEphemeralStorage: resource.MustParse("5Gi"),
+			},
+		}, {
+			name: "trim requests prefix in extended resources",
+			quotas: corev1.ResourceList{
+				"requests.nvidia.com/gpu": resource.MustParse("2"),
+			},
+			want: corev1.ResourceList{
+				"nvidia.com/gpu": resource.MustParse("2"),
+			},
+		}, {
+			name: "will not filter extended resources or object counts",
+			quotas: corev1.ResourceList{
+				"nvidia.com/gpu":    resource.MustParse("2"),
+				corev1.ResourcePods: resource.MustParse("5"),
+			},
+			want: corev1.ResourceList{
+				"nvidia.com/gpu":    resource.MustParse("2"),
+				corev1.ResourcePods: resource.MustParse("5"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filteredQuota := filterQuotas(tt.quotas)
+
+			for expectedResourceName, expectedResourceQty := range tt.want {
+				actualResourceQty, ok := filteredQuota[expectedResourceName]
+				assert.True(t, ok, "%s resource is not found in filtered quotas", expectedResourceName)
+				assert.True(t, expectedResourceQty.Equal(actualResourceQty), "Filtered Resource %s did not match. want: %s, got: %s", expectedResourceName, expectedResourceQty.String(), actualResourceQty.String())
 			}
 		})
 	}

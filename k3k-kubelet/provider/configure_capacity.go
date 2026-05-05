@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -35,6 +36,19 @@ var milliScaleResources = map[corev1.ResourceName]struct{}{
 	corev1.ResourceLimitsCPU:                {},
 	corev1.ResourceLimitsMemory:             {},
 	corev1.ResourceLimitsEphemeralStorage:   {},
+}
+
+// coreResources is a set of the core infrastructure resource requests, if a quota resource
+// is in this map then it should not be reflected to the virtual node capacity.
+var coreResources = map[corev1.ResourceName]struct{}{
+	corev1.ResourceCPU:                      {},
+	corev1.ResourceMemory:                   {},
+	corev1.ResourceStorage:                  {},
+	corev1.ResourceEphemeralStorage:         {},
+	corev1.ResourceRequestsCPU:              {},
+	corev1.ResourceRequestsMemory:           {},
+	corev1.ResourceRequestsStorage:          {},
+	corev1.ResourceRequestsEphemeralStorage: {},
 }
 
 // StartNodeCapacityUpdater starts a goroutine that periodically updates the capacity
@@ -109,6 +123,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 		}
 
 		mergedQuota := mergeQuotas(resourceLists...)
+		mergedQuota = filterQuotas(mergedQuota)
 
 		// get the node's quota and merge it with the current values
 		m := distributeQuotas(hostResourceMap, virtResourceMap, mergedQuota)
@@ -169,6 +184,16 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 	resourceMap := make(map[string]corev1.ResourceList, len(virtResourceMap))
 	maps.Copy(resourceMap, virtResourceMap)
 
+	// fill out any allocatable resource that does not exist in quota
+	for vn := range virtResourceMap {
+		if hostResources, ok := hostResourceMap[vn]; ok {
+			for resourceName, resourceQty := range hostResources {
+				if _, ok := quotas[resourceName]; !ok {
+					resourceMap[vn][resourceName] = resourceQty
+				}
+			}
+		}
+	}
 	// Distribute each resource type from the policy's hard quota
 	for resourceName, totalQuantity := range quotas {
 		_, useMilli := milliScaleResources[resourceName]
@@ -246,4 +271,23 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 	}
 
 	return resourceMap
+}
+
+// filterQuotas filters a resource list from any resource that is not eligible to be used for node capacity
+// like core resources requests, it also strips requests/limits prefixes from other extended resources
+// for example "requests.nvidia.com/gpu" will return back "nvidia.com/gpu"
+func filterQuotas(resources corev1.ResourceList) corev1.ResourceList {
+	filteredResources := make(map[corev1.ResourceName]resource.Quantity)
+
+	for resourceName, resourceValue := range resources {
+		if _, ok := coreResources[resourceName]; ok {
+			continue
+		}
+
+		filteredResourceName := strings.TrimPrefix(resourceName.String(), "requests.")
+		filteredResourceName = strings.TrimPrefix(filteredResourceName, "limits.")
+		filteredResources[corev1.ResourceName(filteredResourceName)] = resourceValue
+	}
+
+	return filteredResources
 }

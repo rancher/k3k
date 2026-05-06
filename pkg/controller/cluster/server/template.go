@@ -94,8 +94,29 @@ start_ha_node() {
 
 # Configuring cgroups for k3s process in virtual mode
 configure_cgroups() {
+	runtime_class="{{.RUNTIME_CLASS}}"
+	if [ "${runtime_class#kata}" != "$runtime_class" ]; then
+
+		CGROUP_PATH=$(cat /proc/self/cgroup | cut -d: -f3)
+		CGROUP_DIR="/sys/fs/cgroup${CGROUP_PATH}"
+
+		# Move shell to init subcgroup to keep main cgroup clean for k3s children
+		INIT_DIR="${CGROUP_DIR}init"
+		mkdir -p "$INIT_DIR" 2>/dev/null
+
+		PID=$(cut -d' ' -f4 /proc/self/stat)
+
+		echo "$PID" > "$INIT_DIR/cgroup.procs"
+
+		for controller in $(cat "$CGROUP_DIR/cgroup.controllers"); do
+			echo "+$controller" > "$CGROUP_DIR/cgroup.subtree_control" 2>/dev/null || true
+		done
+
+		return
+	fi
+
 	# only configure the cgroups if the runtime used is the default and the mode is virtual
-	if [ -n "{{.RUNTIME_CLASS}}" ] || [ "{{.K3K_MODE}}" != "virtual" ]; then
+	if [ -n "$runtime_class" ] || [ "{{.K3K_MODE}}" != "virtual" ]; then
 		return
 	fi
 

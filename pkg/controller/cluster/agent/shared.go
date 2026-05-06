@@ -122,8 +122,8 @@ func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, ku
 		Version:          version,
 		KubeletPort:      kubeletPort,
 	}
-	return yaml.Marshal(sharedAgentConfig)
 
+	return yaml.Marshal(sharedAgentConfig)
 }
 
 func (s *SharedAgent) daemonset(ctx context.Context) error {

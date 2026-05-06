@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -33,6 +34,17 @@ type SharedAgent struct {
 	token            string
 	kubeletPort      int
 	imagePullSecrets []string
+}
+
+type sharedAgentConfig struct {
+	ClusterName      string `yaml:"clusterName"`
+	ClusterNamespace string `yaml:"clusterNamespace"`
+	ServerIP         string `yaml:"serverIP"`
+	ServiceName      string `yaml:"serviceName"`
+	Token            string `yaml:"token"`
+	MirrorHostNodes  bool   `yaml:"mirrorHostNodes"`
+	Version          string `yaml:"version"`
+	KubeletPort      int    `yaml:"kubeletPort"`
 }
 
 func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort int, imagePullSecrets []string) *SharedAgent {
@@ -72,7 +84,10 @@ func (s *SharedAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Ob
 }
 
 func (s *SharedAgent) config(ctx context.Context) error {
-	config := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP, s.kubeletPort)
+	config, err := sharedAgentData(s.cluster, s.Name(), s.token, s.serviceIP, s.kubeletPort)
+	if err != nil {
+		return err
+	}
 
 	configSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -84,28 +99,31 @@ func (s *SharedAgent) config(ctx context.Context) error {
 			Namespace: s.cluster.Namespace,
 		},
 		Data: map[string][]byte{
-			"config.yaml": []byte(config),
+			"config.yaml": config,
 		},
 	}
 
 	return s.ensureObject(ctx, configSecret)
 }
 
-func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, kubeletPort int) string {
+func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, kubeletPort int) ([]byte, error) {
 	version := cluster.Spec.Version
 	if cluster.Spec.Version == "" {
 		version = cluster.Status.HostVersion
 	}
 
-	return fmt.Sprintf(`clusterName: %s
-clusterNamespace: %s
-serverIP: %s
-serviceName: %s
-token: %v
-mirrorHostNodes: %t
-version: %s
-kubeletPort: %d`,
-		cluster.Name, cluster.Namespace, ip, serviceName, token, cluster.Spec.MirrorHostNodes, version, kubeletPort)
+	sharedAgentConfig := sharedAgentConfig{
+		ClusterName:      cluster.Name,
+		ClusterNamespace: cluster.Namespace,
+		ServerIP:         ip,
+		ServiceName:      serviceName,
+		Token:            token,
+		MirrorHostNodes:  cluster.Spec.MirrorHostNodes,
+		Version:          version,
+		KubeletPort:      kubeletPort,
+	}
+	return yaml.Marshal(sharedAgentConfig)
+
 }
 
 func (s *SharedAgent) daemonset(ctx context.Context) error {

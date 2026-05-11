@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       k3k_version:
-        description: 'K3k version to test (e.g. v1.0.2). Leave empty to build from source.'
+        description: 'K3k version to test (e.g. v1.1.0). Leave empty to build from source.'
         required: false
         type: string
       k8s_version:

@@ -2,10 +2,8 @@ package server
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
-	"gotest.tools/assert"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -188,7 +186,9 @@ func Test_BuildServerConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			serverConfig := buildServerConfig(tt.args.cluster, tt.args.initServer, tt.args.serviceIP, tt.args.token)
-			assert.DeepEqual(t, tt.expectedData, serverConfig, cmp.AllowUnexported(serverConfig))
+			if !reflect.DeepEqual(tt.expectedData, serverConfig) {
+				t.Errorf("found %v, expected %v", serverConfig, tt.expectedData)
+			}
 		})
 	}
 }

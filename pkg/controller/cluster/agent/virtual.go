@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"gopkg.in/yaml.v3"
 	"k8s.io/utils/ptr"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -30,6 +31,12 @@ type VirtualAgent struct {
 	ImagePullPolicy  string
 	ImageRegistry    string
 	imagePullSecrets []string
+}
+
+type virtualAgentConfig struct {
+	Server     string `yaml:"server"`
+	Token      string `yaml:"token"`
+	WithNodeId bool   `yaml:"with-node-id"`
 }
 
 func NewVirtualAgent(config *Config, serviceIP, token, Image, ImagePullPolicy string, imagePullSecrets []string) *VirtualAgent {
@@ -63,7 +70,10 @@ func (v *VirtualAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.O
 }
 
 func (v *VirtualAgent) config(ctx context.Context) error {
-	config := virtualAgentData(v.serviceIP, v.token)
+	config, err := virtualAgentData(v.serviceIP, v.token)
+	if err != nil {
+		return err
+	}
 
 	configSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -75,17 +85,21 @@ func (v *VirtualAgent) config(ctx context.Context) error {
 			Namespace: v.cluster.Namespace,
 		},
 		Data: map[string][]byte{
-			"config.yaml": []byte(config),
+			"config.yaml": config,
 		},
 	}
 
 	return v.ensureObject(ctx, configSecret)
 }
 
-func virtualAgentData(serviceIP, token string) string {
-	return fmt.Sprintf(`server: https://%s
-token: %s
-with-node-id: true`, serviceIP, token)
+func virtualAgentData(serviceIP, token string) ([]byte, error) {
+	agentConfig := virtualAgentConfig{
+		Server:     "https://" + serviceIP,
+		Token:      token,
+		WithNodeId: true,
+	}
+
+	return yaml.Marshal(agentConfig)
 }
 
 func (v *VirtualAgent) deployment(ctx context.Context) error {

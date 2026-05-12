@@ -720,10 +720,11 @@ func Test_sharedAgentData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := sharedAgentData(tt.args.cluster, tt.args.serviceName, tt.args.token, tt.args.ip, tt.args.kubeletPort)
+			config, err := sharedAgentData(tt.args.cluster, tt.args.serviceName, tt.args.token, tt.args.ip, tt.args.kubeletPort)
+			assert.NoError(t, err)
 
 			data := make(map[string]string)
-			err := yaml.Unmarshal([]byte(config), data)
+			err = yaml.Unmarshal(config, data)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedData, data)

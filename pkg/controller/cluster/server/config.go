@@ -25,7 +25,7 @@ type serverConfig struct {
 	EgressSelectorMode string   `yaml:"egress-selector-mode,omitempty"`
 	Server             string   `yaml:"server,omitempty"`
 	ServiceCIDR        string   `yaml:"service-cidr,omitempty"`
-	TlsSAN             []string `yaml:"tls-san,omitempty"`
+	TLSSAN             []string `yaml:"tls-san,omitempty"`
 	Token              string   `yaml:"token,omitempty"`
 }
 
@@ -67,7 +67,7 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 	serverConfig := serverConfig{
 		ClusterInit: true,
 		Token:       token,
-		TlsSAN:      cluster.Status.TLSSANs,
+		TLSSAN:      cluster.Status.TLSSANs,
 		ServiceCIDR: cluster.Status.ServiceCIDR,
 		ClusterCIDR: cluster.Status.ClusterCIDR,
 		ClusterDNS:  cluster.Spec.ClusterDNS,

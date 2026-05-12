@@ -3,7 +3,7 @@ package server
 import (
 	"fmt"
 
-	"go.yaml.in/yaml/v2"
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	corev1 "k8s.io/api/core/v1"
@@ -17,16 +17,16 @@ import (
 // serverConfig are few options from k3s server options that will
 // construct the yaml config file for k3s server
 type serverConfig struct {
+	ClusterCIDR        string   `yaml:"cluster-cidr,omitempty"`
+	ClusterDNS         string   `yaml:"cluster-dns,omitempty"`
 	ClusterInit        bool     `yaml:"cluster-init,omitempty"`
 	DisableAgent       bool     `yaml:"disable-agent,omitempty"`
-	EgressSelectorMode string   `yaml:"egress-selector-mode,omitempty"`
-	TlsSAN             []string `yaml:"tls-san,omitempty"`
 	Disable            []string `yaml:"disable,omitempty"`
+	EgressSelectorMode string   `yaml:"egress-selector-mode,omitempty"`
 	Server             string   `yaml:"server,omitempty"`
-	Token              string   `yaml:"token,omitempty"`
-	ClusterCIDR        string   `yaml:"cluster-cidr,omitempty"`
 	ServiceCIDR        string   `yaml:"service-cidr,omitempty"`
-	ClusterDNS         string   `yaml:"cluster-dns,omitempty"`
+	TlsSAN             []string `yaml:"tls-san,omitempty"`
+	Token              string   `yaml:"token,omitempty"`
 }
 
 func (s *Server) Config(init bool, serviceIP string) (*corev1.Secret, error) {

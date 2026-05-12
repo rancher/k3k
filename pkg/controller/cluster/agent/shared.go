@@ -39,12 +39,12 @@ type SharedAgent struct {
 type sharedAgentConfig struct {
 	ClusterName      string `yaml:"clusterName"`
 	ClusterNamespace string `yaml:"clusterNamespace"`
+	KubeletPort      int    `yaml:"kubeletPort"`
+	MirrorHostNodes  bool   `yaml:"mirrorHostNodes"`
 	ServerIP         string `yaml:"serverIP"`
 	ServiceName      string `yaml:"serviceName"`
 	Token            string `yaml:"token"`
-	MirrorHostNodes  bool   `yaml:"mirrorHostNodes"`
 	Version          string `yaml:"version"`
-	KubeletPort      int    `yaml:"kubeletPort"`
 }
 
 func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort int, imagePullSecrets []string) *SharedAgent {

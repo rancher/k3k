@@ -22,7 +22,6 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
 )
 
@@ -250,8 +249,10 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 			},
 		},
 	}
-	// start the pod unprivileged in shared mode
-	if s.mode == agent.VirtualNodeMode {
+	// virtual mode runs an embedded kubelet inside the server pod and therefore
+	// requires Privileged. shared and hcp modes are agentless (no kubelet) and
+	// run unprivileged.
+	if s.mode == string(v1beta1.VirtualClusterMode) {
 		podSpec.Containers[0].SecurityContext = &corev1.SecurityContext{
 			Privileged: ptr.To(true),
 		}

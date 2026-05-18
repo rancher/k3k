@@ -45,11 +45,11 @@ type ClusterSpec struct {
 	// +optional
 	Version string `json:"version,omitempty"`
 
-	// Mode specifies the cluster provisioning mode: "shared" or "virtual".
+	// Mode specifies the cluster provisioning mode: "shared", "virtual" or "hcp".
 	// Defaults to "shared". This field is immutable.
 	//
 	// +kubebuilder:default="shared"
-	// +kubebuilder:validation:Enum=shared;virtual
+	// +kubebuilder:validation:Enum=shared;virtual;hcp
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
 	// +optional
 	Mode ClusterMode `json:"mode,omitempty"`
@@ -413,7 +413,7 @@ type StorageClassSyncConfig struct {
 
 // ClusterMode is the possible provisioning mode of a Cluster.
 //
-// +kubebuilder:validation:Enum=shared;virtual
+// +kubebuilder:validation:Enum=shared;virtual;hcp
 // +kubebuilder:default="shared"
 type ClusterMode string
 
@@ -423,6 +423,11 @@ const (
 
 	// VirtualClusterMode represents a cluster that runs in a virtual environment.
 	VirtualClusterMode = ClusterMode("virtual")
+
+	// HCPClusterMode represents a Hosted Control Plane: an agentless K3s control
+	// plane managed by k3k inside the host cluster. End users join their own
+	// external nodes (BYO) using the standard K3s installer command.
+	HCPClusterMode = ClusterMode("hcp")
 )
 
 // PersistenceMode is the storage mode of a Cluster.
@@ -619,6 +624,14 @@ type ClusterStatus struct {
 	// +optional
 	KubeletPort int `json:"kubeletPort,omitempty"`
 
+	// HCPRegistration is a copy-pasteable K3s installer command that external
+	// (BYO) nodes can run to register against an HCP-mode cluster.
+	// Only populated when Mode is "hcp" and an externally-routable endpoint
+	// (NodePort, LoadBalancer or Ingress) is configured.
+	//
+	// +optional
+	HCPRegistration string `json:"hcpRegistration,omitempty"`
+
 	// Conditions are the individual conditions for the cluster set.
 	//
 	// +optional
@@ -774,6 +787,7 @@ type VirtualClusterPolicySpec struct {
 	// AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared".
 	//
 	// +kubebuilder:default=shared
+	// +kubebuilder:validation:Enum=shared;virtual;hcp
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
 	// +optional
 	AllowedMode ClusterMode `json:"allowedMode,omitempty"`

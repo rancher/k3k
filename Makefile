@@ -41,7 +41,7 @@ package: package-k3k package-k3k-kubelet	## Package the k3k and k3k-kubelet Dock
 
 .PHONY: package-%
 package-%:
-	docker build -f package/Dockerfile.$* \
+	docker buildx build --platform linux/amd64,linux/arm64 -f package/Dockerfile.$* \
 		-t $(REPO)/$*:$(VERSION) \
 		-t $(REPO)/$*:latest  \
 		-t $(REPO)/$*:dev .

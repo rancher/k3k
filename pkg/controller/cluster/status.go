@@ -19,11 +19,12 @@ const (
 	ConditionReady = "Ready"
 
 	// Condition Reasons
-	ReasonValidationFailed   = "ValidationFailed"
-	ReasonProvisioning       = "Provisioning"
-	ReasonProvisioned        = "Provisioned"
-	ReasonProvisioningFailed = "ProvisioningFailed"
-	ReasonTerminating        = "Terminating"
+	ReasonValidationFailed      = "ValidationFailed"
+	ReasonProvisioning          = "Provisioning"
+	ReasonProvisioned           = "Provisioned"
+	ReasonProvisioningFailed    = "ProvisioningFailed"
+	ReasonTerminating           = "Terminating"
+	ReasonHCPNoExternalEndpoint = "HCPNoExternalEndpoint"
 )
 
 func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.Cluster, reconcileErr error) {

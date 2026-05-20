@@ -9,8 +9,8 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/go-cmp v0.7.0
-	github.com/onsi/ginkgo/v2 v2.28.3
-	github.com/onsi/gomega v1.40.0
+	github.com/onsi/ginkgo/v2 v2.29.0
+	github.com/onsi/gomega v1.41.0
 	github.com/rancher/dynamiclistener v1.27.5
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2

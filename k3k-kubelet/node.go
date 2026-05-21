@@ -33,6 +33,10 @@ func (k *kubelet) registerNode(agentIP, podIP string, cfg config) error {
 		nodeutil.WithClient(k.virtClient),
 		nodeutil.AttachProviderRoutes(mux),
 		nodeOpt(mux, tlsConfig, cfg.KubeletPort),
+		func(c *nodeutil.NodeConfig) error {
+			c.EventRecorder = k.virtEventRecorder
+			return nil
+		},
 	)
 	if err != nil {
 		return errors.New("unable to start kubelet: " + err.Error())

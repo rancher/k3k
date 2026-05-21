@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
+	"path"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -24,6 +26,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,6 +65,9 @@ type kubelet struct {
 	node       *nodeutil.Node
 	logger     logr.Logger
 	token      string
+
+	virtEventRecorder record.EventRecorder
+	eb                record.EventBroadcaster
 }
 
 func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
@@ -138,7 +144,13 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 		return nil, errors.New("unable to remove pod mutating webhook for virtual cluster: " + err.Error())
 	}
 
-	if err := addControllers(ctx, hostMgr, virtualMgr, c, hostClient); err != nil {
+	controllerName := c.AgentHostname
+	eb := record.NewBroadcaster(record.WithContext(ctx))
+	eb.StartRecordingToSink(&corev1client.EventSinkImpl{Interface: virtClient.CoreV1().Events(corev1.NamespaceAll)})
+
+	virtEventRecorder := eb.NewRecorder(virtualScheme, corev1.EventSource{Component: path.Join(controllerName, "pod-controller")})
+
+	if err := addControllers(ctx, hostMgr, virtualMgr, c, hostClient, virtEventRecorder); err != nil {
 		return nil, errors.New("failed to add controller: " + err.Error())
 	}
 
@@ -161,20 +173,21 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 	}
 
 	return &kubelet{
-		virtualCluster: virtualCluster,
-
-		name:       c.AgentHostname,
-		hostConfig: hostConfig,
-		hostClient: hostClient,
-		virtConfig: virtConfig,
-		virtClient: virtClient,
-		hostMgr:    hostMgr,
-		virtualMgr: virtualMgr,
-		agentIP:    clusterIP,
-		logger:     logger,
-		token:      c.Token,
-		dnsIP:      dnsService.Spec.ClusterIP,
-		port:       c.KubeletPort,
+		virtualCluster:    virtualCluster,
+		name:              controllerName,
+		hostConfig:        hostConfig,
+		hostClient:        hostClient,
+		virtConfig:        virtConfig,
+		virtClient:        virtClient,
+		hostMgr:           hostMgr,
+		virtualMgr:        virtualMgr,
+		agentIP:           clusterIP,
+		logger:            logger,
+		token:             c.Token,
+		dnsIP:             dnsService.Spec.ClusterIP,
+		port:              c.KubeletPort,
+		virtEventRecorder: virtEventRecorder,
+		eb:                eb,
 	}, nil
 }
 
@@ -230,6 +243,7 @@ func (k *kubelet) start(ctx context.Context) {
 	if err := k.node.Err(); err != nil {
 		k.logger.Error(err, "node stopped with an error")
 	}
+	defer k.eb.Shutdown()
 
 	k.logger.Info("node exited successfully")
 }
@@ -254,7 +268,7 @@ func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 			cfg.MirrorHostNodes,
 		)
 
-		return utilProvider, &provider.Node{}, err
+		return utilProvider, nil, err
 	}
 }
 
@@ -330,7 +344,7 @@ func kubeconfigBytes(url string, serverCA, clientCert, clientKey []byte) ([]byte
 	return clientcmd.Write(*config)
 }
 
-func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c *config, hostClient ctrlruntimeclient.Client) error {
+func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c *config, hostClient ctrlruntimeclient.Client, virtEventRecorder record.EventRecorder) error {
 	var cluster v1beta1.Cluster
 
 	objKey := types.NamespacedName{
@@ -372,6 +386,10 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 
 	if err := syncer.AddPriorityClassSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 		return errors.New("failed to add priorityclass controller: " + err.Error())
+	}
+
+	if err := syncer.AddEventSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, virtEventRecorder); err != nil {
+		return errors.New("failed to add event syncer controller: " + err.Error())
 	}
 
 	return nil

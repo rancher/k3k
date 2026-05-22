@@ -3,8 +3,10 @@ package certs
 import (
 	"crypto"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
@@ -71,4 +73,23 @@ func AddSANs(sans []string) certutil.AltNames {
 	}
 
 	return altNames
+}
+
+func SplitCertKeyPEM(bytes []byte) (certPem []byte, keyPem []byte) {
+	for {
+		b, rest := pem.Decode(bytes)
+		if b == nil {
+			break
+		}
+
+		bytes = rest
+
+		if strings.Contains(b.Type, "PRIVATE KEY") {
+			keyPem = append(keyPem, pem.EncodeToMemory(b)...)
+		} else {
+			certPem = append(certPem, pem.EncodeToMemory(b)...)
+		}
+	}
+
+	return certPem, keyPem
 }

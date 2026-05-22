@@ -448,6 +448,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
+| `name` _string_ | Name is the name of the volume that will be mounted to the server<br />or agent. |  |  |
 | `secretName` _string_ | secretName is the name of the secret in the pod's namespace to use.<br />More info: https://kubernetes.io/docs/concepts/storage/volumes#secret |  |  |
 | `items` _[KeyToPath](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#keytopath-v1-core) array_ | items If unspecified, each key-value pair in the Data field of the referenced<br />Secret will be projected into the volume as a file whose name is the<br />key and content is the value. If specified, the listed keys will be<br />projected into the specified paths, and unlisted keys will not be<br />present. If a key is specified which is not present in the Secret,<br />the volume setup will error unless it is marked optional. Paths must be<br />relative and may not contain the '..' path or start with '..'. |  |  |
 | `defaultMode` _integer_ | defaultMode is Optional: mode bits used to set permissions on created files by default.<br />Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.<br />YAML accepts both octal and decimal values, JSON requires decimal values<br />for mode bits. Defaults to 0644.<br />Directories within the path are not affected by this setting.<br />This might be in conflict with other options that affect the file<br />mode, like fsGroup, and the result can be other mode bits set. |  |  |

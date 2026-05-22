@@ -239,6 +239,10 @@ type ClusterSpec struct {
 // SecretMount defines a secret to be mounted into server or agent pods,
 // allowing for custom configurations, certificates, or other sensitive data.
 type SecretMount struct {
+	// Name is the name of the volume that will be mounted to the server
+	// or agent.
+	//
+	Name string `json:"name,omitempty"`
 	// Embeds SecretName, Items, DefaultMode, and Optional
 	corev1.SecretVolumeSource `json:",inline"`
 	// MountPath is the path within server and agent pods where the

@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -42,6 +43,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	"github.com/rancher/k3k/pkg/controller/policy"
+	"github.com/rancher/k3k/pkg/request"
 )
 
 const (
@@ -83,6 +85,7 @@ type Config struct {
 type ClusterReconciler struct {
 	DiscoveryClient *discovery.DiscoveryClient
 	Client          client.Client
+	RestConfig      *rest.Config
 	Scheme          *runtime.Scheme
 	PortAllocator   *agent.PortAllocator
 
@@ -110,6 +113,7 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		DiscoveryClient: discoveryClient,
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
+		RestConfig:      mgr.GetConfig(),
 		EventRecorder:   eventRecorder,
 		PortAllocator:   portAllocator,
 		Config: Config{
@@ -293,7 +297,7 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	// if there was an error during the reconciliation, return
 	if reconcilerErr != nil {
-		if errors.Is(reconcilerErr, bootstrap.ErrServerNotReady) {
+		if errors.Is(reconcilerErr, request.ErrServerNotReady) {
 			log.V(1).Info("Server not ready, requeueing")
 			return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 		}
@@ -449,31 +453,20 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring bootstrap secret")
 
-	bootstrapData, err := bootstrap.GenerateBootstrapData(ctx, cluster, serviceIP, token)
+	resp, err := request.GetK3sConfig(serviceIP, token)
+	if err != nil {
+		return err
+	}
+	if err := c.Client.Status().Update(ctx, cluster); err != nil {
+		return err
+	}
+
+	data, err := bootstrap.Fetch(ctx, cluster, serviceIP, token, c.RestConfig, resp.ClusterInit)
 	if err != nil {
 		return err
 	}
 
-	bootstrapSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
-			Namespace: cluster.Namespace,
-		},
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, c.Client, bootstrapSecret, func() error {
-		if err := controllerutil.SetControllerReference(cluster, bootstrapSecret, c.Scheme); err != nil {
-			return err
-		}
-
-		bootstrapSecret.Data = map[string][]byte{
-			"bootstrap": bootstrapData,
-		}
-
-		return nil
-	})
-
-	return err
+	return bootstrap.SaveToSecret(ctx, c.Client, c.Scheme, cluster, data)
 }
 
 // ensureKubeconfigSecret will create or update the Secret containing the kubeconfig data from the k3s server

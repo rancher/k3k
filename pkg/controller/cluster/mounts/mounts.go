@@ -41,8 +41,13 @@ func buildSecretMountVolume(secretMount v1beta1.SecretMount) (corev1.Volume, cor
 		},
 	}
 
+	volumeName := secretMount.Name
+	if volumeName == "" {
+		volumeName = secretMount.SecretName
+	}
+
 	vol := corev1.Volume{
-		Name: secretMount.SecretName,
+		Name: volumeName,
 		VolumeSource: corev1.VolumeSource{
 			Projected: &corev1.ProjectedVolumeSource{
 				Sources: projectedVolSources,
@@ -51,7 +56,7 @@ func buildSecretMountVolume(secretMount v1beta1.SecretMount) (corev1.Volume, cor
 	}
 
 	volMount := corev1.VolumeMount{
-		Name:      secretMount.SecretName,
+		Name:      volumeName,
 		MountPath: secretMount.MountPath,
 		SubPath:   secretMount.SubPath,
 	}

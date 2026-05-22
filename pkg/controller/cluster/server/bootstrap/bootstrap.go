@@ -1,103 +1,64 @@
 package bootstrap
 
 import (
+	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"syscall"
-	"time"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
+	"github.com/rancher/k3k/pkg/request"
 )
 
-var ErrServerNotReady = errors.New("server not ready")
+const (
+	TLSDir = "/var/lib/rancher/k3s/server/tls/"
+)
 
-type ControlRuntimeBootstrap struct {
-	ServerCA        content `json:"serverCA"`
-	ServerCAKey     content `json:"serverCAKey"`
-	ClientCA        content `json:"clientCA"`
-	ClientCAKey     content `json:"clientCAKey"`
-	ETCDServerCA    content `json:"etcdServerCA"`
-	ETCDServerCAKey content `json:"etcdServerCAKey"`
+type Data struct {
+	ServerCA        cert `json:"serverCA"`
+	ServerCAKey     cert `json:"serverCAKey"`
+	ClientCA        cert `json:"clientCA"`
+	ClientCAKey     cert `json:"clientCAKey"`
+	ETCDServerCA    cert `json:"etcdServerCA"`
+	ETCDServerCAKey cert `json:"etcdServerCAKey"`
 }
 
-type content struct {
+type cert struct {
 	Timestamp string
 	Content   string
 }
 
-// Generate generates the bootstrap for the cluster:
-// 1- use the server token to get the bootstrap data from k3s
-// 2- save the bootstrap data as a secret
-func GenerateBootstrapData(ctx context.Context, cluster *v1beta1.Cluster, ip, token string) ([]byte, error) {
-	bootstrap, err := requestBootstrap(token, ip)
-	if err != nil {
-		return nil, fmt.Errorf("failed to request bootstrap secret: %w", err)
+// Fetch requests bootstrap data from k3s using the token and decodes it,
+// to avoid double encoding when stored as secret. In case of external datastore we attempt
+// to read the certificate files from the server pod directly since k3s bootstrap API is disabled.
+func Fetch(ctx context.Context, cluster *v1beta1.Cluster, ip, token string, restConfig *rest.Config, clusterInit bool) (*Data, error) {
+	log := ctrl.LoggerFrom(ctx)
+	if !clusterInit {
+		// read bootstrap data from the server pod
+
+		log.V(1).Info("Fetching bootstrap data from server pod")
+		return fetchFromPod(ctx, restConfig, cluster)
 	}
 
-	if err := decodeBootstrap(bootstrap); err != nil {
-		return nil, fmt.Errorf("failed to decode bootstrap secret: %w", err)
-	}
-
-	return json.Marshal(bootstrap)
+	return fetchFromK3sServer(ip, token)
 }
 
-func requestBootstrap(token, serverIP string) (*ControlRuntimeBootstrap, error) {
-	url := "https://" + serverIP + "/v1-k3s/server-bootstrap"
-
-	client := http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-		Timeout: 5 * time.Second,
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Authorization", "Basic "+basicAuth("server", token))
-
-	resp, err := client.Do(req)
-	if err != nil {
-		if errors.Is(err, syscall.ECONNREFUSED) {
-			return nil, ErrServerNotReady
-		}
-
-		return nil, err
-	}
-
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	var runtimeBootstrap ControlRuntimeBootstrap
-	if err := json.NewDecoder(resp.Body).Decode(&runtimeBootstrap); err != nil {
-		return nil, err
-	}
-
-	return &runtimeBootstrap, nil
-}
-
-func basicAuth(username, password string) string {
-	auth := username + ":" + password
-	return base64.StdEncoding.EncodeToString([]byte(auth))
-}
-
-func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
+func decode(bootstrap *Data) error {
 	// client-ca
 	decoded, err := base64.StdEncoding.DecodeString(bootstrap.ClientCA.Content)
 	if err != nil {
@@ -145,24 +106,41 @@ func decodeBootstrap(bootstrap *ControlRuntimeBootstrap) error {
 	}
 
 	bootstrap.ETCDServerCAKey.Content = string(decoded)
-
 	return nil
 }
 
-func DecodedBootstrap(token, ip string) (*ControlRuntimeBootstrap, error) {
-	bootstrap, err := requestBootstrap(token, ip)
+// SaveToSecret marshals the bootstrap data and stores it in a Secret owned by the cluster,
+// creating the Secret if it does not exist or updating it otherwise.
+func SaveToSecret(ctx context.Context, c client.Client, scheme *runtime.Scheme, cluster *v1beta1.Cluster, data *Data) error {
+	bootstrapData, err := json.Marshal(data)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if err := decodeBootstrap(bootstrap); err != nil {
-		return nil, err
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
+			Namespace: cluster.Namespace,
+		},
 	}
 
-	return bootstrap, nil
+	_, err = controllerutil.CreateOrUpdate(ctx, c, secret, func() error {
+		if err := controllerutil.SetControllerReference(cluster, secret, scheme); err != nil {
+			return err
+		}
+
+		secret.Data = map[string][]byte{
+			"bootstrap": bootstrapData,
+		}
+
+		return nil
+	})
+
+	return err
 }
 
-func GetFromSecret(ctx context.Context, client client.Client, cluster *v1beta1.Cluster) (*ControlRuntimeBootstrap, error) {
+// LoadFromSecret reads the bootstrap data of a certain cluster and returun back the decoded content
+func LoadFromSecret(ctx context.Context, client client.Client, cluster *v1beta1.Cluster) (*Data, error) {
 	key := types.NamespacedName{
 		Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
 		Namespace: cluster.Namespace,
@@ -178,9 +156,113 @@ func GetFromSecret(ctx context.Context, client client.Client, cluster *v1beta1.C
 		return nil, errors.New("empty bootstrap")
 	}
 
-	var bootstrap ControlRuntimeBootstrap
+	var bootstrap Data
 
 	err := json.Unmarshal(bootstrapData, &bootstrap)
 
 	return &bootstrap, err
+}
+
+func fetchFromPod(ctx context.Context, restConfig *rest.Config, cluster *v1beta1.Cluster) (*Data, error) {
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// using the first server in the statefulset to get the bootstrap data
+	serverPodName := controller.SafeConcatNameWithPrefix(cluster.Name, "server-0")
+
+	bootstrapCerts := map[string]string{
+		"server-ca.crt": "",
+		"server-ca.key": "",
+		"client-ca.crt": "",
+		"client-ca.key": "",
+	}
+	for certName := range bootstrapCerts {
+		command := []string{"cat", TLSDir + certName}
+
+		certData, err := podExec(ctx, clientset, restConfig, cluster.Namespace, serverPodName, command)
+		if err != nil {
+			return nil, err
+		}
+
+		bootstrapCerts[certName] = string(certData)
+	}
+
+	bootstrap := &Data{
+		ServerCA: cert{
+			Content: bootstrapCerts["server-ca.crt"],
+		},
+		ServerCAKey: cert{
+			Content: bootstrapCerts["server-ca.key"],
+		},
+		ClientCA: cert{
+			Content: bootstrapCerts["client-ca.crt"],
+		},
+		ClientCAKey: cert{
+			Content: bootstrapCerts["client-ca.key"],
+		},
+	}
+
+	return bootstrap, nil
+}
+
+func fetchFromK3sServer(serviceIP, token string) (*Data, error) {
+	var bootstrap Data
+
+	resp, err := request.RequestK3sServer(serviceIP, "/v1-k3s/server-bootstrap", "server", token, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(resp, &bootstrap); err != nil {
+		return nil, err
+	}
+
+	// we still need to decode each certs since the bootstrap data endpoint base64 encode each cert
+	if err := decode(&bootstrap); err != nil {
+		return nil, fmt.Errorf("failed to decode bootstrap secret: %w", err)
+	}
+
+	return &bootstrap, err
+}
+
+func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.Config, namespace, name string, command []string) ([]byte, error) {
+	req := clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(name).
+		Namespace(namespace).
+		SubResource("exec")
+	scheme := runtime.NewScheme()
+
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("error adding to scheme: %v", err)
+	}
+
+	parameterCodec := runtime.NewParameterCodec(scheme)
+
+	req.VersionedParams(&corev1.PodExecOptions{
+		Command: command,
+		Stdout:  true,
+		Stderr:  true,
+		TTY:     false,
+	}, parameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	if err != nil {
+		return nil, fmt.Errorf("error while creating Executor: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+		Tty:    false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error in Stream: %v", err)
+	}
+
+	return stdout.Bytes(), nil
 }

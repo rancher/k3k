@@ -20,8 +20,8 @@ type serverConfig struct {
 	ClusterCIDR        string   `yaml:"cluster-cidr,omitempty"`
 	ClusterDNS         string   `yaml:"cluster-dns,omitempty"`
 	ClusterInit        bool     `yaml:"cluster-init,omitempty"`
-	DisableAgent       bool     `yaml:"disable-agent,omitempty"`
 	Disable            []string `yaml:"disable,omitempty"`
+	DisableAgent       bool     `yaml:"disable-agent,omitempty"`
 	EgressSelectorMode string   `yaml:"egress-selector-mode,omitempty"`
 	Server             string   `yaml:"server,omitempty"`
 	ServiceCIDR        string   `yaml:"service-cidr,omitempty"`

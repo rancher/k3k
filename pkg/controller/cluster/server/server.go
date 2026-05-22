@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"text/template"
@@ -29,9 +30,20 @@ const (
 	serverName     = "server"
 	configName     = "server-config"
 	initConfigName = "init-server-config"
+
+	configDir     = "/opt/rancher/k3s/server"
+	cniDir        = "/var/lib/cni"
+	dataDir       = "/var/lib/rancher/k3s"
+	etcdDataDir   = "/var/lib/rancher/k3s/server/db/etcd"
+	initConfigDir = "/opt/rancher/k3s/init"
+	kubeletDir    = "/var/lib/kubelet"
+	logDir        = "/var/log"
+	manifestDir   = "/var/lib/rancher/k3s/server/manifests"
+	runDir        = "/run"
+	tlsDir        = "/var/lib/rancher/k3s/server/tls"
+	varRunDir     = "/var/run"
 )
 
-// Server
 type Server struct {
 	cluster          *v1beta1.Cluster
 	client           client.Client
@@ -154,42 +166,42 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      "config",
-						MountPath: "/opt/rancher/k3s/server",
+						MountPath: configDir,
 						ReadOnly:  false,
 					},
 					{
 						Name:      "initconfig",
-						MountPath: "/opt/rancher/k3s/init",
+						MountPath: initConfigDir,
 						ReadOnly:  false,
 					},
 					{
 						Name:      "run",
-						MountPath: "/run",
+						MountPath: runDir,
 						ReadOnly:  false,
 					},
 					{
 						Name:      "varrun",
-						MountPath: "/var/run",
+						MountPath: varRunDir,
 						ReadOnly:  false,
 					},
 					{
 						Name:      "varlibcni",
-						MountPath: "/var/lib/cni",
+						MountPath: cniDir,
 						ReadOnly:  false,
 					},
 					{
 						Name:      "varlibkubelet",
-						MountPath: "/var/lib/kubelet",
+						MountPath: kubeletDir,
 						ReadOnly:  false,
 					},
 					{
 						Name:      "varlibrancherk3s",
-						MountPath: "/var/lib/rancher/k3s",
+						MountPath: dataDir,
 						ReadOnly:  false,
 					},
 					{
 						Name:      "varlog",
-						MountPath: "/var/log",
+						MountPath: logDir,
 						ReadOnly:  false,
 					},
 				},
@@ -441,9 +453,9 @@ func (s *Server) setupStartCommand() (string, error) {
 	}
 
 	if err := tmplCmd.Execute(&output, map[string]string{
-		"ETCD_DIR":      "/var/lib/rancher/k3s/server/db/etcd",
-		"INIT_CONFIG":   "/opt/rancher/k3s/init/config.yaml",
-		"SERVER_CONFIG": "/opt/rancher/k3s/server/config.yaml",
+		"ETCD_DIR":      etcdDataDir,
+		"INIT_CONFIG":   filepath.Join(initConfigDir, "config.yaml"),
+		"SERVER_CONFIG": filepath.Join(configDir, "config.yaml"),
 		"CLUSTER_MODE":  mode,
 		"K3K_MODE":      string(s.cluster.Spec.Mode),
 		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
@@ -511,7 +523,6 @@ func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMou
 	)
 
 	// avoid re-adding secretName in case of combined secret
-
 	volume = &corev1.Volume{
 		Name: volumeName,
 		VolumeSource: corev1.VolumeSource{
@@ -528,21 +539,18 @@ func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMou
 		mountFile = strings.TrimPrefix(certName, "etcd-")
 	}
 
-	// add the mount for the cert except for the service account token
-	if certName != "service" {
+	for _, crtOrKey := range []string{"crt", "key"} {
+		// skip adding cert mount for service account token
+		if certName == "service" && crtOrKey == "crt" {
+			continue
+		}
+
 		mounts = append(mounts, corev1.VolumeMount{
 			Name:      volumeName,
-			MountPath: fmt.Sprintf("/var/lib/rancher/k3s/server/tls%s/%s.crt", etcdPrefix, mountFile),
-			SubPath:   subPathMount + ".crt",
+			MountPath: fmt.Sprintf("%s%s/%s.%s", tlsDir, etcdPrefix, mountFile, crtOrKey),
+			SubPath:   subPathMount + "." + crtOrKey,
 		})
 	}
-
-	// add the mount for the key
-	mounts = append(mounts, corev1.VolumeMount{
-		Name:      volumeName,
-		MountPath: fmt.Sprintf("/var/lib/rancher/k3s/server/tls%s/%s.key", etcdPrefix, mountFile),
-		SubPath:   subPathMount + ".key",
-	})
 
 	return volume, mounts
 }
@@ -603,7 +611,7 @@ func (s *Server) buildAddonsVolumes(ctx context.Context) ([]corev1.Volume, []cor
 
 		volumeMount := corev1.VolumeMount{
 			Name:      name,
-			MountPath: "/var/lib/rancher/k3s/server/manifests/" + addon.SecretRef,
+			MountPath: filepath.Join(manifestDir, addon.SecretRef),
 			ReadOnly:  true,
 		}
 		mounts = append(mounts, volumeMount)

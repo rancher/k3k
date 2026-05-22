@@ -32,6 +32,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	"github.com/rancher/k3k/pkg/request"
 )
 
 const (
@@ -86,6 +87,29 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
+	}
+
+	// skip adding statefulset reconciler if external datasstore is in use
+	var svc corev1.Service
+	if err := p.Client.Get(ctx, types.NamespacedName{
+		Name:      server.ServiceName(cluster.Name),
+		Namespace: cluster.Namespace,
+	}, &svc); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	token, err := p.clusterToken(ctx, &cluster)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	resp, err := request.GetK3sConfig(svc.Spec.ClusterIP, token)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if !resp.ClusterInit {
+		return reconcile.Result{}, nil
 	}
 
 	podList, err := p.listPods(ctx, &sts)
@@ -180,21 +204,13 @@ func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Generating ETCD TLS client certificate", "cluster", cluster)
 
-	token, err := p.clusterToken(ctx, cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
-
-	var b *bootstrap.ControlRuntimeBootstrap
-
+	var b *bootstrap.Data
 	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
-		return true
+		return err == request.ErrServerNotReady
 	}, func() error {
 		var err error
 
-		b, err = bootstrap.DecodedBootstrap(token, endpoint)
+		b, err = bootstrap.LoadFromSecret(ctx, p.Client, cluster)
 
 		return err
 	}); err != nil {
@@ -210,6 +226,7 @@ func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1
 	if err != nil {
 		return nil, err
 	}
+
 	// create rootCA CertPool
 	cert, err := certutil.ParseCertsPEM([]byte(b.ETCDServerCA.Content))
 	if err != nil {

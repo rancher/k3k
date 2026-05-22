@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/x509"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -13,7 +13,6 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -24,7 +23,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -34,9 +32,6 @@ import (
 	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/controller/certs"
-	"github.com/rancher/k3k/pkg/controller/cluster/server"
-	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 )
 
 var baseScheme = runtime.NewScheme()
@@ -77,7 +72,7 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 		return nil, err
 	}
 
-	virtConfig, err := virtRestConfig(ctx, c.VirtKubeconfig, hostClient, c.ClusterName, c.ClusterNamespace, c.Token)
+	virtConfig, err := virtRestConfig(ctx, c.VirtKubeconfig, hostClient, c.ClusterName, c.ClusterNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -258,76 +253,32 @@ func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 	}
 }
 
-func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace, token string) (*rest.Config, error) {
+func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ctrlruntimeclient.Client, clusterName, clusterNamespace string) (*rest.Config, error) {
 	if virtualConfigPath != "" {
 		return clientcmd.BuildConfigFromFlags("", virtualConfigPath)
 	}
-	// virtual kubeconfig file is empty, trying to fetch the k3k cluster kubeconfig
-	var cluster v1beta1.Cluster
-	if err := hostClient.Get(ctx, types.NamespacedName{Namespace: clusterNamespace, Name: clusterName}, &cluster); err != nil {
-		return nil, err
+
+	var clusterKubeConfig corev1.Secret
+
+	kubeconfigSecretName := types.NamespacedName{
+		Name:      controller.SafeConcatNameWithPrefix(clusterName, "kubeconfig"),
+		Namespace: clusterNamespace,
 	}
-
-	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
-
-	var b *bootstrap.ControlRuntimeBootstrap
 
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err != nil
 	}, func() error {
-		var err error
-
-		b, err = bootstrap.DecodedBootstrap(token, endpoint)
-		logger.Error(err, "decoded bootstrap")
-
-		return err
+		return hostClient.Get(ctx, kubeconfigSecretName, &clusterKubeConfig)
 	}); err != nil {
 		return nil, errors.New("unable to decode bootstrap: " + err.Error())
 	}
 
-	adminCert, adminKey, err := certs.CreateClientCertKey(
-		controller.AdminCommonName,
-		[]string{user.SystemPrivilegedGroup},
-		nil, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		time.Hour*24*time.Duration(356),
-		b.ClientCA.Content,
-		b.ClientCAKey.Content,
-	)
+	restConfig, err := clientcmd.RESTConfigFromKubeConfig(clusterKubeConfig.Data["kubeconfig.yaml"])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create config from kubeconfig file: %w", err)
 	}
 
-	url := "https://" + server.ServiceName(cluster.Name)
-
-	kubeconfigData, err := kubeconfigBytes(url, []byte(b.ServerCA.Content), adminCert, adminKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return clientcmd.RESTConfigFromKubeConfig(kubeconfigData)
-}
-
-func kubeconfigBytes(url string, serverCA, clientCert, clientKey []byte) ([]byte, error) {
-	config := clientcmdapi.NewConfig()
-
-	cluster := clientcmdapi.NewCluster()
-	cluster.CertificateAuthorityData = serverCA
-	cluster.Server = url
-
-	authInfo := clientcmdapi.NewAuthInfo()
-	authInfo.ClientCertificateData = clientCert
-	authInfo.ClientKeyData = clientKey
-
-	context := clientcmdapi.NewContext()
-	context.AuthInfo = "default"
-	context.Cluster = "default"
-
-	config.Clusters["default"] = cluster
-	config.AuthInfos["default"] = authInfo
-	config.Contexts["default"] = context
-	config.CurrentContext = "default"
-
-	return clientcmd.Write(*config)
+	return restConfig, nil
 }
 
 func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c *config, hostClient ctrlruntimeclient.Client) error {

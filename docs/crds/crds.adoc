@@ -595,6 +595,8 @@ _Appears In:_
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
+| *`name`* __string__ | Name is the name of the volume that will be mounted to the server +
+or agent. + |  | 
 | *`secretName`* __string__ | secretName is the name of the secret in the pod's namespace to use. +
 More info: https://kubernetes.io/docs/concepts/storage/volumes#secret + |  | 
 | *`items`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#keytopath-v1-core[$$KeyToPath$$] array__ | items If unspecified, each key-value pair in the Data field of the referenced +

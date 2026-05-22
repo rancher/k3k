@@ -205,6 +205,7 @@ func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1
 	log.V(1).Info("Generating ETCD TLS client certificate", "cluster", cluster)
 
 	var b *bootstrap.Data
+
 	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
 		return err == request.ErrServerNotReady
 	}, func() error {

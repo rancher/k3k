@@ -14,11 +14,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -50,7 +50,6 @@ func Fetch(ctx context.Context, cluster *v1beta1.Cluster, ip, token string, rest
 	log := ctrl.LoggerFrom(ctx)
 	if !clusterInit {
 		// read bootstrap data from the server pod
-
 		log.V(1).Info("Fetching bootstrap data from server pod")
 		return fetchFromPod(ctx, restConfig, cluster)
 	}
@@ -106,6 +105,7 @@ func decode(bootstrap *Data) error {
 	}
 
 	bootstrap.ETCDServerCAKey.Content = string(decoded)
+
 	return nil
 }
 

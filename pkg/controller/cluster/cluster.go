@@ -457,6 +457,7 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 	if err != nil {
 		return err
 	}
+
 	if err := c.Client.Status().Update(ctx, cluster); err != nil {
 		return err
 	}

@@ -69,7 +69,6 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err == request.ErrServerNotReady
 	}, func() error {
-
 		headers := map[string]string{
 			"k3s-Node-Name":     controller.SafeConcatName(cfg.ClusterName, "server-0"),
 			"k3s-Node-Password": token,
@@ -77,6 +76,7 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 		}
 
 		tlsCrtData, err = request.RequestK3sServer(serviceName, "/v1-k3s/client-kubelet.crt", "node", token, headers)
+
 		return err
 	}); err != nil {
 		return nil, errors.New("unable to decode bootstrap: " + err.Error())

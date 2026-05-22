@@ -288,7 +288,7 @@ func TestEventSyncerReconcile(t *testing.T) {
 				assert.Equal(t, tt.wantEvent.Reason, got.Reason)
 				assert.Equal(t, tt.wantEvent.Message, got.Message)
 				wantObj := tt.wantEvent.Object.(*unstructured.Unstructured)
-				gotObj := got.Object.(*unstructured.Unstructured)
+				gotObj := got.Object.(*corev1.Pod)
 				assert.Equal(t, wantObj.GetName(), gotObj.GetName())
 				assert.Equal(t, wantObj.GetNamespace(), gotObj.GetNamespace())
 				assert.Equal(t, wantObj.GetUID(), gotObj.GetUID())

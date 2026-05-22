@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -77,11 +76,8 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 	virtualRef := s.Translator.TranslateObjectReferenceFrom(event.InvolvedObject)
 
 	// Look up the corresponding object in the virtual cluster.
-	virtObj := &unstructured.Unstructured{}
-	virtObj.SetAPIVersion(virtualRef.APIVersion)
-	virtObj.SetKind(virtualRef.Kind)
-
-	if err := s.VirtualClient.Get(ctx, client.ObjectKey{Name: virtualRef.Name, Namespace: virtualRef.Namespace}, virtObj); err != nil {
+	virtPod := &corev1.Pod{}
+	if err := s.VirtualClient.Get(ctx, client.ObjectKey{Name: virtualRef.Name, Namespace: virtualRef.Namespace}, virtPod); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			return reconcile.Result{}, fmt.Errorf("could not load virtual object: %w", err)
 		}
@@ -94,8 +90,8 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 		return reconcile.Result{}, nil
 	}
 
-	logger.V(3).Info("Emitting event into virtual cluster", "virtObj.name",
-		virtObj.GetName(), "virtObj.namespace", virtObj.GetNamespace(), "reason",
+	logger.V(3).Info("Emitting event into virtual cluster", "virtPod.name",
+		virtPod.GetName(), "virtPod.namespace", virtPod.GetNamespace(), "reason",
 		event.Reason, "message", event.Message, "type", event.Type)
 
 	message := translateEventMessage(
@@ -103,7 +99,7 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 		event.InvolvedObject.Name, event.InvolvedObject.Namespace,
 		virtualRef.Name, virtualRef.Namespace,
 	)
-	s.virtEventRecorder.Event(virtObj, event.Type, event.Reason, message)
+	s.virtEventRecorder.Event(virtPod, event.Type, event.Reason, message)
 
 	return reconcile.Result{}, nil
 }

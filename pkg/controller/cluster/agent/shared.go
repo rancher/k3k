@@ -402,7 +402,7 @@ func (s *SharedAgent) role(ctx context.Context) error {
 			{
 				APIGroups: []string{""},
 				Resources: []string{"events"},
-				Verbs:     []string{"create"},
+				Verbs:     []string{"create", "get", "list", "watch"},
 			},
 			{
 				APIGroups: []string{""},

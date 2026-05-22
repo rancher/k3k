@@ -85,7 +85,7 @@ func TestTranslateTo(t *testing.T) {
 					UID:             types.UID("abc-uid"),
 				},
 			},
-			verify: func(t *testing.T, obj *corev1.ConfigMap, tr *ToHostTranslator) {
+			verify: func(t *testing.T, obj *corev1.ConfigMap, _ *ToHostTranslator) {
 				assert.Empty(t, obj.ResourceVersion)
 				assert.Empty(t, obj.UID)
 			},

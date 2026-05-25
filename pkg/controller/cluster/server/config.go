@@ -22,6 +22,7 @@ type serverConfig struct {
 	DisableAgent       bool     `yaml:"disable-agent,omitempty"`
 	Disable            []string `yaml:"disable,omitempty"`
 	EgressSelectorMode string   `yaml:"egress-selector-mode,omitempty"`
+	KubeApiServerArg   []string `yaml:"kube-apiserver-arg,omitempty"`
 	Server             string   `yaml:"server,omitempty"`
 	ServiceCIDR        string   `yaml:"service-cidr,omitempty"`
 	TLSSAN             []string `yaml:"tls-san,omitempty"`
@@ -77,10 +78,30 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 	}
 
 	// shared and hcp modes both run K3s with --disable-agent (agentless server).
-	// hcp additionally relies on this to satisfy the PRD requirement that the
-	// control plane never runs a kubelet and is not enumerated as a node.
-	if cluster.Spec.Mode != v1beta1.VirtualClusterMode {
-		opts = opts + "disable-agent: true\ndisable:\n- servicelb\n- traefik\n- metrics-server\n- local-storage\n"
+	switch cluster.Spec.Mode {
+	case v1beta1.SharedClusterMode:
+		serverConfig.DisableAgent = true
+		serverConfig.EgressSelectorMode = "disabled"
+		serverConfig.Disable = []string{"servicelb", "traefik", "metrics-server", "local-storage"}
+	case v1beta1.HCPClusterMode:
+		serverConfig.DisableAgent = true
+		serverConfig.EgressSelectorMode = "cluster"
+		serverConfig.Disable = []string{"servicelb", "traefik", "metrics-server", "local-storage"}
+		// Disable it so K3k can own that Endpoints object and point
+		// it at the externally-reachable host:port (NodePort / LB / Ingress).
+		serverConfig.KubeApiServerArg = append(serverConfig.KubeApiServerArg, "endpoint-reconciler-type=none")
+	case v1beta1.VirtualClusterMode:
+		// no extra config for virtual mode
+	}
+
+	// In hcp mode the apiserver pod IP is unreachable from external worker
+	// nodes, so the kube-apiserver's default lease-based endpoint reconciler
+	// would publish a broken default/kubernetes Endpoints (advertise-address +
+	// secure-port). Disable it so K3k can own that Endpoints object and point
+	// it at the externally-reachable host:port (NodePort / LB / Ingress).
+	if cluster.Spec.Mode == v1beta1.HCPClusterMode {
+		serverConfig.KubeApiServerArg = append(serverConfig.KubeApiServerArg, "endpoint-reconciler-type=none")
+		serverConfig.EgressSelectorMode = "cluster"
 	}
 
 	// In shared mode workloads run on the host cluster, so the apiserver pod
@@ -107,21 +128,6 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 	//              non-hostNet entries, so every pod IP and every node port
 	//              is permitted. No race, no per-port allowlist. This is
 	//              what we want for a managed control plane.
-	switch cluster.Spec.Mode {
-	case v1beta1.SharedClusterMode:
-		opts = opts + "egress-selector-mode: disabled\n"
-	case v1beta1.HCPClusterMode:
-		opts = opts + "egress-selector-mode: cluster\n"
-	}
-
-	// In hcp mode the apiserver pod IP is unreachable from external worker
-	// nodes, so the kube-apiserver's default lease-based endpoint reconciler
-	// would publish a broken default/kubernetes Endpoints (advertise-address +
-	// secure-port). Disable it so K3k can own that Endpoints object and point
-	// it at the externally-reachable host:port (NodePort / LB / Ingress).
-	if cluster.Spec.Mode == v1beta1.HCPClusterMode {
-		opts = opts + "kube-apiserver-arg:\n- endpoint-reconciler-type=none\n"
-	}
 
 	return serverConfig
 }

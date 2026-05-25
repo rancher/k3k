@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 
@@ -90,6 +91,10 @@ func InitFromBytes(ctx context.Context, kubeconfig []byte, scheme *runtime.Schem
 // getServerIP extracts the server IP from the REST config.
 // If running with testcontainers, it returns the container IP.
 // Otherwise, it parses the hostname from the REST config host.
+//
+// When the kubeconfig host is a loopback address, fall back to the first non-loopback IPv4 of a local interface
+// so HCP-mode tests get a SAN that external workers could actually reach.
+// This happens when k3s is installed directly on the runner and the kubeconfig points at https://127.0.0.1:6443.
 func getServerIP(ctx context.Context, cfg *rest.Config, k3sContainer *k3s.K3sContainer) (string, error) {
 	if k3sContainer != nil {
 		return k3sContainer.ContainerIP(ctx)
@@ -100,6 +105,48 @@ func getServerIP(ctx context.Context, cfg *rest.Config, k3sContainer *k3s.K3sCon
 		return "", fmt.Errorf("failed to parse REST config host: %w", err)
 	}
 
-	// If Host includes a port, u.Hostname() extracts just the hostname part
-	return u.Hostname(), nil
+	host := u.Hostname()
+
+	if isLoopbackHost(host) {
+		if ip, ok := firstNonLoopbackIPv4(); ok {
+			return ip, nil
+		}
+	}
+
+	return host, nil
+}
+
+func isLoopbackHost(host string) bool {
+	if host == "" || host == "localhost" {
+		return true
+	}
+
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		return true
+	}
+
+	return false
+}
+
+func firstNonLoopbackIPv4() (string, bool) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", false
+	}
+
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok {
+			continue
+		}
+
+		ip := ipNet.IP.To4()
+		if ip == nil || ip.IsLoopback() || !ip.IsGlobalUnicast() {
+			continue
+		}
+
+		return ip.String(), true
+	}
+
+	return "", false
 }

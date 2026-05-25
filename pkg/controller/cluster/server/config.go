@@ -22,6 +22,7 @@ type serverConfig struct {
 	DisableAgent       bool     `yaml:"disable-agent,omitempty"`
 	Disable            []string `yaml:"disable,omitempty"`
 	EgressSelectorMode string   `yaml:"egress-selector-mode,omitempty"`
+	KubeApiServerArg   []string `yaml:"kube-apiserver-arg,omitempty"`
 	Server             string   `yaml:"server,omitempty"`
 	ServiceCIDR        string   `yaml:"service-cidr,omitempty"`
 	TLSSAN             []string `yaml:"tls-san,omitempty"`
@@ -77,50 +78,28 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 	}
 
 	// shared and hcp modes both run K3s with --disable-agent (agentless server).
-	// hcp additionally relies on this to satisfy the PRD requirement that the
-	// control plane never runs a kubelet and is not enumerated as a node.
-	if cluster.Spec.Mode != v1beta1.VirtualClusterMode {
-		opts = opts + "disable-agent: true\ndisable:\n- servicelb\n- traefik\n- metrics-server\n- local-storage\n"
-	}
-
-	// In shared mode workloads run on the host cluster, so the apiserver pod
-	// can reach them directly via the host pod network and the egress
-	// selector is unnecessary.
-	//
-	// In hcp mode the apiserver pod has NO route to the virtual cluster's
-	// pod CIDR (which only exists on joined external worker nodes), and the
-	// kube-apiserver bypasses kube-proxy when calling webhooks / proxying
-	// to pods: it resolves Service -> Endpoints itself and dials the Pod IP
-	// directly. We therefore tunnel apiserver egress through the WebSocket
-	// each k3s-agent maintains back to the server.
-	//
-	// We pick "cluster" rather than "pod" or "agent" because the agent-side
-	// authorizer differs by mode (k3s pkg/agent/tunnel/tunnel.go):
-	//   - agent:   only kubelet calls are tunneled; pod-IP dials go direct
-	//              and fail in HCP (no route to virtual pod CIDR).
-	//   - pod:     authorizer only allows pod IPs the agent has *already
-	//              watched*. A newly-created pod's IP is rejected with
-	//              "connect not allowed", which terminates the entire
-	//              remotedialer session and 502s in-flight kubelet streams
-	//              -> kubectl logs / exec / webhooks become flaky.
-	//   - cluster: authorizer pre-populates the cluster CIDR + node IPs as
-	//              non-hostNet entries, so every pod IP and every node port
-	//              is permitted. No race, no per-port allowlist. This is
-	//              what we want for a managed control plane.
 	switch cluster.Spec.Mode {
-	case v1beta1.SharedClusterMode:
-		opts = opts + "egress-selector-mode: disabled\n"
+	case "", v1beta1.SharedClusterMode:
+		serverConfig.DisableAgent = true
+		serverConfig.EgressSelectorMode = "disabled"
+		serverConfig.Disable = []string{"servicelb", "traefik", "metrics-server", "local-storage"}
 	case v1beta1.HCPClusterMode:
-		opts = opts + "egress-selector-mode: cluster\n"
-	}
-
-	// In hcp mode the apiserver pod IP is unreachable from external worker
-	// nodes, so the kube-apiserver's default lease-based endpoint reconciler
-	// would publish a broken default/kubernetes Endpoints (advertise-address +
-	// secure-port). Disable it so K3k can own that Endpoints object and point
-	// it at the externally-reachable host:port (NodePort / LB / Ingress).
-	if cluster.Spec.Mode == v1beta1.HCPClusterMode {
-		opts = opts + "kube-apiserver-arg:\n- endpoint-reconciler-type=none\n"
+		serverConfig.DisableAgent = true
+		// Tunnel apiserver egress through the k3s-agent WebSocket: the
+		// apiserver has no route to the virtual cluster's pod CIDR and
+		// bypasses kube-proxy when dialing pod IPs (webhooks, log/exec).
+		// "cluster" is the only safe mode — "agent" lets pod dials go
+		// direct (no route, fails); "pod" only permits pod IPs the agent
+		// has already watched, so a newly-created pod's IP is rejected
+		// and tears down the remotedialer session, making kubelet streams
+		// flaky. See k3s pkg/agent/tunnel/tunnel.go.
+		serverConfig.EgressSelectorMode = "cluster"
+		// Disable the apiserver's built-in endpoint reconciler so K3k can
+		// own default/kubernetes Endpoints and point it at the externally
+		// reachable host:port (NodePort / LB / Ingress).
+		serverConfig.KubeApiServerArg = append(serverConfig.KubeApiServerArg, "endpoint-reconciler-type=none")
+	case v1beta1.VirtualClusterMode:
+		// no extra config for virtual mode
 	}
 
 	return serverConfig

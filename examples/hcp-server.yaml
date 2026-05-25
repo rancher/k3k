@@ -4,6 +4,8 @@ metadata:
   name: hcp-server
 spec:
   mode: hcp
+  tlsSANs:
+    - "<externally-reachable-node-ip-or-dns>"
   servers: 1
   version: v1.33.1-k3s1
   expose:

@@ -70,6 +70,18 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 		return
 	}
 
+	if errors.Is(reconcileErr, ErrHCPNoExternalEndpoint) {
+		cluster.Status.Phase = v1beta1.ClusterPending
+		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
+			Type:    ConditionReady,
+			Status:  metav1.ConditionFalse,
+			Reason:  ReasonHCPNoExternalEndpoint,
+			Message: "HCP cluster has no usable external endpoint; configure spec.expose.{nodePort,loadBalancer,ingress} and set spec.tlsSANs to an externally reachable host/IP so external nodes can reach the API server",
+		})
+
+		return
+	}
+
 	// If there's an error, but it's not a validation error, the cluster is in a failed state.
 	if reconcileErr != nil {
 		cluster.Status.Phase = v1beta1.ClusterFailed

@@ -48,7 +48,7 @@ type ClusterSpec struct {
 	// Mode specifies the cluster provisioning mode: "shared", "virtual" or "hcp".
 	// Defaults to "shared". This field is immutable.
 	//
-	// +kubebuilder:default="shared"
+	// +kubebuilder:default=shared
 	// +kubebuilder:validation:Enum=shared;virtual;hcp
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
 	// +optional
@@ -262,10 +262,10 @@ type SecretMount struct {
 	// +optional
 	SubPath string `json:"subPath,omitempty"`
 	// Role is the type of the k3k pod that will be used to mount the secret.
-	// This can be 'server', 'agent', or 'all' (for both).
+	// This can be `server`, `agent`, or `all` (for both).
 	//
-	// +optional
 	// +kubebuilder:validation:Enum=server;agent;all
+	// +optional
 	Role string `json:"role,omitempty"`
 }
 
@@ -422,8 +422,7 @@ type StorageClassSyncConfig struct {
 
 // ClusterMode is the possible provisioning mode of a Cluster.
 //
-// +kubebuilder:validation:Enum=shared;virtual;hcp
-// +kubebuilder:default="shared"
+// Supported values: `shared`, `virtual`, `hcp`.
 type ClusterMode string
 
 const (
@@ -633,14 +632,6 @@ type ClusterStatus struct {
 	// +optional
 	KubeletPort int `json:"kubeletPort,omitempty"`
 
-	// HCPRegistration is a copy-pasteable K3s installer command that external
-	// (BYO) nodes can run to register against an HCP-mode cluster.
-	// Only populated when Mode is "hcp" and an externally-routable endpoint
-	// (NodePort, LoadBalancer or Ingress) is configured.
-	//
-	// +optional
-	HCPRegistration string `json:"hcpRegistration,omitempty"`
-
 	// Conditions are the individual conditions for the cluster set.
 	//
 	// +optional
@@ -648,7 +639,7 @@ type ClusterStatus struct {
 
 	// Phase is a high-level summary of the cluster's current lifecycle state.
 	//
-	// +kubebuilder:default="Unknown"
+	// +kubebuilder:default=Unknown
 	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Failed;Terminating;Unknown
 	// +optional
 	Phase ClusterPhase `json:"phase,omitempty"`
@@ -808,6 +799,7 @@ type VirtualClusterPolicySpec struct {
 
 	// PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace.
 	//
+	// +kubebuilder:validation:Enum=privileged;baseline;restricted
 	// +optional
 	PodSecurityAdmissionLevel *PodSecurityAdmissionLevel `json:"podSecurityAdmissionLevel,omitempty"`
 
@@ -840,7 +832,7 @@ type VirtualClusterPolicySpec struct {
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.
 //
-// +kubebuilder:validation:Enum=privileged;baseline;restricted
+// Supported values: `privileged`, `baseline`, `restricted`.
 type PodSecurityAdmissionLevel string
 
 const (

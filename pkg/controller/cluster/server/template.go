@@ -19,7 +19,7 @@ safe_mode() {
         CURRENT_IP=$(cat /var/lib/rancher/k3s/k3k-node-ip)
     fi
 
-    if [ -z "$CURRENT_IP" ] || [ "$CURRENT_IP" = "$POD_IP" ] || [ "{{.K3K_MODE}}" = "shared" ] || [ "{{.K3K_MODE}}" = "hcp" ]; then
+    if [ -z "$CURRENT_IP" ] || [ "$CURRENT_IP" = "$POD_IP" ] || [ "{{.K3K_MODE}}" != "virtual" ]; then
         return
     fi
 

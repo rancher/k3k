@@ -133,8 +133,9 @@ _Underlying type:_ _string_
 
 ClusterMode is the possible provisioning mode of a Cluster.
 
-_Validation:_
-- Enum: [shared virtual]
+Supported values: `shared`, `virtual`, `hcp`.
+
+
 
 _Appears In:_
 
@@ -177,8 +178,8 @@ _Appears In:_
 | *`version`* __string__ | Version is the K3s version to use for the virtual nodes. +
 It should follow the K3s versioning convention (e.g., v1.28.2-k3s1). +
 If not specified, the Kubernetes version of the host node will be used. + |  | 
-| *`mode`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clustermode[$$ClusterMode$$]__ | Mode specifies the cluster provisioning mode: "shared" or "virtual". +
-Defaults to "shared". This field is immutable. + | shared | Enum: [shared virtual] +
+| *`mode`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clustermode[$$ClusterMode$$]__ | Mode specifies the cluster provisioning mode: "shared", "virtual" or "hcp". +
+Defaults to "shared". This field is immutable. + | shared | Enum: [shared virtual hcp] +
 
 | *`servers`* __integer__ | Servers specifies the number of K3s pods to run in server (control plane) mode. +
 Must be at least 1. Defaults to 1. + | 1 | 
@@ -547,8 +548,9 @@ _Underlying type:_ _string_
 
 PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.
 
-_Validation:_
-- Enum: [privileged baseline restricted]
+Supported values: `privileged`, `baseline`, `restricted`.
+
+
 
 _Appears In:_
 
@@ -624,7 +626,7 @@ secret contents will be mounted. + |  |
 When specified, only the specified key from the secret will be mounted as a file +
 at MountPath, keeping the parent directory writable. + |  | 
 | *`role`* __string__ | Role is the type of the k3k pod that will be used to mount the secret. +
-This can be 'server', 'agent', or 'all' (for both). + |  | Enum: [server agent all] +
+This can be `server`, `agent`, or `all` (for both). + |  | Enum: [server agent all] +
 
 |===
 
@@ -796,7 +798,7 @@ to set defaults and constraints (min/max) + |  |
 This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
 | *`defaultAgentAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace. +
 This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
-| *`allowedMode`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clustermode[$$ClusterMode$$]__ | AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared". + | shared | Enum: [shared virtual] +
+| *`allowedMode`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clustermode[$$ClusterMode$$]__ | AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared". + | shared | Enum: [shared virtual hcp] +
 
 | *`disableNetworkPolicy`* __boolean__ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. + |  | 
 | *`podSecurityAdmissionLevel`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-podsecurityadmissionlevel[$$PodSecurityAdmissionLevel$$]__ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. + |  | Enum: [privileged baseline restricted] +

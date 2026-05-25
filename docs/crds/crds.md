@@ -102,8 +102,9 @@ _Underlying type:_ _string_
 
 ClusterMode is the possible provisioning mode of a Cluster.
 
-_Validation:_
-- Enum: [shared virtual]
+Supported values: `shared`, `virtual`, `hcp`.
+
+
 
 _Appears in:_
 - [ClusterSpec](#clusterspec)
@@ -138,7 +139,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `version` _string_ | Version is the K3s version to use for the virtual nodes.<br />It should follow the K3s versioning convention (e.g., v1.28.2-k3s1).<br />If not specified, the Kubernetes version of the host node will be used. |  |  |
-| `mode` _[ClusterMode](#clustermode)_ | Mode specifies the cluster provisioning mode: "shared" or "virtual".<br />Defaults to "shared". This field is immutable. | shared | Enum: [shared virtual] <br /> |
+| `mode` _[ClusterMode](#clustermode)_ | Mode specifies the cluster provisioning mode: "shared", "virtual" or "hcp".<br />Defaults to "shared". This field is immutable. | shared | Enum: [shared virtual hcp] <br /> |
 | `servers` _integer_ | Servers specifies the number of K3s pods to run in server (control plane) mode.<br />Must be at least 1. Defaults to 1. | 1 |  |
 | `agents` _integer_ | Agents specifies the number of K3s pods to run in agent (worker) mode.<br />Must be 0 or greater. Defaults to 0.<br />This field is ignored in "shared" mode. | 0 |  |
 | `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for pod IPs.<br />Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.<br />This field is immutable. |  |  |
@@ -409,8 +410,9 @@ _Underlying type:_ _string_
 
 PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.
 
-_Validation:_
-- Enum: [privileged baseline restricted]
+Supported values: `privileged`, `baseline`, `restricted`.
+
+
 
 _Appears in:_
 - [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
@@ -455,7 +457,7 @@ _Appears in:_
 | `name` _string_ | Name is the name of the secret mount volume that will be used<br />as the name of volume and volume mount for the server or agent pod<br />if empty then the secret name will be used instead. |  | MaxLength: 63 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
 | `mountPath` _string_ | MountPath is the path within server and agent pods where the<br />secret contents will be mounted. |  |  |
 | `subPath` _string_ | SubPath is an optional path within the secret to mount instead of the root.<br />When specified, only the specified key from the secret will be mounted as a file<br />at MountPath, keeping the parent directory writable. |  |  |
-| `role` _string_ | Role is the type of the k3k pod that will be used to mount the secret.<br />This can be 'server', 'agent', or 'all' (for both). |  | Enum: [server agent all] <br /> |
+| `role` _string_ | Role is the type of the k3k pod that will be used to mount the secret.<br />This can be `server`, `agent`, or `all` (for both). |  | Enum: [server agent all] <br /> |
 
 
 #### SecretSyncConfig
@@ -591,7 +593,7 @@ _Appears in:_
 | `defaultPriorityClass` _string_ | DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace. |  |  |
 | `defaultServerAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
 | `defaultAgentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
-| `allowedMode` _[ClusterMode](#clustermode)_ | AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared". | shared | Enum: [shared virtual] <br /> |
+| `allowedMode` _[ClusterMode](#clustermode)_ | AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared". | shared | Enum: [shared virtual hcp] <br /> |
 | `disableNetworkPolicy` _boolean_ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. |  |  |
 | `podSecurityAdmissionLevel` _[PodSecurityAdmissionLevel](#podsecurityadmissionlevel)_ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. |  | Enum: [privileged baseline restricted] <br /> |
 | `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |

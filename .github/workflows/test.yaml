@@ -22,6 +22,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+      with:
+        go-version-file: go.mod
+
     - name: Install helm
       env:
         FILENAME: helm.tar.gz
@@ -184,29 +194,27 @@ jobs:
         echo "VM is completely up and accessible!"
 
 
-    # # 7. Extract token and trigger the manual join command via SSH
-    # - name: Join Worker to K3k Control Plane
-    #   run: |
-    #     # Fetch the registration secret from your K3k virtual cluster context
-    #     # (Update namespace/secret names to match your precise K3k CRD setup)
-    #     K3K_TOKEN=$(kubectl get secret -n k3k-system-cluster -o jsonpath='{.data.token}' | base64 -d)
+    - name: Join Worker to K3k Control Plane
+      run: |
+        echo "Getting cluster token"
+        K3S_TOKEN=$(kubectl get secret -n k3k-mycluster k3k-mycluster-token -o jsonpath='{.data.token}' | base64 -d)
         
-    #     echo "Registering Worker 1..."
-    #     ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-    #       "curl -sfL https://get.k3s.io | K3S_URL='https://10.0.2.2:6443' K3S_TOKEN='${K3K_TOKEN}' sh -s - agent"
+        echo "Registering Worker..."
+        ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
+          "curl -sfL https://get.k3s.io | K3S_URL='https://10.0.2.2:6443' K3S_TOKEN='${K3S_TOKEN}' sh -s - agent"
 
-    # # 8. Assert that both nodes successfully registered and transitioned to a Ready status
-    # - name: Verify Cluster Nodes
-    #   run: |
-    #     echo "Monitoring K3k Virtual Cluster for Node registration..."
-    #     timeout 180s bash -c '
-    #       until [ $(kubectl --kubeconfig=k3k-cluster.kubeconfig get nodes --no-headers 2>/dev/null | grep -c "Ready") -eq 2 ]; do
-    #         echo "Waiting for both worker nodes to show Ready..."
-    #         kubectl --kubeconfig=k3k-cluster.kubeconfig get nodes || true
-    #         sleep 5
-    #       done
-    #     '
-    #     echo "E2E Success: Both QEMU workers successfully attached to the Hosted Control Plane!"
+    # 8. Assert that both nodes successfully registered and transitioned to a Ready status
+    - name: Verify Cluster Nodes
+      run: |
+        echo "Monitoring K3k Virtual Cluster for Node registration..."
+        timeout 180s bash -c '
+          until [ $(kubectl get nodes --no-headers 2>/dev/null | grep -c "Ready") -eq 2 ]; do
+            echo "Waiting for both worker nodes to show Ready..."
+            kubectl get nodes || true
+            sleep 5
+          done
+        '
+        echo "E2E Success: Both QEMU workers successfully attached to the Hosted Control Plane!"
 
   tests:
     runs-on: ubuntu-latest

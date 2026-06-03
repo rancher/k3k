@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"path"
 	"time"
 
@@ -109,13 +109,13 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 		},
 	})
 	if err != nil {
-		return nil, errors.New("unable to create controller-runtime mgr for host cluster: " + err.Error())
+		return nil, fmt.Errorf("unable to create controller-runtime mgr for host cluster: %w", err)
 	}
 
 	// virtual client will only use core types (for now), no need to add anything other than the basics
 	virtualScheme := runtime.NewScheme()
 	if err := clientgoscheme.AddToScheme(virtualScheme); err != nil {
-		return nil, errors.New("unable to add client go types to virtual cluster scheme: " + err.Error())
+		return nil, fmt.Errorf("unable to add client go types to virtual cluster scheme: %w", err)
 	}
 
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
@@ -128,7 +128,7 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 		},
 	})
 	if err != nil {
-		return nil, errors.New("unable to create controller-runtime mgr for virtual cluster: " + err.Error())
+		return nil, fmt.Errorf("unable to create controller-runtime mgr for virtual cluster: %w", err)
 	}
 
 	controllerName := c.AgentHostname
@@ -138,12 +138,12 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 	virtEventRecorder := eb.NewRecorder(virtualScheme, corev1.EventSource{Component: path.Join(controllerName, "pod-controller")})
 
 	if err := addControllers(ctx, hostMgr, virtualMgr, c, hostClient, virtEventRecorder); err != nil {
-		return nil, errors.New("failed to add controller: " + err.Error())
+		return nil, fmt.Errorf("failed to add controller: %w", err)
 	}
 
 	clusterIP, err := clusterIP(ctx, c.ServiceName, c.ClusterNamespace, hostClient)
 	if err != nil {
-		return nil, errors.New("failed to extract the clusterIP for the server service: " + err.Error())
+		return nil, fmt.Errorf("failed to extract the clusterIP for the server service: %w", err)
 	}
 
 	// get the cluster's DNS IP to be injected to pods
@@ -151,12 +151,12 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 
 	dnsName := controller.SafeConcatNameWithPrefix(c.ClusterName, "kube-dns")
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: dnsName, Namespace: c.ClusterNamespace}, &dnsService); err != nil {
-		return nil, errors.New("failed to get the DNS service for the cluster: " + err.Error())
+		return nil, fmt.Errorf("failed to get the DNS service for the cluster: %w", err)
 	}
 
 	var virtualCluster v1beta1.Cluster
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: c.ClusterName, Namespace: c.ClusterNamespace}, &virtualCluster); err != nil {
-		return nil, errors.New("failed to get virtualCluster spec: " + err.Error())
+		return nil, fmt.Errorf("failed to get virtualCluster spec: %w", err)
 	}
 
 	return &kubelet{
@@ -239,7 +239,7 @@ func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
 		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, cfg.ClusterNamespace, cfg.ClusterName, cfg.ServerIP, k.dnsIP, cfg.AgentHostname)
 		if err != nil {
-			return nil, nil, errors.New("unable to make nodeutil provider: " + err.Error())
+			return nil, nil, fmt.Errorf("unable to make nodeutil provider: %w", err)
 		}
 
 		err = provider.ConfigureNode(
@@ -276,12 +276,12 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 	}, func() error {
 		return hostClient.Get(ctx, kubeconfigSecretName, &clusterKubeConfig)
 	}); err != nil {
-		return nil, errors.New("unable to decode bootstrap: " + err.Error())
+		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
 	}
 
 	restConfig, err := clientcmd.RESTConfigFromKubeConfig(clusterKubeConfig.Data["kubeconfig.yaml"])
 	if err != nil {
-		return nil, errors.New("failed to create config from kubeconfig file: " + err.Error())
+		return nil, fmt.Errorf("failed to create config from kubeconfig file: %w", err)
 	}
 
 	return restConfig, nil
@@ -300,39 +300,39 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	}
 
 	if err := syncer.AddConfigMapSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return errors.New("failed to add configmap global syncer: " + err.Error())
+		return fmt.Errorf("failed to add configmap global syncer: %w", err)
 	}
 
 	if err := syncer.AddSecretSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return errors.New("failed to add secret global syncer: " + err.Error())
+		return fmt.Errorf("failed to add secret global syncer: %w", err)
 	}
 
 	logger.Info("adding service syncer controller")
 
 	if err := syncer.AddServiceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return errors.New("failed to add service syncer controller: " + err.Error())
+		return fmt.Errorf("failed to add service syncer controller: %w", err)
 	}
 
 	logger.Info("adding ingress syncer controller")
 
 	if err := syncer.AddIngressSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return errors.New("failed to add ingress syncer controller: " + err.Error())
+		return fmt.Errorf("failed to add ingress syncer controller: %w", err)
 	}
 
 	logger.Info("adding pvc syncer controller")
 
 	if err := syncer.AddPVCSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return errors.New("failed to add pvc syncer controller: " + err.Error())
+		return fmt.Errorf("failed to add pvc syncer controller: %w", err)
 	}
 
 	logger.Info("adding priorityclass controller")
 
 	if err := syncer.AddPriorityClassSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return errors.New("failed to add priorityclass controller: " + err.Error())
+		return fmt.Errorf("failed to add priorityclass controller: %w", err)
 	}
 
 	if err := syncer.AddEventSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace, virtEventRecorder); err != nil {
-		return errors.New("failed to add event syncer controller: " + err.Error())
+		return fmt.Errorf("failed to add event syncer controller: %w", err)
 	}
 
 	return nil

@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -17,7 +16,7 @@ import (
 func (k *kubelet) registerNode(agentIP, podIP string, cfg config) error {
 	tlsConfig, err := loadTLSConfig(cfg, k.token, agentIP, podIP)
 	if err != nil {
-		return errors.New("unable to get tls config: " + err.Error())
+		return fmt.Errorf("unable to get tls config: %w", err)
 	}
 
 	mux := http.NewServeMux()
@@ -34,7 +33,7 @@ func (k *kubelet) registerNode(agentIP, podIP string, cfg config) error {
 		},
 	)
 	if err != nil {
-		return errors.New("unable to start kubelet: " + err.Error())
+		return fmt.Errorf("unable to start kubelet: %w", err)
 	}
 
 	k.node = node
@@ -83,7 +82,7 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 
 		return err
 	}); err != nil {
-		return nil, errors.New("unable to request serving kubelet certificate: " + err.Error())
+		return nil, fmt.Errorf("unable to request serving kubelet certificate: %w", err)
 	}
 
 	return &tls.Config{

@@ -2,25 +2,20 @@ package main
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"k8s.io/client-go/util/retry"
 
-	certutil "github.com/rancher/dynamiclistener/cert"
-
 	"github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
-	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	"github.com/rancher/k3k/pkg/k3s"
 )
 
 func (k *kubelet) registerNode(agentIP, podIP string, cfg config) error {
-	tlsConfig, err := loadTLSConfig(cfg, k.name, k.token, agentIP, podIP)
+	tlsConfig, err := loadTLSConfig(cfg, k.token, agentIP, podIP)
 	if err != nil {
 		return errors.New("unable to get tls config: " + err.Error())
 	}
@@ -63,56 +58,35 @@ func nodeOpt(mux *http.ServeMux, tlsConfig *tls.Config, port int) nodeutil.NodeO
 	}
 }
 
-func loadTLSConfig(cfg config, nodeName, token, agentIP, podIP string) (*tls.Config, error) {
-	var b *bootstrap.ControlRuntimeBootstrap
+// loadTLSConfig function will request kubelet serving crt from k3s server and will use it to
+// register a new node to the server, note that we use serving cert to allow adding IPSans to
+// the certificate request
+func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error) {
+	serviceName := fmt.Sprintf("%s.%s", server.ServiceName(cfg.ClusterName), cfg.ClusterNamespace)
 
-	endpoint := fmt.Sprintf("%s.%s", server.ServiceName(cfg.ClusterName), cfg.ClusterNamespace)
+	client := k3s.New(k3s.ClientConfig{
+		ServerIP: serviceName,
+		Token:    token,
+		AgentIP:  agentIP,
+		PodIP:    podIP,
+		NodeName: controller.SafeConcatName(cfg.ClusterName, "server-0"),
+	})
+
+	var tlsCrt *tls.Certificate
 
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
-		return err != nil
+		return err == k3s.ErrServerNotReady
 	}, func() error {
 		var err error
 
-		b, err = bootstrap.DecodedBootstrap(token, endpoint)
+		tlsCrt, err = k3s.GetServingKubeletCrt(client)
 
 		return err
 	}); err != nil {
-		return nil, errors.New("unable to decode bootstrap: " + err.Error())
+		return nil, errors.New("unable to request serving kubelet certificate: " + err.Error())
 	}
-
-	altNames := certutil.AltNames{
-		DNSNames: []string{cfg.AgentHostname},
-		IPs: []net.IP{
-			net.ParseIP(agentIP),
-			net.ParseIP(podIP),
-		},
-	}
-
-	cert, key, err := certs.CreateClientCertKey(nodeName, nil, &altNames, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, 0, b.ServerCA.Content, b.ServerCAKey.Content)
-	if err != nil {
-		return nil, errors.New("unable to get cert and key: " + err.Error())
-	}
-
-	clientCert, err := tls.X509KeyPair(cert, key)
-	if err != nil {
-		return nil, errors.New("unable to get key pair: " + err.Error())
-	}
-
-	// create rootCA CertPool
-	certs, err := certutil.ParseCertsPEM([]byte(b.ServerCA.Content))
-	if err != nil {
-		return nil, errors.New("unable to create ca certs: " + err.Error())
-	}
-
-	if len(certs) < 1 {
-		return nil, errors.New("ca cert is not parsed correctly")
-	}
-
-	pool := x509.NewCertPool()
-	pool.AddCert(certs[0])
 
 	return &tls.Config{
-		RootCAs:      pool,
-		Certificates: []tls.Certificate{clientCert},
+		Certificates: []tls.Certificate{*tlsCrt},
 	}, nil
 }

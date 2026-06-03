@@ -11,7 +11,6 @@ import (
 
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -32,6 +31,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	"github.com/rancher/k3k/pkg/k3s"
 )
 
 const (
@@ -44,7 +44,7 @@ type StatefulSetReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// Add adds a new controller to the manager
+// AddStatefulSetController adds a new statefulset controller to the manager
 func AddStatefulSetController(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) error {
 	// initialize a new Reconciler
 	reconciler := StatefulSetReconciler{
@@ -180,21 +180,14 @@ func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Generating ETCD TLS client certificate", "cluster", cluster)
 
-	token, err := p.clusterToken(ctx, cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	endpoint := server.ServiceName(cluster.Name) + "." + cluster.Namespace
-
-	var b *bootstrap.ControlRuntimeBootstrap
+	var b *k3s.BootstrapData
 
 	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
 		return true
 	}, func() error {
 		var err error
 
-		b, err = bootstrap.DecodedBootstrap(token, endpoint)
+		b, err = bootstrap.LoadFromSecret(ctx, p.Client, cluster)
 
 		return err
 	}); err != nil {
@@ -263,29 +256,6 @@ func removePeer(ctx context.Context, client *clientv3.Client, name, address stri
 	}
 
 	return nil
-}
-
-func (p *StatefulSetReconciler) clusterToken(ctx context.Context, cluster *v1beta1.Cluster) (string, error) {
-	var tokenSecret corev1.Secret
-
-	nn := types.NamespacedName{
-		Name:      TokenSecretName(cluster.Name),
-		Namespace: cluster.Namespace,
-	}
-
-	if cluster.Spec.TokenSecretRef != nil {
-		nn.Name = TokenSecretName(cluster.Name)
-	}
-
-	if err := p.Client.Get(ctx, nn, &tokenSecret); err != nil {
-		return "", err
-	}
-
-	if _, ok := tokenSecret.Data["token"]; !ok {
-		return "", fmt.Errorf("no token field in secret %s/%s", nn.Namespace, nn.Name)
-	}
-
-	return string(tokenSecret.Data["token"]), nil
 }
 
 func (p *StatefulSetReconciler) handleDeletion(ctx context.Context, sts *appsv1.StatefulSet) (ctrl.Result, error) {

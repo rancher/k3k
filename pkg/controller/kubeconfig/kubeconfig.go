@@ -40,7 +40,7 @@ func New() *KubeConfig {
 }
 
 func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster *v1beta1.Cluster, hostServerIP string, port int) (*clientcmdapi.Config, error) {
-	bootstrapData, err := bootstrap.GetFromSecret(ctx, client, cluster)
+	bootstrapData, err := bootstrap.LoadFromSecret(ctx, client, cluster)
 	if err != nil {
 		return nil, err
 	}

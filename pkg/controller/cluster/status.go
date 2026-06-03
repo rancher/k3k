@@ -11,7 +11,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
-	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
+	"github.com/rancher/k3k/pkg/k3s"
 )
 
 const (
@@ -57,7 +57,7 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 		return
 	}
 
-	if errors.Is(reconcileErr, bootstrap.ErrServerNotReady) {
+	if errors.Is(reconcileErr, k3s.ErrServerNotReady) {
 		cluster.Status.Phase = v1beta1.ClusterProvisioning
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 			Type:    ConditionReady,

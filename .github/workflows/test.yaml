@@ -12,12 +12,120 @@ permissions:
 
 env:
   KUBERNETES_VERSION: v1.35.3
+  HELM_VERSION: v4.1.3
+  HELM_CHECKSUM_AMD64: 02ce9722d541238f81459938b84cf47df2fdf1187493b4bfb2346754d82a4700
+  K3D_VERSION: v5.8.3
+  K3D_CHECKSUM_AMD64: dbaa79a76ace7f4ca230a1ff41dc7d8a5036a8ad0309e9c54f9bf3836dbe853e
 
 jobs:
   hcp-test:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Install helm
+      env:
+        FILENAME: helm.tar.gz
+      run: |
+        curl -sSfL -o ${{ env.FILENAME }} https://get.helm.sh/helm-${{ env.HELM_VERSION }}-linux-amd64.tar.gz
+        echo "${{ env.HELM_CHECKSUM_AMD64 }}  ${{ env.FILENAME }}" | sha256sum --check
+        tar -xvzf ${{ env.FILENAME }} linux-amd64/helm
+        sudo install -m 755 linux-amd64/helm /usr/local/bin/helm
+
+        rm -fr "${{ env.FILENAME }}" linux-amd64/helm
+
+    - name: Install hydrophone
+      run: go install sigs.k8s.io/hydrophone@3de3e886a2f6f09635d8b981c195490af1584d97 #v0.7.0
+
+    - name: Install k3d
+      run: |
+        curl -sSfL -o k3d "https://github.com/k3d-io/k3d/releases/download/${{ env.K3D_VERSION }}/k3d-linux-amd64"
+        echo "${{ env.K3D_CHECKSUM_AMD64 }}  k3d" | sha256sum --check
+        sudo install -m 755 k3d /usr/local/bin/k3d
+
+        rm -f k3d
+
+    - name: Install kubectl
+      run: |
+        curl -LO "https://dl.k8s.io/release/${{ env.KUBERNETES_VERSION }}/bin/linux/amd64/kubectl"
+        curl -LO "https://dl.k8s.io/release/${{ env.KUBERNETES_VERSION }}/bin/linux/amd64/kubectl.sha256"
+        echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+
+    - name: Setup Kubernetes (k3d)
+      env:
+        REPO_NAME: k3k-registry
+        REPO_PORT: 12345
+      run: |
+        echo "127.0.0.1 ${REPO_NAME}" | sudo tee -a /etc/hosts
+
+        k3d registry create ${REPO_NAME} --port ${REPO_PORT}
+        
+        k3d cluster create k3k --servers 2 \
+          --image rancher/k3s:${{ env.KUBERNETES_VERSION }}-k3s1 \
+          -p "30000-30010:30000-30010@server:0" \
+          --registry-use k3d-${REPO_NAME}:${REPO_PORT}
+        
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Setup K3k (from source)
+      env:
+        REPO: k3k-registry:12345
+      run: |
+        echo "127.0.0.1 k3k-registry" | sudo tee -a /etc/hosts
+
+        make build
+        make package
+        make push
+
+        # add k3kcli to $PATH
+        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+        VERSION=$(make version)
+        k3d image import ${REPO}/k3k:${VERSION} -c k3k --verbose
+        k3d image import ${REPO}/k3k-kubelet:${VERSION} -c k3k --verbose
+
+        make install
+
+    - name: Wait for K3k controller
+      run: |
+        echo "Wait for K3k controller deployment to be available"
+        kubectl wait -n k3k-system deployment -l "app.kubernetes.io/name=k3k" --for=condition=Available --timeout=5m
+
+    - name: Check k3kcli
+      run: k3kcli -v
+
+    - name: Create virtual cluster
+      run: |
+        kubectl create namespace k3k-mycluster
+
+        cat <<EOF | kubectl apply -f -
+        apiVersion: k3k.io/v1beta1
+        kind: Cluster
+        metadata:
+          name: mycluster
+          namespace: k3k-mycluster
+        spec:
+          mode: hcp
+          mirrorHostNodes: true
+          tlsSANs:
+            - "127.0.0.1"
+            - "10.0.2.2"
+          expose:
+            nodePort:
+              serverPort: 30001
+        EOF
+
+        echo "Wait for bootstrap secret to be available"
+        kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m
+
+        k3kcli kubeconfig generate --name mycluster
+
+        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
+        
+        kubectl cluster-info
+        kubectl get nodes
+        kubectl get pods -A
+
     - name: Install Virtualization Dependencies
       run: |
         sudo apt-get update

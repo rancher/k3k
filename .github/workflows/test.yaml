@@ -14,8 +14,6 @@ env:
   KUBERNETES_VERSION: v1.35.3
   HELM_VERSION: v4.1.3
   HELM_CHECKSUM_AMD64: 02ce9722d541238f81459938b84cf47df2fdf1187493b4bfb2346754d82a4700
-  K3D_VERSION: v5.8.3
-  K3D_CHECKSUM_AMD64: dbaa79a76ace7f4ca230a1ff41dc7d8a5036a8ad0309e9c54f9bf3836dbe853e
 
 jobs:
   hcp-test:
@@ -43,58 +41,30 @@ jobs:
 
         rm -fr "${{ env.FILENAME }}" linux-amd64/helm
 
-    - name: Install hydrophone
-      run: go install sigs.k8s.io/hydrophone@3de3e886a2f6f09635d8b981c195490af1584d97 #v0.7.0
-
-    - name: Install k3d
-      run: |
-        curl -sSfL -o k3d "https://github.com/k3d-io/k3d/releases/download/${{ env.K3D_VERSION }}/k3d-linux-amd64"
-        echo "${{ env.K3D_CHECKSUM_AMD64 }}  k3d" | sha256sum --check
-        sudo install -m 755 k3d /usr/local/bin/k3d
-
-        rm -f k3d
-
-    - name: Install kubectl
-      run: |
-        curl -LO "https://dl.k8s.io/release/${{ env.KUBERNETES_VERSION }}/bin/linux/amd64/kubectl"
-        curl -LO "https://dl.k8s.io/release/${{ env.KUBERNETES_VERSION }}/bin/linux/amd64/kubectl.sha256"
-        echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
-
-    - name: Setup Kubernetes (k3d)
+    - name: Install k3s
       env:
-        REPO_NAME: k3k-registry
-        REPO_PORT: 12345
+        K3S_HOST_VERSION: ${{ env.KUBERNETES_VERSION }}+k3s1
       run: |
-        echo "127.0.0.1 ${REPO_NAME}" | sudo tee -a /etc/hosts
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -
 
-        k3d registry create ${REPO_NAME} --port ${REPO_PORT}
-        
-        k3d cluster create k3k --servers 2 \
-          --image rancher/k3s:${{ env.KUBERNETES_VERSION }}-k3s1 \
-          -p "30000-30010:30000-30010@server:0" \
-          --registry-use k3d-${REPO_NAME}:${REPO_PORT}
-        
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        echo "KUBECONFIG=${KUBECONFIG}" >> $GITHUB_ENV
+
         kubectl cluster-info
         kubectl get nodes
 
     - name: Setup K3k (from source)
-      env:
-        REPO: k3k-registry:12345
       run: |
-        echo "127.0.0.1 k3k-registry" | sudo tee -a /etc/hosts
+        export REPO=ttl.sh/$(uuidgen)
+        export VERSION=1h
 
         make build
         make package
         make push
+        make install
 
         # add k3kcli to $PATH
         echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
-
-        VERSION=$(make version)
-        k3d image import ${REPO}/k3k:${VERSION} -c k3k --verbose
-        k3d image import ${REPO}/k3k-kubelet:${VERSION} -c k3k --verbose
-
-        make install
 
     - name: Wait for K3k controller
       run: |
@@ -116,7 +86,6 @@ jobs:
           namespace: k3k-mycluster
         spec:
           mode: hcp
-          mirrorHostNodes: true
           tlsSANs:
             - "127.0.0.1"
             - "10.0.2.2"
@@ -131,10 +100,35 @@ jobs:
         k3kcli kubeconfig generate --name mycluster
 
         export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
-        
+
         kubectl cluster-info
         kubectl get nodes
         kubectl get pods -A
+
+    - name: Wait for cluster to be ready
+      run: |
+        echo "Waiting for cluster to reach Ready phase..."
+
+        timeout 300s bash -c '
+          until kubectl get cluster -n k3k-mycluster mycluster -o jsonpath="{.status.phase}" | grep -q "Ready"; do
+            PHASE=$(kubectl get cluster -n k3k-mycluster mycluster -o jsonpath="{.status.phase}")
+            echo "Current phase: ${PHASE}"
+            sleep 5
+          done
+        '
+
+        echo "✓ Cluster is ready!"
+
+        echo "Verifying NodePort service is accessible from host..."
+
+        if ! curl -k --max-time 5 https://127.0.0.1:30001/readyz; then
+          echo "ERROR: Cannot reach NodePort service from host!"
+          echo "Service details:"
+          kubectl get svc -n k3k-mycluster -l cluster=mycluster,role=server -o yaml
+          exit 1
+        fi
+
+        echo "✓ NodePort service is accessible"
 
     - name: Install Virtualization Dependencies
       run: |
@@ -146,7 +140,7 @@ jobs:
 
     - name: Download Base Cloud Image
       run: |
-        wget -q https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+        wget -q https://cloud-images.ubuntu.com/resolute/current/resolute-server-cloudimg-amd64.img
         
     - name: Generate SSH Key and Cloud-Init Seed
       run: |
@@ -169,7 +163,7 @@ jobs:
     # 4. Provision independent overlay disks for Worker
     - name: Create Worker Disks
       run: |
-        qemu-img create -f qcow2 -b focal-server-cloudimg-amd64.img -F qcow2 worker-1.qcow2 20G
+        qemu-img create -f qcow2 -b resolute-server-cloudimg-amd64.img -F qcow2 worker-1.qcow2 20G
 
     # 5. Boot both VMs headlessly in the background with unique MACs and forwarded SSH ports
     - name: Launch Worker VM
@@ -196,25 +190,94 @@ jobs:
 
     - name: Join Worker to K3k Control Plane
       run: |
-        echo "Getting cluster token"
         K3S_TOKEN=$(kubectl get secret -n k3k-mycluster k3k-mycluster-token -o jsonpath='{.data.token}' | base64 -d)
-        
-        echo "Registering Worker..."
+
+        echo "Testing connectivity from VM to K3k API server..."
         ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-          "curl -sfL https://get.k3s.io | K3S_URL='https://10.0.2.2:6443' K3S_TOKEN='${K3S_TOKEN}' sh -s - agent"
+          "curl -kv --max-time 10 https://10.0.2.2:30001/readyz || echo 'VM connectivity test failed'"
+
+        echo "Registering Worker..."
+        set +e  # Don't exit on error, we want to collect logs
+        ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 bash -s <<EOSSH
+          set -x
+
+          sudo -i
+
+          curl -u "node:${K3S_TOKEN}" https://10.0.2.2:30001/v1-k3s/config
+          curl -k -u "node:${K3S_TOKEN}" https://10.0.2.2:30001/v1-k3s/config
+
+          # Run the official registration command
+          curl -sfL https://get.k3s.io | K3S_URL=https://10.0.2.2:30001 K3S_TOKEN=${K3S_TOKEN} sh -
+
+          # Check if service started
+          if ! sudo systemctl is-active k3s-agent; then
+            echo "=== k3s-agent service failed to start ==="
+            echo "Service status:"
+            sudo systemctl status k3s-agent --no-pager -l || true
+
+            echo ""
+            echo "=== Last 100 lines of k3s-agent journal ==="
+            sudo journalctl -u k3s-agent -n 100 --no-pager || true
+
+            echo ""
+            echo "=== Network connectivity from within VM ==="
+            curl -kv --max-time 5 https://10.0.2.2:30001/readyz || echo "Cannot reach API server"
+
+            echo ""
+            echo "=== Checking k3s-agent service environment ==="
+            sudo cat /etc/systemd/system/k3s-agent.service.env || true
+
+            exit 1
+          fi
+
+          echo "✓ K3s agent service started successfully"
+          sudo journalctl -u k3s-agent -n 50 --no-pager
+        EOSSH
+        JOIN_RESULT=$?
+        set -e
+
+        if [ $JOIN_RESULT -ne 0 ]; then
+          echo "Worker join failed with exit code $JOIN_RESULT"
+          exit 1
+        fi
 
     # 8. Assert that both nodes successfully registered and transitioned to a Ready status
     - name: Verify Cluster Nodes
+      env:
+        KUBECONFIG: ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
       run: |
         echo "Monitoring K3k Virtual Cluster for Node registration..."
+
+        kubectl get pod -A
+        kubectl get nodes
+
         timeout 180s bash -c '
-          until [ $(kubectl get nodes --no-headers 2>/dev/null | grep -c "Ready") -eq 2 ]; do
+          until [ $(kubectl get nodes --no-headers 2>/dev/null | grep -c "Ready") -eq 1 ]; do
             echo "Waiting for both worker nodes to show Ready..."
             kubectl get nodes || true
             sleep 5
           done
         '
-        echo "E2E Success: Both QEMU workers successfully attached to the Hosted Control Plane!"
+
+    - name: Collect logs
+      if: always()
+      run: |
+        journalctl -u k3s -o cat --no-pager > /tmp/k3s.log
+        kubectl logs -n k3k-system -l "app.kubernetes.io/name=k3k" --tail=-1 > /tmp/k3k.log
+
+    - name: Archive K3s logs
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      if: always()
+      with:
+        name: k3s-hcp-logs
+        path: /tmp/k3s.log
+
+    - name: Archive K3k logs
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      if: always()
+      with:
+        name: k3k-hcp-logs
+        path: /tmp/k3k.log
 
   tests:
     runs-on: ubuntu-latest

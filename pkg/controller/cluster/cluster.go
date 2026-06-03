@@ -458,7 +458,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 			return err
 		}
 
-		if err := c.ensureHCPKubernetesEndpoints(ctx, cluster); err != nil {
+		if err := c.ensureHCPKubernetesEndpointSlice(ctx, cluster); err != nil {
 			return err
 		}
 	}

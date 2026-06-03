@@ -7,22 +7,17 @@ import (
 	"net/url"
 	"strconv"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 )
-
-// endpointSliceSkipMirrorLabel is the upstream label that opts an Endpoints
-// object out of the kube-controller-manager EndpointSlice mirroring controller.
-// The kube-apiserver normally sets it on default/kubernetes (because it
-// manages EndpointSlices itself); in HCP mode we want the mirror controller
-// to handle slices, so we strip the label.
-const endpointSliceSkipMirrorLabel = "endpointslice.kubernetes.io/skip-mirror"
 
 // ensureHCPRegistration computes the K3s installer command external nodes can
 // run to join an HCP-mode cluster and stores it on cluster.Status.HCPRegistration.
@@ -34,7 +29,7 @@ const endpointSliceSkipMirrorLabel = "endpointslice.kubernetes.io/skip-mirror"
 func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *v1beta1.Cluster, token string) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	url, external, err := server.ServerURL(ctx, c.Client, cluster, "", 0)
+	url, external, err := server.ServerURL(ctx, c.Client, cluster, selectNonLoopbackSAN(cluster), 0)
 	if err != nil {
 		return err
 	}
@@ -76,22 +71,55 @@ func hcpRegistrationCommand(version, serverURL, token string) string {
 		version, serverURL, token)
 }
 
-// ensureHCPKubernetesEndpoints maintains the default/kubernetes Service
-// Endpoints inside the virtual cluster, pointing them at the externally
+// selectNonLoopbackSAN returns the first non-loopback address from the
+// cluster's TLS SANs, preferring spec.TLSSANs then falling back to status.TLSSANs.
+// Returns empty string if no non-loopback address is found.
+func selectNonLoopbackSAN(cluster *v1beta1.Cluster) string {
+	// Try spec.TLSSANs first (user-provided values)
+	for _, san := range cluster.Spec.TLSSANs {
+		if ip := net.ParseIP(san); ip != nil && ip.IsLoopback() {
+			continue
+		}
+
+		if san == "localhost" {
+			continue
+		}
+
+		return san // Found a non-loopback address
+	}
+
+	// Fall back to status.TLSSANs (computed values)
+	for _, san := range cluster.Status.TLSSANs {
+		if ip := net.ParseIP(san); ip != nil && ip.IsLoopback() {
+			continue
+		}
+
+		if san == "localhost" {
+			continue
+		}
+
+		return san
+	}
+
+	return ""
+}
+
+// ensureHCPKubernetesEndpointSlice maintains the default/kubernetes Service
+// EndpointSlice inside the virtual cluster, pointing it at the externally
 // reachable host:port (NodePort / LoadBalancer / Ingress) so that pods
 // scheduled on external worker nodes can reach the in-cluster apiserver
 // ClusterIP.
 //
 // Background: the kube-apiserver normally reconciles default/kubernetes
-// Endpoints to its own --advertise-address:--secure-port (the host-cluster
+// EndpointSlice to its own --advertise-address:--secure-port (the host-cluster
 // pod IP and 6443). External worker nodes have no route to the host-cluster
 // pod CIDR, so kube-proxy DNAT to that endpoint fails. We disable the
 // apiserver reconciler in HCP mode (see serverOptions) and own this
-// Endpoints object instead.
-func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *v1beta1.Cluster) error {
+// EndpointSlice object instead.
+func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	rawURL, external, err := server.ServerURL(ctx, c.Client, cluster, "", 0)
+	rawURL, external, err := server.ServerURL(ctx, c.Client, cluster, selectNonLoopbackSAN(cluster), 0)
 	if err != nil {
 		return err
 	}
@@ -112,45 +140,65 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cl
 		return err
 	}
 
+	var addressType discoveryv1.AddressType
+
+	if ip := net.ParseIP(addr.IP); ip != nil {
+		if ip.To4() != nil {
+			addressType = discoveryv1.AddressTypeIPv4
+		} else {
+			addressType = discoveryv1.AddressTypeIPv6
+		}
+	} else {
+		return fmt.Errorf("invalid IP address %q", addr.IP)
+	}
+
 	virtClient, err := newVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace)
 	if err != nil {
 		return fmt.Errorf("creating virtual cluster client: %w", err)
 	}
 
-	endpoints := &corev1.Endpoints{
+	endpointSlice := &discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kubernetes",
 			Namespace: metav1.NamespaceDefault,
 		},
 	}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, virtClient, endpoints, func() error {
-		// Allow EndpointSlice mirroring; the apiserver may have set
-		// skip-mirror=true before we disabled its endpoint reconciler.
-		if endpoints.Labels != nil {
-			delete(endpoints.Labels, endpointSliceSkipMirrorLabel)
+	_, err = controllerutil.CreateOrUpdate(ctx, virtClient, endpointSlice, func() error {
+		// Ensure the service-name label is set
+		if endpointSlice.Labels == nil {
+			endpointSlice.Labels = make(map[string]string)
 		}
 
-		endpoints.Subsets = []corev1.EndpointSubset{
+		endpointSlice.Labels[discoveryv1.LabelServiceName] = "kubernetes"
+		endpointSlice.AddressType = addressType
+
+		endpoint := discoveryv1.Endpoint{
+			Addresses: []string{addr.IP},
+		}
+
+		if addr.Hostname != "" {
+			endpoint.Hostname = &addr.Hostname
+		}
+
+		endpointSlice.Endpoints = []discoveryv1.Endpoint{endpoint}
+		portName := "https"
+
+		endpointSlice.Ports = []discoveryv1.EndpointPort{
 			{
-				Addresses: []corev1.EndpointAddress{addr},
-				Ports: []corev1.EndpointPort{
-					{
-						Name:     "https",
-						Port:     port,
-						Protocol: corev1.ProtocolTCP,
-					},
-				},
+				Name:     &portName,
+				Port:     &port,
+				Protocol: new(corev1.ProtocolTCP),
 			},
 		}
 
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("upserting default/kubernetes endpoints in virtual cluster: %w", err)
+		return fmt.Errorf("upserting default/kubernetes endpointslice in virtual cluster: %w", err)
 	}
 
-	log.V(1).Info("HCP kubernetes endpoints reconciled",
+	log.V(1).Info("HCP kubernetes endpointslice reconciled",
 		"address", addr.IP, "hostname", addr.Hostname, "port", port)
 
 	return nil
@@ -172,6 +220,7 @@ func parseHCPHostPort(rawURL string) (string, int32, error) {
 	portStr := u.Port()
 
 	var port int32 = 443
+
 	if portStr != "" {
 		p, err := strconv.Atoi(portStr)
 		if err != nil {
@@ -194,6 +243,10 @@ func parseHCPHostPort(rawURL string) (string, int32, error) {
 // human-readable.
 func hcpEndpointAddress(host string) (corev1.EndpointAddress, error) {
 	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() {
+			return corev1.EndpointAddress{}, fmt.Errorf("HCP endpoint host %q is a loopback address and cannot be used", host)
+		}
+
 		return corev1.EndpointAddress{IP: host}, nil
 	}
 
@@ -202,15 +255,21 @@ func hcpEndpointAddress(host string) (corev1.EndpointAddress, error) {
 		return corev1.EndpointAddress{}, fmt.Errorf("HCP endpoint host %q is not an IP and does not resolve: %w", host, err)
 	}
 
+	var filteredIPs []net.IP
+
 	for _, ip := range ips {
-		if v4 := ip.To4(); v4 != nil {
-			return corev1.EndpointAddress{IP: v4.String(), Hostname: host}, nil
+		if !ip.IsLoopback() {
+			filteredIPs = append(filteredIPs, ip)
 		}
 	}
 
-	if len(ips) == 0 {
-		return corev1.EndpointAddress{}, fmt.Errorf("HCP endpoint host %q resolved to no IPs", host)
+	if len(filteredIPs) == 0 {
+		return corev1.EndpointAddress{}, fmt.Errorf("HCP endpoint host %q resolved to no non-loopback IPs", host)
 	}
 
-	return corev1.EndpointAddress{IP: ips[0].String(), Hostname: host}, nil
+	if v4 := filteredIPs[0].To4(); v4 != nil {
+		return corev1.EndpointAddress{IP: v4.String(), Hostname: host}, nil
+	}
+
+	return corev1.EndpointAddress{IP: filteredIPs[0].String(), Hostname: host}, nil
 }

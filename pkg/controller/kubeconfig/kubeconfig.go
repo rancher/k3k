@@ -86,4 +86,3 @@ func NewConfig(url string, serverCA, clientCert, clientKey []byte) *clientcmdapi
 
 	return config
 }
-

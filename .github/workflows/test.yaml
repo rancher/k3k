@@ -14,6 +14,92 @@ env:
   KUBERNETES_VERSION: v1.35.3
 
 jobs:
+  hcp-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install Virtualization Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-kvm qemu-utils cloud-image-utils wget
+        sudo usermod -aG kvm $USER
+
+        kvm-ok
+
+    - name: Download Base Cloud Image
+      run: |
+        wget -q https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+        
+    - name: Generate SSH Key and Cloud-Init Seed
+      run: |
+        ssh-keygen -t rsa -b 4096 -f ./id_rsa -N ""
+        
+        # Define the cloud-init config to authorize our new key
+        cat <<EOF > user-data
+        #cloud-config
+        users:
+          - name: ubuntu
+            ssh_authorized_keys:
+              - $(cat ./id_rsa.pub)
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+            shell: /bin/bash
+        EOF
+        
+        # Bake the configuration into a reusable metadata ISO
+        cloud-localds seed.img user-data
+
+    # 4. Provision independent overlay disks for Worker
+    - name: Create Worker Disks
+      run: |
+        qemu-img create -f qcow2 -b focal-server-cloudimg-amd64.img -F qcow2 worker-1.qcow2 20G
+
+    # 5. Boot both VMs headlessly in the background with unique MACs and forwarded SSH ports
+    - name: Launch Worker VM
+      run: |
+        # Launch Worker 1 (SSH forwarded to Host Port 2222)
+        sudo qemu-system-x86_64 \
+          -m 2048 -smp 2 -cpu host -enable-kvm -nographic \
+          -drive file=worker-1.qcow2,if=virtio \
+          -drive file=seed.img,format=raw,if=virtio \
+          -net nic,model=virtio,macaddr=52:54:00:12:34:56 \
+          -net user,hostfwd=tcp::2222-:22 \
+          &
+
+    # 6. Block the script until both VMs are completely booted and listening on SSH
+    - name: Wait for SSH Availability
+      run: |
+        echo "Waiting for Worker (Port 2222) to respond..."
+        timeout 120s bash -c '
+          until ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no -o ConnectTimeout=2 ubuntu@127.0.0.1 true 2>/dev/null; do sleep 3; done
+        '
+
+        echo "VM is completely up and accessible!"
+
+
+    # # 7. Extract token and trigger the manual join command via SSH
+    # - name: Join Worker to K3k Control Plane
+    #   run: |
+    #     # Fetch the registration secret from your K3k virtual cluster context
+    #     # (Update namespace/secret names to match your precise K3k CRD setup)
+    #     K3K_TOKEN=$(kubectl get secret -n k3k-system-cluster -o jsonpath='{.data.token}' | base64 -d)
+        
+    #     echo "Registering Worker 1..."
+    #     ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
+    #       "curl -sfL https://get.k3s.io | K3S_URL='https://10.0.2.2:6443' K3S_TOKEN='${K3K_TOKEN}' sh -s - agent"
+
+    # # 8. Assert that both nodes successfully registered and transitioned to a Ready status
+    # - name: Verify Cluster Nodes
+    #   run: |
+    #     echo "Monitoring K3k Virtual Cluster for Node registration..."
+    #     timeout 180s bash -c '
+    #       until [ $(kubectl --kubeconfig=k3k-cluster.kubeconfig get nodes --no-headers 2>/dev/null | grep -c "Ready") -eq 2 ]; do
+    #         echo "Waiting for both worker nodes to show Ready..."
+    #         kubectl --kubeconfig=k3k-cluster.kubeconfig get nodes || true
+    #         sleep 5
+    #       done
+    #     '
+    #     echo "E2E Success: Both QEMU workers successfully attached to the Hosted Control Plane!"
+
   tests:
     runs-on: ubuntu-latest
 

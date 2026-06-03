@@ -86,7 +86,6 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 	case v1beta1.HCPClusterMode:
 		serverConfig.DisableAgent = true
 		serverConfig.EgressSelectorMode = "cluster"
-		serverConfig.Disable = []string{"servicelb", "traefik", "metrics-server", "local-storage"}
 		// Disable it so K3k can own that Endpoints object and point
 		// it at the externally-reachable host:port (NodePort / LB / Ingress).
 		serverConfig.KubeApiServerArg = append(serverConfig.KubeApiServerArg, "endpoint-reconciler-type=none")

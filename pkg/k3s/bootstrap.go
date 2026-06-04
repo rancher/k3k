@@ -20,6 +20,21 @@ type cert struct {
 	Content   string
 }
 
+type K3SConfig struct {
+	ClusterInit bool `json:"cluster-init"`
+}
+
+func GetServerConfig(c *Client) (*K3SConfig, error) {
+	endpoint := "/v1-k3s/config"
+
+	k3sConfig, err := do[K3SConfig](c, endpoint, "server", http.MethodGet)
+	if err != nil {
+		return nil, err
+	}
+
+	return &k3sConfig, nil
+}
+
 func GetServerBootstrap(c *Client) (*BootstrapData, error) {
 	endpoint := "/v1-k3s/server-bootstrap"
 

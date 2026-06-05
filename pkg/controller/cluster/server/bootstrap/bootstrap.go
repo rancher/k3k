@@ -7,6 +7,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -19,13 +20,9 @@ import (
 	"github.com/rancher/k3k/pkg/k3s"
 )
 
-const (
-	TLSDir = "/var/lib/rancher/k3s/server/tls/"
-)
-
 // Fetch requests bootstrap data from k3s using the token and decodes it,
 // to avoid double encoding when stored as secret.
-func Fetch(ctx context.Context, ip, token string) (*k3s.BootstrapData, error) {
+func Fetch(ctx context.Context, ip, token, clusterName, clusterNamespace string, restConfig *rest.Config) (*k3s.BootstrapData, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	client := k3s.New(k3s.ClientConfig{
@@ -33,19 +30,18 @@ func Fetch(ctx context.Context, ip, token string) (*k3s.BootstrapData, error) {
 		Token:    token,
 	})
 
-	k3sConfig, err := k3s.GetServerConfig(client)
+	config, err := k3s.GetServerConfig(client)
 	if err != nil {
 		return nil, err
 	}
 
-	if k3sConfig.ClusterInit {
-		log.V(1).Info("Fetching bootstrap data from K3s API")
-		return fetchFromK3sAPI(ip, token)
+	if config.ClusterInit {
+		log.V(1).Info("Fetching bootstrap data from K3s server API")
+		return k3s.GetServerBootstrap(client)
 	}
 
 	log.V(1).Info("Fetching bootstrap data from K3s server Pod")
-	return fetchFromK3sPod()
-
+	return k3s.ReadBootstrapFromK3sPod(ctx, restConfig, clusterName, clusterNamespace)
 }
 
 // SaveToSecret marshals the bootstrap data and stores it in a Secret owned by the cluster,
@@ -100,17 +96,4 @@ func LoadFromSecret(ctx context.Context, client client.Client, cluster *v1beta1.
 	err := json.Unmarshal(bootstrapData, &bootstrap)
 
 	return &bootstrap, err
-}
-
-func fetchFromK3sAPI(serviceIP, token string) (*k3s.BootstrapData, error) {
-	client := k3s.New(k3s.ClientConfig{
-		ServerIP: serviceIP,
-		Token:    token,
-	})
-
-	return k3s.GetServerBootstrap(client)
-}
-
-func fetchFromK3sPod() (*k3s.BootstrapData, error) {
-	return k3s.GetServerBootstrap(client)
 }

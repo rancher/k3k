@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -84,6 +85,7 @@ type Config struct {
 type ClusterReconciler struct {
 	DiscoveryClient *discovery.DiscoveryClient
 	Client          client.Client
+	RestCfg         *rest.Config
 	Scheme          *runtime.Scheme
 	PortAllocator   *agent.PortAllocator
 
@@ -111,6 +113,7 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		DiscoveryClient: discoveryClient,
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
+		RestCfg:         mgr.GetConfig(),
 		EventRecorder:   eventRecorder,
 		PortAllocator:   portAllocator,
 		Config: Config{
@@ -450,7 +453,7 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring bootstrap secret")
 
-	data, err := bootstrap.Fetch(ctx, serviceIP, token)
+	data, err := bootstrap.Fetch(ctx, serviceIP, token, cluster.Name, cluster.Namespace, c.RestCfg)
 	if err != nil {
 		return err
 	}

@@ -110,7 +110,7 @@ configure_cgroups() {
 	EXTRA_ARGS="$EXTRA_ARGS --kubelet-arg=kubelet-cgroups=$root_cgroup_parent/k3s --kubelet-arg=cgroup-root=$root_cgroup_parent"
 }
 
-EXTRA_ARGS={{.EXTRA_ARGS}}
+EXTRA_ARGS="{{.EXTRA_ARGS}}"
 configure_cgroups
 
 case "{{.CLUSTER_MODE}}" in

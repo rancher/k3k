@@ -144,6 +144,26 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1b
 		return nil
 	}
 
+	// skip removing etcd peer if external datastore is in use
+	clusterToken, err := getClusterToken(ctx, cluster, p.Client)
+	if err != nil {
+		return err
+	}
+
+	k3sClient := k3s.New(k3s.ClientConfig{
+		ServerIP: server.ServiceName(cluster.Name),
+		Token:    clusterToken,
+	})
+
+	config, err := k3s.GetServerConfig(k3sClient)
+	if err != nil {
+		return err
+	}
+
+	if !config.ClusterInit {
+		return nil
+	}
+
 	tlsConfig, err := p.getETCDTLS(ctx, &cluster)
 	if err != nil {
 		return err

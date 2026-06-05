@@ -241,6 +241,12 @@ type ClusterSpec struct {
 type SecretMount struct {
 	// Embeds SecretName, Items, DefaultMode, and Optional
 	corev1.SecretVolumeSource `json:",inline"`
+	// Name is the name of the secret mount volume that will be used
+	// as the name of volume and volume mount for the server or agent pod
+	// if empty then the secret name will be used instead.
+	//
+	// +optional
+	Name string `json:"name,omitempty"`
 	// MountPath is the path within server and agent pods where the
 	// secret contents will be mounted.
 	//

@@ -2,7 +2,7 @@ module github.com/rancher/k3k
 
 go 1.25.0
 
-toolchain go1.25.10
+toolchain go1.26.4
 
 require (
 	github.com/blang/semver/v4 v4.0.0

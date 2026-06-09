@@ -458,8 +458,8 @@ github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.etcd.io/bbolt v1.3.11 h1:yGEzV1wPz2yVCLsD8ZAiGHhHVlczyC9d1rP43/VCRJ0=
 go.etcd.io/bbolt v1.3.11/go.mod h1:dksAq7YMXoljX0xu6VF5DMZGbhYYoLUalEiSySYAS4I=
-go.etcd.io/etcd/api/v3 v3.6.10 h1:jlwjtELjA8yi2VWpOFH+0w0lGr3K6mVDyn0RDB9aaAY=
-go.etcd.io/etcd/api/v3 v3.6.10/go.mod h1:pdV4VeFmvhdNjB4LWRkC8ReLyRBAxUOze3GarMhE2sk=
+go.etcd.io/etcd/api/v3 v3.6.12 h1:OLOZUKEuAA36TR48F0cIaa8FdzrWygjyfrJxXg4iDgs=
+go.etcd.io/etcd/api/v3 v3.6.12/go.mod h1:p14EIQXHbuOQbVvL/WEes5uqKnxP9AgKJgpjbMVvzvE=
 go.etcd.io/etcd/client/pkg/v3 v3.6.10 h1:tBT7podcPhuVbCVkAEzx8bC5I+aqxfLwBN8/As1arrA=
 go.etcd.io/etcd/client/pkg/v3 v3.6.10/go.mod h1:WEy3PpwbbEBVRdh1NVJYsuUe/8eyI21PNJRazeD8z/Y=
 go.etcd.io/etcd/client/v2 v2.305.21 h1:eLiFfexc2mE+pTLz9WwnoEsX5JTTpLCYVivKkmVXIRA=

@@ -20,7 +20,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.41.0
 	github.com/testcontainers/testcontainers-go/modules/k3s v0.41.0
 	github.com/virtual-kubelet/virtual-kubelet v1.11.1-0.20250530103808-c9f64e872803
-	go.etcd.io/etcd/api/v3 v3.6.10
+	go.etcd.io/etcd/api/v3 v3.6.12
 	go.etcd.io/etcd/client/v3 v3.6.10
 	go.uber.org/zap v1.28.0
 	gopkg.in/yaml.v2 v2.4.0

@@ -13,7 +13,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
@@ -190,14 +189,9 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 }
 
 func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster, error) {
-	var storageRequestSize *resource.Quantity
-	if config.storageRequestSize != "" {
-		parsed, err := resource.ParseQuantity(config.storageRequestSize)
-		if err != nil {
-			return nil, err
-		}
-
-		storageRequestSize = ptr.To(parsed)
+	storageRequestSize, err := parseStorageRequestSize(config.storageRequestSize)
+	if err != nil {
+		return nil, err
 	}
 
 	cluster := &v1beta1.Cluster{

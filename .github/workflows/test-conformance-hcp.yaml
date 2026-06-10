@@ -239,6 +239,17 @@ jobs:
         ssh -i ./id_rsa -p 2223 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
           "curl -kv --max-time 10 https://10.0.2.2:30001/readyz || echo 'Worker 2 connectivity test failed'"
 
+    - name: Verify Worker VM Configuration
+      run: |
+        echo "=== Worker 1 Configuration ==="
+        ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
+          "echo 'Hostname:' \$(hostname) && echo 'IP Address:' \$(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') && echo 'Gateway:' \$(ip route | grep default)"
+
+        echo ""
+        echo "=== Worker 2 Configuration ==="
+        ssh -i ./id_rsa -p 2223 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
+          "echo 'Hostname:' \$(hostname) && echo 'IP Address:' \$(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') && echo 'Gateway:' \$(ip route | grep default)"
+
     ######################
 
     - name: Join Workers to K3k Control Plane
@@ -247,18 +258,11 @@ jobs:
 
         echo "Registering Worker 1..."
         ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-          "curl -sfL https://get.k3s.io | K3S_URL=https://10.0.2.2:30001 K3S_TOKEN=${K3S_TOKEN} sh - &" &
-        WORKER1_PID=$!
+          "curl -sfL https://get.k3s.io | K3S_URL=https://10.0.2.2:30001 K3S_TOKEN=${K3S_TOKEN} INSTALL_K3S_EXEC='--node-name=worker-1' sh -"
 
         echo "Registering Worker 2..."
         ssh -i ./id_rsa -p 2223 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-          "curl -sfL https://get.k3s.io | K3S_URL=https://10.0.2.2:30001 K3S_TOKEN=${K3S_TOKEN} sh - &" &
-        WORKER2_PID=$!
-
-        echo "Waiting for both workers to complete registration..."
-        wait $WORKER1_PID
-        wait $WORKER2_PID
-        echo "Both workers registration initiated"
+          "curl -sfL https://get.k3s.io | K3S_URL=https://10.0.2.2:30001 K3S_TOKEN=${K3S_TOKEN} INSTALL_K3S_EXEC='--node-name=worker-2' sh -"
     
     - name: Verify Cluster Nodes
       env:

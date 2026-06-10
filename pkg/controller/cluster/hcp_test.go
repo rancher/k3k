@@ -54,7 +54,7 @@ func Test_ensureHCPRegistration(t *testing.T) {
 		r := &ClusterReconciler{Client: fakeClient}
 
 		c := cluster.DeepCopy()
-		require.NoError(t, r.ensureHCPRegistration(context.Background(), c, "ignored"))
+		require.NoError(t, r.ensureHCPRegistration(context.Background(), c))
 
 		cond := meta.FindStatusCondition(c.Status.Conditions, ConditionReady)
 		require.NotNil(t, cond)

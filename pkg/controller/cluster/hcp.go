@@ -26,7 +26,7 @@ import (
 // LoadBalancer or Ingress configured) the command cannot be built; in that
 // case the Ready condition is set to False with reason HCPNoExternalEndpoint
 // so the operator surfaces the problem without failing the reconciliation.
-func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *v1beta1.Cluster, token string) error {
+func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	_, external, err := server.ServerURL(ctx, c.Client, cluster, selectNonLoopbackSAN(cluster), 0)
@@ -143,11 +143,11 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, virtClient, endpointSlice, func() error {
-		// Ensure the service-name label is set
 		if endpointSlice.Labels == nil {
 			endpointSlice.Labels = make(map[string]string)
 		}
 
+		// Ensure the service-name label is set
 		endpointSlice.Labels[discoveryv1.LabelServiceName] = "kubernetes"
 		endpointSlice.AddressType = addressType
 
@@ -178,6 +178,77 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 
 	log.V(1).Info("HCP kubernetes endpointslice reconciled",
 		"address", addr.IP, "hostname", addr.Hostname, "port", port)
+
+	return nil
+}
+
+func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *v1beta1.Cluster) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	rawURL, external, err := server.ServerURL(ctx, c.Client, cluster, selectNonLoopbackSAN(cluster), 0)
+	if err != nil {
+		return err
+	}
+
+	if !external {
+		// ensureHCPRegistration already surfaces this via Ready=False;
+		// nothing for us to do here.
+		return nil
+	}
+
+	host, port, err := parseHCPHostPort(rawURL)
+	if err != nil {
+		return fmt.Errorf("parsing HCP server URL %q: %w", rawURL, err)
+	}
+
+	addr, err := hcpEndpointAddress(host)
+	if err != nil {
+		return err
+	}
+
+	virtClient, err := newVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace)
+	if err != nil {
+		return fmt.Errorf("creating virtual cluster client: %w", err)
+	}
+
+	//nolint:staticcheck // SA1019 corev1.Endpoints is deprecated in v1.33+, but needed in the Conformance tests
+	// We are already using the discoveryv1.EndpointSlice
+	endpoints := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kubernetes",
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, virtClient, endpoints, func() error {
+		if endpoints.Labels == nil {
+			endpoints.Labels = make(map[string]string)
+		}
+
+		// Ensure the skip-mirror label is set
+		endpoints.Labels[discoveryv1.LabelSkipMirror] = "true"
+
+		//nolint:staticcheck // SA1019 corev1.EndpointSubset is deprecated in v1.33+, but needed in the Conformance tests
+		endpoints.Subsets = []corev1.EndpointSubset{
+			{
+				Addresses: []corev1.EndpointAddress{addr},
+				Ports: []corev1.EndpointPort{
+					{
+						Name:     "https",
+						Port:     port,
+						Protocol: corev1.ProtocolTCP,
+					},
+				},
+			},
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("upserting default/kubernetes endpoints in virtual cluster: %w", err)
+	}
+
+	log.V(1).Info("HCP kubernetes endpoints reconciled", "address", addr.IP, "hostname", addr.Hostname, "port", port)
 
 	return nil
 }

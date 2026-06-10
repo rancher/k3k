@@ -454,11 +454,15 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 	// reconciler is disabled for HCP) so external-node pods can reach the
 	// in-cluster apiserver ClusterIP.
 	if cluster.Spec.Mode == v1beta1.HCPClusterMode {
-		if err := c.ensureHCPRegistration(ctx, cluster, token); err != nil {
+		if err := c.ensureHCPRegistration(ctx, cluster); err != nil {
 			return err
 		}
 
 		if err := c.ensureHCPKubernetesEndpointSlice(ctx, cluster); err != nil {
+			return err
+		}
+
+		if err := c.ensureHCPKubernetesEndpoints(ctx, cluster); err != nil {
 			return err
 		}
 	}

@@ -3173,13 +3173,6 @@ spec:
                   - type
                   type: object
                 type: array
-              hcpRegistration:
-                description: |-
-                  HCPRegistration is a copy-pasteable K3s installer command that external
-                  (BYO) nodes can run to register against an HCP-mode cluster.
-                  Only populated when Mode is "hcp" and an externally-routable endpoint
-                  (NodePort, LoadBalancer or Ingress) is configured.
-                type: string
               hostVersion:
                 description: HostVersion is the Kubernetes version of the host node.
                 type: string

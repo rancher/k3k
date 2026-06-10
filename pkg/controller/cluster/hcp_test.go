@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,38 +17,6 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 )
-
-func Test_hcpRegistrationCommand(t *testing.T) {
-	tests := []struct {
-		name      string
-		version   string
-		serverURL string
-		token     string
-		want      string
-	}{
-		{
-			name:      "with version",
-			version:   "v1.33.1-k3s1",
-			serverURL: "https://1.2.3.4:30443",
-			token:     "abcd1234",
-			want:      "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.33.1-k3s1 K3S_URL=https://1.2.3.4:30443 K3S_TOKEN=abcd1234 sh -",
-		},
-		{
-			name:      "without version",
-			version:   "",
-			serverURL: "https://hcp.example.com",
-			token:     "tok",
-			want:      "curl -sfL https://get.k3s.io | K3S_URL=https://hcp.example.com K3S_TOKEN=tok sh -",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := hcpRegistrationCommand(tt.version, tt.serverURL, tt.token)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
 
 func Test_ensureHCPRegistration(t *testing.T) {
 	scheme := runtime.NewScheme()
@@ -67,33 +34,6 @@ func Test_ensureHCPRegistration(t *testing.T) {
 			TLSSANs: []string{"hcp.example.com"},
 		},
 	}
-
-	t.Run("nodeport service produces ready-to-copy command", func(t *testing.T) {
-		svc := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      server.ServiceName(cluster.Name),
-				Namespace: cluster.Namespace,
-			},
-			Spec: corev1.ServiceSpec{
-				Type:      corev1.ServiceTypeNodePort,
-				ClusterIP: "10.43.0.50",
-				Ports: []corev1.ServicePort{
-					{Name: "k3s-server-port", Port: 443, NodePort: 31001},
-				},
-			},
-		}
-
-		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(svc).Build()
-		r := &ClusterReconciler{Client: fakeClient}
-
-		c := cluster.DeepCopy()
-		require.NoError(t, r.ensureHCPRegistration(context.Background(), c, "join-token-xyz"))
-
-		assert.Contains(t, c.Status.HCPRegistration, "K3S_URL=https://hcp.example.com:31001")
-		assert.Contains(t, c.Status.HCPRegistration, "K3S_TOKEN=join-token-xyz")
-		assert.Contains(t, c.Status.HCPRegistration, "INSTALL_K3S_VERSION=v1.33.1-k3s1")
-		assert.True(t, strings.HasPrefix(c.Status.HCPRegistration, "curl -sfL https://get.k3s.io"))
-	})
 
 	t.Run("clusterip-only service sets degraded condition and clears registration", func(t *testing.T) {
 		svc := &corev1.Service{
@@ -114,10 +54,7 @@ func Test_ensureHCPRegistration(t *testing.T) {
 		r := &ClusterReconciler{Client: fakeClient}
 
 		c := cluster.DeepCopy()
-		c.Status.HCPRegistration = "stale-value"
 		require.NoError(t, r.ensureHCPRegistration(context.Background(), c, "ignored"))
-
-		assert.Empty(t, c.Status.HCPRegistration)
 
 		cond := meta.FindStatusCondition(c.Status.Conditions, ConditionReady)
 		require.NotNil(t, cond)

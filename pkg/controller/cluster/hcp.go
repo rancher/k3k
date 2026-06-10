@@ -29,7 +29,7 @@ import (
 func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *v1beta1.Cluster, token string) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	url, external, err := server.ServerURL(ctx, c.Client, cluster, selectNonLoopbackSAN(cluster), 0)
+	_, external, err := server.ServerURL(ctx, c.Client, cluster, selectNonLoopbackSAN(cluster), 0)
 	if err != nil {
 		return err
 	}
@@ -44,31 +44,9 @@ func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *
 			Reason:  ReasonHCPNoExternalEndpoint,
 			Message: "HCP cluster has no external endpoint; set spec.expose.nodePort, spec.expose.loadBalancer or spec.expose.ingress so external nodes can reach the API server",
 		})
-
-		cluster.Status.HCPRegistration = ""
-
-		return nil
 	}
-
-	version := cluster.Spec.Version
-	if version == "" {
-		version = cluster.Status.HostVersion
-	}
-
-	cluster.Status.HCPRegistration = hcpRegistrationCommand(version, url, token)
 
 	return nil
-}
-
-// hcpRegistrationCommand returns the standard K3s installer one-liner an
-// end-user can copy onto an external host to join an HCP cluster.
-func hcpRegistrationCommand(version, serverURL, token string) string {
-	if version == "" {
-		return fmt.Sprintf("curl -sfL https://get.k3s.io | K3S_URL=%s K3S_TOKEN=%s sh -", serverURL, token)
-	}
-
-	return fmt.Sprintf("curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=%s K3S_URL=%s K3S_TOKEN=%s sh -",
-		version, serverURL, token)
 }
 
 // selectNonLoopbackSAN returns the first non-loopback address from the

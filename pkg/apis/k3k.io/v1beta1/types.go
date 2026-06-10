@@ -624,14 +624,6 @@ type ClusterStatus struct {
 	// +optional
 	KubeletPort int `json:"kubeletPort,omitempty"`
 
-	// HCPRegistration is a copy-pasteable K3s installer command that external
-	// (BYO) nodes can run to register against an HCP-mode cluster.
-	// Only populated when Mode is "hcp" and an externally-routable endpoint
-	// (NodePort, LoadBalancer or Ingress) is configured.
-	//
-	// +optional
-	HCPRegistration string `json:"hcpRegistration,omitempty"`
-
 	// Conditions are the individual conditions for the cluster set.
 	//
 	// +optional

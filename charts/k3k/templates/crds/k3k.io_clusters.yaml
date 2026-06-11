@@ -1417,6 +1417,7 @@ spec:
                       description: |-
                         Name is the name of the secret mount volume that will be used
                         as the name of volume and volume mount for the server or agent pod
+                        if empty then the secret name will be used instead.
                       type: string
                     optional:
                       description: optional field specify whether the Secret or its keys must be defined

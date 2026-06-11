@@ -78,7 +78,7 @@ func New(config ClientConfig) *Client {
 }
 
 func do[T any](c *Client, endpoint, user, method string) (*T, error) {
-	var response = new(T)
+	response := new(T)
 
 	respBody, err := c.do(endpoint, user, method)
 	if err != nil {

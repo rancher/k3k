@@ -305,46 +305,9 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	}
 
 	if podSpec.RuntimeClassName != nil && strings.HasPrefix(*podSpec.RuntimeClassName, "kata") {
-		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-			Name: "dev-kmsg",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/dev/kmsg",
-				},
-			},
-		})
+		mounts.AddKmsgMount(&podSpec)
 
-		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, corev1.VolumeMount{
-			Name:      "dev-kmsg",
-			MountPath: "/dev/kmsg",
-		})
-
-		// Remove all EmptyDir volumes and their corresponding mounts.
-		emptyDirNames := make(map[string]bool)
-
-		var filteredVolumes []corev1.Volume
-
-		for _, vol := range podSpec.Volumes {
-			if vol.EmptyDir != nil {
-				emptyDirNames[vol.Name] = true
-			} else {
-				filteredVolumes = append(filteredVolumes, vol)
-			}
-		}
-
-		podSpec.Volumes = filteredVolumes
-
-		for i := range podSpec.Containers {
-			var filteredMounts []corev1.VolumeMount
-
-			for _, mount := range podSpec.Containers[i].VolumeMounts {
-				if !emptyDirNames[mount.Name] {
-					filteredMounts = append(filteredMounts, mount)
-				}
-			}
-
-			podSpec.Containers[i].VolumeMounts = filteredMounts
-		}
+		mounts.FilterEmptyDirVolumes(&podSpec)
 	}
 
 	return podSpec

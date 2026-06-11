@@ -612,6 +612,9 @@ Directories within the path are not affected by this setting. +
 This might be in conflict with other options that affect the file +
 mode, like fsGroup, and the result can be other mode bits set. + |  | 
 | *`optional`* __boolean__ | optional field specify whether the Secret or its keys must be defined + |  | 
+| *`name`* __string__ | Name is the name of the secret mount volume that will be used +
+as the name of volume and volume mount for the server or agent pod +
+if empty then the secret name will be used instead. + |  | 
 | *`mountPath`* __string__ | MountPath is the path within server and agent pods where the +
 secret contents will be mounted. + |  | 
 | *`subPath`* __string__ | SubPath is an optional path within the secret to mount instead of the root. +

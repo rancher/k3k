@@ -27,6 +27,12 @@ type Client struct {
 
 var ErrServerNotReady = errors.New("server not ready")
 
+const (
+	k3sNodePasswordHeader = "k3s-Node-Password"
+	k3sNodeIPHeader       = "k3s-Node-IP"
+	k3sNodeNameHeader     = "k3s-Node-Name"
+)
+
 func New(config ClientConfig) *Client {
 	httpClient := &http.Client{
 		Transport: http.DefaultTransport,
@@ -44,11 +50,11 @@ func New(config ClientConfig) *Client {
 	headers := http.Header{}
 
 	if config.Token != "" {
-		headers.Set("k3s-Node-Password", config.Token)
+		headers.Set(k3sNodePasswordHeader, config.Token)
 	}
 
 	if config.NodeName != "" {
-		headers.Set("k3s-Node-Name", config.NodeName)
+		headers.Set(k3sNodeNameHeader, config.NodeName)
 	}
 
 	var nodeIPs []string

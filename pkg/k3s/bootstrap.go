@@ -185,7 +185,6 @@ func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.
 	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: &stdout,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error in Stream: %v", err)
 	}

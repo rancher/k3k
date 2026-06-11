@@ -41,6 +41,7 @@ func Fetch(ctx context.Context, ip, token, clusterName, clusterNamespace string,
 	}
 
 	log.V(1).Info("Fetching bootstrap data from K3s server Pod")
+
 	return k3s.ReadBootstrapFromK3sPod(ctx, restConfig, clusterName, clusterNamespace)
 }
 

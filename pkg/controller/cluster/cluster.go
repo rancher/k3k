@@ -54,6 +54,9 @@ const (
 	SyncSourceLabelKey  = "k3k.io/sync-source"
 	SyncSourceHostLabel = "host"
 
+	ProviderLabelKey   = "provider.cattle.io"
+	ProviderLabelValue = "k3k"
+
 	defaultVirtualClusterCIDR = "10.52.0.0/16"
 	defaultVirtualServiceCIDR = "10.53.0.0/16"
 	defaultSharedClusterCIDR  = "10.42.0.0/16"
@@ -303,7 +306,10 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// update Cluster if needed
-	if !equality.Semantic.DeepEqual(orig.Spec, cluster.Spec) {
+	needsSpecUpdate := !equality.Semantic.DeepEqual(orig.Spec, cluster.Spec)
+	needsLabelsUpdate := !equality.Semantic.DeepEqual(orig.Labels, cluster.Labels)
+
+	if needsSpecUpdate || needsLabelsUpdate {
 		log.Info("Updating Cluster")
 
 		if err := c.Client.Update(ctx, &cluster); err != nil {
@@ -323,6 +329,12 @@ func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1bet
 
 func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
+
+	if cluster.Labels == nil {
+		cluster.Labels = map[string]string{}
+	}
+
+	cluster.Labels[ProviderLabelKey] = ProviderLabelValue
 
 	var ns corev1.Namespace
 	if err := c.Client.Get(ctx, client.ObjectKey{Name: cluster.Namespace}, &ns); err != nil {

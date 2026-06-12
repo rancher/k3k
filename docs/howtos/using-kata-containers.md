@@ -102,8 +102,6 @@ The pool does not survive a reboot. Consider wrapping `pool_create` in a systemd
 
 Place the following template at `/var/lib/rancher/k3s/agent/etc/containerd/config-v3.toml.d/custom.toml`. It registers the `kata-qemu` runtime handler and configures the devmapper snapshotter.
 
-ignore_image_defined_volumes can be set to false if using a custom image as above.
-
 ```toml
 version = 3
 
@@ -113,8 +111,8 @@ version = 3
   privileged_without_host_devices = true
   pod_annotations = ["io.katacontainers.*"]
 
-  [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.kata-qemu.options]
-    ConfigPath = "/opt/kata/share/defaults/kata-containers/runtime-rs/configuration-qemu-runtime-rs.toml"
+[plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.kata-qemu.options]
+  ConfigPath = "/opt/kata/share/defaults/kata-containers/runtime-rs/configuration-qemu-runtime-rs.toml"
 
 [plugins.'io.containerd.snapshotter.v1.devmapper']
   pool_name = "k3s"
@@ -124,9 +122,23 @@ version = 3
 ```
 ## 5. Fixing emptyDir mounts
 
-The standard K3s image declares `emptyDir` volumes in its image manifest. Kata detects these as tmpfs mounts and fails to start the container. The k3k controller automatically strips `emptyDir` volumes from the pod spec at runtime when the cluster's `runtimeClassName` starts with `kata`, but the declarations baked into the image manifest still need to be removed.
+The standard K3s image declares `emptyDir` volumes in its image manifest. Kata detects these as tmpfs mounts and fails to start the container. The k3k controller automatically strips `emptyDir` volumes from the pod spec at runtime when the cluster's `runtimeClassName` starts with `kata`, but the declarations baked into the image manifest will still be in place by default.
 
-We can avoid emptyDir mounts from image manifests by either building a custom image, or configuring containerd to ignore them. Note this is a global setting and will apply to all runtimes on a particular node.
+We can avoid emptyDir mounts from image manifests by either of the following options:
+
+### 5.1 Ignore the image manifest volume declaration (recommended)
+
+Configuring containerd to ignore the image manifest volumes, this is a simpler option but is a global setting and will apply to all runtimes on a particular node.
+
+Place the below at `/var/lib/rancher/k3s/agent/etc/containerd/config-v3.toml.d/volumes.toml`
+```toml
+version = 3
+
+[plugins.'io.containerd.cri.v1.runtime']
+  ignore_image_defined_volumes = true
+```
+
+### 5.2 Build a custom K3S image
 
 Build a custom image that omits those declarations:
 
@@ -145,13 +157,6 @@ Push this image to a registry accessible from the host cluster and configure the
 
 An alternative would be an OCI hook to strip the mounts at runtime, but that falls outside the scope of using the Kata project's supplied build artifacts.
 
-Alternatively place the below at `/var/lib/rancher/k3s/agent/etc/containerd/config-v3.toml.d/volumes.toml`
-```toml
-version = 3
-
-[plugins.'io.containerd.cri.v1.runtime']
-  ignore_image_defined_volumes = true
-```
 
 ## 6. Load Kernel Modules
 

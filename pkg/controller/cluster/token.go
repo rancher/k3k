@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -112,4 +113,22 @@ func TokenSecretObj(token, name, namespace string) corev1.Secret {
 
 func TokenSecretName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "token")
+}
+
+func getClusterToken(ctx context.Context, cluster v1beta1.Cluster, client client.Client) (string, error) {
+	tokenSecretName := TokenSecretName(cluster.Name)
+	if cluster.Spec.TokenSecretRef != nil && cluster.Spec.TokenSecretRef.Name != "" {
+		tokenSecretName = cluster.Spec.TokenSecretRef.Name
+	}
+
+	var tokenSecret corev1.Secret
+	if err := client.Get(ctx, types.NamespacedName{Name: tokenSecretName, Namespace: cluster.Namespace}, &tokenSecret); err != nil {
+		return "", err
+	}
+
+	if tokenSecret.Data != nil {
+		return string(tokenSecret.Data["token"]), nil
+	}
+
+	return "", errors.New("token secret is empty")
 }

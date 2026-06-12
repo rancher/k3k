@@ -339,6 +339,9 @@ jobs:
       env:
         KUBECONFIG: ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
       run: |
+        # Capture everything to a file too, so the result is in the archived
+        # artifacts (not only in the GHA web viewer).
+        exec > >(tee /tmp/manual-probe.log) 2>&1
         # Try to reproduce the failing scenario manually so we capture the
         # actual stderr from the failing exec, which hydrophone swallows.
         # If this fails with rc=139 the same way, we have the bug isolated to
@@ -435,11 +438,16 @@ jobs:
           ssh -i ${{ github.workspace }}/id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
             "sudo journalctl -u k3s-agent -o cat --no-pager" > /tmp/worker-${i}-k3s-agent.log 2>&1 || true
           ssh -i ${{ github.workspace }}/id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
-            "sudo dmesg --no-pager" > /tmp/worker-${i}-dmesg.log 2>&1 || true
+            "sudo dmesg -T" > /tmp/worker-${i}-dmesg.log 2>&1 || true
         done
 
         # Bridge / iface counters — if any TX/RX errors or drops grew, MTU/queue is suspect.
-        ip -s link show k3kbr0 tap-w1 tap-w2 > /tmp/host-iface-stats.log 2>&1 || true
+        # iproute2 wants `dev` qualifier per-interface; loop instead of listing multiple.
+        for iface in k3kbr0 tap-w1 tap-w2; do
+          echo "=== $iface ==="
+          ip -s link show dev $iface 2>&1 || echo "(missing)"
+        done > /tmp/host-iface-stats.log
+
         sudo conntrack -L 2>/dev/null | wc -l > /tmp/host-conntrack-count.log || true
 
     - name: Archive K3s logs
@@ -474,6 +482,7 @@ jobs:
           /tmp/worker-2-dmesg.log
           /tmp/host-iface-stats.log
           /tmp/host-conntrack-count.log
+          /tmp/manual-probe.log
 
     - name: Archive conformance logs
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

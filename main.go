@@ -86,7 +86,7 @@ func run(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info("Starting k3k - Version: " + buildinfo.Version)
+	logger.Info("Starting k3k - version: " + buildinfo.Version)
 	ctrlruntimelog.SetLogger(logger)
 
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)

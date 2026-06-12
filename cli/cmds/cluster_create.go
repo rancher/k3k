@@ -84,8 +84,12 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return errors.New("invalid cluster name")
 		}
 
-		if (config.mode == string(v1beta1.SharedClusterMode) || config.mode == string(v1beta1.HCPClusterMode)) && config.agents != 0 {
+		if config.agents > 0 && config.mode != string(v1beta1.VirtualClusterMode) {
 			return errors.New("invalid flag, --agents flag is only allowed in virtual mode")
+		}
+
+		if config.mode == string(v1beta1.HCPClusterMode) {
+			logrus.Warn("Mode 'hcp' is experimental")
 		}
 
 		namespace := appCtx.Namespace(name)

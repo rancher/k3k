@@ -170,8 +170,16 @@ jobs:
         # Create a bridge so both VMs share an L2 segment with unique routable IPs.
         # Required because QEMU `-net user` gives every VM the same 10.0.2.15 NAT
         # address, which breaks flannel VXLAN between workers.
+        #
+        # MTU is set to 1400 end-to-end (bridge, TAPs, VM ens3 via cloud-init).
+        # The path traverses flannel VXLAN inside the virtual cluster AND the
+        # host's k3s pod network — each strips ~50 bytes for VXLAN headers.
+        # Defaulting to 1500 across the stack leaves no headroom and PMTUD
+        # through nested NAT/forwarding is unreliable; 1400 fits both layers
+        # without fragmentation.
         sudo ip link add name k3kbr0 type bridge
         sudo ip addr add 192.168.100.1/24 dev k3kbr0
+        sudo ip link set k3kbr0 mtu 1400
         sudo ip link set k3kbr0 up
 
         # NAT outbound so VMs can reach the internet (image pulls etc).
@@ -183,10 +191,12 @@ jobs:
         # One TAP per VM, attached to the bridge.
         sudo ip tuntap add tap-w1 mode tap
         sudo ip link set tap-w1 master k3kbr0
+        sudo ip link set tap-w1 mtu 1400
         sudo ip link set tap-w1 up
 
         sudo ip tuntap add tap-w2 mode tap
         sudo ip link set tap-w2 master k3kbr0
+        sudo ip link set tap-w2 mtu 1400
         sudo ip link set tap-w2 up
 
     - name: Download Base Cloud Image
@@ -226,6 +236,7 @@ jobs:
                 ethernets:
                   ens3:
                     dhcp4: false
+                    mtu: 1400
                     addresses: [${IP}/24]
                     routes:
                       - to: default
@@ -299,16 +310,18 @@ jobs:
         done
 
     - name: Join Workers to K3k Control Plane
+      env:
+        K3S_WORKER_VERSION: ${{ env.KUBERNETES_VERSION }}+k3s1
       run: |
         K3S_TOKEN=$(kubectl get secret -n k3k-mycluster k3k-mycluster-token -o jsonpath='{.data.token}' | base64 -d)
 
-        echo "Registering Worker 1..."
+        echo "Registering Worker 1 (k3s ${K3S_WORKER_VERSION})..."
         ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.11 \
-          "curl -sfL https://get.k3s.io | K3S_URL=https://192.168.100.1:30001 K3S_TOKEN=${K3S_TOKEN} sh -"
+          "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_WORKER_VERSION} K3S_URL=https://192.168.100.1:30001 K3S_TOKEN=${K3S_TOKEN} sh -"
 
-        echo "Registering Worker 2..."
+        echo "Registering Worker 2 (k3s ${K3S_WORKER_VERSION})..."
         ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.12 \
-          "curl -sfL https://get.k3s.io | K3S_URL=https://192.168.100.1:30001 K3S_TOKEN=${K3S_TOKEN} sh -"
+          "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_WORKER_VERSION} K3S_URL=https://192.168.100.1:30001 K3S_TOKEN=${K3S_TOKEN} sh -"
     
     - name: Verify Cluster Nodes
       env:

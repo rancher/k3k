@@ -170,16 +170,8 @@ jobs:
         # Create a bridge so both VMs share an L2 segment with unique routable IPs.
         # Required because QEMU `-net user` gives every VM the same 10.0.2.15 NAT
         # address, which breaks flannel VXLAN between workers.
-        #
-        # MTU is set to 1400 end-to-end (bridge, TAPs, VM ens3 via cloud-init).
-        # The path traverses flannel VXLAN inside the virtual cluster AND the
-        # host's k3s pod network — each strips ~50 bytes for VXLAN headers.
-        # Defaulting to 1500 across the stack leaves no headroom and PMTUD
-        # through nested NAT/forwarding is unreliable; 1400 fits both layers
-        # without fragmentation.
         sudo ip link add name k3kbr0 type bridge
         sudo ip addr add 192.168.100.1/24 dev k3kbr0
-        sudo ip link set k3kbr0 mtu 1400
         sudo ip link set k3kbr0 up
 
         # NAT outbound so VMs can reach the internet (image pulls etc).
@@ -191,12 +183,10 @@ jobs:
         # One TAP per VM, attached to the bridge.
         sudo ip tuntap add tap-w1 mode tap
         sudo ip link set tap-w1 master k3kbr0
-        sudo ip link set tap-w1 mtu 1400
         sudo ip link set tap-w1 up
 
         sudo ip tuntap add tap-w2 mode tap
         sudo ip link set tap-w2 master k3kbr0
-        sudo ip link set tap-w2 mtu 1400
         sudo ip link set tap-w2 up
 
     - name: Download Base Cloud Image
@@ -236,7 +226,6 @@ jobs:
                 ethernets:
                   ens3:
                     dhcp4: false
-                    mtu: 1400
                     addresses: [${IP}/24]
                     routes:
                       - to: default
@@ -340,6 +329,69 @@ jobs:
           done
         '
 
+    # =====================================================================
+    # TODO(debug): remove this step once the HCP ExternalName conformance
+    # failures are root-caused. It reproduces the failing scenario manually
+    # before the conformance run, so the actual stderr / exit codes show up
+    # in the workflow output (hydrophone swallows them).
+    # =====================================================================
+    - name: Manual repro probe (before conformance)
+      env:
+        KUBECONFIG: ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
+      run: |
+        # Try to reproduce the failing scenario manually so we capture the
+        # actual stderr from the failing exec, which hydrophone swallows.
+        # If this fails with rc=139 the same way, we have the bug isolated to
+        # a 10-line shell script and can iterate on it instead of full conformance.
+        set +e
+        kubectl create ns repro
+        kubectl -n repro create deployment backend \
+          --image=registry.k8s.io/e2e-test-images/agnhost:2.59 --replicas=2 \
+          -- /agnhost serve-hostname
+        kubectl -n repro wait deployment/backend --for=condition=Available --timeout=2m
+        kubectl -n repro expose deployment backend \
+          --name=externalsvc --port=80 --target-port=9376 --type=ClusterIP
+
+        kubectl -n repro create deployment echo \
+          --image=registry.k8s.io/e2e-test-images/agnhost:2.59 --replicas=2 \
+          -- /agnhost serve-hostname
+        kubectl -n repro wait deployment/echo --for=condition=Available --timeout=2m
+        kubectl -n repro expose deployment echo \
+          --name=svc-a --type=ClusterIP --port=80 --target-port=9376
+
+        kubectl -n repro patch svc svc-a --type=merge -p '{
+          "spec":{"type":"ExternalName","externalName":"externalsvc.repro.svc.cluster.local","clusterIP":"","clusterIPs":null,"ports":null,"selector":null}
+        }'
+
+        # Mirror the conformance pattern: brand-new exec pod, exec immediately.
+        kubectl -n repro run execpod \
+          --image=registry.k8s.io/e2e-test-images/agnhost:2.59 \
+          --command -- sleep infinity
+        kubectl -n repro wait pod/execpod --for=condition=Ready --timeout=2m
+
+        echo "=== exec #1 (immediate, mirrors conformance) ==="
+        kubectl -n repro exec execpod -- /bin/sh -x -c "nslookup svc-a.repro.svc.cluster.local"; echo "exit: $?"
+
+        echo "=== exec #2 (after 5s sleep) ==="
+        sleep 5
+        kubectl -n repro exec execpod -- /bin/sh -x -c "nslookup svc-a.repro.svc.cluster.local"; echo "exit: $?"
+
+        echo "=== exec #3 (getent — different resolver) ==="
+        kubectl -n repro exec execpod -- /bin/sh -c "getent hosts svc-a.repro.svc.cluster.local"; echo "exit: $?"
+
+        echo "=== exec #4 (control: no DNS, just hostname) ==="
+        kubectl -n repro exec execpod -- /bin/sh -c "cat /etc/hostname"; echo "exit: $?"
+
+        echo "=== /etc/resolv.conf in pod ==="
+        kubectl -n repro exec execpod -- cat /etc/resolv.conf
+
+        echo "=== pod / node placement ==="
+        kubectl -n repro get pods -o wide
+
+        # Leave the namespace alive so the conformance run can inspect state later if needed.
+        # (Cleanup is automatic when the runner tears down.)
+        true
+
     - name: Run conformance tests
       run: |
         hydrophone --focus 'should be able to change the type from (ClusterIP|NodePort) to ExternalName' \
@@ -360,6 +412,36 @@ jobs:
         journalctl -u k3s -o cat --no-pager > /tmp/k3s.log
         kubectl logs -n k3k-system -l "app.kubernetes.io/name=k3k" --tail=-1 > /tmp/k3k.log
 
+    # =====================================================================
+    # TODO(debug): remove this step once the HCP ExternalName conformance
+    # failures are root-caused. It exists only to collect extra diagnostics
+    # (virtual cluster apiserver, worker journals, bridge counters) that the
+    # standard "Collect logs" step doesn't capture.
+    # =====================================================================
+    - name: Collect debug logs
+      if: always()
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        # K3k SERVER POD — runs the virtual cluster's kube-apiserver/kcm/scheduler.
+        # All exec streams flow through this; most likely place to see the real error.
+        kubectl logs -n k3k-mycluster k3k-mycluster-server-0 --tail=-1 > /tmp/k3k-server.log || true
+        kubectl logs -n k3k-mycluster k3k-mycluster-server-0 --previous --tail=-1 > /tmp/k3k-server-prev.log 2>/dev/null || true
+
+        # Worker VM journals — k3s agent + kubelet + containerd live here.
+        # Captured via SSH because the workers aren't kubectl-accessible.
+        for i in 1 2; do
+          IP="192.168.100.1${i}"
+          ssh -i ${{ github.workspace }}/id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
+            "sudo journalctl -u k3s-agent -o cat --no-pager" > /tmp/worker-${i}-k3s-agent.log 2>&1 || true
+          ssh -i ${{ github.workspace }}/id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
+            "sudo dmesg --no-pager" > /tmp/worker-${i}-dmesg.log 2>&1 || true
+        done
+
+        # Bridge / iface counters — if any TX/RX errors or drops grew, MTU/queue is suspect.
+        ip -s link show k3kbr0 tap-w1 tap-w2 > /tmp/host-iface-stats.log 2>&1 || true
+        sudo conntrack -L 2>/dev/null | wc -l > /tmp/host-conntrack-count.log || true
+
     - name: Archive K3s logs
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       if: always()
@@ -373,6 +455,25 @@ jobs:
       with:
         name: k3k-${{ matrix.k8s_version }}-logs
         path: /tmp/k3k.log
+
+    # =====================================================================
+    # TODO(debug): remove this step alongside "Collect debug logs" once the
+    # HCP ExternalName conformance failures are root-caused.
+    # =====================================================================
+    - name: Archive debug logs
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      if: always()
+      with:
+        name: debug-${{ matrix.k8s_version }}-logs
+        path: |
+          /tmp/k3k-server.log
+          /tmp/k3k-server-prev.log
+          /tmp/worker-1-k3s-agent.log
+          /tmp/worker-1-dmesg.log
+          /tmp/worker-2-k3s-agent.log
+          /tmp/worker-2-dmesg.log
+          /tmp/host-iface-stats.log
+          /tmp/host-conntrack-count.log
 
     - name: Archive conformance logs
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

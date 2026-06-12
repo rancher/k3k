@@ -304,6 +304,12 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
 	}
 
+	if podSpec.RuntimeClassName != nil && strings.HasPrefix(*podSpec.RuntimeClassName, "kata") {
+		mounts.AddKmsgMount(&podSpec)
+
+		mounts.FilterEmptyDirVolumes(&podSpec)
+	}
+
 	return podSpec
 }
 

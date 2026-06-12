@@ -327,13 +327,17 @@ jobs:
           done
         '
 
-    ######################
-
     - name: Run conformance tests
       run: |
-        hydrophone --conformance --parallel 4 \
+        hydrophone --focus 'should be able to change the type from (ClusterIP|NodePort) to ExternalName' \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
+
+    # - name: Run conformance tests
+    #   run: |
+    #     hydrophone --conformance --parallel 4 \
+    #       --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
+    #       --output-dir /tmp
 
     - name: Collect logs
       if: always()

@@ -93,16 +93,6 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 		// no extra config for virtual mode
 	}
 
-	// In hcp mode the apiserver pod IP is unreachable from external worker
-	// nodes, so the kube-apiserver's default lease-based endpoint reconciler
-	// would publish a broken default/kubernetes Endpoints (advertise-address +
-	// secure-port). Disable it so K3k can own that Endpoints object and point
-	// it at the externally-reachable host:port (NodePort / LB / Ingress).
-	if cluster.Spec.Mode == v1beta1.HCPClusterMode {
-		serverConfig.KubeApiServerArg = append(serverConfig.KubeApiServerArg, "endpoint-reconciler-type=none")
-		serverConfig.EgressSelectorMode = "cluster"
-	}
-
 	// In shared mode workloads run on the host cluster, so the apiserver pod
 	// can reach them directly via the host pod network and the egress
 	// selector is unnecessary.

@@ -398,7 +398,7 @@ jobs:
           mode: hcp
           tlsSANs:
             - "127.0.0.1"
-            - "10.0.2.2"
+            - "192.168.100.1"
           expose:
             nodePort:
               serverPort: 30001
@@ -409,8 +409,8 @@ jobs:
 
         k3kcli kubeconfig generate --name mycluster
 
-        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml        
-        
+        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
+
         kubectl cluster-info
         kubectl get nodes
         kubectl get pods -A
@@ -425,28 +425,78 @@ jobs:
 
         kvm-ok
 
+    - name: Set up bridge network for VMs
+      run: |
+        # Create a bridge so both VMs share an L2 segment with unique routable IPs.
+        # Required because QEMU `-net user` gives every VM the same 10.0.2.15 NAT
+        # address, which breaks flannel VXLAN between workers.
+        sudo ip link add name k3kbr0 type bridge
+        sudo ip addr add 192.168.100.1/24 dev k3kbr0
+        sudo ip link set k3kbr0 up
+
+        # NAT outbound so VMs can reach the internet (image pulls etc).
+        sudo sysctl -w net.ipv4.ip_forward=1
+        sudo iptables -t nat -A POSTROUTING -s 192.168.100.0/24 ! -o k3kbr0 -j MASQUERADE
+        sudo iptables -A FORWARD -i k3kbr0 -j ACCEPT
+        sudo iptables -A FORWARD -o k3kbr0 -j ACCEPT
+
+        # One TAP per VM, attached to the bridge.
+        sudo ip tuntap add tap-w1 mode tap
+        sudo ip link set tap-w1 master k3kbr0
+        sudo ip link set tap-w1 up
+
+        sudo ip tuntap add tap-w2 mode tap
+        sudo ip link set tap-w2 master k3kbr0
+        sudo ip link set tap-w2 up
+
     - name: Download Base Cloud Image
       run: |
         wget -q https://cloud-images.ubuntu.com/resolute/current/resolute-server-cloudimg-amd64.img
-        
-    - name: Generate SSH Key and Cloud-Init Seed
+
+    - name: Generate SSH Key and Cloud-Init Seeds
       run: |
         ssh-keygen -t rsa -b 4096 -f ./id_rsa -N ""
+        PUBKEY="$(cat ./id_rsa.pub)"
 
-        # Define the cloud-init config to authorize our new key
-        cat <<EOF > user-data
+        # Per-VM cloud-init: each worker gets a unique hostname and a static IP
+        # on the bridge subnet via netplan.
+        for i in 1 2; do
+          IP="192.168.100.1${i}"  # 192.168.100.11 / 192.168.100.12
+          cat <<EOF > user-data-${i}
         #cloud-config
+        hostname: worker-${i}
+        preserve_hostname: false
+        manage_etc_hosts: true
+        # Stop cloud-init from generating its own DHCP netplan that would
+        # conflict with the static one we write in write_files below.
+        network:
+          config: disabled
         users:
           - name: ubuntu
             ssh_authorized_keys:
-              - $(cat ./id_rsa.pub)
+              - ${PUBKEY}
             sudo: ['ALL=(ALL) NOPASSWD:ALL']
             shell: /bin/bash
+        write_files:
+          - path: /etc/netplan/50-static.yaml
+            permissions: '0600'
+            content: |
+              network:
+                version: 2
+                ethernets:
+                  ens3:
+                    dhcp4: false
+                    addresses: [${IP}/24]
+                    routes:
+                      - to: default
+                        via: 192.168.100.1
+                    nameservers:
+                      addresses: [8.8.8.8, 1.1.1.1]
+        runcmd:
+          - netplan apply
         EOF
-
-        # Create separate seed images for each worker to avoid locking issues
-        cloud-localds seed-1.img user-data
-        cloud-localds seed-2.img user-data
+          cloud-localds seed-${i}.img user-data-${i}
+        done
 
     - name: Create Worker Disks
       run: |
@@ -455,58 +505,58 @@ jobs:
 
     - name: Launch Worker VMs
       run: |
-        # Launch Worker 1
+        # Launch Worker 1 — attached to tap-w1 on k3kbr0.
         sudo qemu-system-x86_64 \
           -m 2048 -smp 2 -cpu host -enable-kvm -nographic \
           -drive file=worker-1.qcow2,if=virtio \
           -drive file=seed-1.img,format=raw,if=virtio \
-          -net nic,model=virtio,macaddr=52:54:00:12:34:56 \
-          -net user,hostfwd=tcp::2222-:22 \
+          -netdev tap,id=net0,ifname=tap-w1,script=no,downscript=no \
+          -device virtio-net-pci,netdev=net0,mac=52:54:00:12:34:56 \
           &
 
         # Wait a moment before launching the second VM
         sleep 5
 
-        # Launch Worker 2
+        # Launch Worker 2 — attached to tap-w2 on k3kbr0.
         sudo qemu-system-x86_64 \
           -m 2048 -smp 2 -cpu host -enable-kvm -nographic \
           -drive file=worker-2.qcow2,if=virtio \
           -drive file=seed-2.img,format=raw,if=virtio \
-          -net nic,model=virtio,macaddr=52:54:00:12:34:57 \
-          -net user,hostfwd=tcp::2223-:22 \
+          -netdev tap,id=net0,ifname=tap-w2,script=no,downscript=no \
+          -device virtio-net-pci,netdev=net0,mac=52:54:00:12:34:57 \
           &
 
     - name: Wait for SSH Availability
       run: |
-        echo "Waiting for Worker 1 (Port 2222) to respond..."
-        timeout 120s bash -c '
-          until ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no -o ConnectTimeout=2 ubuntu@127.0.0.1 true 2>/dev/null; do sleep 3; done
+        echo "Waiting for Worker 1 (192.168.100.11) to respond..."
+        timeout 180s bash -c '
+          until ssh -i ./id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=2 ubuntu@192.168.100.11 true 2>/dev/null; do sleep 3; done
         '
 
-        echo "Waiting for Worker 2 (Port 2223) to respond..."
-        timeout 120s bash -c '
-          until ssh -i ./id_rsa -p 2223 -o StrictHostKeyChecking=no -o ConnectTimeout=2 ubuntu@127.0.0.1 true 2>/dev/null; do sleep 3; done
+        echo "Waiting for Worker 2 (192.168.100.12) to respond..."
+        timeout 180s bash -c '
+          until ssh -i ./id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=2 ubuntu@192.168.100.12 true 2>/dev/null; do sleep 3; done
         '
 
         echo "Both VMs are up and running!"
 
         echo "Testing connectivity from VMs to K3k API server..."
-        ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-          "curl -kv --max-time 10 https://10.0.2.2:30001/readyz || echo 'Worker 1 connectivity test failed'"
+        ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.11 \
+          "curl -kv --max-time 10 https://192.168.100.1:30001/readyz || echo 'Worker 1 connectivity test failed'"
 
-        ssh -i ./id_rsa -p 2223 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-          "curl -kv --max-time 10 https://10.0.2.2:30001/readyz || echo 'Worker 2 connectivity test failed'"
+        ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.12 \
+          "curl -kv --max-time 10 https://192.168.100.1:30001/readyz || echo 'Worker 2 connectivity test failed'"
 
     - name: Verify Worker VM Configuration
       run: |
-        echo "=== Worker 1 Configuration ==="
-        ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-          "echo 'Hostname:' \$(hostname) && echo 'IP Address:' \$(ip -4 addr show ens3 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') && echo 'Gateway:' \$(ip route | grep default)"
-
-        echo ""
-        echo "=== Worker 2 Configuration ==="
-        ssh -i ./id_rsa -p 2223 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-          "echo 'Hostname:' \$(hostname) && echo 'IP Address:' \$(ip -4 addr show ens3 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') && echo 'Gateway:' \$(ip route | grep default)"
+        for IP in 192.168.100.11 192.168.100.12; do
+          echo "=== Worker at ${IP} ==="
+          ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
+            "echo 'Hostname:' \$(hostname) && \
+             echo 'IP Address:' \$(ip -4 addr show ens3 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') && \
+             echo 'Gateway:' \$(ip route | grep default)"
+          echo ""
+        done
 
     ######################
 
@@ -515,12 +565,12 @@ jobs:
         K3S_TOKEN=$(kubectl get secret -n k3k-mycluster k3k-mycluster-token -o jsonpath='{.data.token}' | base64 -d)
 
         echo "Registering Worker 1..."
-        ssh -i ./id_rsa -p 2222 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-          "curl -sfL https://get.k3s.io | K3S_URL=https://10.0.2.2:30001 K3S_TOKEN=${K3S_TOKEN} INSTALL_K3S_EXEC='--node-name=worker-1' sh -"
+        ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.11 \
+          "curl -sfL https://get.k3s.io | K3S_URL=https://192.168.100.1:30001 K3S_TOKEN=${K3S_TOKEN} sh -"
 
         echo "Registering Worker 2..."
-        ssh -i ./id_rsa -p 2223 -o StrictHostKeyChecking=no ubuntu@127.0.0.1 \
-          "curl -sfL https://get.k3s.io | K3S_URL=https://10.0.2.2:30001 K3S_TOKEN=${K3S_TOKEN} INSTALL_K3S_EXEC='--node-name=worker-2' sh -"
+        ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.12 \
+          "curl -sfL https://get.k3s.io | K3S_URL=https://192.168.100.1:30001 K3S_TOKEN=${K3S_TOKEN} sh -"
     
     - name: Verify Cluster Nodes
       env:
@@ -543,7 +593,7 @@ jobs:
 
     - name: Run conformance tests
       run: |
-        hydrophone --conformance --parallel 2 \
+        hydrophone --conformance --parallel 4 \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
 

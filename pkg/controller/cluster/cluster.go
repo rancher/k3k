@@ -400,9 +400,10 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 			}
 		}
 
-		// in virtual mode assign a default serviceCIDR
-		if cluster.Spec.Mode == v1beta1.VirtualClusterMode {
-			log.V(1).Info("assign default service CIDR for virtual mode")
+		// virtual and hcp modes both run a self-contained K3s control plane and
+		// need their own pod/service CIDR independent of the host cluster.
+		if cluster.Spec.Mode == v1beta1.VirtualClusterMode || cluster.Spec.Mode == v1beta1.HCPClusterMode {
+			log.V(1).Info("assign default service CIDR", "mode", cluster.Spec.Mode)
 
 			cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
 		}
@@ -445,6 +446,25 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 
 	if err := c.ensureKubeconfigSecret(ctx, cluster, serviceIP, 443); err != nil {
 		return err
+	}
+
+	// In hcp mode, derive the K3s installer command end-users run on their
+	// external nodes and surface it on the Cluster status. We also own the
+	// default/kubernetes Endpoints inside the virtual cluster (the apiserver
+	// reconciler is disabled for HCP) so external-node pods can reach the
+	// in-cluster apiserver ClusterIP.
+	if cluster.Spec.Mode == v1beta1.HCPClusterMode {
+		if err := c.ensureHCPRegistration(ctx, cluster); err != nil {
+			return err
+		}
+
+		if err := c.ensureHCPKubernetesEndpointSlice(ctx, cluster); err != nil {
+			return err
+		}
+
+		if err := c.ensureHCPKubernetesEndpoints(ctx, cluster); err != nil {
+			return err
+		}
 	}
 
 	// Important: if you need to call the Server API of the Virtual Cluster
@@ -896,6 +916,13 @@ func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1bet
 }
 
 func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
+	// hcp mode is BYO-node by design: external (out-of-host-cluster) nodes join
+	// using the standard K3s installer command surfaced via Status.HCPRegistration.
+	// k3k therefore does not provision any agent pods on the host cluster.
+	if cluster.Spec.Mode == v1beta1.HCPClusterMode {
+		return nil
+	}
+
 	config := agent.NewConfig(cluster, c.Client, c.Scheme)
 
 	var agentEnsurer agent.ResourceEnsurer

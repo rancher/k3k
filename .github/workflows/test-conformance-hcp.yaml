@@ -1,0 +1,407 @@
+name: Conformance Tests - HCP Mode
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+    inputs:
+      k3k_version:
+        description: 'K3k version to test (e.g. v1.1.0). Leave empty to build from source.'
+        required: false
+        type: string
+      k8s_version:
+        description: 'Kubernetes version to test'
+        required: false
+        type: choice
+        options:
+          - ""
+          - "v1.34.6"
+          - "v1.35.3"
+
+permissions:
+    contents: read
+
+env:
+  K8S_VERSIONS: "v1.34.6,v1.35.3"
+  HELM_VERSION: v4.1.3
+  HELM_CHECKSUM_AMD64: 02ce9722d541238f81459938b84cf47df2fdf1187493b4bfb2346754d82a4700
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      k8s_versions: ${{ steps.set-matrix.outputs.k8s_versions }}
+    steps:
+      - id: set-matrix
+        run: |
+          if [[ -z "${{ inputs.k8s_version }}" ]]; then
+            JSON_ARRAY=$(jq -nc '"${{ env.K8S_VERSIONS }}" | split(",")')
+            echo "k8s_versions=${JSON_ARRAY}" >> "$GITHUB_OUTPUT"
+          else
+            echo "k8s_versions=[\"${{ inputs.k8s_version }}\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+  conformance:
+    needs: setup
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        k8s_version: ${{ fromJSON(needs.setup.outputs.k8s_versions) }}
+
+    env:
+      KUBERNETES_VERSION: ${{ matrix.k8s_version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+      with:
+        go-version-file: go.mod
+
+    - name: Install helm
+      env:
+        FILENAME: helm.tar.gz
+      run: |
+        curl -sSfL -o ${{ env.FILENAME }} https://get.helm.sh/helm-${{ env.HELM_VERSION }}-linux-amd64.tar.gz
+        echo "${{ env.HELM_CHECKSUM_AMD64 }}  ${{ env.FILENAME }}" | sha256sum --check
+        tar -xvzf ${{ env.FILENAME }} linux-amd64/helm
+        sudo install -m 755 linux-amd64/helm /usr/local/bin/helm
+
+        rm -fr "${{ env.FILENAME }}" linux-amd64/helm
+
+    - name: Install hydrophone
+      run: go install sigs.k8s.io/hydrophone@3de3e886a2f6f09635d8b981c195490af1584d97 #v0.7.0
+
+    - name: Install k3s
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        K3S_HOST_VERSION: ${{ env.KUBERNETES_VERSION }}+k3s1
+      run: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -
+
+        kubectl cluster-info
+        kubectl get nodes
+
+        echo "KUBECONFIG=${KUBECONFIG}" >> $GITHUB_ENV
+
+    - name: Setup K3k (from source)
+      if: inputs.k3k_version == ''
+      run: |
+        export REPO=ttl.sh/$(uuidgen)
+        export VERSION=1h
+
+        make build
+        make package
+        make push
+        make install
+
+        # add k3kcli to $PATH
+        echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+    - name: Setup K3k (from release)
+      if: inputs.k3k_version != ''
+      run: |
+        K3K_VERSION="${{ inputs.k3k_version }}"
+        CHART_VERSION="${K3K_VERSION#v}"
+
+        helm repo add k3k https://rancher.github.io/k3k
+        helm repo update
+        helm install --namespace k3k-system --create-namespace --version "${CHART_VERSION}" k3k k3k/k3k
+        
+        wget -qO k3kcli "https://github.com/rancher/k3k/releases/download/${{ inputs.k3k_version }}/k3kcli-linux-amd64"
+        sudo mv k3kcli /usr/local/bin/k3kcli
+        sudo chmod +x /usr/local/bin/k3kcli
+
+    - name: Wait for K3k controller
+      run: |
+        echo "Wait for K3k controller deployment to be available"
+        kubectl wait -n k3k-system deployment -l "app.kubernetes.io/name=k3k" --for=condition=Available --timeout=5m
+
+    - name: Check k3kcli
+      run: k3kcli -v
+
+    - name: Create virtual cluster
+      run: |
+        kubectl create namespace k3k-mycluster
+
+        cat <<EOF | kubectl apply -f -
+        apiVersion: k3k.io/v1beta1
+        kind: Cluster
+        metadata:
+          name: mycluster
+          namespace: k3k-mycluster
+        spec:
+          mode: hcp
+          tlsSANs:
+            - "127.0.0.1"
+            - "192.168.100.1"
+          expose:
+            nodePort:
+              serverPort: 30001
+        EOF
+
+        echo "Wait for bootstrap secret to be available"
+        kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m
+
+        k3kcli kubeconfig generate --name mycluster
+
+        export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
+
+        kubectl cluster-info
+        kubectl get nodes
+        kubectl get pods -A
+
+    - name: Install Virtualization Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-kvm qemu-utils cloud-image-utils wget
+        sudo usermod -aG kvm $USER
+
+        kvm-ok
+
+    - name: Set up bridge network for VMs
+      run: |
+        # Create a bridge so both VMs share an L2 segment with unique routable IPs.
+        # Required because QEMU `-net user` gives every VM the same 10.0.2.15 NAT
+        # address, which breaks flannel VXLAN between workers.
+        sudo ip link add name k3kbr0 type bridge
+        sudo ip addr add 192.168.100.1/24 dev k3kbr0
+        sudo ip link set k3kbr0 up
+
+        # NAT outbound so VMs can reach the internet (image pulls etc).
+        sudo sysctl -w net.ipv4.ip_forward=1
+        sudo iptables -t nat -A POSTROUTING -s 192.168.100.0/24 ! -o k3kbr0 -j MASQUERADE
+        sudo iptables -A FORWARD -i k3kbr0 -j ACCEPT
+        sudo iptables -A FORWARD -o k3kbr0 -j ACCEPT
+
+        # One TAP per VM, attached to the bridge.
+        sudo ip tuntap add tap-w1 mode tap
+        sudo ip link set tap-w1 master k3kbr0
+        sudo ip link set tap-w1 up
+
+        sudo ip tuntap add tap-w2 mode tap
+        sudo ip link set tap-w2 master k3kbr0
+        sudo ip link set tap-w2 up
+
+    - name: Download Base Cloud Image
+      run: |
+        # PINNED TO UBUNTU 24.04 LTS (noble).
+        #
+        # Newer Ubuntu releases (tested: 26.04 "resolute") ship a stricter
+        # `cri-containerd.apparmor.d` profile that denies inter-thread signal
+        # delivery. The BIND ISC library used by `nslookup` relies on those
+        # signals during shutdown (`isc_app_ctxshutdown()` calls `kill()`),
+        # so when AppArmor denies them nslookup exits 139 with
+        # "kill: Permission denied". The conformance tests
+        #   `[sig-network] Services should be able to change the type from
+        #   {NodePort,ClusterIP} to ExternalName`
+        # both run `nslookup` from an exec pod and fail in that case.
+        #
+        # Before bumping past 24.04, verify those two conformance tests still
+        # pass — or that the containerd AppArmor profile on the newer release
+        # has been relaxed to allow intra-pod signals.
+        wget -q https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img -O ubuntu-cloudimg.img
+
+    - name: Generate SSH Key and Cloud-Init Seeds
+      run: |
+        ssh-keygen -t rsa -b 4096 -f ./id_rsa -N ""
+        PUBKEY="$(cat ./id_rsa.pub)"
+
+        # Per-VM cloud-init: each worker gets a unique hostname and a static IP
+        # on the bridge subnet via netplan.
+        for i in 1 2; do
+          IP="192.168.100.1${i}"  # 192.168.100.11 / 192.168.100.12
+          cat <<EOF > user-data-${i}
+        #cloud-config
+        hostname: worker-${i}
+        preserve_hostname: false
+        manage_etc_hosts: true
+        # Stop cloud-init from generating its own DHCP netplan that would
+        # conflict with the static one we write in write_files below.
+        network:
+          config: disabled
+        users:
+          - name: ubuntu
+            ssh_authorized_keys:
+              - ${PUBKEY}
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+            shell: /bin/bash
+        write_files:
+          - path: /etc/netplan/50-static.yaml
+            permissions: '0600'
+            content: |
+              network:
+                version: 2
+                ethernets:
+                  ens3:
+                    dhcp4: false
+                    addresses: [${IP}/24]
+                    routes:
+                      - to: default
+                        via: 192.168.100.1
+                    nameservers:
+                      addresses: [8.8.8.8, 1.1.1.1]
+        runcmd:
+          - netplan apply
+        EOF
+          cloud-localds seed-${i}.img user-data-${i}
+        done
+
+    - name: Create Worker Disks
+      run: |
+        qemu-img create -f qcow2 -b ubuntu-cloudimg.img -F qcow2 worker-1.qcow2 20G
+        qemu-img create -f qcow2 -b ubuntu-cloudimg.img -F qcow2 worker-2.qcow2 20G
+
+    - name: Launch Worker VMs
+      run: |
+        # Launch Worker 1 — attached to tap-w1 on k3kbr0.
+        sudo qemu-system-x86_64 \
+          -m 2048 -smp 2 -cpu host -enable-kvm -nographic \
+          -drive file=worker-1.qcow2,if=virtio \
+          -drive file=seed-1.img,format=raw,if=virtio \
+          -netdev tap,id=net0,ifname=tap-w1,script=no,downscript=no \
+          -device virtio-net-pci,netdev=net0,mac=52:54:00:12:34:56 \
+          &
+
+        # Wait a moment before launching the second VM
+        sleep 5
+
+        # Launch Worker 2 — attached to tap-w2 on k3kbr0.
+        sudo qemu-system-x86_64 \
+          -m 2048 -smp 2 -cpu host -enable-kvm -nographic \
+          -drive file=worker-2.qcow2,if=virtio \
+          -drive file=seed-2.img,format=raw,if=virtio \
+          -netdev tap,id=net0,ifname=tap-w2,script=no,downscript=no \
+          -device virtio-net-pci,netdev=net0,mac=52:54:00:12:34:57 \
+          &
+
+    - name: Wait for SSH Availability
+      run: |
+        echo "Waiting for Worker 1 (192.168.100.11) to respond..."
+        timeout 180s bash -c '
+          until ssh -i ./id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=2 ubuntu@192.168.100.11 true 2>/dev/null; do sleep 3; done
+        '
+
+        echo "Waiting for Worker 2 (192.168.100.12) to respond..."
+        timeout 180s bash -c '
+          until ssh -i ./id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=2 ubuntu@192.168.100.12 true 2>/dev/null; do sleep 3; done
+        '
+
+        echo "Both VMs are up and running!"
+
+        echo "Testing connectivity from VMs to K3k API server..."
+        ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.11 \
+          "curl -kv --max-time 10 https://192.168.100.1:30001/readyz || echo 'Worker 1 connectivity test failed'"
+
+        ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.12 \
+          "curl -kv --max-time 10 https://192.168.100.1:30001/readyz || echo 'Worker 2 connectivity test failed'"
+
+    - name: Verify Worker VM Configuration
+      run: |
+        for IP in 192.168.100.11 192.168.100.12; do
+          echo "=== Worker at ${IP} ==="
+          ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
+            "echo 'Hostname:' \$(hostname) && \
+             echo 'IP Address:' \$(ip -4 addr show ens3 | grep -oP '(?<=inet\s)\d+(\.\d+){3}') && \
+             echo 'Gateway:' \$(ip route | grep default)"
+          echo ""
+        done
+
+    - name: Join Workers to K3k Control Plane
+      env:
+        K3S_WORKER_VERSION: ${{ env.KUBERNETES_VERSION }}+k3s1
+      run: |
+        K3S_TOKEN=$(kubectl get secret -n k3k-mycluster k3k-mycluster-token -o jsonpath='{.data.token}' | base64 -d)
+
+        echo "Registering Worker 1 (k3s ${K3S_WORKER_VERSION})..."
+        ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.11 \
+          "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_WORKER_VERSION} K3S_URL=https://192.168.100.1:30001 K3S_TOKEN=${K3S_TOKEN} sh -"
+
+        echo "Registering Worker 2 (k3s ${K3S_WORKER_VERSION})..."
+        ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.12 \
+          "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_WORKER_VERSION} K3S_URL=https://192.168.100.1:30001 K3S_TOKEN=${K3S_TOKEN} sh -"
+    
+    - name: Verify Cluster Nodes
+      env:
+        KUBECONFIG: ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
+      run: |
+        echo "Monitoring K3k Virtual Cluster for Node registration..."
+
+        kubectl get pod -A
+        kubectl get nodes
+
+        timeout 180s bash -c '
+          until [ $(kubectl get nodes --no-headers 2>/dev/null | grep -c "Ready") -eq 2 ]; do
+            echo "Waiting for both worker nodes to show Ready..."
+            kubectl get nodes || true
+            sleep 5
+          done
+        '
+
+    - name: Run conformance tests
+      run: |
+        hydrophone --conformance --parallel 4 \
+          --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
+          --output-dir /tmp
+
+    - name: Collect logs
+      if: always()
+      env:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      run: |
+        journalctl -u k3s -o cat --no-pager > /tmp/k3s.log
+        kubectl logs -n k3k-system -l "app.kubernetes.io/name=k3k" --tail=-1 > /tmp/k3k.log
+
+    - name: Archive K3s logs
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      if: always()
+      with:
+        name: k3s-${{ matrix.k8s_version }}-logs
+        path: /tmp/k3s.log
+
+    - name: Archive K3k logs
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      if: always()
+      with:
+        name: k3k-${{ matrix.k8s_version }}-logs
+        path: /tmp/k3k.log
+
+    - name: Archive conformance logs
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      if: always()
+      with:
+        name: conformance-${{ matrix.k8s_version }}-logs
+        path: /tmp/e2e.log
+
+    - name: Archive results
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      if: always()
+      with:
+        name: conformance-${{ matrix.k8s_version }}-results
+        path: /tmp/junit_01.xml
+
+    - name: Job Summary
+      if: always()
+      run: |
+        echo '## 📊 Conformance Tests Results (${{ matrix.k8s_version }})' >> $GITHUB_STEP_SUMMARY
+        echo '| Passed | Failed | Pending | Skipped |'              >> $GITHUB_STEP_SUMMARY
+        echo '|---|---|---|---|'                                    >> $GITHUB_STEP_SUMMARY
+
+        RESULTS=$(tail -10 /tmp/e2e.log | grep -E "Passed .* Failed .* Pending .* Skipped" | cut -d '-' -f 3)
+        RESULTS=$(echo $RESULTS | grep -oE '[0-9]+' | xargs | sed 's/ / | /g')
+        echo "| $RESULTS |" >> $GITHUB_STEP_SUMMARY
+
+        # only include failed tests section if there are any
+        if grep -q '\[FAIL\]' /tmp/e2e.log; then
+          echo ''                       >> $GITHUB_STEP_SUMMARY
+          echo '### Failed Tests'       >> $GITHUB_STEP_SUMMARY
+          echo '```'                    >> $GITHUB_STEP_SUMMARY
+          grep '\[FAIL\]' /tmp/e2e.log  >> $GITHUB_STEP_SUMMARY
+          echo '```'                    >> $GITHUB_STEP_SUMMARY
+        fi

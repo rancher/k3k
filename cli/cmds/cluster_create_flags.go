@@ -27,7 +27,7 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 	cmd.Flags().StringArrayVar(&cfg.labels, "labels", []string{}, "Labels to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringArrayVar(&cfg.annotations, "annotations", []string{}, "Annotations to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringVar(&cfg.version, "version", "", "k3s version")
-	cmd.Flags().StringVar(&cfg.mode, "mode", "shared", "k3k mode type (shared, virtual)")
+	cmd.Flags().StringVar(&cfg.mode, "mode", "shared", "k3k mode type (shared, virtual, hcp)")
 	cmd.Flags().StringVar(&cfg.kubeconfigServerHost, "kubeconfig-server", "", "override the kubeconfig server host")
 	cmd.Flags().StringVar(&cfg.policy, "policy", "", "The policy to create the cluster in")
 	cmd.Flags().StringVar(&cfg.customCertsPath, "custom-certs", "", "The path for custom certificate directory")
@@ -54,10 +54,10 @@ func validateCreateConfig(cfg *CreateConfig) error {
 
 	if cfg.mode != "" {
 		switch cfg.mode {
-		case string(v1beta1.VirtualClusterMode), string(v1beta1.SharedClusterMode):
+		case string(v1beta1.VirtualClusterMode), string(v1beta1.SharedClusterMode), string(v1beta1.HCPClusterMode):
 			return nil
 		default:
-			return errors.New(`mode should be one of "shared" or "virtual"`)
+			return errors.New(`mode should be one of "shared", "virtual" or "hcp"`)
 		}
 	}
 

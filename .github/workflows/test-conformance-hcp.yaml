@@ -191,11 +191,21 @@ jobs:
 
     - name: Download Base Cloud Image
       run: |
-        # Use Ubuntu 24.04 (noble) LTS rather than 26.04 (resolute). Resolute's
-        # cri-containerd AppArmor profile blocks inter-thread signals that the
-        # BIND ISC library uses during nslookup shutdown — causing every
-        # conformance ExternalName test that calls `nslookup` from an exec pod
-        # to exit 139 with "kill: Permission denied".
+        # PINNED TO UBUNTU 24.04 LTS (noble).
+        #
+        # Newer Ubuntu releases (tested: 26.04 "resolute") ship a stricter
+        # `cri-containerd.apparmor.d` profile that denies inter-thread signal
+        # delivery. The BIND ISC library used by `nslookup` relies on those
+        # signals during shutdown (`isc_app_ctxshutdown()` calls `kill()`),
+        # so when AppArmor denies them nslookup exits 139 with
+        # "kill: Permission denied". The conformance tests
+        #   `[sig-network] Services should be able to change the type from
+        #   {NodePort,ClusterIP} to ExternalName`
+        # both run `nslookup` from an exec pod and fail in that case.
+        #
+        # Before bumping past 24.04, verify those two conformance tests still
+        # pass — or that the containerd AppArmor profile on the newer release
+        # has been relaxed to allow intra-pod signals.
         wget -q https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img -O ubuntu-cloudimg.img
 
     - name: Generate SSH Key and Cloud-Init Seeds
@@ -334,83 +344,11 @@ jobs:
           done
         '
 
-    # =====================================================================
-    # TODO(debug): remove this step once the HCP ExternalName conformance
-    # failures are root-caused. It reproduces the failing scenario manually
-    # before the conformance run, so the actual stderr / exit codes show up
-    # in the workflow output (hydrophone swallows them).
-    # =====================================================================
-    - name: Manual repro probe (before conformance)
-      env:
-        KUBECONFIG: ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
-      run: |
-        # Capture everything to a file too, so the result is in the archived
-        # artifacts (not only in the GHA web viewer).
-        exec > >(tee /tmp/manual-probe.log) 2>&1
-        # Try to reproduce the failing scenario manually so we capture the
-        # actual stderr from the failing exec, which hydrophone swallows.
-        # If this fails with rc=139 the same way, we have the bug isolated to
-        # a 10-line shell script and can iterate on it instead of full conformance.
-        set +e
-        kubectl create ns repro
-        kubectl -n repro create deployment backend \
-          --image=registry.k8s.io/e2e-test-images/agnhost:2.59 --replicas=2 \
-          -- /agnhost serve-hostname
-        kubectl -n repro wait deployment/backend --for=condition=Available --timeout=2m
-        kubectl -n repro expose deployment backend \
-          --name=externalsvc --port=80 --target-port=9376 --type=ClusterIP
-
-        kubectl -n repro create deployment echo \
-          --image=registry.k8s.io/e2e-test-images/agnhost:2.59 --replicas=2 \
-          -- /agnhost serve-hostname
-        kubectl -n repro wait deployment/echo --for=condition=Available --timeout=2m
-        kubectl -n repro expose deployment echo \
-          --name=svc-a --type=ClusterIP --port=80 --target-port=9376
-
-        kubectl -n repro patch svc svc-a --type=merge -p '{
-          "spec":{"type":"ExternalName","externalName":"externalsvc.repro.svc.cluster.local","clusterIP":"","clusterIPs":null,"ports":null,"selector":null}
-        }'
-
-        # Mirror the conformance pattern: brand-new exec pod, exec immediately.
-        kubectl -n repro run execpod \
-          --image=registry.k8s.io/e2e-test-images/agnhost:2.59 \
-          --command -- sleep infinity
-        kubectl -n repro wait pod/execpod --for=condition=Ready --timeout=2m
-
-        echo "=== exec #1 (immediate, mirrors conformance) ==="
-        kubectl -n repro exec execpod -- /bin/sh -x -c "nslookup svc-a.repro.svc.cluster.local"; echo "exit: $?"
-
-        echo "=== exec #2 (after 5s sleep) ==="
-        sleep 5
-        kubectl -n repro exec execpod -- /bin/sh -x -c "nslookup svc-a.repro.svc.cluster.local"; echo "exit: $?"
-
-        echo "=== exec #3 (getent — different resolver) ==="
-        kubectl -n repro exec execpod -- /bin/sh -c "getent hosts svc-a.repro.svc.cluster.local"; echo "exit: $?"
-
-        echo "=== exec #4 (control: no DNS, just hostname) ==="
-        kubectl -n repro exec execpod -- /bin/sh -c "cat /etc/hostname"; echo "exit: $?"
-
-        echo "=== /etc/resolv.conf in pod ==="
-        kubectl -n repro exec execpod -- cat /etc/resolv.conf
-
-        echo "=== pod / node placement ==="
-        kubectl -n repro get pods -o wide
-
-        # Leave the namespace alive so the conformance run can inspect state later if needed.
-        # (Cleanup is automatic when the runner tears down.)
-        true
-
     - name: Run conformance tests
       run: |
-        hydrophone --focus 'should be able to change the type from (ClusterIP|NodePort) to ExternalName' \
+        hydrophone --conformance --parallel 4 \
           --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
           --output-dir /tmp
-
-    # - name: Run conformance tests
-    #   run: |
-    #     hydrophone --conformance --parallel 4 \
-    #       --kubeconfig ${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml \
-    #       --output-dir /tmp
 
     - name: Collect logs
       if: always()
@@ -419,41 +357,6 @@ jobs:
       run: |
         journalctl -u k3s -o cat --no-pager > /tmp/k3s.log
         kubectl logs -n k3k-system -l "app.kubernetes.io/name=k3k" --tail=-1 > /tmp/k3k.log
-
-    # =====================================================================
-    # TODO(debug): remove this step once the HCP ExternalName conformance
-    # failures are root-caused. It exists only to collect extra diagnostics
-    # (virtual cluster apiserver, worker journals, bridge counters) that the
-    # standard "Collect logs" step doesn't capture.
-    # =====================================================================
-    - name: Collect debug logs
-      if: always()
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      run: |
-        # K3k SERVER POD — runs the virtual cluster's kube-apiserver/kcm/scheduler.
-        # All exec streams flow through this; most likely place to see the real error.
-        kubectl logs -n k3k-mycluster k3k-mycluster-server-0 --tail=-1 > /tmp/k3k-server.log || true
-        kubectl logs -n k3k-mycluster k3k-mycluster-server-0 --previous --tail=-1 > /tmp/k3k-server-prev.log 2>/dev/null || true
-
-        # Worker VM journals — k3s agent + kubelet + containerd live here.
-        # Captured via SSH because the workers aren't kubectl-accessible.
-        for i in 1 2; do
-          IP="192.168.100.1${i}"
-          ssh -i ${{ github.workspace }}/id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
-            "sudo journalctl -u k3s-agent -o cat --no-pager" > /tmp/worker-${i}-k3s-agent.log 2>&1 || true
-          ssh -i ${{ github.workspace }}/id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
-            "sudo dmesg -T" > /tmp/worker-${i}-dmesg.log 2>&1 || true
-        done
-
-        # Bridge / iface counters — if any TX/RX errors or drops grew, MTU/queue is suspect.
-        # iproute2 wants `dev` qualifier per-interface; loop instead of listing multiple.
-        for iface in k3kbr0 tap-w1 tap-w2; do
-          echo "=== $iface ==="
-          ip -s link show dev $iface 2>&1 || echo "(missing)"
-        done > /tmp/host-iface-stats.log
-
-        sudo conntrack -L 2>/dev/null | wc -l > /tmp/host-conntrack-count.log || true
 
     - name: Archive K3s logs
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -468,26 +371,6 @@ jobs:
       with:
         name: k3k-${{ matrix.k8s_version }}-logs
         path: /tmp/k3k.log
-
-    # =====================================================================
-    # TODO(debug): remove this step alongside "Collect debug logs" once the
-    # HCP ExternalName conformance failures are root-caused.
-    # =====================================================================
-    - name: Archive debug logs
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-      if: always()
-      with:
-        name: debug-${{ matrix.k8s_version }}-logs
-        path: |
-          /tmp/k3k-server.log
-          /tmp/k3k-server-prev.log
-          /tmp/worker-1-k3s-agent.log
-          /tmp/worker-1-dmesg.log
-          /tmp/worker-2-k3s-agent.log
-          /tmp/worker-2-dmesg.log
-          /tmp/host-iface-stats.log
-          /tmp/host-conntrack-count.log
-          /tmp/manual-probe.log
 
     - name: Archive conformance logs
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

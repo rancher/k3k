@@ -191,7 +191,12 @@ jobs:
 
     - name: Download Base Cloud Image
       run: |
-        wget -q https://cloud-images.ubuntu.com/resolute/current/resolute-server-cloudimg-amd64.img
+        # Use Ubuntu 24.04 (noble) LTS rather than 26.04 (resolute). Resolute's
+        # cri-containerd AppArmor profile blocks inter-thread signals that the
+        # BIND ISC library uses during nslookup shutdown — causing every
+        # conformance ExternalName test that calls `nslookup` from an exec pod
+        # to exit 139 with "kill: Permission denied".
+        wget -q https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img -O ubuntu-cloudimg.img
 
     - name: Generate SSH Key and Cloud-Init Seeds
       run: |
@@ -240,8 +245,8 @@ jobs:
 
     - name: Create Worker Disks
       run: |
-        qemu-img create -f qcow2 -b resolute-server-cloudimg-amd64.img -F qcow2 worker-1.qcow2 20G
-        qemu-img create -f qcow2 -b resolute-server-cloudimg-amd64.img -F qcow2 worker-2.qcow2 20G
+        qemu-img create -f qcow2 -b ubuntu-cloudimg.img -F qcow2 worker-1.qcow2 20G
+        qemu-img create -f qcow2 -b ubuntu-cloudimg.img -F qcow2 worker-2.qcow2 20G
 
     - name: Launch Worker VMs
       run: |

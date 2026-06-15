@@ -104,10 +104,12 @@ var _ = When("creating an HCP mode cluster", Label(e2eTestLabel), Label(slowTest
 		ctx := GinkgoT().Context()
 
 		var tokenSecret corev1.Secret
+
 		err := k8sClient.Get(ctx, client.ObjectKey{
 			Name:      k3kcluster.TokenSecretName(virtualCluster.Cluster.Name),
 			Namespace: virtualCluster.Cluster.Namespace,
 		}, &tokenSecret)
+
 		Expect(err).NotTo(HaveOccurred())
 		Expect(tokenSecret.Data["token"]).NotTo(BeEmpty())
 	})

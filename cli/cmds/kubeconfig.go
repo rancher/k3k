@@ -89,14 +89,12 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 			return err
 		}
 
-		url, err := url.Parse(appCtx.RestConfig.Host)
+		host, err := resolveServerHost(appCtx.RestConfig.Host, cfg.kubeconfigServerHost)
 		if err != nil {
 			return err
 		}
 
-		host := strings.Split(url.Host, ":")
 		if cfg.kubeconfigServerHost != "" {
-			host = []string{cfg.kubeconfigServerHost}
 			cfg.altNames = append(cfg.altNames, cfg.kubeconfigServerHost)
 		}
 
@@ -118,14 +116,38 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 		var kubeconfig *clientcmdapi.Config
 
 		if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = kubeCfg.Generate(ctx, client, &cluster, host[0], 0)
+			kubeconfig, err = kubeCfg.Generate(ctx, client, &cluster, host, 0)
 			return err
 		}); err != nil {
 			return err
 		}
 
-		return writeKubeconfigFile(&cluster, kubeconfig, cfg.configName)
+		if err := writeKubeconfigFile(&cluster, kubeconfig, cfg.configName); err != nil {
+			return err
+		}
+
+		if cluster.Spec.Mode == v1beta1.HCPClusterMode {
+			printHCPJoinInstructions(&cluster, kubeconfig)
+		}
+
+		return nil
 	}
+}
+
+// resolveServerHost returns the host that should be embedded in the kubeconfig
+// server URL and used as the TLS-SAN. If override is set it takes precedence;
+// otherwise the host is extracted from restConfigHost.
+func resolveServerHost(restConfigHost, override string) (string, error) {
+	if override != "" {
+		return override, nil
+	}
+
+	u, err := url.Parse(restConfigHost)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.Split(u.Host, ":")[0], nil
 }
 
 func writeKubeconfigFile(cluster *v1beta1.Cluster, kubeconfig *clientcmdapi.Config, configName string) error {

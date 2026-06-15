@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 	"text/template"
@@ -89,7 +88,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 		}
 
 		if config.mode == string(v1beta1.HCPClusterMode) {
-			logrus.Warn("Mode 'hcp' is experimental")
+			logrus.Warn("HCP (Hosted Control Plane) mode is experimental.")
 		}
 
 		namespace := appCtx.Namespace(name)
@@ -132,17 +131,12 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 		}
 
 		// add Host IP address as an extra TLS-SAN to expose the k3k cluster
-		url, err := url.Parse(appCtx.RestConfig.Host)
+		host, err := resolveServerHost(appCtx.RestConfig.Host, config.kubeconfigServerHost)
 		if err != nil {
 			return err
 		}
 
-		host := strings.Split(url.Host, ":")
-		if config.kubeconfigServerHost != "" {
-			host = []string{config.kubeconfigServerHost}
-		}
-
-		cluster.Spec.TLSSANs = []string{host[0]}
+		cluster.Spec.TLSSANs = []string{host}
 
 		if err := client.Create(ctx, cluster); err != nil {
 			if apierrors.IsAlreadyExists(err) {
@@ -183,14 +177,38 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 		var kubeconfig *clientcmdapi.Config
 
 		if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = cfg.Generate(ctx, client, cluster, host[0], 0)
+			kubeconfig, err = cfg.Generate(ctx, client, cluster, host, 0)
 			return err
 		}); err != nil {
 			return err
 		}
 
-		return writeKubeconfigFile(cluster, kubeconfig, "")
+		if err := writeKubeconfigFile(cluster, kubeconfig, ""); err != nil {
+			return err
+		}
+
+		if cluster.Spec.Mode == v1beta1.HCPClusterMode {
+			printHCPJoinInstructions(cluster, kubeconfig)
+		}
+
+		return nil
 	}
+}
+
+func printHCPJoinInstructions(cluster *v1beta1.Cluster, kc *clientcmdapi.Config) {
+	tokenSecretName := k3kcluster.TokenSecretName(cluster.Name)
+	serverURL := kc.Clusters["default"].Server
+
+	logrus.Infof(`To join an external worker node to this HCP cluster:
+
+	1. On this machine, fetch the cluster token:
+
+		kubectl get secret -n %s %s -o jsonpath='{.data.token}' | base64 -d
+
+	2. On the worker node, run (replace <TOKEN> with the value from step 1):
+
+		curl -sfL https://get.k3s.io | K3S_URL=%s K3S_TOKEN=<TOKEN> sh -
+`, cluster.Namespace, tokenSecretName, serverURL)
 }
 
 func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster, error) {

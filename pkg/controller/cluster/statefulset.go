@@ -82,26 +82,6 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 		}
 	}
 
-	// skip handling statefulset if the cluster is using external datastore
-	clusterToken, err := getClusterToken(ctx, cluster, p.Client)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	k3sClient := k3s.New(k3s.ClientConfig{
-		ServerIP: server.ServiceName(cluster.Name),
-		Token:    clusterToken,
-	})
-
-	config, err := k3s.GetServerConfig(k3sClient)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	if !config.ClusterInit {
-		return reconcile.Result{}, nil
-	}
-
 	// If the StatefulSet is being deleted, we need to remove the finalizers from its pods
 	// and remove the finalizer from the StatefulSet itself.
 	if !sts.DeletionTimestamp.IsZero() {
@@ -124,6 +104,26 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 
 			return reconcile.Result{}, nil
 		}
+	}
+
+	// skip adding finalizer to server pods if etcd is not used
+	clusterToken, err := getClusterToken(ctx, &cluster, p.Client)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	k3sClient := k3s.New(k3s.ClientConfig{
+		ServerIP: server.ServiceName(cluster.Name),
+		Token:    clusterToken,
+	})
+
+	config, err := k3s.GetServerConfig(k3sClient)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if !config.ClusterInit {
+		return reconcile.Result{}, nil
 	}
 
 	for _, pod := range podList.Items {

@@ -46,39 +46,41 @@ func Test_GetServerConfig(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		mux := http.NewServeMux()
+		t.Run(tt.name, func(t *testing.T) {
+			mux := http.NewServeMux()
 
-		mockServer := httptest.NewUnstartedServer(mux)
-		if tt.isServerRunning {
-			mockServer.StartTLS()
-		}
-
-		mux.Handle("/v1-k3s/config", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if _, err := w.Write([]byte(tt.serverResponse)); err != nil {
-				t.Fatalf("failed to write server response: %v", err)
+			mockServer := httptest.NewUnstartedServer(mux)
+			if tt.isServerRunning {
+				mockServer.StartTLS()
 			}
-		}))
 
-		if tt.clientConfig.ServerIP == "" {
-			tt.clientConfig.ServerIP = getServerAddress(mockServer.URL)
-		}
-
-		k3sClient := New(tt.clientConfig)
-
-		k3sConfig, err := GetServerConfig(k3sClient)
-		if err != nil {
-			if tt.expectedErr != nil {
-				if err.Error() != tt.expectedErr.Error() {
-					t.Fatalf("expected err %v got %v", tt.expectedErr, err)
+			mux.Handle("/v1-k3s/config", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if _, err := w.Write([]byte(tt.serverResponse)); err != nil {
+					t.Fatalf("failed to write server response: %v", err)
 				}
-			} else {
-				t.Fatalf("failed to get server config: %v", err)
-			}
-		}
+			}))
 
-		if !reflect.DeepEqual(k3sConfig, tt.expectedConfig) {
-			t.Fatalf("got config %v expected %v", k3sConfig, tt.expectedConfig)
-		}
+			if tt.clientConfig.ServerIP == "" {
+				tt.clientConfig.ServerIP = getServerAddress(mockServer.URL)
+			}
+
+			k3sClient := New(tt.clientConfig)
+
+			k3sConfig, err := GetServerConfig(k3sClient)
+			if err != nil {
+				if tt.expectedErr != nil {
+					if err.Error() != tt.expectedErr.Error() {
+						t.Fatalf("expected err %v got %v", tt.expectedErr, err)
+					}
+				} else {
+					t.Fatalf("failed to get server config: %v", err)
+				}
+			}
+
+			if !reflect.DeepEqual(k3sConfig, tt.expectedConfig) {
+				t.Fatalf("got config %v expected %v", k3sConfig, tt.expectedConfig)
+			}
+		})
 	}
 }
 

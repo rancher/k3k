@@ -36,21 +36,23 @@ func Test_NewClient(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		client := New(tt.clientConfig)
-		if len(tt.expectedHeaders) != len(client.staticHeaders) {
-			t.Fatal("expected headers are not equal actual headers")
-		}
-
-		for expectedHeader, expectedValue := range tt.expectedHeaders {
-			value, ok := client.staticHeaders[http.CanonicalHeaderKey(expectedHeader)]
-			if !ok {
-				t.Fatalf("expected header %s is not found", expectedHeader)
+		t.Run(tt.name, func(t *testing.T) {
+			client := New(tt.clientConfig)
+			if len(tt.expectedHeaders) != len(client.staticHeaders) {
+				t.Fatal("expected headers are not equal actual headers")
 			}
 
-			if !reflect.DeepEqual(expectedValue, value) {
-				t.Fatalf("expected %v for header %s, got %v instead", expectedValue, expectedHeader, value)
+			for expectedHeader, expectedValue := range tt.expectedHeaders {
+				value, ok := client.staticHeaders[http.CanonicalHeaderKey(expectedHeader)]
+				if !ok {
+					t.Fatalf("expected header %s is not found", expectedHeader)
+				}
+
+				if !reflect.DeepEqual(expectedValue, value) {
+					t.Fatalf("expected %v for header %s, got %v instead", expectedValue, expectedHeader, value)
+				}
 			}
-		}
+		})
 	}
 }
 

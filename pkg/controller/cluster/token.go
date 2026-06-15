@@ -115,7 +115,7 @@ func TokenSecretName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "token")
 }
 
-func getClusterToken(ctx context.Context, cluster v1beta1.Cluster, client client.Client) (string, error) {
+func getClusterToken(ctx context.Context, cluster *v1beta1.Cluster, client client.Client) (string, error) {
 	tokenSecretName := TokenSecretName(cluster.Name)
 	if cluster.Spec.TokenSecretRef != nil && cluster.Spec.TokenSecretRef.Name != "" {
 		tokenSecretName = cluster.Spec.TokenSecretRef.Name

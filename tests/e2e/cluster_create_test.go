@@ -118,24 +118,31 @@ var _ = When("creating an HCP mode cluster", Label(e2eTestLabel), Label(slowTest
 		ctx := GinkgoT().Context()
 
 		Eventually(func(g Gomega) {
+			key := client.ObjectKeyFromObject(virtualCluster.Cluster)
+			g.Expect(k8sClient.Get(ctx, key, virtualCluster.Cluster)).To(Succeed())
+
 			endpoints, err := virtualCluster.Client.CoreV1().Endpoints("default").Get(ctx, "kubernetes", metav1.GetOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
 			g.Expect(endpoints.Subsets).To(HaveLen(1))
 			g.Expect(endpoints.Subsets[0].Addresses).To(HaveLen(1))
-			g.Expect(endpoints.Subsets[0].Addresses[0].IP).To(Equal(hostIP))
+			g.Expect(virtualCluster.Cluster.Status.TLSSANs).To(ContainElement(endpoints.Subsets[0].Addresses[0].IP))
 		}).
 			WithTimeout(time.Minute).
 			WithPolling(time.Second).
 			Should(Succeed())
 
 		Eventually(func(g Gomega) {
+			key := client.ObjectKeyFromObject(virtualCluster.Cluster)
+			g.Expect(k8sClient.Get(ctx, key, virtualCluster.Cluster)).To(Succeed())
+
 			slices, err := virtualCluster.Client.DiscoveryV1().EndpointSlices("default").List(ctx, metav1.ListOptions{
 				LabelSelector: "kubernetes.io/service-name=kubernetes",
 			})
 			g.Expect(err).To(Not(HaveOccurred()))
 			g.Expect(slices.Items).To(HaveLen(1))
 			g.Expect(slices.Items[0].Endpoints).To(HaveLen(1))
-			g.Expect(slices.Items[0].Endpoints[0].Addresses).To(ContainElement(hostIP))
+			g.Expect(slices.Items[0].Endpoints[0].Addresses).To(HaveLen(1))
+			g.Expect(virtualCluster.Cluster.Status.TLSSANs).To(ContainElement(slices.Items[0].Endpoints[0].Addresses[0]))
 		}).
 			WithTimeout(time.Minute).
 			WithPolling(time.Second).

@@ -113,7 +113,7 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	}
 
 	k3sClient := k3s.New(k3s.ClientConfig{
-		ServerIP: server.ServiceName(cluster.Name),
+		ServerIP: fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace),
 		Token:    clusterToken,
 	})
 

@@ -151,15 +151,9 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 		endpointSlice.Labels[discoveryv1.LabelServiceName] = "kubernetes"
 		endpointSlice.AddressType = addressType
 
-		endpoint := discoveryv1.Endpoint{
-			Addresses: []string{addr.IP},
+		endpointSlice.Endpoints = []discoveryv1.Endpoint{
+			{Addresses: []string{addr.IP}},
 		}
-
-		if addr.Hostname != "" {
-			endpoint.Hostname = &addr.Hostname
-		}
-
-		endpointSlice.Endpoints = []discoveryv1.Endpoint{endpoint}
 		portName := "https"
 
 		endpointSlice.Ports = []discoveryv1.EndpointPort{
@@ -177,7 +171,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 	}
 
 	log.V(1).Info("HCP kubernetes endpointslice reconciled",
-		"address", addr.IP, "hostname", addr.Hostname, "port", port)
+		"address", addr.IP, "host", host, "port", port)
 
 	return nil
 }
@@ -248,7 +242,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cl
 		return fmt.Errorf("upserting default/kubernetes endpoints in virtual cluster: %w", err)
 	}
 
-	log.V(1).Info("HCP kubernetes endpoints reconciled", "address", addr.IP, "hostname", addr.Hostname, "port", port)
+	log.V(1).Info("HCP kubernetes endpoints reconciled", "address", addr.IP, "host", host, "port", port)
 
 	return nil
 }
@@ -288,8 +282,9 @@ func parseHCPHostPort(rawURL string) (string, int32, error) {
 
 // hcpEndpointAddress builds a corev1.EndpointAddress from the externally
 // reachable host. Endpoints require an IP; if the host is a DNS name we
-// resolve it and keep the original name as Hostname so logs/events remain
-// human-readable.
+// resolve it. The Hostname field is intentionally left unset: the
+// kubernetes API validates it as a DNS-1123 label (no dots), so an FQDN
+// like "host.example.com" would be rejected.
 func hcpEndpointAddress(host string) (corev1.EndpointAddress, error) {
 	if ip := net.ParseIP(host); ip != nil {
 		if ip.IsLoopback() {
@@ -317,8 +312,8 @@ func hcpEndpointAddress(host string) (corev1.EndpointAddress, error) {
 	}
 
 	if v4 := filteredIPs[0].To4(); v4 != nil {
-		return corev1.EndpointAddress{IP: v4.String(), Hostname: host}, nil
+		return corev1.EndpointAddress{IP: v4.String()}, nil
 	}
 
-	return corev1.EndpointAddress{IP: filteredIPs[0].String(), Hostname: host}, nil
+	return corev1.EndpointAddress{IP: filteredIPs[0].String()}, nil
 }

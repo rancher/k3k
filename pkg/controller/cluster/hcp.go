@@ -2,12 +2,12 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"strconv"
 
-	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
@@ -19,13 +19,22 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 )
 
-// ensureHCPRegistration computes the K3s installer command external nodes can
-// run to join an HCP-mode cluster and stores it on cluster.Status.HCPRegistration.
+// ErrHCPNoExternalEndpoint is returned by ensureHCPRegistration when an
+// HCP-mode cluster has no externally-routable endpoint (no NodePort,
+// LoadBalancer or Ingress) so external worker nodes cannot reach the API
+// server. updateStatus translates it into a Ready=False condition with
+// reason HCPNoExternalEndpoint instead of failing the reconcile outright.
+var ErrHCPNoExternalEndpoint = errors.New("HCP cluster has no external endpoint")
+
+// ensureHCPRegistration verifies that an HCP-mode cluster exposes an
+// externally-routable API server endpoint so external worker nodes can join.
+// Join instructions (the `curl ... | sh -` line) are printed by the CLI
+// (`k3kcli cluster create` / `k3kcli kubeconfig generate`); the controller
+// does not persist them on the Cluster object.
 //
-// When the cluster's Service is not externally reachable (no NodePort,
-// LoadBalancer or Ingress configured) the command cannot be built; in that
-// case the Ready condition is set to False with reason HCPNoExternalEndpoint
-// so the operator surfaces the problem without failing the reconciliation.
+// Returns ErrHCPNoExternalEndpoint when no NodePort, LoadBalancer or Ingress
+// is configured, which updateStatus surfaces as Ready=False with reason
+// HCPNoExternalEndpoint.
 func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
@@ -35,15 +44,10 @@ func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *
 	}
 
 	if !external {
-		log.Info("HCP cluster has no externally-routable endpoint; skipping registration command",
+		log.Info("HCP cluster has no externally-routable endpoint",
 			"cluster", cluster.Name, "namespace", cluster.Namespace)
 
-		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
-			Type:    ConditionReady,
-			Status:  metav1.ConditionFalse,
-			Reason:  ReasonHCPNoExternalEndpoint,
-			Message: "HCP cluster has no external endpoint; set spec.expose.nodePort, spec.expose.loadBalancer or spec.expose.ingress so external nodes can reach the API server",
-		})
+		return ErrHCPNoExternalEndpoint
 	}
 
 	return nil
@@ -103,8 +107,9 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 	}
 
 	if !external {
-		// ensureHCPRegistration already surfaces this via Ready=False;
-		// nothing for us to do here.
+		// Defensive: reconcile would have already short-circuited with
+		// ErrHCPNoExternalEndpoint via ensureHCPRegistration before reaching
+		// here, but skip gracefully if invoked directly.
 		return nil
 	}
 
@@ -113,7 +118,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 		return fmt.Errorf("parsing HCP server URL %q: %w", rawURL, err)
 	}
 
-	addr, err := hcpEndpointAddress(host)
+	addr, err := hcpEndpointAddress(ctx, host)
 	if err != nil {
 		return err
 	}
@@ -185,8 +190,9 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cl
 	}
 
 	if !external {
-		// ensureHCPRegistration already surfaces this via Ready=False;
-		// nothing for us to do here.
+		// Defensive: reconcile would have already short-circuited with
+		// ErrHCPNoExternalEndpoint via ensureHCPRegistration before reaching
+		// here, but skip gracefully if invoked directly.
 		return nil
 	}
 
@@ -195,7 +201,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cl
 		return fmt.Errorf("parsing HCP server URL %q: %w", rawURL, err)
 	}
 
-	addr, err := hcpEndpointAddress(host)
+	addr, err := hcpEndpointAddress(ctx, host)
 	if err != nil {
 		return err
 	}
@@ -282,10 +288,10 @@ func parseHCPHostPort(rawURL string) (string, int32, error) {
 
 // hcpEndpointAddress builds a corev1.EndpointAddress from the externally
 // reachable host. Endpoints require an IP; if the host is a DNS name we
-// resolve it. The Hostname field is intentionally left unset: the
-// kubernetes API validates it as a DNS-1123 label (no dots), so an FQDN
-// like "host.example.com" would be rejected.
-func hcpEndpointAddress(host string) (corev1.EndpointAddress, error) {
+// resolve it. The Hostname field is intentionally left unset:
+// the kubernetes API validates it as a DNS-1123 label (no dots),
+// so an FQDN like "host.example.com" would be rejected.
+func hcpEndpointAddress(ctx context.Context, host string) (corev1.EndpointAddress, error) {
 	if ip := net.ParseIP(host); ip != nil {
 		if ip.IsLoopback() {
 			return corev1.EndpointAddress{}, fmt.Errorf("HCP endpoint host %q is a loopback address and cannot be used", host)
@@ -294,16 +300,16 @@ func hcpEndpointAddress(host string) (corev1.EndpointAddress, error) {
 		return corev1.EndpointAddress{IP: host}, nil
 	}
 
-	ips, err := net.LookupIP(host)
+	ipAddrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
 		return corev1.EndpointAddress{}, fmt.Errorf("HCP endpoint host %q is not an IP and does not resolve: %w", host, err)
 	}
 
 	var filteredIPs []net.IP
 
-	for _, ip := range ips {
-		if !ip.IsLoopback() {
-			filteredIPs = append(filteredIPs, ip)
+	for _, addr := range ipAddrs {
+		if !addr.IP.IsLoopback() {
+			filteredIPs = append(filteredIPs, addr.IP)
 		}
 	}
 

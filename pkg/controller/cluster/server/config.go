@@ -79,7 +79,7 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 
 	// shared and hcp modes both run K3s with --disable-agent (agentless server).
 	switch cluster.Spec.Mode {
-	case v1beta1.SharedClusterMode:
+	case "", v1beta1.SharedClusterMode:
 		serverConfig.DisableAgent = true
 		serverConfig.EgressSelectorMode = "disabled"
 		serverConfig.Disable = []string{"servicelb", "traefik", "metrics-server", "local-storage"}

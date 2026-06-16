@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -147,7 +146,7 @@ func resolveServerHost(restConfigHost, override string) (string, error) {
 		return "", err
 	}
 
-	return strings.Split(u.Host, ":")[0], nil
+	return u.Hostname(), nil
 }
 
 func writeKubeconfigFile(cluster *v1beta1.Cluster, kubeconfig *clientcmdapi.Config, configName string) error {

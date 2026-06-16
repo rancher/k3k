@@ -51,12 +51,20 @@ func ServerURL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, h
 			port = k3kService.Spec.Ports[0].NodePort
 		}
 	case corev1.ServiceTypeLoadBalancer:
-		external = true
-
 		if len(k3kService.Status.LoadBalancer.Ingress) > 0 {
-			ip = k3kService.Status.LoadBalancer.Ingress[0].IP
-		} else {
-			logrus.Warn("No ingress found in LoadBalancer service.")
+			ingress := k3kService.Status.LoadBalancer.Ingress[0]
+			switch {
+			case ingress.IP != "":
+				ip = ingress.IP
+				external = true
+			case ingress.Hostname != "":
+				ip = ingress.Hostname
+				external = true
+			}
+		}
+
+		if !external {
+			logrus.Warn("No usable ingress address found in LoadBalancer service.")
 		}
 
 		if len(k3kService.Spec.Ports) > 0 {

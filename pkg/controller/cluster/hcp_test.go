@@ -2,11 +2,11 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -35,7 +35,7 @@ func Test_ensureHCPRegistration(t *testing.T) {
 		},
 	}
 
-	t.Run("clusterip-only service sets degraded condition and clears registration", func(t *testing.T) {
+	t.Run("clusterip-only service returns ErrHCPNoExternalEndpoint", func(t *testing.T) {
 		svc := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      server.ServiceName(cluster.Name),
@@ -54,12 +54,31 @@ func Test_ensureHCPRegistration(t *testing.T) {
 		r := &ClusterReconciler{Client: fakeClient}
 
 		c := cluster.DeepCopy()
-		require.NoError(t, r.ensureHCPRegistration(context.Background(), c))
+		err := r.ensureHCPRegistration(context.Background(), c)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrHCPNoExternalEndpoint))
+	})
 
-		cond := meta.FindStatusCondition(c.Status.Conditions, ConditionReady)
-		require.NotNil(t, cond)
-		assert.Equal(t, metav1.ConditionFalse, cond.Status)
-		assert.Equal(t, ReasonHCPNoExternalEndpoint, cond.Reason)
+	t.Run("nodeport service returns no error", func(t *testing.T) {
+		svc := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      server.ServiceName(cluster.Name),
+				Namespace: cluster.Namespace,
+			},
+			Spec: corev1.ServiceSpec{
+				Type:      corev1.ServiceTypeNodePort,
+				ClusterIP: "10.43.0.50",
+				Ports: []corev1.ServicePort{
+					{Name: "k3s-server-port", Port: 443, NodePort: 30443},
+				},
+			},
+		}
+
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(svc).Build()
+		r := &ClusterReconciler{Client: fakeClient}
+
+		c := cluster.DeepCopy()
+		assert.NoError(t, r.ensureHCPRegistration(context.Background(), c))
 	})
 }
 
@@ -240,7 +259,7 @@ func Test_hcpEndpointAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := hcpEndpointAddress(tt.input)
+			got, err := hcpEndpointAddress(context.Background(), tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

@@ -412,9 +412,6 @@ type StorageClassSyncConfig struct {
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.
-//
-// +kubebuilder:validation:Enum=shared;virtual;hcp
-// +kubebuilder:default="shared"
 type ClusterMode string
 
 const (

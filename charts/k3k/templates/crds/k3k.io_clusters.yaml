@@ -1289,19 +1289,14 @@ spec:
                   are mirrored into the virtual cluster.
                 type: boolean
               mode:
-                allOf:
-                - enum:
-                  - shared
-                  - virtual
-                  - hcp
-                - enum:
-                  - shared
-                  - virtual
-                  - hcp
                 default: shared
                 description: |-
                   Mode specifies the cluster provisioning mode: "shared", "virtual" or "hcp".
                   Defaults to "shared". This field is immutable.
+                enum:
+                - shared
+                - virtual
+                - hcp
                 type: string
                 x-kubernetes-validations:
                 - message: mode is immutable

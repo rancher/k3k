@@ -102,8 +102,7 @@ _Underlying type:_ _string_
 
 ClusterMode is the possible provisioning mode of a Cluster.
 
-_Validation:_
-- Enum: [shared virtual hcp]
+
 
 _Appears in:_
 - [ClusterSpec](#clusterspec)

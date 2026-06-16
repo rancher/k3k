@@ -50,17 +50,12 @@ spec:
             description: Spec defines the desired state of the VirtualClusterPolicy.
             properties:
               allowedMode:
-                allOf:
-                - enum:
-                  - shared
-                  - virtual
-                  - hcp
-                - enum:
-                  - shared
-                  - virtual
-                  - hcp
                 default: shared
                 description: AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared".
+                enum:
+                - shared
+                - virtual
+                - hcp
                 type: string
                 x-kubernetes-validations:
                 - message: mode is immutable

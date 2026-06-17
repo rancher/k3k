@@ -157,6 +157,69 @@ func Test_BuildServerConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "Init server config with hcp mode cluster",
+			args: args{
+				cluster: &v1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      testClusterName,
+						Namespace: testClusterNamespace,
+					},
+					Spec: v1beta1.ClusterSpec{
+						Mode: v1beta1.HCPClusterMode,
+					},
+					Status: v1beta1.ClusterStatus{
+						ClusterCIDR: defaultSharedClusterCIDR,
+						ServiceCIDR: defaultSharedServiceCIDR,
+					},
+				},
+				initServer: true,
+				token:      testToken,
+				serviceIP:  testServiceIP,
+			},
+			expectedData: serverConfig{
+				ClusterInit:        true,
+				ClusterCIDR:        defaultSharedClusterCIDR,
+				ServiceCIDR:        defaultSharedServiceCIDR,
+				DisableAgent:       true,
+				EgressSelectorMode: "cluster",
+				KubeApiServerArg:   []string{"endpoint-reconciler-type=none"},
+				Token:              testToken,
+				TLSSAN:             []string{testServiceIP, ServiceName(testClusterName), fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace)},
+			},
+		},
+		{
+			name: "server config with hcp mode cluster",
+			args: args{
+				cluster: &v1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      testClusterName,
+						Namespace: testClusterNamespace,
+					},
+					Spec: v1beta1.ClusterSpec{
+						Mode: v1beta1.HCPClusterMode,
+					},
+					Status: v1beta1.ClusterStatus{
+						ClusterCIDR: defaultSharedClusterCIDR,
+						ServiceCIDR: defaultSharedServiceCIDR,
+					},
+				},
+				initServer: false,
+				token:      testToken,
+				serviceIP:  testServiceIP,
+			},
+			expectedData: serverConfig{
+				ClusterInit:        true,
+				ClusterCIDR:        defaultSharedClusterCIDR,
+				ServiceCIDR:        defaultSharedServiceCIDR,
+				DisableAgent:       true,
+				EgressSelectorMode: "cluster",
+				KubeApiServerArg:   []string{"endpoint-reconciler-type=none"},
+				Token:              testToken,
+				TLSSAN:             []string{testServiceIP, ServiceName(testClusterName), fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace)},
+				Server:             "https://" + testServiceIP,
+			},
+		},
+		{
 			name: "Init server config with clusterDNS cluster spec",
 			args: args{
 				cluster: &v1beta1.Cluster{

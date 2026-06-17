@@ -11,7 +11,6 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
 
 // serverConfig are few options from k3s server options that will
@@ -23,6 +22,7 @@ type serverConfig struct {
 	DisableAgent       bool     `yaml:"disable-agent,omitempty"`
 	Disable            []string `yaml:"disable,omitempty"`
 	EgressSelectorMode string   `yaml:"egress-selector-mode,omitempty"`
+	KubeApiServerArg   []string `yaml:"kube-apiserver-arg,omitempty"`
 	Server             string   `yaml:"server,omitempty"`
 	ServiceCIDR        string   `yaml:"service-cidr,omitempty"`
 	TLSSAN             []string `yaml:"tls-san,omitempty"`
@@ -77,10 +77,29 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 		serverConfig.Server = "https://" + serviceIP
 	}
 
-	if cluster.Spec.Mode != agent.VirtualNodeMode {
+	// shared and hcp modes both run K3s with --disable-agent (agentless server).
+	switch cluster.Spec.Mode {
+	case "", v1beta1.SharedClusterMode:
 		serverConfig.DisableAgent = true
 		serverConfig.EgressSelectorMode = "disabled"
 		serverConfig.Disable = []string{"servicelb", "traefik", "metrics-server", "local-storage"}
+	case v1beta1.HCPClusterMode:
+		serverConfig.DisableAgent = true
+		// Tunnel apiserver egress through the k3s-agent WebSocket: the
+		// apiserver has no route to the virtual cluster's pod CIDR and
+		// bypasses kube-proxy when dialing pod IPs (webhooks, log/exec).
+		// "cluster" is the only safe mode — "agent" lets pod dials go
+		// direct (no route, fails); "pod" only permits pod IPs the agent
+		// has already watched, so a newly-created pod's IP is rejected
+		// and tears down the remotedialer session, making kubelet streams
+		// flaky. See k3s pkg/agent/tunnel/tunnel.go.
+		serverConfig.EgressSelectorMode = "cluster"
+		// Disable the apiserver's built-in endpoint reconciler so K3k can
+		// own default/kubernetes Endpoints and point it at the externally
+		// reachable host:port (NodePort / LB / Ingress).
+		serverConfig.KubeApiServerArg = append(serverConfig.KubeApiServerArg, "endpoint-reconciler-type=none")
+	case v1beta1.VirtualClusterMode:
+		// no extra config for virtual mode
 	}
 
 	return serverConfig

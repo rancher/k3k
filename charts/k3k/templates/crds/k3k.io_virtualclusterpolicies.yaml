@@ -55,6 +55,7 @@ spec:
                 enum:
                 - shared
                 - virtual
+                - hcp
                 type: string
                 x-kubernetes-validations:
                 - message: mode is immutable

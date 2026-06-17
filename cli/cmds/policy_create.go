@@ -34,10 +34,10 @@ func NewPolicyCreateCmd(appCtx *AppContext) *cobra.Command {
 		Example: "k3kcli policy create [command options] NAME",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			switch config.mode {
-			case string(v1beta1.VirtualClusterMode), string(v1beta1.SharedClusterMode):
+			case string(v1beta1.VirtualClusterMode), string(v1beta1.SharedClusterMode), string(v1beta1.HCPClusterMode):
 				return nil
 			default:
-				return errors.New(`mode should be one of "shared" or "virtual"`)
+				return errors.New(`mode should be one of "shared", "virtual" or "hcp"`)
 			}
 		},
 		RunE: policyCreateAction(appCtx, config),

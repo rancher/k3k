@@ -19,11 +19,12 @@ const (
 	ConditionReady = "Ready"
 
 	// Condition Reasons
-	ReasonValidationFailed   = "ValidationFailed"
-	ReasonProvisioning       = "Provisioning"
-	ReasonProvisioned        = "Provisioned"
-	ReasonProvisioningFailed = "ProvisioningFailed"
-	ReasonTerminating        = "Terminating"
+	ReasonValidationFailed      = "ValidationFailed"
+	ReasonProvisioning          = "Provisioning"
+	ReasonProvisioned           = "Provisioned"
+	ReasonProvisioningFailed    = "ProvisioningFailed"
+	ReasonTerminating           = "Terminating"
+	ReasonHCPNoExternalEndpoint = "HCPNoExternalEndpoint"
 )
 
 func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.Cluster, reconcileErr error) {
@@ -64,6 +65,18 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 			Status:  metav1.ConditionFalse,
 			Reason:  ReasonProvisioning,
 			Message: reconcileErr.Error(),
+		})
+
+		return
+	}
+
+	if errors.Is(reconcileErr, ErrHCPNoExternalEndpoint) {
+		cluster.Status.Phase = v1beta1.ClusterPending
+		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
+			Type:    ConditionReady,
+			Status:  metav1.ConditionFalse,
+			Reason:  ReasonHCPNoExternalEndpoint,
+			Message: "HCP cluster has no external endpoint; set spec.expose.nodePort, spec.expose.loadBalancer or spec.expose.ingress so external nodes can reach the API server",
 		})
 
 		return

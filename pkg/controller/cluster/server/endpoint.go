@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"net"
 	"slices"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
@@ -92,10 +94,7 @@ func ServerURL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, h
 		}
 	}
 
-	url := "https://" + ip
-	if port != httpsPort {
-		url = fmt.Sprintf("%s:%d", url, port)
-	}
+	url := "https://" + net.JoinHostPort(ip, strconv.Itoa(int(port)))
 
 	// if ingress is specified, use the ingress host
 	if cluster.Spec.Expose != nil && cluster.Spec.Expose.Ingress != nil {

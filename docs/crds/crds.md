@@ -410,8 +410,9 @@ _Underlying type:_ _string_
 
 PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.
 
-_Validation:_
-- Enum: [privileged baseline restricted]
+Supported values: `privileged`, `baseline`, `restricted`.
+
+
 
 _Appears in:_
 - [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
@@ -455,7 +456,7 @@ _Appears in:_
 | `optional` _boolean_ | optional field specify whether the Secret or its keys must be defined |  |  |
 | `mountPath` _string_ | MountPath is the path within server and agent pods where the<br />secret contents will be mounted. |  |  |
 | `subPath` _string_ | SubPath is an optional path within the secret to mount instead of the root.<br />When specified, only the specified key from the secret will be mounted as a file<br />at MountPath, keeping the parent directory writable. |  |  |
-| `role` _string_ | Role is the type of the k3k pod that will be used to mount the secret.<br />This can be 'server', 'agent', or 'all' (for both). |  | Enum: [server agent all] <br /> |
+| `role` _string_ | Role is the type of the k3k pod that will be used to mount the secret.<br />This can be `server`, `agent`, or `all` (for both). |  | Enum: [server agent all] <br /> |
 
 
 #### SecretSyncConfig

@@ -94,7 +94,12 @@ func ServerURL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, h
 		}
 	}
 
-	url := "https://" + net.JoinHostPort(ip, strconv.Itoa(int(port)))
+	host := ip
+	if port != httpsPort {
+		host = net.JoinHostPort(ip, strconv.Itoa(int(port)))
+	}
+
+	url := "https://" + host
 
 	// if ingress is specified, use the ingress host
 	if cluster.Spec.Expose != nil && cluster.Spec.Expose.Ingress != nil {

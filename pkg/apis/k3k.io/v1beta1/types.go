@@ -412,6 +412,8 @@ type StorageClassSyncConfig struct {
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.
+//
+// Supported values: `shared`, `virtual`, `hcp`.
 type ClusterMode string
 
 const (

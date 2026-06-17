@@ -102,6 +102,8 @@ _Underlying type:_ _string_
 
 ClusterMode is the possible provisioning mode of a Cluster.
 
+Supported values: `shared`, `virtual`, `hcp`.
+
 
 
 _Appears in:_

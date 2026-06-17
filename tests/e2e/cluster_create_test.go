@@ -103,15 +103,20 @@ var _ = When("creating an HCP mode cluster", Label(e2eTestLabel), Label(slowTest
 	It("creates a populated token secret", func() {
 		ctx := GinkgoT().Context()
 
-		var tokenSecret corev1.Secret
+		Eventually(func(g Gomega) {
+			var tokenSecret corev1.Secret
 
-		err := k8sClient.Get(ctx, client.ObjectKey{
-			Name:      k3kcluster.TokenSecretName(virtualCluster.Cluster.Name),
-			Namespace: virtualCluster.Cluster.Namespace,
-		}, &tokenSecret)
+			key := client.ObjectKey{
+				Name:      k3kcluster.TokenSecretName(virtualCluster.Cluster.Name),
+				Namespace: virtualCluster.Cluster.Namespace,
+			}
 
-		Expect(err).NotTo(HaveOccurred())
-		Expect(tokenSecret.Data["token"]).NotTo(BeEmpty())
+			g.Expect(k8sClient.Get(ctx, key, &tokenSecret)).To(Succeed())
+			g.Expect(tokenSecret.Data["token"]).NotTo(BeEmpty())
+		}).
+			WithTimeout(time.Minute).
+			WithPolling(time.Second).
+			Should(Succeed())
 	})
 
 	It("reconciles default/kubernetes Endpoints and EndpointSlice", func() {

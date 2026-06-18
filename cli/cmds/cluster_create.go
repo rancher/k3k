@@ -43,6 +43,7 @@ type CreateConfig struct {
 	agentEnvs            []string
 	labels               []string
 	annotations          []string
+	tlsSANs              []string
 	persistenceType      string
 	storageClassName     string
 	storageRequestSize   string
@@ -140,7 +141,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			host = []string{config.kubeconfigServerHost}
 		}
 
-		cluster.Spec.TLSSANs = []string{host[0]}
+		cluster.Spec.TLSSANs = uniqueStrings(append([]string{host[0]}, config.tlsSANs...))
 
 		if err := client.Create(ctx, cluster); err != nil {
 			if apierrors.IsAlreadyExists(err) {
@@ -481,4 +482,19 @@ func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// uniqueStrings returns a new slice with duplicates removed, preserving the first occurrence order.
+func uniqueStrings(ss []string) []string {
+	seen := make(map[string]struct{}, len(ss))
+	result := make([]string, 0, len(ss))
+
+	for _, s := range ss {
+		if _, ok := seen[s]; !ok {
+			seen[s] = struct{}{}
+			result = append(result, s)
+		}
+	}
+
+	return result
 }

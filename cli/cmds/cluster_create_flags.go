@@ -42,24 +42,39 @@ func validateCreateConfig(cfg *CreateConfig) error {
 	if cfg.persistenceType != "" {
 		switch v1beta1.PersistenceMode(cfg.persistenceType) {
 		case v1beta1.EphemeralPersistenceMode, v1beta1.DynamicPersistenceMode:
-			return nil
 		default:
 			return errors.New(`persistence-type should be one of "dynamic" or "ephemeral"`)
 		}
 	}
 
-	if _, err := resource.ParseQuantity(cfg.storageRequestSize); err != nil {
-		return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
+	if _, err := parseStorageRequestSize(cfg.storageRequestSize); err != nil {
+		return err
 	}
 
 	if cfg.mode != "" {
 		switch cfg.mode {
 		case string(v1beta1.VirtualClusterMode), string(v1beta1.SharedClusterMode):
-			return nil
 		default:
 			return errors.New(`mode should be one of "shared" or "virtual"`)
 		}
 	}
 
 	return nil
+}
+
+func parseStorageRequestSize(size string) (*resource.Quantity, error) {
+	if size == "" {
+		return nil, nil
+	}
+
+	parsed, err := resource.ParseQuantity(size)
+	if err != nil {
+		return nil, errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
+	}
+
+	if parsed.Sign() <= 0 {
+		return nil, errors.New("invalid storage size, should be greater than zero")
+	}
+
+	return &parsed, nil
 }

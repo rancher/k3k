@@ -22,8 +22,10 @@ import (
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/certs"
+	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
+	fwportforward "github.com/rancher/k3k/tests/framework/portforward"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -180,52 +182,47 @@ func NewVirtualK8sClient(cluster *v1beta1.Cluster) *kubernetes.Clientset {
 func NewVirtualK8sClientAndConfig(cluster *v1beta1.Cluster) (*kubernetes.Clientset, *rest.Config) {
 	GinkgoHelper()
 
-	var (
-		err    error
-		config *clientcmdapi.Config
-	)
+	client, restcfg, _ := newTunneledVirtualClient(cluster)
 
-	ctx := context.Background()
-
-	Eventually(func() error {
-		vKubeconfig := kubeconfig.New()
-		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
-		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
-		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP, 0)
-
-		return err
-	}).
-		WithTimeout(time.Minute * 2).
-		WithPolling(time.Second * 5).
-		Should(BeNil())
-
-	configData, err := clientcmd.Write(*config)
-	Expect(err).To(Not(HaveOccurred()))
-
-	restcfg, err := clientcmd.RESTConfigFromKubeConfig(configData)
-	Expect(err).To(Not(HaveOccurred()))
-	virtualK8sClient, err := kubernetes.NewForConfig(restcfg)
-	Expect(err).To(Not(HaveOccurred()))
-
-	return virtualK8sClient, restcfg
+	return client, restcfg
 }
 
 // NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
 func NewVirtualK8sClientAndKubeconfig(cluster *v1beta1.Cluster) (*kubernetes.Clientset, *rest.Config, []byte) {
 	GinkgoHelper()
 
-	var (
-		err    error
-		config *clientcmdapi.Config
-	)
+	return newTunneledVirtualClient(cluster)
+}
+
+// newTunneledVirtualClient port-forwards a local port to the virtual cluster's
+// server Service in the host cluster, then builds a kubeconfig/rest.Config
+// pointing at 127.0.0.1:<localPort>. This decouples e2e tests from the way the
+// virtual cluster is exposed (NodePort/LoadBalancer/Ingress), so they run
+// against any host kubeconfig — k3d, k3s, RKE2-behind-NLB, EKS — without
+// requiring external reachability of the virtual cluster's API.
+//
+// TLS verification is disabled on the returned config: the virtual cluster's
+// server cert does not cover 127.0.0.1, and the dedicated cert-rotation spec
+// already exercises cert validation directly.
+//
+// The port-forward is torn down via DeferCleanup at the end of the current
+// Ginkgo spec.
+func newTunneledVirtualClient(cluster *v1beta1.Cluster) (*kubernetes.Clientset, *rest.Config, []byte) {
+	GinkgoHelper()
 
 	ctx := context.Background()
+
+	fw, err := fwportforward.ToService(ctx, restcfg, k8s, cluster.Namespace, server.ServiceName(cluster.Name))
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(fw.Stop)
+
+	var config *clientcmdapi.Config
 
 	Eventually(func() error {
 		vKubeconfig := kubeconfig.New()
 		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
 		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
-		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP, 0)
+		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, "127.0.0.1", fw.LocalPort)
 
 		return err
 	}).
@@ -233,15 +230,21 @@ func NewVirtualK8sClientAndKubeconfig(cluster *v1beta1.Cluster) (*kubernetes.Cli
 		WithPolling(time.Second * 5).
 		Should(BeNil())
 
+	if c := config.Clusters["default"]; c != nil {
+		c.InsecureSkipTLSVerify = true
+		c.CertificateAuthorityData = nil
+	}
+
 	configData, err := clientcmd.Write(*config)
-	Expect(err).To(Not(HaveOccurred()))
+	Expect(err).NotTo(HaveOccurred())
 
-	restcfg, err := clientcmd.RESTConfigFromKubeConfig(configData)
-	Expect(err).To(Not(HaveOccurred()))
-	virtualK8sClient, err := kubernetes.NewForConfig(restcfg)
-	Expect(err).To(Not(HaveOccurred()))
+	restCfg, err := clientcmd.RESTConfigFromKubeConfig(configData)
+	Expect(err).NotTo(HaveOccurred())
 
-	return virtualK8sClient, restcfg, configData
+	virtualK8sClient, err := kubernetes.NewForConfig(restCfg)
+	Expect(err).NotTo(HaveOccurred())
+
+	return virtualK8sClient, restCfg, configData
 }
 
 func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {

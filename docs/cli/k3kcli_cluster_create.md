@@ -36,7 +36,7 @@ k3kcli cluster create [command options] NAME
       --storage-class-name string     storage class name for dynamic persistence type
       --storage-request-size string   storage size for dynamic persistence type
       --timeout duration              The timeout for waiting for the cluster to become ready (e.g., 10s, 5m, 1h). (default 3m0s)
-      --tls-sans strings               additional Subject Alternative Names for the cluster server TLS certificate (repeatable)
+      --tls-sans strings              additional Subject Alternative Names for the cluster server TLS certificate
       --token string                  token of the cluster
       --version string                k3s version
 ```

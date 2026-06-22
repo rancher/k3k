@@ -84,7 +84,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return errors.New("invalid cluster name")
 		}
 
-		if config.agents > 0 && config.mode != string(v1beta1.VirtualClusterMode) {
+		if config.agents != 0 && config.mode != string(v1beta1.VirtualClusterMode) {
 			return errors.New("invalid flag, --agents flag is only allowed in virtual mode")
 		}
 

@@ -81,3 +81,7 @@ agent:
       registry: ""
       repository: "rancher/k3s"
       pullPolicy: ""
+
+netpol:
+  # none or ccnp
+  flavor: none

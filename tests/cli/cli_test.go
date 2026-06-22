@@ -114,7 +114,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 		})
 
-		It("can create a cluster with multiple --tls-san values", func() {
+		It("can create a cluster with multiple --tls-sans values", func() {
 			var (
 				stderr string
 				err    error

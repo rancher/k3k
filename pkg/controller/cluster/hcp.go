@@ -38,7 +38,7 @@ var ErrHCPNoExternalEndpoint = errors.New("HCP cluster has no external endpoint"
 func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	host := selectNonLoopbackSAN(cluster.Spec.TLSSANs)
+	host := findNonLoopbackSAN(cluster.Spec.TLSSANs)
 	if host == "" {
 		log.Info("HCP cluster is missing a non-loopback spec.tlsSANs entry for external node registration")
 
@@ -59,9 +59,9 @@ func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *
 	return nil
 }
 
-// selectNonLoopbackSAN returns the first non-loopback address from the given
+// findNonLoopbackSAN returns the first non-loopback address from the given
 // TLS SANs. Returns empty string if none is found.
-func selectNonLoopbackSAN(sans []string) string {
+func findNonLoopbackSAN(sans []string) string {
 	for _, san := range sans {
 		if san == "localhost" {
 			continue
@@ -92,7 +92,7 @@ func selectNonLoopbackSAN(sans []string) string {
 func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	rawURL, external, err := server.ServerURL(ctx, c.Client, cluster, selectNonLoopbackSAN(cluster.Spec.TLSSANs))
+	url, external, err := server.ServerURL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
 	if err != nil {
 		return err
 	}
@@ -104,9 +104,9 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 		return nil
 	}
 
-	host, port, err := parseHCPHostPort(rawURL.String())
+	host, port, err := parseHCPHostPort(url.String())
 	if err != nil {
-		return fmt.Errorf("parsing HCP server URL %q: %w", rawURL, err)
+		return fmt.Errorf("parsing HCP server URL %q: %w", url, err)
 	}
 
 	addr, err := hcpEndpointAddress(ctx, host)
@@ -174,7 +174,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	url, external, err := server.ServerURL(ctx, c.Client, cluster, selectNonLoopbackSAN(cluster.Spec.TLSSANs))
+	url, external, err := server.ServerURL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
 	if err != nil {
 		return err
 	}

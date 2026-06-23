@@ -180,7 +180,7 @@ func Test_selectNonLoopbackSAN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := selectNonLoopbackSAN(tt.sans)
+			got := findNonLoopbackSAN(tt.sans)
 			assert.Equal(t, tt.want, got)
 		})
 	}

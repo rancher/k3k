@@ -50,6 +50,8 @@ func NewPolicyCreateCmd(appCtx *AppContext) *cobra.Command {
 	cmd.Flags().StringSliceVar(&config.namespaces, "namespace", []string{}, "The namespaces where to bind the policy")
 	cmd.Flags().BoolVar(&config.overwrite, "overwrite", false, "Overwrite namespace binding of existing policy")
 
+	mustRegisterFlagCompletion(cmd, "mode", completeClusterMode)
+
 	return cmd
 }
 

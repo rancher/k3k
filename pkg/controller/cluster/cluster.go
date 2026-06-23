@@ -443,7 +443,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 		return err
 	}
 
-	if err := c.ensureKubeconfigSecret(ctx, cluster, serviceIP, 443); err != nil {
+	if err := c.ensureKubeconfigSecret(ctx, cluster, serviceIP); err != nil {
 		return err
 	}
 
@@ -471,13 +471,13 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 }
 
 // ensureKubeconfigSecret will create or update the Secret containing the kubeconfig data from the k3s server
-func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP string, port int) error {
+func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP string) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring Kubeconfig Secret")
 
 	adminKubeconfig := kubeconfig.New()
 
-	kubeconfig, err := adminKubeconfig.Generate(ctx, c.Client, cluster, serviceIP, port)
+	kubeconfig, err := adminKubeconfig.Generate(ctx, c.Client, cluster, serviceIP)
 	if err != nil {
 		return err
 	}

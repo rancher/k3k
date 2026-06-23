@@ -14,7 +14,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,7 +29,6 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
-	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 )
 
 type CreateConfig struct {
@@ -174,12 +175,21 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			Steps:    25,
 		}
 
-		cfg := kubeconfig.New()
-
 		var kubeconfig *clientcmdapi.Config
 
 		if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = cfg.Generate(ctx, client, cluster, host[0], 0)
+			kubeconfigSecretKey := types.NamespacedName{
+				Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "kubeconfig"),
+				Namespace: cluster.Namespace,
+			}
+
+			var kubeconfigSecret corev1.Secret
+			if err := client.Get(ctx, kubeconfigSecretKey, &kubeconfigSecret); err != nil {
+				return err
+			}
+
+			kubeconfig, err = clientcmd.Load(kubeconfigSecret.Data["kubeconfig.yaml"])
+
 			return err
 		}); err != nil {
 			return err

@@ -45,8 +45,7 @@ type ClusterSpec struct {
 	// +optional
 	Version string `json:"version,omitempty"`
 
-	// Mode specifies the cluster provisioning mode: "shared", "virtual" or "hcp".
-	// Defaults to "shared". This field is immutable.
+	// Mode specifies the cluster provisioning mode.
 	//
 	// +kubebuilder:default=shared
 	// +kubebuilder:validation:Enum=shared;virtual;hcp
@@ -262,7 +261,6 @@ type SecretMount struct {
 	// +optional
 	SubPath string `json:"subPath,omitempty"`
 	// Role is the type of the k3k pod that will be used to mount the secret.
-	// This can be `server`, `agent`, or `all` (for both).
 	//
 	// +kubebuilder:validation:Enum=server;agent;all
 	// +optional
@@ -784,7 +782,7 @@ type VirtualClusterPolicySpec struct {
 	// +optional
 	DefaultAgentAffinity *corev1.Affinity `json:"defaultAgentAffinity,omitempty"`
 
-	// AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared".
+	// AllowedMode specifies the allowed cluster provisioning mode.
 	//
 	// +kubebuilder:default=shared
 	// +kubebuilder:validation:Enum=shared;virtual;hcp

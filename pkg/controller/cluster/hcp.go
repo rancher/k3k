@@ -37,7 +37,6 @@ var ErrHCPNoExternalEndpoint = errors.New("HCP cluster has no external endpoint"
 // HCPNoExternalEndpoint.
 func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
-	log = log.WithValues("cluster", cluster.Name, "namespace", cluster.Namespace)
 
 	host := selectNonLoopbackSAN(cluster.Spec.TLSSANs)
 	if host == "" {

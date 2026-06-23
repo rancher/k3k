@@ -2,10 +2,8 @@ package cluster
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
-	"net/url"
 	"strconv"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -18,46 +16,6 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 )
-
-// ErrHCPNoExternalEndpoint is returned by ensureHCPRegistration when an
-// HCP-mode cluster has no externally-routable endpoint (no NodePort,
-// LoadBalancer or Ingress) so external worker nodes cannot reach the API
-// server. updateStatus translates it into a Ready=False condition with
-// reason HCPNoExternalEndpoint instead of failing the reconcile outright.
-var ErrHCPNoExternalEndpoint = errors.New("HCP cluster has no external endpoint")
-
-// ensureHCPRegistration verifies that an HCP-mode cluster exposes an
-// externally-routable API server endpoint so external worker nodes can join.
-// Join instructions (the `curl ... | sh -` line) are printed by the CLI
-// (`k3kcli cluster create` / `k3kcli kubeconfig generate`); the controller
-// does not persist them on the Cluster object.
-//
-// Returns ErrHCPNoExternalEndpoint when no NodePort, LoadBalancer or Ingress
-// is configured, which updateStatus surfaces as Ready=False with reason
-// HCPNoExternalEndpoint.
-func (c *ClusterReconciler) ensureHCPRegistration(ctx context.Context, cluster *v1beta1.Cluster) error {
-	log := ctrl.LoggerFrom(ctx)
-
-	host := findNonLoopbackSAN(cluster.Spec.TLSSANs)
-	if host == "" {
-		log.Info("HCP cluster is missing a non-loopback spec.tlsSANs entry for external node registration")
-
-		return ErrHCPNoExternalEndpoint
-	}
-
-	_, external, err := server.ServerURL(ctx, c.Client, cluster, host)
-	if err != nil {
-		return err
-	}
-
-	if !external {
-		log.Info("HCP cluster has no externally-routable endpoint")
-
-		return ErrHCPNoExternalEndpoint
-	}
-
-	return nil
-}
 
 // findNonLoopbackSAN returns the first non-loopback address from the given
 // TLS SANs. Returns empty string if none is found.
@@ -92,24 +50,17 @@ func findNonLoopbackSAN(sans []string) string {
 func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	url, external, err := server.ServerURL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
+	url, err := server.ServerURL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
 	if err != nil {
 		return err
 	}
 
-	if !external {
-		// Defensive: reconcile would have already short-circuited with
-		// ErrHCPNoExternalEndpoint via ensureHCPRegistration before reaching
-		// here, but skip gracefully if invoked directly.
-		return nil
-	}
-
-	host, port, err := parseHCPHostPort(url.String())
+	port, err := strconv.Atoi(url.Port())
 	if err != nil {
-		return fmt.Errorf("parsing HCP server URL %q: %w", url, err)
+		return err
 	}
 
-	addr, err := hcpEndpointAddress(ctx, host)
+	addr, err := hcpEndpointAddress(ctx, url.Hostname())
 	if err != nil {
 		return err
 	}
@@ -150,12 +101,11 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 		endpointSlice.Endpoints = []discoveryv1.Endpoint{
 			{Addresses: []string{addr.IP}},
 		}
-		portName := "https"
 
 		endpointSlice.Ports = []discoveryv1.EndpointPort{
 			{
-				Name:     &portName,
-				Port:     &port,
+				Name:     new("https"),
+				Port:     new(int32(port)),
 				Protocol: new(corev1.ProtocolTCP),
 			},
 		}
@@ -166,7 +116,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 		return fmt.Errorf("upserting default/kubernetes endpointslice in virtual cluster: %w", err)
 	}
 
-	log.V(1).Info("HCP kubernetes endpointslice reconciled", "address", addr.IP, "host", host, "port", port)
+	log.V(1).Info("HCP kubernetes endpointslice reconciled", "address", addr.IP, "host", url.Hostname(), "port", port)
 
 	return nil
 }
@@ -174,16 +124,9 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	url, external, err := server.ServerURL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
+	url, err := server.ServerURL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
 	if err != nil {
 		return err
-	}
-
-	if !external {
-		// Defensive: reconcile would have already short-circuited with
-		// ErrHCPNoExternalEndpoint via ensureHCPRegistration before reaching
-		// here, but skip gracefully if invoked directly.
-		return nil
 	}
 
 	addr, err := hcpEndpointAddress(ctx, url.Hostname())
@@ -241,39 +184,6 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cl
 	log.V(1).Info("HCP kubernetes endpoints reconciled", "address", addr.IP, "host", url.Host, "port", port)
 
 	return nil
-}
-
-// parseHCPHostPort extracts the host and port from a server URL produced by
-// server.ServerURL. The port defaults to 443 when omitted.
-func parseHCPHostPort(rawURL string) (string, int32, error) {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return "", 0, err
-	}
-
-	host := u.Hostname()
-	if host == "" {
-		return "", 0, fmt.Errorf("missing host in URL %q", rawURL)
-	}
-
-	portStr := u.Port()
-
-	var port int32 = 443
-
-	if portStr != "" {
-		p, err := strconv.Atoi(portStr)
-		if err != nil {
-			return "", 0, fmt.Errorf("invalid port in URL %q: %w", rawURL, err)
-		}
-
-		if p <= 0 || p > 65535 {
-			return "", 0, fmt.Errorf("port %d out of range in URL %q", p, rawURL)
-		}
-
-		port = int32(p)
-	}
-
-	return host, port, nil
 }
 
 // hcpEndpointAddress builds a corev1.EndpointAddress from the externally

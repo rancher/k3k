@@ -56,7 +56,7 @@ func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster
 		return nil, err
 	}
 
-	serverURL, _, err := server.ServerURL(ctx, client, cluster, hostServerIP)
+	serverURL, err := server.ServerURL(ctx, client, cluster, hostServerIP)
 	if err != nil {
 		return nil, err
 	}

@@ -42,7 +42,7 @@ import (
 // The hostServerIP parameter determines the access pattern:
 //   - Controller reconciliation: passes service.Spec.ClusterIP → internal access
 //   - CLI kubeconfig export: passes the external host → external access
-func ServerURL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostServerIP string) (*url.URL, bool, error) {
+func ServerURL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostServerIP string) (*url.URL, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	key := types.NamespacedName{
@@ -59,12 +59,12 @@ func ServerURL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, h
 
 		var k3kIngress networkingv1.Ingress
 		if err := c.Get(ctx, key, &k3kIngress); err != nil {
-			return nil, false, err
+			return nil, err
 		}
 
 		if len(k3kIngress.Spec.Rules) > 0 && k3kIngress.Spec.Rules[0].Host != "" {
 			u, err := url.Parse(fmt.Sprintf("https://%s", k3kIngress.Spec.Rules[0].Host))
-			return u, false, err
+			return u, err
 		}
 
 		log.V(1).Info("Ingress has no rule with a host set, falling back to the service URL.")
@@ -73,7 +73,7 @@ func ServerURL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, h
 	// Fall back to Service-based URL
 	var k3kService corev1.Service
 	if err := c.Get(ctx, key, &k3kService); err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	// init to hostServerIP and 443 port
@@ -143,5 +143,5 @@ func ServerURL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, h
 
 	u, err := url.Parse(rawURL)
 
-	return u, false, err
+	return u, err
 }

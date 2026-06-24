@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -15,13 +14,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
-	"github.com/rancher/k3k/pkg/controller/certs"
-	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 )
 
 type GenerateKubeconfigConfig struct {
@@ -89,39 +87,45 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 			return err
 		}
 
+		logrus.Infof("waiting for cluster to be available..")
+
+		var (
+			kubeconfig *clientcmdapi.Config
+			err        error
+		)
+
+		if retryErr := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
+			kubeconfigSecretKey := types.NamespacedName{
+				Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "kubeconfig"),
+				Namespace: cluster.Namespace,
+			}
+
+			var kubeconfigSecret corev1.Secret
+			if err := client.Get(ctx, kubeconfigSecretKey, &kubeconfigSecret); err != nil {
+				return err
+			}
+
+			kubeconfig, err = clientcmd.Load(kubeconfigSecret.Data["kubeconfig.yaml"])
+
+			return err
+		}); retryErr != nil {
+			return retryErr
+		}
+
 		url, err := url.Parse(appCtx.RestConfig.Host)
 		if err != nil {
 			return err
 		}
 
-		host := strings.Split(url.Host, ":")
+		host := strings.Split(url.Host, ":")[0]
 		if cfg.kubeconfigServerHost != "" {
-			host = []string{cfg.kubeconfigServerHost}
-			cfg.altNames = append(cfg.altNames, cfg.kubeconfigServerHost)
+			host = cfg.kubeconfigServerHost
 		}
 
-		certAltNames := certs.AddSANs(cfg.altNames)
+		kubeconfig.Clusters["default"].Server = host
 
 		if len(cfg.org) == 0 {
 			cfg.org = []string{user.SystemPrivilegedGroup}
-		}
-
-		kubeCfg := kubeconfig.KubeConfig{
-			CN:         cfg.cn,
-			ORG:        cfg.org,
-			ExpiryDate: time.Hour * 24 * time.Duration(cfg.expirationDays),
-			AltNames:   certAltNames,
-		}
-
-		logrus.Infof("waiting for cluster to be available..")
-
-		var kubeconfig *clientcmdapi.Config
-
-		if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = kubeCfg.Generate(ctx, client, &cluster, host)
-			return err
-		}); err != nil {
-			return err
 		}
 
 		return writeKubeconfigFile(&cluster, kubeconfig, cfg.configName)

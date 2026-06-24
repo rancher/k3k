@@ -105,12 +105,12 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 			return err
 		}
 
-		host := strings.Split(url.Host, ":")[0]
+		host := strings.Split(url.Host, ":")
 		if cfg.kubeconfigServerHost != "" {
-			host = cfg.kubeconfigServerHost
+			host = []string{cfg.kubeconfigServerHost}
+			cfg.altNames = append(cfg.altNames, cfg.kubeconfigServerHost)
 		}
 
-		// Build kubeconfig with custom certificates
 		certAltNames := certs.AddSANs(cfg.altNames)
 
 		if len(cfg.org) == 0 {
@@ -129,7 +129,7 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 		var kubeconfig *clientcmdapi.Config
 
 		if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = kubeCfg.Generate(ctx, client, &cluster, host)
+			kubeconfig, err = kubeCfg.Generate(ctx, client, &cluster, host[0])
 			return err
 		}); err != nil {
 			return err

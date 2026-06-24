@@ -1,0 +1,18 @@
+[core]
+	autocrlf = input
+	whitespace = trailing-space,space-before-tab
+
+[pull]
+	rebase = true
+
+[push]
+	default = current
+
+[rebase]
+	autoStash = true
+
+[alias]
+	st = status
+	co = checkout
+	br = branch
+	lg = log --oneline --graph --decorate --all

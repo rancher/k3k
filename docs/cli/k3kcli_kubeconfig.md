@@ -19,4 +19,5 @@ Manage kubeconfig for clusters.
 
 * [k3kcli](k3kcli.md)	 - CLI for K3K.
 * [k3kcli kubeconfig generate](k3kcli_kubeconfig_generate.md)	 - Generate kubeconfig for clusters.
+* [k3kcli kubeconfig get](k3kcli_kubeconfig_get.md)	 - Fetch and export kubeconfig for a cluster
 

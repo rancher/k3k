@@ -60,12 +60,9 @@ func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "generate",
-		Short: "Generate kubeconfig with custom client certificates",
-		Long: "Generates a fresh kubeconfig with custom client certificates. " +
-			"Allows customization of CN, ORG, altNames, and certificate expiration. " +
-			"For most use cases, 'kubeconfig get' is simpler and recommended.",
-		RunE: generate(appCtx, cfg),
-		Args: cobra.NoArgs,
+		Short: "Generate kubeconfig for clusters.",
+		RunE:  generate(appCtx, cfg),
+		Args:  cobra.NoArgs,
 	}
 
 	CobraFlagNamespace(appCtx, cmd.Flags())

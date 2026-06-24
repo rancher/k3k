@@ -52,6 +52,7 @@ func Test_GetServerConfig(t *testing.T) {
 			mockServer := httptest.NewUnstartedServer(mux)
 			if tt.isServerRunning {
 				mockServer.StartTLS()
+				defer mockServer.Close()
 			}
 
 			mux.Handle("/v1-k3s/config", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

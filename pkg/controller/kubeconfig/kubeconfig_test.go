@@ -23,7 +23,6 @@ package kubeconfig
 //    A non-zero serverPort parameter overrides the computed port.
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -75,13 +74,15 @@ func TestURLGeneration_ClusterIP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
 			cluster, svc := createClusterIPService("test-cluster", "default", tt.servicePort)
-			fakeClient := createFakeClient(cluster, svc)
 
-			oldURL, err := getURLFromService(ctx, fakeClient, cluster, tt.hostServerIP, tt.serverPort)
+			fakeClient, err := createFakeClient(cluster, svc)
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedURL, oldURL)
+
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, tt.serverPort)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.expectedURL, url)
 		})
 	}
 }
@@ -113,12 +114,14 @@ func TestURLGeneration_NodePort(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
 			cluster, svc := createNodePortService("test-cluster", "default", tt.servicePort, tt.nodePort)
-			fakeClient := createFakeClient(cluster, svc)
 
-			url, err := getURLFromService(ctx, fakeClient, cluster, tt.hostServerIP, 0)
+			fakeClient, err := createFakeClient(cluster, svc)
 			require.NoError(t, err)
+
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
+			require.NoError(t, err)
+
 			assert.Equal(t, tt.expectedURL, url)
 		})
 	}
@@ -164,12 +167,14 @@ func TestURLGeneration_LoadBalancer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
 			cluster, svc := createLoadBalancerService("test-cluster", "default", tt.servicePort, tt.lbIP, tt.lbHostname)
-			fakeClient := createFakeClient(cluster, svc)
 
-			url, err := getURLFromService(ctx, fakeClient, cluster, tt.hostServerIP, 0)
+			fakeClient, err := createFakeClient(cluster, svc)
 			require.NoError(t, err)
+
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
+			require.NoError(t, err)
+
 			assert.Equal(t, tt.expectedURL, url)
 		})
 	}
@@ -191,12 +196,14 @@ func TestURLGeneration_Ingress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
 			cluster, svc, ingress := createIngressService("test-cluster", "default", tt.ingressHost)
-			fakeClient := createFakeClient(cluster, svc, ingress)
 
-			url, err := getURLFromService(ctx, fakeClient, cluster, "10.0.0.1", 0)
+			fakeClient, err := createFakeClient(cluster, svc, ingress)
 			require.NoError(t, err)
+
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, "10.0.0.1", 0)
+			require.NoError(t, err)
+
 			assert.Equal(t, tt.expectedURL, url)
 		})
 	}
@@ -240,7 +247,6 @@ func TestURLGeneration_TLSSANs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
 			cluster := &v1beta1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-cluster",
@@ -268,10 +274,12 @@ func TestURLGeneration_TLSSANs(t *testing.T) {
 				},
 			}
 
-			fakeClient := createFakeClient(cluster, svc)
-
-			url, err := getURLFromService(ctx, fakeClient, cluster, tt.hostServerIP, 0)
+			fakeClient, err := createFakeClient(cluster, svc)
 			require.NoError(t, err)
+
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
+			require.NoError(t, err)
+
 			assert.Equal(t, tt.expectedURL, url)
 		})
 	}
@@ -414,14 +422,24 @@ func createIngressService(clusterName, namespace, ingressHost string) (*v1beta1.
 	return cluster, svc, ingress
 }
 
-func createFakeClient(objs ...client.Object) client.Client {
-	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-	_ = networkingv1.AddToScheme(scheme)
-	_ = v1beta1.AddToScheme(scheme)
+func createFakeClient(objs ...client.Object) (client.Client, error) {
+	var (
+		scheme        = runtime.NewScheme()
+		schemeBuilder runtime.SchemeBuilder
+	)
+
+	schemeBuilder.Register(
+		corev1.AddToScheme,
+		networkingv1.AddToScheme,
+		v1beta1.AddToScheme,
+	)
+
+	if err := schemeBuilder.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
 
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(objs...).
-		Build()
+		Build(), nil
 }

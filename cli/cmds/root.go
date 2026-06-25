@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -15,6 +16,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/buildinfo"
@@ -40,6 +42,8 @@ func NewRootCmd() *cobra.Command {
 		Version:      buildinfo.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			InitializeConfig(cmd)
+
+			ctrl.SetLogger(logr.Discard())
 
 			if appCtx.Debug {
 				logrus.SetLevel(logrus.DebugLevel)

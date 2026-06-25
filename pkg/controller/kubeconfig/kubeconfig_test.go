@@ -145,7 +145,7 @@ func TestURLGeneration_LoadBalancer(t *testing.T) {
 			lbIP:         "",
 			lbHostname:   "cluster.example.com",
 			servicePort:  443,
-			expectedURL:  "https://",
+			expectedURL:  "https://cluster.example.com",
 		},
 		{
 			name:         "LoadBalancer with custom port",

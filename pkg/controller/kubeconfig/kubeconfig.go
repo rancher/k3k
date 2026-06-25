@@ -121,14 +121,13 @@ func getURLFromService(ctx context.Context, c client.Client, cluster *v1beta1.Cl
 
 	// Check if ingress is configured
 	if cluster.Spec.Expose != nil && cluster.Spec.Expose.Ingress != nil {
-		var k3kIngress networkingv1.Ingress
-
-		ingressKey := types.NamespacedName{
+		key := types.NamespacedName{
 			Name:      server.IngressName(cluster.Name),
 			Namespace: cluster.Namespace,
 		}
 
-		if err := c.Get(ctx, ingressKey, &k3kIngress); err != nil {
+		var k3kIngress networkingv1.Ingress
+		if err := c.Get(ctx, key, &k3kIngress); err != nil {
 			return nil, err
 		}
 

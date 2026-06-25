@@ -45,14 +45,12 @@ func TestURLGeneration_ClusterIP(t *testing.T) {
 		name         string
 		hostServerIP string
 		servicePort  int32
-		serverPort   int
 		expectedURL  string
 	}{
 		{
 			name:         "ClusterIP with default port 443",
 			hostServerIP: "10.0.0.1",
 			servicePort:  443,
-			serverPort:   0,
 			expectedURL:  "https://10.43.0.100",
 		},
 		{
@@ -60,14 +58,12 @@ func TestURLGeneration_ClusterIP(t *testing.T) {
 			name:         "ClusterIP ignores custom service port",
 			hostServerIP: "10.0.0.1",
 			servicePort:  8443,
-			serverPort:   0,
 			expectedURL:  "https://10.43.0.100",
 		},
 		{
 			name:         "ClusterIP with serverPort override",
 			hostServerIP: "10.0.0.1",
 			servicePort:  443,
-			serverPort:   9443,
 			expectedURL:  "https://10.43.0.100:9443",
 		},
 	}
@@ -77,10 +73,10 @@ func TestURLGeneration_ClusterIP(t *testing.T) {
 			cluster, svc := createClusterIPService("test-cluster", "default", tt.servicePort)
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, tt.serverPort)
+			url, err := newURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }
@@ -115,10 +111,10 @@ func TestURLGeneration_NodePort(t *testing.T) {
 			cluster, svc := createNodePortService("test-cluster", "default", tt.servicePort, tt.nodePort)
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
+			url, err := newURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }
@@ -166,10 +162,10 @@ func TestURLGeneration_LoadBalancer(t *testing.T) {
 			cluster, svc := createLoadBalancerService("test-cluster", "default", tt.servicePort, tt.lbIP, tt.lbHostname)
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
+			url, err := newURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }
@@ -193,10 +189,10 @@ func TestURLGeneration_Ingress(t *testing.T) {
 			cluster, svc, ingress := createIngressService("test-cluster", "default", tt.ingressHost)
 			fakeClient := createFakeClient(t, cluster, svc, ingress)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, "10.0.0.1", 0)
+			url, err := newURLFromService(t.Context(), fakeClient, cluster, "10.0.0.1")
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }
@@ -268,10 +264,10 @@ func TestURLGeneration_TLSSANs(t *testing.T) {
 
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
+			url, err := newURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }

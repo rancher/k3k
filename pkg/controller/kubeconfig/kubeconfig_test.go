@@ -75,9 +75,7 @@ func TestURLGeneration_ClusterIP(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cluster, svc := createClusterIPService("test-cluster", "default", tt.servicePort)
-
-			fakeClient, err := createFakeClient(cluster, svc)
-			require.NoError(t, err)
+			fakeClient := createFakeClient(t, cluster, svc)
 
 			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, tt.serverPort)
 			require.NoError(t, err)
@@ -115,9 +113,7 @@ func TestURLGeneration_NodePort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cluster, svc := createNodePortService("test-cluster", "default", tt.servicePort, tt.nodePort)
-
-			fakeClient, err := createFakeClient(cluster, svc)
-			require.NoError(t, err)
+			fakeClient := createFakeClient(t, cluster, svc)
 
 			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
 			require.NoError(t, err)
@@ -168,9 +164,7 @@ func TestURLGeneration_LoadBalancer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cluster, svc := createLoadBalancerService("test-cluster", "default", tt.servicePort, tt.lbIP, tt.lbHostname)
-
-			fakeClient, err := createFakeClient(cluster, svc)
-			require.NoError(t, err)
+			fakeClient := createFakeClient(t, cluster, svc)
 
 			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
 			require.NoError(t, err)
@@ -197,9 +191,7 @@ func TestURLGeneration_Ingress(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cluster, svc, ingress := createIngressService("test-cluster", "default", tt.ingressHost)
-
-			fakeClient, err := createFakeClient(cluster, svc, ingress)
-			require.NoError(t, err)
+			fakeClient := createFakeClient(t, cluster, svc, ingress)
 
 			url, err := getURLFromService(t.Context(), fakeClient, cluster, "10.0.0.1", 0)
 			require.NoError(t, err)
@@ -274,8 +266,7 @@ func TestURLGeneration_TLSSANs(t *testing.T) {
 				},
 			}
 
-			fakeClient, err := createFakeClient(cluster, svc)
-			require.NoError(t, err)
+			fakeClient := createFakeClient(t, cluster, svc)
 
 			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
 			require.NoError(t, err)
@@ -422,7 +413,9 @@ func createIngressService(clusterName, namespace, ingressHost string) (*v1beta1.
 	return cluster, svc, ingress
 }
 
-func createFakeClient(objs ...client.Object) (client.Client, error) {
+func createFakeClient(t *testing.T, objs ...client.Object) client.Client {
+	t.Helper()
+
 	scheme := runtime.NewScheme()
 
 	schemeBuilder := runtime.NewSchemeBuilder(
@@ -431,12 +424,11 @@ func createFakeClient(objs ...client.Object) (client.Client, error) {
 		v1beta1.AddToScheme,
 	)
 
-	if err := schemeBuilder.AddToScheme(scheme); err != nil {
-		return nil, err
-	}
+	err := schemeBuilder.AddToScheme(scheme)
+	require.NoError(t, err)
 
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(objs...).
-		Build(), nil
+		Build()
 }

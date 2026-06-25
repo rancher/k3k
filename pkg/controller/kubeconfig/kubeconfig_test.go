@@ -423,12 +423,9 @@ func createIngressService(clusterName, namespace, ingressHost string) (*v1beta1.
 }
 
 func createFakeClient(objs ...client.Object) (client.Client, error) {
-	var (
-		scheme        = runtime.NewScheme()
-		schemeBuilder runtime.SchemeBuilder
-	)
+	scheme := runtime.NewScheme()
 
-	schemeBuilder.Register(
+	schemeBuilder := runtime.NewSchemeBuilder(
 		corev1.AddToScheme,
 		networkingv1.AddToScheme,
 		v1beta1.AddToScheme,

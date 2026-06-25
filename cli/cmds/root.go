@@ -115,12 +115,9 @@ func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
 }
 
 func buildClient(restConfig *rest.Config) (client.Client, error) {
-	var (
-		scheme        = runtime.NewScheme()
-		schemeBuilder runtime.SchemeBuilder
-	)
+	scheme := runtime.NewScheme()
 
-	schemeBuilder.Register(
+	schemeBuilder := runtime.NewSchemeBuilder(
 		clientgoscheme.AddToScheme,
 		v1beta1.AddToScheme,
 		apiextensionsv1.AddToScheme,

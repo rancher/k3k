@@ -284,6 +284,7 @@ _Appears in:_
 | `ingress` _[IngressConfig](#ingressconfig)_ | Ingress specifies options for exposing the API server through an Ingress. |  |  |
 | `loadBalancer` _[LoadBalancerConfig](#loadbalancerconfig)_ | LoadBalancer specifies options for exposing the API server through a LoadBalancer service. |  |  |
 | `nodePort` _[NodePortConfig](#nodeportconfig)_ | NodePort specifies options for exposing the API server through NodePort. |  |  |
+| `annotations` _object (keys:string, values:string)_ | Annotations specifies annotations to add to the generated Service. |  |  |
 
 
 #### IngressConfig

@@ -1224,6 +1224,11 @@ spec:
                   Expose specifies options for exposing the API server.
                   By default, it's only exposed as a ClusterIP.
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations specifies annotations to add to the generated Service.
+                    type: object
                   ingress:
                     description: Ingress specifies options for exposing the API server through an Ingress.
                     properties:

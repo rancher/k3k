@@ -32,7 +32,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 
 	When("a ConfigMap is created in the virtual cluster", func() {
 		BeforeAll(func() {
-			ctx := context.Background()
+			ctx := GinkgoT().Context()
 
 			virtualConfigMap = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -48,7 +48,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 		})
 
 		It("is replicated in the host cluster", func() {
-			ctx := context.Background()
+			ctx := GinkgoT().Context()
 
 			hostTranslator := translate.NewHostTranslator(virtualCluster.Cluster)
 			namespacedName := hostTranslator.NamespacedName(virtualConfigMap)
@@ -66,7 +66,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 
 	When("a Service is created in the virtual cluster", func() {
 		BeforeAll(func() {
-			ctx := context.Background()
+			ctx := GinkgoT().Context()
 
 			virtualService = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -86,7 +86,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label(e2eTestLabel), f
 		})
 
 		It("is replicated in the host cluster", func() {
-			ctx := context.Background()
+			ctx := GinkgoT().Context()
 
 			hostTranslator := translate.NewHostTranslator(virtualCluster.Cluster)
 			namespacedName := hostTranslator.NamespacedName(virtualService)

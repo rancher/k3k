@@ -11,6 +11,7 @@ GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
 ENVTEST_K8S_VERSION := 1.31.0
 CRD_REF_DOCS_VER ?= v0.2.0
+FLAKE_ATTEMPTS ?= 3
 
 GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GINKGO ?= go run github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
@@ -81,7 +82,7 @@ test-integration:	## Run the controller tests that use envtest (tests/integratio
 
 .PHONY: test-e2e
 test-e2e:	## Run the e2e tests
-	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=3 --label-filter="$(E2E_LABEL_FILTER)" tests/e2e
+	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=$(FLAKE_ATTEMPTS) --label-filter="$(E2E_LABEL_FILTER)" tests/e2e
 
 .PHONY: test-cli
 test-cli:	## Run the cli tests

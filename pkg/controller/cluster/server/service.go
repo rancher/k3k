@@ -1,6 +1,8 @@
 package server
 
 import (
+	"maps"
+
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	corev1 "k8s.io/api/core/v1"
@@ -10,6 +12,10 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 )
 
+// Service creates a Kubernetes Service for the given cluster.
+//
+// It sets the service type based on the cluster's expose configuration and adds the
+// appropriate ports for k3s server and etcd.
 func Service(cluster *v1beta1.Cluster) *corev1.Service {
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -50,6 +56,13 @@ func Service(cluster *v1beta1.Cluster) *corev1.Service {
 	// If expose is specified, set the type to the appropriate type
 	if cluster.Spec.Expose != nil {
 		expose := cluster.Spec.Expose
+		if expose.Annotations != nil {
+			if service.Annotations == nil {
+				service.Annotations = map[string]string{}
+			}
+
+			maps.Copy(service.Annotations, expose.Annotations)
+		}
 
 		switch {
 		case expose.LoadBalancer != nil:

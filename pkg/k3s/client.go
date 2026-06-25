@@ -86,7 +86,7 @@ func do[T any](c *Client, endpoint, user, method string) (T, error) {
 	}
 
 	// unmarshal the json data to the generic struct
-	if err := json.Unmarshal(respBody, response); err != nil {
+	if err := json.Unmarshal(respBody, &response); err != nil {
 		return response, err
 	}
 

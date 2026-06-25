@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
@@ -24,12 +23,6 @@ import (
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 )
-
-type GetKubeconfigConfig struct {
-	name                 string
-	configName           string
-	kubeconfigServerHost string
-}
 
 type GenerateKubeconfigConfig struct {
 	name                 string
@@ -48,7 +41,6 @@ func NewKubeconfigCmd(appCtx *AppContext) *cobra.Command {
 	}
 
 	cmd.AddCommand(
-		NewKubeconfigGetCmd(appCtx),
 		NewKubeconfigGenerateCmd(appCtx),
 	)
 
@@ -158,87 +150,4 @@ func writeKubeconfigFile(cluster *v1beta1.Cluster, kubeconfig *clientcmdapi.Conf
 	}
 
 	return os.WriteFile(configName, kubeconfigData, 0o644)
-}
-
-func NewKubeconfigGetCmd(appCtx *AppContext) *cobra.Command {
-	cfg := &GetKubeconfigConfig{}
-
-	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Fetch and export kubeconfig for a cluster",
-		Long: "Fetches the kubeconfig from the cluster's secret and writes it to a file. " +
-			"Optionally override the server host with --kubeconfig-server for external access.",
-		RunE: getKubeconfig(appCtx, cfg),
-		Args: cobra.NoArgs,
-	}
-
-	CobraFlagNamespace(appCtx, cmd.Flags())
-	cmd.Flags().StringVar(&cfg.name, "name", "", "cluster name")
-	cmd.Flags().StringVar(&cfg.configName, "config-name", "", "the name of the generated kubeconfig file")
-	cmd.Flags().StringVar(&cfg.kubeconfigServerHost, "kubeconfig-server", "", "override the kubeconfig server host")
-
-	return cmd
-}
-
-func getKubeconfig(appCtx *AppContext, cfg *GetKubeconfigConfig) func(cmd *cobra.Command, args []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		client := appCtx.Client
-
-		clusterKey := types.NamespacedName{
-			Name:      cfg.name,
-			Namespace: appCtx.Namespace(cfg.name),
-		}
-
-		var cluster v1beta1.Cluster
-
-		if err := client.Get(ctx, clusterKey, &cluster); err != nil {
-			return err
-		}
-
-		logrus.Infof("waiting for cluster to be available..")
-
-		var (
-			kubeconfig *clientcmdapi.Config
-			err        error
-		)
-
-		if retryErr := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
-			kubeconfigSecretKey := types.NamespacedName{
-				Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "kubeconfig"),
-				Namespace: cluster.Namespace,
-			}
-
-			var kubeconfigSecret corev1.Secret
-			if err := client.Get(ctx, kubeconfigSecretKey, &kubeconfigSecret); err != nil {
-				return err
-			}
-
-			kubeconfig, err = clientcmd.Load(kubeconfigSecret.Data["kubeconfig.yaml"])
-
-			return err
-		}); retryErr != nil {
-			return retryErr
-		}
-
-		// Only override server URL if explicitly specified
-		if cfg.kubeconfigServerHost != "" {
-			origURL, err := url.Parse(kubeconfig.Clusters["default"].Server)
-			if err != nil {
-				return err
-			}
-
-			port := origURL.Port()
-			if port == "" || port == "443" {
-				// Default HTTPS port, omit from URL
-				kubeconfig.Clusters["default"].Server = "https://" + cfg.kubeconfigServerHost
-			} else {
-				// Non-standard port, include it
-				kubeconfig.Clusters["default"].Server = "https://" + cfg.kubeconfigServerHost + ":" + port
-			}
-		}
-		// else: use the server URL from the secret as-is
-
-		return writeKubeconfigFile(&cluster, kubeconfig, cfg.configName)
-	}
 }

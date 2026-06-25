@@ -50,12 +50,7 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			scheme := runtime.NewScheme()
-			_ = clientgoscheme.AddToScheme(scheme)
-			_ = v1beta1.AddToScheme(scheme)
-			_ = apiextensionsv1.AddToScheme(scheme)
-
-			ctrlClient, err := client.New(restConfig, client.Options{Scheme: scheme})
+			ctrlClient, err := buildClient(restConfig)
 			if err != nil {
 				return err
 			}
@@ -88,19 +83,6 @@ func (ctx *AppContext) Namespace(name string) string {
 	return "k3k-" + name
 }
 
-func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	configOverrides := &clientcmd.ConfigOverrides{}
-
-	if kubeconfig != "" {
-		loadingRules.ExplicitPath = kubeconfig
-	}
-
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-
-	return kubeConfig.ClientConfig()
-}
-
 func CobraFlagNamespace(appCtx *AppContext, flag *pflag.FlagSet) {
 	flag.StringVarP(&appCtx.namespace, "namespace", "n", "", "namespace of the k3k cluster")
 }
@@ -117,4 +99,33 @@ func InitializeConfig(cmd *cobra.Command) {
 			_ = cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
 		}
 	})
+}
+
+func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	configOverrides := &clientcmd.ConfigOverrides{}
+
+	if kubeconfig != "" {
+		loadingRules.ExplicitPath = kubeconfig
+	}
+
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+
+	return kubeConfig.ClientConfig()
+}
+
+func buildClient(restConfig *rest.Config) (client.Client, error) {
+	scheme := runtime.NewScheme()
+
+	schemeBuilder := runtime.NewSchemeBuilder(
+		clientgoscheme.AddToScheme,
+		v1beta1.AddToScheme,
+		apiextensionsv1.AddToScheme,
+	)
+
+	if err := schemeBuilder.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+
+	return client.New(restConfig, client.Options{Scheme: scheme})
 }

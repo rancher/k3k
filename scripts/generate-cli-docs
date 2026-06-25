@@ -21,7 +21,6 @@ SUBCOMMAND_FILES=(
     "$DOCS_DIR/k3kcli_cluster_update.md"
     "$DOCS_DIR/k3kcli_kubeconfig.md"
     "$DOCS_DIR/k3kcli_kubeconfig_generate.md"
-    "$DOCS_DIR/k3kcli_kubeconfig_get.md"
     "$DOCS_DIR/k3kcli_policy.md"
     "$DOCS_DIR/k3kcli_policy_create.md"
     "$DOCS_DIR/k3kcli_policy_delete.md"

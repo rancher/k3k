@@ -63,7 +63,7 @@ func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster
 		return nil, err
 	}
 
-	serverURL, err := newURLFromService(ctx, client, cluster, hostServerIP)
+	serverURL, err := getURLFromService(ctx, client, cluster, hostServerIP)
 	if err != nil {
 		return nil, err
 	}
@@ -96,31 +96,21 @@ func NewConfig(url string, serverCA, clientCert, clientKey []byte) *clientcmdapi
 	return config
 }
 
-// Deprecated: Use newURLFromService() instead. This function will be removed in a future release.
-// getURLFromService generates a URL string from service configuration.
+// getURLFromService generates the API server URL for the kubeconfig based on the service configuration.
 //
-// Key differences from newURLFromService():
-//   - Returns string instead of *url.URL
-//   - Accepts serverPort parameter for port override (removed in new implementation)
-//   - Uses logrus for logging instead of controller-runtime logger
-//   - Does not have smart NodePort internal/external detection
-
-// getURLFromService generates the API server URL for kubeconfig based on service configuration.
-//
-// It intelligently handles internal vs external access patterns:
-//   - Internal access (hostServerIP == service.ClusterIP): Uses ClusterIP for direct pod-to-pod communication
-//   - External access (hostServerIP != service.ClusterIP): Uses appropriate external endpoint based on service type
+// It handles internal vs external access patterns:
+//   - Internal access (hostServerIP == service.ClusterIP): uses the ClusterIP for direct pod-to-pod communication
+//   - External access (hostServerIP != service.ClusterIP): uses the appropriate external endpoint based on the service type
 //
 // Service type handling:
-//   - ClusterIP: Always uses service.Spec.ClusterIP (internal-only)
-//   - NodePort: Uses hostServerIP:NodePort for external, ClusterIP:Port for internal
-//   - LoadBalancer: Uses LoadBalancer ingress IP/hostname if available
-//   - Ingress (if configured): Takes precedence over service-based URL
+//   - ClusterIP: uses service.Spec.ClusterIP (internal-only)
+//   - NodePort: uses hostServerIP:NodePort for external access, ClusterIP:Port for internal access
+//   - LoadBalancer: uses the LoadBalancer ingress IP, falling back to its hostname
+//   - Ingress (if configured): takes precedence over the service-based URL
 //
 // The hostServerIP parameter determines the access pattern:
-//   - Controller reconciliation: Passes service.Spec.ClusterIP → internal access
-//   - CLI kubeconfig export: Passes external host → external access
-//   - E2E tests: Passes test host IP → external access
+//   - Controller reconciliation: passes service.Spec.ClusterIP → internal access
+//   - CLI kubeconfig export: passes the external host → external access
 func getURLFromService(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostServerIP string) (*url.URL, error) {
 	log := ctrl.LoggerFrom(ctx)
 

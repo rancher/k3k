@@ -77,17 +77,17 @@ func New(config ClientConfig) *Client {
 	}
 }
 
-func do[T any](c *Client, endpoint, user, method string) (*T, error) {
-	response := new(T)
+func do[T any](c *Client, endpoint, user, method string) (T, error) {
+	var response T
 
 	respBody, err := c.do(endpoint, user, method)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
 	// unmarshal the json data to the generic struct
 	if err := json.Unmarshal(respBody, response); err != nil {
-		return nil, err
+		return response, err
 	}
 
 	return response, nil

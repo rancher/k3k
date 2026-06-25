@@ -74,7 +74,7 @@ func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1be
 	key = client.ObjectKeyFromObject(&tokenSecret)
 
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, &tokenSecret, func() error {
-		return controllerutil.SetControllerReference(cluster, &tokenSecret, c.Scheme)
+		return controllerutil.SetControllerReference(cluster, &tokenSecret, c.Client.Scheme())
 	})
 
 	if result != controllerutil.OperationResultNone {
@@ -115,7 +115,7 @@ func TokenSecretName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "token")
 }
 
-func getClusterToken(ctx context.Context, cluster *v1beta1.Cluster, client client.Client) (string, error) {
+func getClusterToken(ctx context.Context, client client.Client, cluster *v1beta1.Cluster) (string, error) {
 	tokenSecretName := TokenSecretName(cluster.Name)
 	if cluster.Spec.TokenSecretRef != nil && cluster.Spec.TokenSecretRef.Name != "" {
 		tokenSecretName = cluster.Spec.TokenSecretRef.Name

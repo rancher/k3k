@@ -22,27 +22,22 @@ import (
 
 // Fetch requests bootstrap data from k3s using the token and decodes it,
 // to avoid double encoding when stored as secret.
-func Fetch(ctx context.Context, ip, token, clusterName, clusterNamespace string, restConfig *rest.Config) (*k3s.BootstrapData, error) {
+func Fetch(ctx context.Context, k3sClient *k3s.Client, cluster *v1beta1.Cluster, restConfig *rest.Config) (*k3s.BootstrapData, error) {
 	log := ctrl.LoggerFrom(ctx)
 
-	client := k3s.New(k3s.ClientConfig{
-		ServerIP: ip,
-		Token:    token,
-	})
-
-	config, err := k3s.GetServerConfig(client)
+	config, err := k3sClient.GetServerConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	if config.ClusterInit {
 		log.V(1).Info("Fetching bootstrap data from K3s server API")
-		return k3s.GetServerBootstrap(client)
+		return k3sClient.GetServerBootstrap()
 	}
 
 	log.V(1).Info("Fetching bootstrap data from K3s server Pod")
 
-	return k3s.ReadBootstrapFromK3sPod(ctx, restConfig, clusterName, clusterNamespace)
+	return k3s.ReadBootstrapFromK3sPod(ctx, restConfig, cluster.Name, cluster.Namespace)
 }
 
 // SaveToSecret marshals the bootstrap data and stores it in a Secret owned by the cluster,

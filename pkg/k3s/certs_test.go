@@ -48,7 +48,7 @@ func Test_GetServingKubeletCert(t *testing.T) {
 		t.Fatalf("failed to parse expected response: %v", err)
 	}
 
-	cert, err := GetServingKubeletCrt(k3sClient)
+	cert, err := k3sClient.GetServingKubeletCrt()
 	if err != nil {
 		t.Fatalf("failed to get server bootstrap: %v", err)
 	}

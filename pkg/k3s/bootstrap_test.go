@@ -67,7 +67,7 @@ func Test_GetServerConfig(t *testing.T) {
 
 			k3sClient := New(tt.clientConfig)
 
-			k3sConfig, err := GetServerConfig(k3sClient)
+			k3sConfig, err := k3sClient.GetServerConfig()
 			if err != nil {
 				if tt.expectedErr != nil {
 					if err.Error() != tt.expectedErr.Error() {
@@ -146,7 +146,7 @@ func Test_GetServerBootstrap(t *testing.T) {
 
 	k3sClient := New(ClientConfig{ServerIP: getServerAddress(mockServer.URL)})
 
-	bootstrap, err := GetServerBootstrap(k3sClient)
+	bootstrap, err := k3sClient.GetServerBootstrap()
 	if err != nil {
 		t.Fatalf("failed to get server bootstrap: %v", err)
 	}

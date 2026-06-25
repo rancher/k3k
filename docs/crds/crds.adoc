@@ -616,7 +616,7 @@ mode, like fsGroup, and the result can be other mode bits set. + |  |
 as the name of volume and volume mount for the server or agent pod +
 if empty then the secret name will be used instead. + |  | MaxLength: 253 +
 MinLength: 1 +
-Pattern: `^[a-z0-9]([-a-z0-9]\*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$` +
+Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` +
 
 | *`mountPath`* __string__ | MountPath is the path within server and agent pods where the +
 secret contents will be mounted. + |  | 

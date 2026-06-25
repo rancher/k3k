@@ -40,7 +40,7 @@ type K3SConfig struct {
 	ClusterInit bool `json:"ClusterInit"`
 }
 
-func GetServerConfig(c *Client) (*K3SConfig, error) {
+func (c *Client) GetServerConfig() (*K3SConfig, error) {
 	endpoint := "/v1-k3s/config"
 
 	k3sConfig, err := do[K3SConfig](c, endpoint, "node", http.MethodGet)
@@ -48,10 +48,10 @@ func GetServerConfig(c *Client) (*K3SConfig, error) {
 		return nil, err
 	}
 
-	return k3sConfig, nil
+	return &k3sConfig, nil
 }
 
-func GetServerBootstrap(c *Client) (*BootstrapData, error) {
+func (c *Client) GetServerBootstrap() (*BootstrapData, error) {
 	endpoint := "/v1-k3s/server-bootstrap"
 
 	bootstrap, err := do[BootstrapData](c, endpoint, "server", http.MethodGet)
@@ -60,11 +60,11 @@ func GetServerBootstrap(c *Client) (*BootstrapData, error) {
 	}
 
 	// we still need to decode each certs since the bootstrap data endpoint base64 encode each cert
-	if err := decode(bootstrap); err != nil {
+	if err := decode(&bootstrap); err != nil {
 		return nil, fmt.Errorf("failed to decode bootstrap secret: %w", err)
 	}
 
-	return bootstrap, nil
+	return &bootstrap, nil
 }
 
 func decode(data *BootstrapData) error {

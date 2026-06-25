@@ -1420,7 +1420,7 @@ spec:
                         if empty then the secret name will be used instead.
                       maxLength: 253
                       minLength: 1
-                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
                     optional:
                       description: optional field specify whether the Secret or its keys must be defined

@@ -107,7 +107,7 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 	}
 
 	// skip adding finalizer to server pods if etcd is not used
-	clusterToken, err := getClusterToken(ctx, &cluster, p.Client)
+	clusterToken, err := getClusterToken(ctx, p.Client, &cluster)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -117,7 +117,7 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 		Token:    clusterToken,
 	})
 
-	config, err := k3s.GetServerConfig(k3sClient)
+	config, err := k3sClient.GetServerConfig()
 	if err != nil {
 		return reconcile.Result{}, err
 	}

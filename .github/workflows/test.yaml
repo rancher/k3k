@@ -50,7 +50,7 @@ jobs:
         go-version-file: go.mod
 
     - name: Install Ginkgo
-      run: go install github.com/onsi/ginkgo/v2/ginkgo@5d1d628ac86668c8f944c8c491c3d1ab86b3bed4 #v2.28.1
+      run: go install github.com/onsi/ginkgo/v2/ginkgo@3c7bde4e56b079f4ce636d238daadaa94d32de12 #v2.31.0
     
     - name: Setup environment
       run: |

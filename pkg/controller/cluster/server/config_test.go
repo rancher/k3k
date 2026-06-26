@@ -204,10 +204,12 @@ func Test_SetupStartCommand_MultipleServerArgs(t *testing.T) {
 		},
 	}
 	s := &Server{cluster: cluster}
+
 	script, err := s.setupStartCommand()
 	if err != nil {
 		t.Fatalf("setupStartCommand failed: %v", err)
 	}
+
 	expected := `EXTRA_ARGS="--tls-san=foo.example.com --kubelet-arg=cgroups-per-qos=false --kubelet-arg=enforce-node-allocatable="`
 	if !strings.Contains(script, expected) {
 		t.Errorf("script missing quoted EXTRA_ARGS assignment.\nwant: %s\ngot script:\n%s", expected, script)

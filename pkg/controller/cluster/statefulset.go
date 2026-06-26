@@ -72,12 +72,6 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
 	}
 
-	// If the StatefulSet is being deleted, we need to remove the finalizers from its pods
-	// and remove the finalizer from the StatefulSet itself.
-	if !sts.DeletionTimestamp.IsZero() {
-		return p.handleDeletion(ctx, &sts)
-	}
-
 	// get cluster name from the object
 	clusterKey := clusterNamespacedName(&sts)
 
@@ -86,6 +80,12 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
+	}
+
+	// If the StatefulSet is being deleted, we need to remove the finalizers from its pods
+	// and remove the finalizer from the StatefulSet itself.
+	if !sts.DeletionTimestamp.IsZero() {
+		return p.handleDeletion(ctx, &sts)
 	}
 
 	podList, err := p.listPods(ctx, &sts)
@@ -104,6 +104,26 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 
 			return reconcile.Result{}, nil
 		}
+	}
+
+	// skip adding finalizer to server pods if etcd is not used
+	clusterToken, err := getClusterToken(ctx, p.Client, &cluster)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	k3sClient := k3s.New(k3s.ClientConfig{
+		ServerIP: fmt.Sprintf("%s.%s", server.ServiceName(cluster.Name), cluster.Namespace),
+		Token:    clusterToken,
+	})
+
+	config, err := k3sClient.GetServerConfig()
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if !config.ClusterInit {
+		return reconcile.Result{}, nil
 	}
 
 	for _, pod := range podList.Items {

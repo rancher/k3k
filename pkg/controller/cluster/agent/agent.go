@@ -29,11 +29,11 @@ type Config struct {
 	scheme  *runtime.Scheme
 }
 
-func NewConfig(cluster *v1beta1.Cluster, client ctrlruntimeclient.Client, scheme *runtime.Scheme) *Config {
+func NewConfig(cluster *v1beta1.Cluster, client ctrlruntimeclient.Client) *Config {
 	return &Config{
 		cluster: cluster,
 		client:  client,
-		scheme:  scheme,
+		scheme:  client.Scheme(),
 	}
 }
 

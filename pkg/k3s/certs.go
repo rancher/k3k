@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func GetServingKubeletCrt(c *Client) (*tls.Certificate, error) {
+func (c *Client) GetServingKubeletCrt() (*tls.Certificate, error) {
 	endpoint := "/v1-k3s/serving-kubelet.crt"
 
 	tlsCrtData, err := c.do(endpoint, "node", http.MethodGet)

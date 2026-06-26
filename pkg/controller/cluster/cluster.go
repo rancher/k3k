@@ -12,9 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -87,7 +87,7 @@ type Config struct {
 type ClusterReconciler struct {
 	DiscoveryClient *discovery.DiscoveryClient
 	Client          client.Client
-	Scheme          *runtime.Scheme
+	RestCfg         *rest.Config
 	PortAllocator   *agent.PortAllocator
 
 	record.EventRecorder
@@ -113,7 +113,7 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 	reconciler := ClusterReconciler{
 		DiscoveryClient: discoveryClient,
 		Client:          mgr.GetClient(),
-		Scheme:          mgr.GetScheme(),
+		RestCfg:         mgr.GetConfig(),
 		EventRecorder:   eventRecorder,
 		PortAllocator:   portAllocator,
 		Config: Config{
@@ -462,12 +462,17 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring bootstrap secret")
 
-	data, err := bootstrap.Fetch(ctx, serviceIP, token)
+	k3sClient := k3s.New(k3s.ClientConfig{
+		ServerIP: serviceIP,
+		Token:    token,
+	})
+
+	data, err := bootstrap.Fetch(ctx, k3sClient, cluster, c.RestCfg)
 	if err != nil {
 		return err
 	}
 
-	return bootstrap.SaveToSecret(ctx, c.Client, c.Scheme, cluster, data)
+	return bootstrap.SaveToSecret(ctx, c.Client, cluster, data)
 }
 
 // ensureKubeconfigSecret will create or update the Secret containing the kubeconfig data from the k3s server
@@ -495,7 +500,7 @@ func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster 
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, c.Client, kubeconfigSecret, func() error {
-		if err := controllerutil.SetControllerReference(cluster, kubeconfigSecret, c.Scheme); err != nil {
+		if err := controllerutil.SetControllerReference(cluster, kubeconfigSecret, c.Client.Scheme()); err != nil {
 			return err
 		}
 
@@ -516,7 +521,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(cluster, initServerConfig, c.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(cluster, initServerConfig, c.Client.Scheme()); err != nil {
 		return err
 	}
 
@@ -532,7 +537,7 @@ func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(cluster, serverConfig, c.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(cluster, serverConfig, c.Client.Scheme()); err != nil {
 		return err
 	}
 
@@ -625,7 +630,7 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 	currentNetworkPolicy := expectedNetworkPolicy.DeepCopy()
 
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentNetworkPolicy, func() error {
-		if err := controllerutil.SetControllerReference(cluster, currentNetworkPolicy, c.Scheme); err != nil {
+		if err := controllerutil.SetControllerReference(cluster, currentNetworkPolicy, c.Client.Scheme()); err != nil {
 			return err
 		}
 
@@ -653,7 +658,7 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 	currentService := expectedService.DeepCopy()
 
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentService, func() error {
-		if err := controllerutil.SetControllerReference(cluster, currentService, c.Scheme); err != nil {
+		if err := controllerutil.SetControllerReference(cluster, currentService, c.Client.Scheme()); err != nil {
 			return err
 		}
 
@@ -688,7 +693,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1beta1.
 	currentServerIngress := expectedServerIngress.DeepCopy()
 
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerIngress, func() error {
-		if err := controllerutil.SetControllerReference(cluster, currentServerIngress, c.Scheme); err != nil {
+		if err := controllerutil.SetControllerReference(cluster, currentServerIngress, c.Client.Scheme()); err != nil {
 			return err
 		}
 
@@ -828,7 +833,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1beta1.Cluster
 
 	// create headless service for the statefulset
 	serverStatefulService := server.StatefulServerService()
-	if err := controllerutil.SetControllerReference(cluster, serverStatefulService, c.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(cluster, serverStatefulService, c.Client.Scheme()); err != nil {
 		return err
 	}
 
@@ -848,7 +853,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1beta1.Cluster
 
 	currentServerStatefulSet := expectedServerStatefulSet.DeepCopy()
 	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerStatefulSet, func() error {
-		if err := controllerutil.SetControllerReference(cluster, currentServerStatefulSet, c.Scheme); err != nil {
+		if err := controllerutil.SetControllerReference(cluster, currentServerStatefulSet, c.Client.Scheme()); err != nil {
 			return err
 		}
 
@@ -896,7 +901,7 @@ func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1bet
 }
 
 func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
-	config := agent.NewConfig(cluster, c.Client, c.Scheme)
+	config := agent.NewConfig(cluster, c.Client)
 
 	var agentEnsurer agent.ResourceEnsurer
 	if cluster.Spec.Mode == agent.VirtualNodeMode {

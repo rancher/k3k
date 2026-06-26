@@ -78,7 +78,7 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 	}, func() error {
 		var err error
 
-		tlsCrt, err = k3s.GetServingKubeletCrt(client)
+		tlsCrt, err = client.GetServingKubeletCrt()
 
 		return err
 	}); err != nil {

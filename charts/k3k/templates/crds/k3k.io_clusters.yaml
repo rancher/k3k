@@ -1413,6 +1413,15 @@ spec:
                         MountPath is the path within server and agent pods where the
                         secret contents will be mounted.
                       type: string
+                    name:
+                      description: |-
+                        Name is the name of the secret mount volume that will be used
+                        as the name of volume and volume mount for the server or agent pod
+                        if empty then the secret name will be used instead.
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                      type: string
                     optional:
                       description: optional field specify whether the Secret or its keys must be defined
                       type: boolean

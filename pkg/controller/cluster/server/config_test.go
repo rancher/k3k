@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -190,5 +191,25 @@ func Test_BuildServerConfig(t *testing.T) {
 				t.Errorf("found %v, expected %v", serverConfig, tt.expectedData)
 			}
 		})
+	}
+}
+
+func Test_SetupStartCommand_MultipleServerArgs(t *testing.T) {
+	servers := int32(1)
+	cluster := &v1beta1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: testClusterName, Namespace: testClusterNamespace},
+		Spec: v1beta1.ClusterSpec{
+			Servers:    &servers,
+			ServerArgs: []string{"--tls-san=foo.example.com", "--kubelet-arg=cgroups-per-qos=false", "--kubelet-arg=enforce-node-allocatable="},
+		},
+	}
+	s := &Server{cluster: cluster}
+	script, err := s.setupStartCommand()
+	if err != nil {
+		t.Fatalf("setupStartCommand failed: %v", err)
+	}
+	expected := `EXTRA_ARGS="--tls-san=foo.example.com --kubelet-arg=cgroups-per-qos=false --kubelet-arg=enforce-node-allocatable="`
+	if !strings.Contains(script, expected) {
+		t.Errorf("script missing quoted EXTRA_ARGS assignment.\nwant: %s\ngot script:\n%s", expected, script)
 	}
 }

@@ -66,6 +66,7 @@ func Test_GetServerConfig(t *testing.T) {
 			if tt.clientConfig.ServerIP == "" {
 				u, err := url.Parse(mockServer.URL)
 				require.NoError(t, err)
+
 				tt.clientConfig.ServerIP = u.Host
 			}
 

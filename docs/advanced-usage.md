@@ -40,7 +40,7 @@ spec:
       ingressClassName: nginx
       annotations:
         nginx.ingress.kubernetes.io/ssl-passthrough: "true"
-        nginx.ingress.kubernetes.io/backend-protocol: "true"
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
         nginx.ingress.kubernetes.io/ssl-redirect: "HTTPS"
   clusterCIDR: 10.42.0.0/16
   serviceCIDR: 10.43.0.0/16

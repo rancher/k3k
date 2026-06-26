@@ -32,7 +32,7 @@ func Service(cluster *v1beta1.Cluster) *corev1.Service {
 		Name:       "k3s-server-port",
 		Protocol:   corev1.ProtocolTCP,
 		Port:       httpsPort,
-		TargetPort: intstr.FromInt(k3sServerPort),
+		TargetPort: intstr.FromInt32(k3sServerPort),
 	}
 
 	etcdPort := corev1.ServicePort{
@@ -142,7 +142,7 @@ func (s *Server) StatefulServerService() *corev1.Service {
 					Name:       "k3s-server-port",
 					Protocol:   corev1.ProtocolTCP,
 					Port:       httpsPort,
-					TargetPort: intstr.FromInt(k3sServerPort),
+					TargetPort: intstr.FromInt32(k3sServerPort),
 				},
 				{
 					Name:     "k3s-etcd-port",

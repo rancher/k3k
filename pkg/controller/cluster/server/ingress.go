@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	httpsPort     = 443
-	k3sServerPort = 6443
-	etcdPort      = 2379
+	httpsPort     int32 = 443
+	k3sServerPort int32 = 6443
+	etcdPort      int32 = 2379
 )
 
 func IngressName(clusterName string) string {

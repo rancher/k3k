@@ -1,26 +1,23 @@
 package kubeconfig
 
-// This file pins the current behavior of getURLFromService() across the different
+// This file pins the behavior of getURLFromService() across the different
 // service types (ClusterIP, NodePort, LoadBalancer), Ingress exposure, and the
 // TLS SAN fallback logic.
 //
-// Several test cases intentionally assert known quirks of the current implementation.
-// They are documented here (and inline) so a future refactor knows exactly which
-// behaviors it changes:
+// The behaviors asserted here are:
 //
 // 1. ClusterIP port handling:
-//    Always uses Spec.ClusterIP and defaults to port 443; the service's declared
-//    port is ignored. Only the serverPort override changes the port.
+//    Uses Spec.ClusterIP with the service's declared port (Spec.Ports[0].Port).
+//    The port suffix is omitted only when it is the default 443.
 //
 // 2. NodePort access:
-//    Always uses hostServerIP:NodePort, with no internal/external detection.
+//    Internal/external aware. When hostServerIP == ClusterIP the connection is
+//    treated as internal and uses ClusterIP:Port; otherwise it uses
+//    hostServerIP:NodePort.
 //
 // 3. LoadBalancer hostname support:
-//    Reads only Status.LoadBalancer.Ingress[0].IP. The Hostname field is not
-//    consulted, so a hostname-only ingress produces the invalid URL "https://".
-//
-// 4. Port override:
-//    A non-zero serverPort parameter overrides the computed port.
+//    Reads Status.LoadBalancer.Ingress[0], preferring IP and falling back to
+//    Hostname, so a hostname-only ingress produces a valid URL.
 
 import (
 	"testing"
@@ -45,30 +42,20 @@ func TestURLGeneration_ClusterIP(t *testing.T) {
 		name         string
 		hostServerIP string
 		servicePort  int32
-		serverPort   int
 		expectedURL  string
 	}{
 		{
 			name:         "ClusterIP with default port 443",
 			hostServerIP: "10.0.0.1",
 			servicePort:  443,
-			serverPort:   0,
 			expectedURL:  "https://10.43.0.100",
 		},
 		{
-			// the service port is ignored for ClusterIP, so the URL has no port suffix
-			name:         "ClusterIP ignores custom service port",
+			// the service's declared port is used, so it appears in the URL
+			name:         "ClusterIP uses custom service port",
 			hostServerIP: "10.0.0.1",
 			servicePort:  8443,
-			serverPort:   0,
-			expectedURL:  "https://10.43.0.100",
-		},
-		{
-			name:         "ClusterIP with serverPort override",
-			hostServerIP: "10.0.0.1",
-			servicePort:  443,
-			serverPort:   9443,
-			expectedURL:  "https://10.43.0.100:9443",
+			expectedURL:  "https://10.43.0.100:8443",
 		},
 	}
 
@@ -77,10 +64,10 @@ func TestURLGeneration_ClusterIP(t *testing.T) {
 			cluster, svc := createClusterIPService("test-cluster", "default", tt.servicePort)
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, tt.serverPort)
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }
@@ -102,11 +89,13 @@ func TestURLGeneration_NodePort(t *testing.T) {
 			expectedURL:  "https://192.168.1.100:30443",
 		},
 		{
+			// internal access: hostServerIP == ClusterIP, so ClusterIP:Port is used
+			// instead of the NodePort (port 443 is the default, so it is omitted)
 			name:         "NodePort internal access",
 			hostServerIP: "10.43.0.100", // same as ClusterIP
 			nodePort:     30443,
 			servicePort:  443,
-			expectedURL:  "https://10.43.0.100:30443",
+			expectedURL:  "https://10.43.0.100",
 		},
 	}
 
@@ -115,10 +104,10 @@ func TestURLGeneration_NodePort(t *testing.T) {
 			cluster, svc := createNodePortService("test-cluster", "default", tt.servicePort, tt.nodePort)
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }
@@ -142,14 +131,13 @@ func TestURLGeneration_LoadBalancer(t *testing.T) {
 			expectedURL:  "https://203.0.113.10",
 		},
 		{
-			// quirk: the Hostname field is not read, so a hostname-only ingress
-			// produces the invalid URL "https://" (empty host)
+			// the Hostname field is used as a fallback when no IP is present
 			name:         "LoadBalancer with hostname ingress",
 			hostServerIP: "10.0.0.1",
 			lbIP:         "",
 			lbHostname:   "cluster.example.com",
 			servicePort:  443,
-			expectedURL:  "https://",
+			expectedURL:  "https://cluster.example.com",
 		},
 		{
 			name:         "LoadBalancer with custom port",
@@ -166,10 +154,10 @@ func TestURLGeneration_LoadBalancer(t *testing.T) {
 			cluster, svc := createLoadBalancerService("test-cluster", "default", tt.servicePort, tt.lbIP, tt.lbHostname)
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }
@@ -193,10 +181,10 @@ func TestURLGeneration_Ingress(t *testing.T) {
 			cluster, svc, ingress := createIngressService("test-cluster", "default", tt.ingressHost)
 			fakeClient := createFakeClient(t, cluster, svc, ingress)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, "10.0.0.1", 0)
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, "10.0.0.1")
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }
@@ -268,10 +256,10 @@ func TestURLGeneration_TLSSANs(t *testing.T) {
 
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP, 0)
+			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedURL, url)
+			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
 }

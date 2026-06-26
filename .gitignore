@@ -11,8 +11,3 @@ __debug*
 cover.out
 covcounters.**
 covmeta.**
-.claude/
-.claude-flow/
-.swarm
-.mcp.json
-CLAUDE.md

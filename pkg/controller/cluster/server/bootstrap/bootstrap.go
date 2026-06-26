@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,7 +41,7 @@ func Fetch(ctx context.Context, k3sClient *k3s.Client, cluster *v1beta1.Cluster,
 
 // SaveToSecret marshals the bootstrap data and stores it in a Secret owned by the cluster,
 // creating the Secret if it does not exist or updating it otherwise.
-func SaveToSecret(ctx context.Context, c client.Client, scheme *runtime.Scheme, cluster *v1beta1.Cluster, data *k3s.BootstrapData) error {
+func SaveToSecret(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, data *k3s.BootstrapData) error {
 	bootstrapData, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -56,7 +55,7 @@ func SaveToSecret(ctx context.Context, c client.Client, scheme *runtime.Scheme, 
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, c, secret, func() error {
-		if err := controllerutil.SetControllerReference(cluster, secret, scheme); err != nil {
+		if err := controllerutil.SetControllerReference(cluster, secret, c.Scheme()); err != nil {
 			return err
 		}
 

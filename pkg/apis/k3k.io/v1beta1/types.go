@@ -246,7 +246,7 @@ type SecretMount struct {
 	// if empty then the secret name will be used instead.
 	//
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	// +optional
 	Name string `json:"name,omitempty"`

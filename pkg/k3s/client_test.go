@@ -2,9 +2,9 @@ package k3s
 
 import (
 	"net/http"
-	"reflect"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_NewClient(t *testing.T) {
@@ -38,29 +38,13 @@ func Test_NewClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := New(tt.clientConfig)
-			if len(tt.expectedHeaders) != len(client.staticHeaders) {
-				t.Fatal("expected headers are not equal actual headers")
-			}
+			assert.Len(t, client.staticHeaders, len(tt.expectedHeaders))
 
 			for expectedHeader, expectedValue := range tt.expectedHeaders {
 				value, ok := client.staticHeaders[http.CanonicalHeaderKey(expectedHeader)]
-				if !ok {
-					t.Fatalf("expected header %s is not found", expectedHeader)
-				}
-
-				if !reflect.DeepEqual(expectedValue, value) {
-					t.Fatalf("expected %v for header %s, got %v instead", expectedValue, expectedHeader, value)
-				}
+				assert.True(t, ok, "expected header %s is not found", expectedHeader)
+				assert.Equal(t, expectedValue, value)
 			}
 		})
 	}
-}
-
-func getServerAddress(serverURL string) string {
-	serverAddress := strings.Split(serverURL, "//")
-	if len(serverAddress) == 2 {
-		return serverAddress[1]
-	}
-
-	return ""
 }

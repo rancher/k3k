@@ -1418,7 +1418,7 @@ spec:
                         Name is the name of the secret mount volume that will be used
                         as the name of volume and volume mount for the server or agent pod
                         if empty then the secret name will be used instead.
-                      maxLength: 253
+                      maxLength: 63
                       minLength: 1
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string

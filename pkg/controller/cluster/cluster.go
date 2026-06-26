@@ -460,7 +460,7 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 		return err
 	}
 
-	return bootstrap.SaveToSecret(ctx, c.Client, c.Client.Scheme(), cluster, data)
+	return bootstrap.SaveToSecret(ctx, c.Client, cluster, data)
 }
 
 // ensureKubeconfigSecret will create or update the Secret containing the kubeconfig data from the k3s server
@@ -889,7 +889,7 @@ func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1bet
 }
 
 func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
-	config := agent.NewConfig(cluster, c.Client, c.Client.Scheme())
+	config := agent.NewConfig(cluster, c.Client)
 
 	var agentEnsurer agent.ResourceEnsurer
 	if cluster.Spec.Mode == agent.VirtualNodeMode {

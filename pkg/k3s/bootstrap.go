@@ -42,29 +42,23 @@ type K3SConfig struct {
 
 func (c *Client) GetServerConfig() (*K3SConfig, error) {
 	endpoint := "/v1-k3s/config"
-
-	k3sConfig, err := do[K3SConfig](c, endpoint, "node", http.MethodGet)
-	if err != nil {
-		return nil, err
-	}
-
-	return &k3sConfig, nil
+	return do[*K3SConfig](c, endpoint, "node", http.MethodGet)
 }
 
 func (c *Client) GetServerBootstrap() (*BootstrapData, error) {
 	endpoint := "/v1-k3s/server-bootstrap"
 
-	bootstrap, err := do[BootstrapData](c, endpoint, "server", http.MethodGet)
+	bootstrap, err := do[*BootstrapData](c, endpoint, "server", http.MethodGet)
 	if err != nil {
 		return nil, err
 	}
 
 	// we still need to decode each certs since the bootstrap data endpoint base64 encode each cert
-	if err := decode(&bootstrap); err != nil {
+	if err := decode(bootstrap); err != nil {
 		return nil, fmt.Errorf("failed to decode bootstrap secret: %w", err)
 	}
 
-	return &bootstrap, nil
+	return bootstrap, nil
 }
 
 func decode(data *BootstrapData) error {
@@ -175,7 +169,7 @@ func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.
 		Stdout:  true,
 	}, parameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(config, http.MethodPost, req.URL())
 	if err != nil {
 		return nil, fmt.Errorf("error while creating Executor: %v", err)
 	}

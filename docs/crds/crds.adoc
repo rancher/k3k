@@ -614,7 +614,7 @@ mode, like fsGroup, and the result can be other mode bits set. + |  |
 | *`optional`* __boolean__ | optional field specify whether the Secret or its keys must be defined + |  | 
 | *`name`* __string__ | Name is the name of the secret mount volume that will be used +
 as the name of volume and volume mount for the server or agent pod +
-if empty then the secret name will be used instead. + |  | MaxLength: 253 +
+if empty then the secret name will be used instead. + |  | MaxLength: 63 +
 MinLength: 1 +
 Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` +
 

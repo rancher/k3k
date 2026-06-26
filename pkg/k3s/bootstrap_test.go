@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
+	"net/url"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_GetServerConfig(t *testing.T) {
@@ -56,31 +59,26 @@ func Test_GetServerConfig(t *testing.T) {
 			}
 
 			mux.Handle("/v1-k3s/config", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if _, err := w.Write([]byte(tt.serverResponse)); err != nil {
-					t.Fatalf("failed to write server response: %v", err)
-				}
+				_, err := w.Write([]byte(tt.serverResponse))
+				require.NoError(t, err)
 			}))
 
 			if tt.clientConfig.ServerIP == "" {
-				tt.clientConfig.ServerIP = getServerAddress(mockServer.URL)
+				u, err := url.Parse(mockServer.URL)
+				require.NoError(t, err)
+				tt.clientConfig.ServerIP = u.Host
 			}
 
 			k3sClient := New(tt.clientConfig)
 
 			k3sConfig, err := k3sClient.GetServerConfig()
-			if err != nil {
-				if tt.expectedErr != nil {
-					if err.Error() != tt.expectedErr.Error() {
-						t.Fatalf("expected err %v got %v", tt.expectedErr, err)
-					}
-				} else {
-					t.Fatalf("failed to get server config: %v", err)
-				}
+			if err != nil && tt.expectedErr != nil {
+				assert.EqualError(t, err, tt.expectedErr.Error())
+			} else {
+				require.NoError(t, err)
 			}
 
-			if !reflect.DeepEqual(k3sConfig, tt.expectedConfig) {
-				t.Fatalf("got config %v expected %v", k3sConfig, tt.expectedConfig)
-			}
+			assert.Equal(t, tt.expectedConfig, k3sConfig)
 		})
 	}
 }
@@ -134,24 +132,20 @@ func Test_GetServerBootstrap(t *testing.T) {
 	defer mockServer.Close()
 
 	serverResponse, err := json.Marshal(fakeBootstrap)
-	if err != nil {
-		t.Fatalf("failed to marshal server response: %v", err)
-	}
+	require.NoError(t, err)
 
 	mux.Handle("/v1-k3s/server-bootstrap", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := w.Write(serverResponse); err != nil {
-			t.Fatalf("failed to write server response: %v", err)
-		}
+		_, err := w.Write(serverResponse)
+		require.NoError(t, err)
 	}))
 
-	k3sClient := New(ClientConfig{ServerIP: getServerAddress(mockServer.URL)})
+	u, err := url.Parse(mockServer.URL)
+	require.NoError(t, err)
+
+	k3sClient := New(ClientConfig{ServerIP: u.Host})
 
 	bootstrap, err := k3sClient.GetServerBootstrap()
-	if err != nil {
-		t.Fatalf("failed to get server bootstrap: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !reflect.DeepEqual(bootstrap, expectedBootstrap) {
-		t.Fatalf("got bootstrap %v expected %v", bootstrap, expectedBootstrap)
-	}
+	assert.Equal(t, expectedBootstrap, bootstrap)
 }

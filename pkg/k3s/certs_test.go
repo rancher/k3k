@@ -4,8 +4,11 @@ import (
 	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
+	"net/url"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -36,24 +39,20 @@ func Test_GetServingKubeletCert(t *testing.T) {
 	defer mockServer.Close()
 
 	mux.Handle("/v1-k3s/serving-kubelet.crt", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := w.Write([]byte(fakeCertPEM + fakeKeyPEM)); err != nil {
-			t.Fatalf("failed to write server response: %v", err)
-		}
+		_, err := w.Write([]byte(fakeCertPEM + fakeKeyPEM))
+		require.NoError(t, err)
 	}))
 
-	k3sClient := New(ClientConfig{ServerIP: getServerAddress(mockServer.URL)})
+	u, err := url.Parse(mockServer.URL)
+	require.NoError(t, err)
+
+	k3sClient := New(ClientConfig{ServerIP: u.Host})
 
 	expectedCert, err := tls.X509KeyPair([]byte(fakeCertPEM), []byte(fakeKeyPEM))
-	if err != nil {
-		t.Fatalf("failed to parse expected response: %v", err)
-	}
+	require.NoError(t, err)
 
 	cert, err := k3sClient.GetServingKubeletCrt()
-	if err != nil {
-		t.Fatalf("failed to get server bootstrap: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !reflect.DeepEqual(*cert, expectedCert) {
-		t.Fatalf("certificates dont match expected cert")
-	}
+	assert.Equal(t, expectedCert, *cert)
 }

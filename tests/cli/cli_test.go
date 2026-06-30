@@ -62,14 +62,20 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				fwk3k.DeleteNamespaces(k8s, namespace.Name)
 			})
 
+			By("creating the cluster")
+
 			_, stderr, err = K3kcli("cluster", "create", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
+
+			By("listing the clusters")
 
 			stdout, stderr, err = K3kcli("cluster", "list")
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(BeEmpty())
 			Expect(stdout).To(ContainSubstring(clusterNamespace))
+
+			By("deleting the clusters")
 
 			_, stderr, err = K3kcli("cluster", "delete", "--namespace", clusterNamespace, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
@@ -101,7 +107,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
 			})
 
-			_, stderr, err = K3kcli("cluster", "create", "--version", k3sVersion, clusterName)
+			_, stderr, err = K3kcli("cluster", "create", "--namespace", clusterNamespace, "--version", k3sVersion, clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 		})

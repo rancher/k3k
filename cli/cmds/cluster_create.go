@@ -77,7 +77,7 @@ func NewClusterCreateCmd(appCtx *AppContext) *cobra.Command {
 
 func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := cmd.Context()
 		client := appCtx.Client
 		name := args[0]
 
@@ -314,7 +314,7 @@ func waitForClusterReady(ctx context.Context, k8sClient client.Client, cluster *
 
 	return wait.PollUntilContextTimeout(ctx, interval, timeout, true, func(ctx context.Context) (bool, error) {
 		key := client.ObjectKeyFromObject(cluster)
-		if err := k8sClient.Get(ctx, key, cluster); err != nil {
+		if err := k8sClient.Get(context.Background(), key, cluster); err != nil {
 			return false, fmt.Errorf("failed to get resource: %w", err)
 		}
 

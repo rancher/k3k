@@ -92,6 +92,10 @@ func CobraFlagNamespace(appCtx *AppContext, flag *pflag.FlagSet) {
 }
 
 func InitializeConfig(cmd *cobra.Command) {
+	// Use a "K3KCLI" prefix so that only namespaced environment variables (e.g.
+	// K3KCLI_VERSION) bind to flags. Without a prefix, common environment variables
+	// such as VERSION, MODE or TOKEN would silently override the matching CLI flags.
+	viper.SetEnvPrefix("K3KCLI")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
 

@@ -84,6 +84,9 @@ jobs:
     - name: Run cli tests
       env:
         K3S_HOST_VERSION: "${{ env.K3S_HOST_VERSION }}"
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        REPO: ${{ env.REPO }}
+        VERSION: ${{ env.VERSION }}
       run: make test-cli
 
     - name: Convert coverage data

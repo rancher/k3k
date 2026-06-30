@@ -3,6 +3,7 @@ package cmds
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -11,7 +12,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -47,14 +47,21 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 
 		namespace := appCtx.Namespace(name)
 
+		cluster := v1beta1.Cluster{}
+		clusterKey := types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		}
+		if err := client.Get(ctx, clusterKey, &cluster); err != nil {
+			if apierrors.IsNotFound(err) {
+				return fmt.Errorf("cluster %q not found in namespace %q; use `k3kcli cluster list` to check the namespace, or pass --namespace", name, namespace)
+			}
+
+			return err
+		}
+
 		logrus.Infof("Deleting '%s' cluster in namespace '%s'", name, namespace)
 
-		cluster := v1beta1.Cluster{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
-			},
-		}
 		// keep bootstrap secrets and tokens if --keep-data flag is passed
 		if keepData {
 			// skip removing tokenSecret

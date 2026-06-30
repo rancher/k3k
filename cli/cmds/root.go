@@ -92,6 +92,7 @@ func CobraFlagNamespace(appCtx *AppContext, flag *pflag.FlagSet) {
 }
 
 func InitializeConfig(cmd *cobra.Command) {
+	viper.SetEnvPrefix("K3K")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
 

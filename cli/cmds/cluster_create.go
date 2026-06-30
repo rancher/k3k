@@ -312,9 +312,9 @@ func waitForClusterReconciled(ctx context.Context, k8sClient client.Client, clus
 func waitForClusterReady(ctx context.Context, k8sClient client.Client, cluster *v1beta1.Cluster, timeout time.Duration) error {
 	interval := 5 * time.Second
 
-	return wait.PollUntilContextTimeout(ctx, interval, timeout, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(context.Background(), interval, time.Minute*5, true, func(ctx context.Context) (bool, error) {
 		key := client.ObjectKeyFromObject(cluster)
-		if err := k8sClient.Get(context.Background(), key, cluster); err != nil {
+		if err := k8sClient.Get(ctx, key, cluster); err != nil {
 			return false, fmt.Errorf("failed to get resource: %w", err)
 		}
 

@@ -21,7 +21,7 @@ func Test_InitializeConfig_envPrefix(t *testing.T) {
 		},
 		{
 			name:    "prefixed env binds to flag",
-			envName: "K3KCLI_VERSION",
+			envName: "K3K_VERSION",
 			want:    "1h",
 		},
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"slices"
 	"strings"
@@ -662,6 +663,13 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 			return err
 		}
 
+		// Retain existing annotations but overwrite with our generated
+		// annotations.
+		if currentService.Annotations == nil {
+			currentService.Annotations = expectedService.Annotations
+		} else {
+			maps.Copy(currentService.Annotations, expectedService.Annotations)
+		}
 		currentService.Spec = expectedService.Spec
 
 		return nil

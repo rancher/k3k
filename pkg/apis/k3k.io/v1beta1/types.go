@@ -494,6 +494,11 @@ type ExposeConfig struct {
 	//
 	// +optional
 	NodePort *NodePortConfig `json:"nodePort,omitempty"`
+
+	// Annotations specifies annotations to add to the generated Service.
+	//
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // IngressConfig specifies options for exposing the API server through an Ingress.

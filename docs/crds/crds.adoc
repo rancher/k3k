@@ -381,6 +381,7 @@ _Appears In:_
 | *`ingress`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-ingressconfig[$$IngressConfig$$]__ | Ingress specifies options for exposing the API server through an Ingress. + |  | 
 | *`loadBalancer`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-loadbalancerconfig[$$LoadBalancerConfig$$]__ | LoadBalancer specifies options for exposing the API server through a LoadBalancer service. + |  | 
 | *`nodePort`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-nodeportconfig[$$NodePortConfig$$]__ | NodePort specifies options for exposing the API server through NodePort. + |  | 
+| *`annotations`* __object (keys:string, values:string)__ | Annotations specifies annotations to add to the generated Service. + |  | 
 |===
 
 

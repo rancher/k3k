@@ -87,8 +87,8 @@ func NewVirtualClusters(n int) []*VirtualCluster {
 	return clusters
 }
 
-func NewCluster(namespace string) *v1beta1.Cluster {
-	return &v1beta1.Cluster{
+func NewCluster(namespace string, opts ...func(*v1beta1.Cluster)) *v1beta1.Cluster {
+	c := &v1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "cluster-",
 			Namespace:    namespace,
@@ -103,6 +103,12 @@ func NewCluster(namespace string) *v1beta1.Cluster {
 			},
 		},
 	}
+
+	for _, optFn := range opts {
+		optFn(c)
+	}
+
+	return c
 }
 
 func CreateCluster(cluster *v1beta1.Cluster) {

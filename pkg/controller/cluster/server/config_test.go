@@ -2,9 +2,10 @@ package server
 
 import (
 	"fmt"
-	"reflect"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -23,37 +24,33 @@ const (
 	testClusterNamespace      = "test-ns"
 )
 
-func Test_BuildServerConfig(t *testing.T) {
-	type args struct {
+var defaultTLSSANs = []string{
+	testServiceIP,
+	ServiceName(testClusterName),
+	fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace),
+}
+
+func Test_buildServerConfig(t *testing.T) {
+	tests := []struct {
+		name       string
 		cluster    *v1beta1.Cluster
 		initServer bool
-		token      string
-		serviceIP  string
-	}
-
-	tests := []struct {
-		name         string
-		args         args
-		expectedData serverConfig
+		expected   serverConfig
 	}{
 		{
-			name: "Init server config with default cluster spec",
-			args: args{
-				cluster: &v1beta1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      testClusterName,
-						Namespace: testClusterNamespace,
-					},
-					Status: v1beta1.ClusterStatus{
-						ClusterCIDR: defaultSharedClusterCIDR,
-						ServiceCIDR: defaultSharedServiceCIDR,
-					},
+			name: "init server with default (shared) cluster spec",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testClusterName,
+					Namespace: testClusterNamespace,
 				},
-				initServer: true,
-				token:      testToken,
-				serviceIP:  testServiceIP,
+				Status: v1beta1.ClusterStatus{
+					ClusterCIDR: defaultSharedClusterCIDR,
+					ServiceCIDR: defaultSharedServiceCIDR,
+				},
 			},
-			expectedData: serverConfig{
+			initServer: true,
+			expected: serverConfig{
 				ClusterInit:        true,
 				ClusterCIDR:        defaultSharedClusterCIDR,
 				ServiceCIDR:        defaultSharedServiceCIDR,
@@ -61,27 +58,23 @@ func Test_BuildServerConfig(t *testing.T) {
 				EgressSelectorMode: "disabled",
 				Token:              testToken,
 				Disable:            []string{"servicelb", "traefik", "metrics-server", "local-storage"},
-				TLSSAN:             []string{testServiceIP, ServiceName(testClusterName), fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace)},
+				TLSSAN:             defaultTLSSANs,
 			},
 		},
 		{
-			name: "server config with default cluster spec",
-			args: args{
-				cluster: &v1beta1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      testClusterName,
-						Namespace: testClusterNamespace,
-					},
-					Status: v1beta1.ClusterStatus{
-						ClusterCIDR: defaultSharedClusterCIDR,
-						ServiceCIDR: defaultSharedServiceCIDR,
-					},
+			name: "non-init server with default (shared) cluster spec",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testClusterName,
+					Namespace: testClusterNamespace,
 				},
-				initServer: false,
-				token:      testToken,
-				serviceIP:  testServiceIP,
+				Status: v1beta1.ClusterStatus{
+					ClusterCIDR: defaultSharedClusterCIDR,
+					ServiceCIDR: defaultSharedServiceCIDR,
+				},
 			},
-			expectedData: serverConfig{
+			initServer: false,
+			expected: serverConfig{
 				ClusterInit:        true,
 				ClusterCIDR:        defaultSharedClusterCIDR,
 				ServiceCIDR:        defaultSharedServiceCIDR,
@@ -89,88 +82,103 @@ func Test_BuildServerConfig(t *testing.T) {
 				EgressSelectorMode: "disabled",
 				Token:              testToken,
 				Disable:            []string{"servicelb", "traefik", "metrics-server", "local-storage"},
-				TLSSAN:             []string{testServiceIP, ServiceName(testClusterName), fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace)},
+				TLSSAN:             defaultTLSSANs,
 				Server:             "https://" + testServiceIP,
 			},
 		},
 		{
-			name: "Init server config with virtual mode cluster",
-			args: args{
-				cluster: &v1beta1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      testClusterName,
-						Namespace: testClusterNamespace,
-					},
-					Spec: v1beta1.ClusterSpec{
-						Mode: v1beta1.VirtualClusterMode,
-					},
-					Status: v1beta1.ClusterStatus{
-						ClusterCIDR: defaultVirtualClusterCIDR,
-						ServiceCIDR: defaultVirtualServiceCIDR,
-					},
+			name: "explicit shared mode cluster",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testClusterName,
+					Namespace: testClusterNamespace,
 				},
-				initServer: true,
-				token:      testToken,
-				serviceIP:  testServiceIP,
+				Spec: v1beta1.ClusterSpec{
+					Mode: v1beta1.SharedClusterMode,
+				},
+				Status: v1beta1.ClusterStatus{
+					ClusterCIDR: defaultSharedClusterCIDR,
+					ServiceCIDR: defaultSharedServiceCIDR,
+				},
 			},
-			expectedData: serverConfig{
-				ClusterInit: true,
-				ClusterCIDR: defaultVirtualClusterCIDR,
-				ServiceCIDR: defaultVirtualServiceCIDR,
-				Token:       testToken,
-				TLSSAN:      []string{testServiceIP, ServiceName(testClusterName), fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace)},
+			initServer: true,
+			expected: serverConfig{
+				ClusterInit:        true,
+				ClusterCIDR:        defaultSharedClusterCIDR,
+				ServiceCIDR:        defaultSharedServiceCIDR,
+				DisableAgent:       true,
+				EgressSelectorMode: "disabled",
+				Token:              testToken,
+				Disable:            []string{"servicelb", "traefik", "metrics-server", "local-storage"},
+				TLSSAN:             defaultTLSSANs,
 			},
 		},
 		{
-			name: "server config with virtual mode cluster",
-			args: args{
-				cluster: &v1beta1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      testClusterName,
-						Namespace: testClusterNamespace,
-					},
-					Spec: v1beta1.ClusterSpec{
-						Mode: v1beta1.VirtualClusterMode,
-					},
-					Status: v1beta1.ClusterStatus{
-						ClusterCIDR: defaultVirtualClusterCIDR,
-						ServiceCIDR: defaultVirtualServiceCIDR,
-					},
+			name: "init server with virtual mode cluster",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testClusterName,
+					Namespace: testClusterNamespace,
 				},
-				initServer: false,
-				token:      testToken,
-				serviceIP:  testServiceIP,
+				Spec: v1beta1.ClusterSpec{
+					Mode: v1beta1.VirtualClusterMode,
+				},
+				Status: v1beta1.ClusterStatus{
+					ClusterCIDR: defaultVirtualClusterCIDR,
+					ServiceCIDR: defaultVirtualServiceCIDR,
+				},
 			},
-			expectedData: serverConfig{
+			initServer: true,
+			expected: serverConfig{
 				ClusterInit: true,
 				ClusterCIDR: defaultVirtualClusterCIDR,
 				ServiceCIDR: defaultVirtualServiceCIDR,
 				Token:       testToken,
-				TLSSAN:      []string{testServiceIP, ServiceName(testClusterName), fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace)},
+				TLSSAN:      defaultTLSSANs,
+			},
+		},
+		{
+			name: "non-init server with virtual mode cluster",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testClusterName,
+					Namespace: testClusterNamespace,
+				},
+				Spec: v1beta1.ClusterSpec{
+					Mode: v1beta1.VirtualClusterMode,
+				},
+				Status: v1beta1.ClusterStatus{
+					ClusterCIDR: defaultVirtualClusterCIDR,
+					ServiceCIDR: defaultVirtualServiceCIDR,
+				},
+			},
+			initServer: false,
+			expected: serverConfig{
+				ClusterInit: true,
+				ClusterCIDR: defaultVirtualClusterCIDR,
+				ServiceCIDR: defaultVirtualServiceCIDR,
+				Token:       testToken,
+				TLSSAN:      defaultTLSSANs,
 				Server:      "https://" + testServiceIP,
 			},
 		},
 		{
-			name: "Init server config with clusterDNS cluster spec",
-			args: args{
-				cluster: &v1beta1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      testClusterName,
-						Namespace: testClusterNamespace,
-					},
-					Spec: v1beta1.ClusterSpec{
-						ClusterDNS: testClusterDNS,
-					},
-					Status: v1beta1.ClusterStatus{
-						ClusterCIDR: defaultSharedClusterCIDR,
-						ServiceCIDR: defaultSharedServiceCIDR,
-					},
+			name: "init server with clusterDNS cluster spec",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testClusterName,
+					Namespace: testClusterNamespace,
 				},
-				initServer: true,
-				token:      testToken,
-				serviceIP:  testServiceIP,
+				Spec: v1beta1.ClusterSpec{
+					ClusterDNS: testClusterDNS,
+				},
+				Status: v1beta1.ClusterStatus{
+					ClusterCIDR: defaultSharedClusterCIDR,
+					ServiceCIDR: defaultSharedServiceCIDR,
+				},
 			},
-			expectedData: serverConfig{
+			initServer: true,
+			expected: serverConfig{
 				ClusterInit:        true,
 				ClusterDNS:         testClusterDNS,
 				ClusterCIDR:        defaultSharedClusterCIDR,
@@ -179,39 +187,66 @@ func Test_BuildServerConfig(t *testing.T) {
 				EgressSelectorMode: "disabled",
 				Token:              testToken,
 				Disable:            []string{"servicelb", "traefik", "metrics-server", "local-storage"},
-				TLSSAN:             []string{testServiceIP, ServiceName(testClusterName), fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace)},
+				TLSSAN:             defaultTLSSANs,
+			},
+		},
+		{
+			name: "init server with custom TLSSANs merged and sorted",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testClusterName,
+					Namespace: testClusterNamespace,
+				},
+				Spec: v1beta1.ClusterSpec{
+					// intentionally unsorted and with a duplicate of serviceIP
+					TLSSANs: []string{"custom.example.com", testServiceIP},
+				},
+				Status: v1beta1.ClusterStatus{
+					ClusterCIDR: defaultSharedClusterCIDR,
+					ServiceCIDR: defaultSharedServiceCIDR,
+				},
+			},
+			initServer: true,
+			expected: serverConfig{
+				ClusterInit:        true,
+				ClusterCIDR:        defaultSharedClusterCIDR,
+				ServiceCIDR:        defaultSharedServiceCIDR,
+				DisableAgent:       true,
+				EgressSelectorMode: "disabled",
+				Token:              testToken,
+				Disable:            []string{"servicelb", "traefik", "metrics-server", "local-storage"},
+				// sets.List() returns a sorted, de-duplicated slice
+				TLSSAN: []string{
+					testServiceIP,
+					"custom.example.com",
+					ServiceName(testClusterName),
+					fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace),
+				},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serverConfig := buildServerConfig(tt.args.cluster, tt.args.initServer, tt.args.serviceIP, tt.args.token)
-			if !reflect.DeepEqual(tt.expectedData, serverConfig) {
-				t.Errorf("found %v, expected %v", serverConfig, tt.expectedData)
-			}
+			config := buildServerConfig(tt.cluster, tt.initServer, testServiceIP, testToken)
+			assert.Equal(t, tt.expected, config)
 		})
 	}
 }
 
-func Test_SetupStartCommand_MultipleServerArgs(t *testing.T) {
-	servers := int32(1)
+func Test_setupStartCommand_MultipleServerArgs(t *testing.T) {
 	cluster := &v1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{Name: testClusterName, Namespace: testClusterNamespace},
 		Spec: v1beta1.ClusterSpec{
-			Servers:    &servers,
+			Servers:    new(int32(1)),
 			ServerArgs: []string{"--tls-san=foo.example.com", "--kubelet-arg=cgroups-per-qos=false", "--kubelet-arg=enforce-node-allocatable="},
 		},
 	}
 	s := &Server{cluster: cluster}
 
 	script, err := s.setupStartCommand()
-	if err != nil {
-		t.Fatalf("setupStartCommand failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	expected := `EXTRA_ARGS="--tls-san=foo.example.com --kubelet-arg=cgroups-per-qos=false --kubelet-arg=enforce-node-allocatable="`
-	if !strings.Contains(script, expected) {
-		t.Errorf("script missing quoted EXTRA_ARGS assignment.\nwant: %s\ngot script:\n%s", expected, script)
-	}
+	assert.Contains(t, script, expected)
 }

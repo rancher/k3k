@@ -288,7 +288,8 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {
 
 	By(fmt.Sprintf("Nginx Pod is running (%s/%s)", nginxPod.Namespace, nginxPod.Name))
 
-	// only check the pod on the host cluster if the mode is shared mode
+	// only check the pod on the host cluster if the mode is shared mode.
+	// hcp is agentless and BYO-node, so no host-side pod mirror exists.
 	if c.Cluster.Spec.Mode != v1beta1.SharedClusterMode {
 		return nginxPod, ""
 	}

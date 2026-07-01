@@ -45,11 +45,10 @@ type ClusterSpec struct {
 	// +optional
 	Version string `json:"version,omitempty"`
 
-	// Mode specifies the cluster provisioning mode: "shared" or "virtual".
-	// Defaults to "shared". This field is immutable.
+	// Mode specifies the cluster provisioning mode.
 	//
-	// +kubebuilder:default="shared"
-	// +kubebuilder:validation:Enum=shared;virtual
+	// +kubebuilder:default=shared
+	// +kubebuilder:validation:Enum=shared;virtual;hcp
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
 	// +optional
 	Mode ClusterMode `json:"mode,omitempty"`
@@ -262,10 +261,9 @@ type SecretMount struct {
 	// +optional
 	SubPath string `json:"subPath,omitempty"`
 	// Role is the type of the k3k pod that will be used to mount the secret.
-	// This can be 'server', 'agent', or 'all' (for both).
 	//
-	// +optional
 	// +kubebuilder:validation:Enum=server;agent;all
+	// +optional
 	Role string `json:"role,omitempty"`
 }
 
@@ -422,8 +420,7 @@ type StorageClassSyncConfig struct {
 
 // ClusterMode is the possible provisioning mode of a Cluster.
 //
-// +kubebuilder:validation:Enum=shared;virtual
-// +kubebuilder:default="shared"
+// Supported values: `shared`, `virtual`, `hcp`.
 type ClusterMode string
 
 const (
@@ -432,6 +429,11 @@ const (
 
 	// VirtualClusterMode represents a cluster that runs in a virtual environment.
 	VirtualClusterMode = ClusterMode("virtual")
+
+	// HCPClusterMode represents a Hosted Control Plane: an agentless K3s control
+	// plane managed by k3k inside the host cluster. End users join their own
+	// external nodes (BYO) using the standard K3s installer command.
+	HCPClusterMode = ClusterMode("hcp")
 )
 
 // PersistenceMode is the storage mode of a Cluster.
@@ -635,7 +637,7 @@ type ClusterStatus struct {
 
 	// Phase is a high-level summary of the cluster's current lifecycle state.
 	//
-	// +kubebuilder:default="Unknown"
+	// +kubebuilder:default=Unknown
 	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Failed;Terminating;Unknown
 	// +optional
 	Phase ClusterPhase `json:"phase,omitempty"`
@@ -780,9 +782,10 @@ type VirtualClusterPolicySpec struct {
 	// +optional
 	DefaultAgentAffinity *corev1.Affinity `json:"defaultAgentAffinity,omitempty"`
 
-	// AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared".
+	// AllowedMode specifies the allowed cluster provisioning mode.
 	//
 	// +kubebuilder:default=shared
+	// +kubebuilder:validation:Enum=shared;virtual;hcp
 	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
 	// +optional
 	AllowedMode ClusterMode `json:"allowedMode,omitempty"`
@@ -794,6 +797,7 @@ type VirtualClusterPolicySpec struct {
 
 	// PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace.
 	//
+	// +kubebuilder:validation:Enum=privileged;baseline;restricted
 	// +optional
 	PodSecurityAdmissionLevel *PodSecurityAdmissionLevel `json:"podSecurityAdmissionLevel,omitempty"`
 
@@ -826,7 +830,7 @@ type VirtualClusterPolicySpec struct {
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.
 //
-// +kubebuilder:validation:Enum=privileged;baseline;restricted
+// Supported values: `privileged`, `baseline`, `restricted`.
 type PodSecurityAdmissionLevel string
 
 const (

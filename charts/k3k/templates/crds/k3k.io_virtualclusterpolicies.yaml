@@ -51,10 +51,11 @@ spec:
             properties:
               allowedMode:
                 default: shared
-                description: AllowedMode specifies the allowed cluster provisioning mode. Defaults to "shared".
+                description: AllowedMode specifies the allowed cluster provisioning mode.
                 enum:
                 - shared
                 - virtual
+                - hcp
                 type: string
                 x-kubernetes-validations:
                 - message: mode is immutable

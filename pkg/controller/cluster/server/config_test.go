@@ -2,8 +2,9 @@ package server
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -43,6 +44,9 @@ func Test_BuildServerConfig(t *testing.T) {
 						Name:      testClusterName,
 						Namespace: testClusterNamespace,
 					},
+					Spec: v1beta1.ClusterSpec{
+						Mode: v1beta1.SharedClusterMode,
+					},
 					Status: v1beta1.ClusterStatus{
 						ClusterCIDR: defaultSharedClusterCIDR,
 						ServiceCIDR: defaultSharedServiceCIDR,
@@ -70,6 +74,9 @@ func Test_BuildServerConfig(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      testClusterName,
 						Namespace: testClusterNamespace,
+					},
+					Spec: v1beta1.ClusterSpec{
+						Mode: v1beta1.SharedClusterMode,
 					},
 					Status: v1beta1.ClusterStatus{
 						ClusterCIDR: defaultSharedClusterCIDR,
@@ -150,6 +157,69 @@ func Test_BuildServerConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "Init server config with HCP mode cluster",
+			args: args{
+				cluster: &v1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      testClusterName,
+						Namespace: testClusterNamespace,
+					},
+					Spec: v1beta1.ClusterSpec{
+						Mode: v1beta1.HCPClusterMode,
+					},
+					Status: v1beta1.ClusterStatus{
+						ClusterCIDR: defaultSharedClusterCIDR,
+						ServiceCIDR: defaultSharedServiceCIDR,
+					},
+				},
+				initServer: true,
+				token:      testToken,
+				serviceIP:  testServiceIP,
+			},
+			expectedData: serverConfig{
+				ClusterInit:        true,
+				ClusterCIDR:        defaultSharedClusterCIDR,
+				ServiceCIDR:        defaultSharedServiceCIDR,
+				DisableAgent:       true,
+				EgressSelectorMode: "cluster",
+				KubeApiServerArg:   []string{"endpoint-reconciler-type=none"},
+				Token:              testToken,
+				TLSSAN:             []string{testServiceIP, ServiceName(testClusterName), fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace)},
+			},
+		},
+		{
+			name: "server config with HCP mode cluster",
+			args: args{
+				cluster: &v1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      testClusterName,
+						Namespace: testClusterNamespace,
+					},
+					Spec: v1beta1.ClusterSpec{
+						Mode: v1beta1.HCPClusterMode,
+					},
+					Status: v1beta1.ClusterStatus{
+						ClusterCIDR: defaultSharedClusterCIDR,
+						ServiceCIDR: defaultSharedServiceCIDR,
+					},
+				},
+				initServer: false,
+				token:      testToken,
+				serviceIP:  testServiceIP,
+			},
+			expectedData: serverConfig{
+				ClusterInit:        true,
+				ClusterCIDR:        defaultSharedClusterCIDR,
+				ServiceCIDR:        defaultSharedServiceCIDR,
+				DisableAgent:       true,
+				EgressSelectorMode: "cluster",
+				KubeApiServerArg:   []string{"endpoint-reconciler-type=none"},
+				Token:              testToken,
+				TLSSAN:             []string{testServiceIP, ServiceName(testClusterName), fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace)},
+				Server:             "https://" + testServiceIP,
+			},
+		},
+		{
 			name: "Init server config with clusterDNS cluster spec",
 			args: args{
 				cluster: &v1beta1.Cluster{
@@ -158,6 +228,7 @@ func Test_BuildServerConfig(t *testing.T) {
 						Namespace: testClusterNamespace,
 					},
 					Spec: v1beta1.ClusterSpec{
+						Mode:       v1beta1.SharedClusterMode,
 						ClusterDNS: testClusterDNS,
 					},
 					Status: v1beta1.ClusterStatus{
@@ -186,9 +257,7 @@ func Test_BuildServerConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			serverConfig := buildServerConfig(tt.args.cluster, tt.args.initServer, tt.args.serviceIP, tt.args.token)
-			if !reflect.DeepEqual(tt.expectedData, serverConfig) {
-				t.Errorf("found %v, expected %v", serverConfig, tt.expectedData)
-			}
+			assert.Equal(t, tt.expectedData, serverConfig)
 		})
 	}
 }

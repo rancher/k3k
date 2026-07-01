@@ -27,11 +27,22 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 	cmd.Flags().StringArrayVar(&cfg.labels, "labels", []string{}, "Labels to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringArrayVar(&cfg.annotations, "annotations", []string{}, "Annotations to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringVar(&cfg.version, "version", "", "k3s version")
-	cmd.Flags().StringVar(&cfg.mode, "mode", "shared", "k3k mode type (shared, virtual)")
+	cmd.Flags().StringVar(&cfg.mode, "mode", "shared", "k3k mode type (shared, virtual, hcp)")
 	cmd.Flags().StringVar(&cfg.kubeconfigServerHost, "kubeconfig-server", "", "override the kubeconfig server host")
 	cmd.Flags().StringVar(&cfg.policy, "policy", "", "The policy to create the cluster in")
 	cmd.Flags().StringVar(&cfg.customCertsPath, "custom-certs", "", "The path for custom certificate directory")
 	cmd.Flags().DurationVar(&cfg.timeout, "timeout", 3*time.Minute, "The timeout for waiting for the cluster to become ready (e.g., 10s, 5m, 1h).")
+}
+
+var validPersistenceModes = map[v1beta1.PersistenceMode]struct{}{
+	v1beta1.EphemeralPersistenceMode: {},
+	v1beta1.DynamicPersistenceMode:   {},
+}
+
+var validClusterModes = map[v1beta1.ClusterMode]struct{}{
+	v1beta1.VirtualClusterMode: {},
+	v1beta1.SharedClusterMode:  {},
+	v1beta1.HCPClusterMode:     {},
 }
 
 func validateCreateConfig(cfg *CreateConfig) error {
@@ -40,24 +51,22 @@ func validateCreateConfig(cfg *CreateConfig) error {
 	}
 
 	if cfg.persistenceType != "" {
-		switch v1beta1.PersistenceMode(cfg.persistenceType) {
-		case v1beta1.EphemeralPersistenceMode, v1beta1.DynamicPersistenceMode:
-			return nil
-		default:
+		persistenceMode := v1beta1.PersistenceMode(cfg.persistenceType)
+		if _, found := validPersistenceModes[persistenceMode]; !found {
 			return errors.New(`persistence-type should be one of "dynamic" or "ephemeral"`)
 		}
 	}
 
-	if _, err := resource.ParseQuantity(cfg.storageRequestSize); err != nil {
-		return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
+	if cfg.storageRequestSize != "" {
+		if _, err := resource.ParseQuantity(cfg.storageRequestSize); err != nil {
+			return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
+		}
 	}
 
 	if cfg.mode != "" {
-		switch cfg.mode {
-		case string(v1beta1.VirtualClusterMode), string(v1beta1.SharedClusterMode):
-			return nil
-		default:
-			return errors.New(`mode should be one of "shared" or "virtual"`)
+		clusterMode := v1beta1.ClusterMode(cfg.mode)
+		if _, found := validClusterModes[clusterMode]; !found {
+			return errors.New(`mode should be one of "shared", "virtual" or "hcp"`)
 		}
 	}
 

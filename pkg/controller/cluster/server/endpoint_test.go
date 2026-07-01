@@ -1,6 +1,6 @@
-package kubeconfig
+package server_test
 
-// This file pins the behavior of getURLFromService() across the different
+// This file pins the behavior of ServerURL() across the different
 // service types (ClusterIP, NodePort, LoadBalancer), Ingress exposure, and the
 // TLS SAN fallback logic.
 //
@@ -64,7 +64,7 @@ func TestURLGeneration_ClusterIP(t *testing.T) {
 			cluster, svc := createClusterIPService("test-cluster", "default", tt.servicePort)
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
+			url, err := server.ServerURL(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedURL, url.String())
@@ -104,7 +104,7 @@ func TestURLGeneration_NodePort(t *testing.T) {
 			cluster, svc := createNodePortService("test-cluster", "default", tt.servicePort, tt.nodePort)
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
+			url, err := server.ServerURL(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedURL, url.String())
@@ -154,7 +154,7 @@ func TestURLGeneration_LoadBalancer(t *testing.T) {
 			cluster, svc := createLoadBalancerService("test-cluster", "default", tt.servicePort, tt.lbIP, tt.lbHostname)
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
+			url, err := server.ServerURL(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedURL, url.String())
@@ -181,7 +181,7 @@ func TestURLGeneration_Ingress(t *testing.T) {
 			cluster, svc, ingress := createIngressService("test-cluster", "default", tt.ingressHost)
 			fakeClient := createFakeClient(t, cluster, svc, ingress)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, "10.0.0.1")
+			url, err := server.ServerURL(t.Context(), fakeClient, cluster, "10.0.0.1")
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedURL, url.String())
@@ -256,7 +256,7 @@ func TestURLGeneration_TLSSANs(t *testing.T) {
 
 			fakeClient := createFakeClient(t, cluster, svc)
 
-			url, err := getURLFromService(t.Context(), fakeClient, cluster, tt.hostServerIP)
+			url, err := server.ServerURL(t.Context(), fakeClient, cluster, tt.hostServerIP)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedURL, url.String())

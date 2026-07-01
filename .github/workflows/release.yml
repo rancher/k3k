@@ -85,7 +85,7 @@ jobs:
         echo "CURRENT_TAG=${CURRENT_TAG}" >> "$GITHUB_OUTPUT"
 
     - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7
+      uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
       with:
         distribution: goreleaser
         version: v2

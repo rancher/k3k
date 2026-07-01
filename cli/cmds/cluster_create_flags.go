@@ -34,29 +34,38 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 	cmd.Flags().DurationVar(&cfg.timeout, "timeout", 3*time.Minute, "The timeout for waiting for the cluster to become ready (e.g., 10s, 5m, 1h).")
 }
 
+var validPersistenceModes = map[v1beta1.PersistenceMode]struct{}{
+	v1beta1.EphemeralPersistenceMode: {},
+	v1beta1.DynamicPersistenceMode:   {},
+}
+
+var validClusterModes = map[v1beta1.ClusterMode]struct{}{
+	v1beta1.VirtualClusterMode: {},
+	v1beta1.SharedClusterMode:  {},
+	v1beta1.HCPClusterMode:     {},
+}
+
 func validateCreateConfig(cfg *CreateConfig) error {
 	if cfg.servers <= 0 {
 		return errors.New("invalid number of servers")
 	}
 
 	if cfg.persistenceType != "" {
-		switch v1beta1.PersistenceMode(cfg.persistenceType) {
-		case v1beta1.EphemeralPersistenceMode, v1beta1.DynamicPersistenceMode:
-			return nil
-		default:
+		persistenceMode := v1beta1.PersistenceMode(cfg.persistenceType)
+		if _, found := validPersistenceModes[persistenceMode]; !found {
 			return errors.New(`persistence-type should be one of "dynamic" or "ephemeral"`)
 		}
 	}
 
-	if _, err := resource.ParseQuantity(cfg.storageRequestSize); err != nil {
-		return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
+	if cfg.storageRequestSize != "" {
+		if _, err := resource.ParseQuantity(cfg.storageRequestSize); err != nil {
+			return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
+		}
 	}
 
 	if cfg.mode != "" {
-		switch cfg.mode {
-		case string(v1beta1.VirtualClusterMode), string(v1beta1.SharedClusterMode), string(v1beta1.HCPClusterMode):
-			return nil
-		default:
+		clusterMode := v1beta1.ClusterMode(cfg.mode)
+		if _, found := validClusterModes[clusterMode]; !found {
 			return errors.New(`mode should be one of "shared", "virtual" or "hcp"`)
 		}
 	}

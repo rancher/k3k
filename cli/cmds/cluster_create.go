@@ -131,14 +131,9 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 		}
 
 		// add Host IP address as an extra TLS-SAN to expose the k3k cluster
-		url, err := url.Parse(appCtx.RestConfig.Host)
+		host, err := extractHost(appCtx.RestConfig.Host, config.kubeconfigServerHost)
 		if err != nil {
 			return err
-		}
-
-		host := url.Hostname()
-		if config.kubeconfigServerHost != "" {
-			host = config.kubeconfigServerHost
 		}
 
 		sans := append([]string{host}, config.tlsSANs...)
@@ -484,6 +479,22 @@ func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// extractHost returns the hostname from the given server URL, stripping any
+// port and correctly handling IPv6 addresses (e.g. "[2001:db8::1]:6443").
+// If override is non-empty it is returned as-is.
+func extractHost(serverURL, override string) (string, error) {
+	if override != "" {
+		return override, nil
+	}
+
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return "", err
+	}
+
+	return u.Hostname(), nil
 }
 
 // uniqueStrings returns a new slice with duplicates removed, preserving the first occurrence order.

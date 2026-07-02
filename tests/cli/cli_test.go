@@ -132,6 +132,9 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				"--namespace", clusterNamespace,
 				"--tls-sans", "extra.example.com",
 				"--tls-sans", "192.0.2.1",
+				"--tls-sans", "host.example.com:6443",
+				"--tls-sans", "2001:db8::1",
+				"--tls-sans", "[2001:db8::1]:6443",
 				clusterName,
 			)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
@@ -141,7 +144,13 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
 			Expect(err).To(Not(HaveOccurred()))
-			Expect(cluster.Spec.TLSSANs).To(ContainElements("extra.example.com", "192.0.2.1"))
+			Expect(cluster.Spec.TLSSANs).To(ContainElements(
+				"extra.example.com",
+				"192.0.2.1",
+				"host.example.com:6443",
+				"2001:db8::1",
+				"[2001:db8::1]:6443",
+			))
 		})
 	})
 

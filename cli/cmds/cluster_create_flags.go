@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -32,6 +33,13 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 	cmd.Flags().StringVar(&cfg.policy, "policy", "", "The policy to create the cluster in")
 	cmd.Flags().StringVar(&cfg.customCertsPath, "custom-certs", "", "The path for custom certificate directory")
 	cmd.Flags().DurationVar(&cfg.timeout, "timeout", 3*time.Minute, "The timeout for waiting for the cluster to become ready (e.g., 10s, 5m, 1h).")
+
+	mustRegisterFlagCompletion(cmd, "mode", completeClusterMode)
+	mustRegisterFlagCompletion(cmd, "persistence-type", completePersistenceMode)
+
+	if err := cmd.MarkFlagDirname("custom-certs"); err != nil {
+		logrus.Fatal(err)
+	}
 }
 
 func validateCreateConfig(cfg *CreateConfig) error {

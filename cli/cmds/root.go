@@ -70,11 +70,17 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().StringVar(&appCtx.Kubeconfig, "kubeconfig", "", "kubeconfig path ($HOME/.kube/config or $KUBECONFIG if set)")
 	rootCmd.PersistentFlags().BoolVar(&appCtx.Debug, "debug", false, "Turn on debug logs")
 
+	if err := rootCmd.MarkPersistentFlagFilename("kubeconfig"); err != nil {
+		logrus.Fatal(err)
+	}
+
 	rootCmd.AddCommand(
 		NewClusterCmd(appCtx),
 		NewPolicyCmd(appCtx),
 		NewKubeconfigCmd(appCtx),
 	)
+
+	disableFileCompletion(rootCmd)
 
 	return rootCmd
 }

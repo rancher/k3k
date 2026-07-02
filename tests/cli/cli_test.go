@@ -113,6 +113,45 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 		})
+
+		It("can create a cluster with multiple --tls-sans values", func() {
+			var (
+				stderr string
+				err    error
+			)
+
+			clusterName := "cluster-" + rand.String(5)
+			namespace := fwk3k.CreateNamespace(k8s)
+			clusterNamespace := namespace.Name
+
+			DeferCleanup(func() {
+				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+			})
+
+			_, stderr, err = K3kcli("cluster", "create",
+				"--namespace", clusterNamespace,
+				"--tls-sans", "extra.example.com",
+				"--tls-sans", "192.0.2.1",
+				"--tls-sans", "host.example.com:6443",
+				"--tls-sans", "2001:db8::1",
+				"--tls-sans", "[2001:db8::1]:6443",
+				clusterName,
+			)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
+
+			var cluster v1beta1.Cluster
+
+			err = k8sClient.Get(context.Background(), types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
+			Expect(err).To(Not(HaveOccurred()))
+			Expect(cluster.Spec.TLSSANs).To(ContainElements(
+				"extra.example.com",
+				"192.0.2.1",
+				"host.example.com:6443",
+				"2001:db8::1",
+				"[2001:db8::1]:6443",
+			))
+		})
 	})
 
 	When("trying the policy commands", func() {

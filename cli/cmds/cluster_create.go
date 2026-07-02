@@ -43,6 +43,7 @@ type CreateConfig struct {
 	agentEnvs            []string
 	labels               []string
 	annotations          []string
+	tlsSANs              []string
 	persistenceType      string
 	storageClassName     string
 	storageRequestSize   string
@@ -130,17 +131,14 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 		}
 
 		// add Host IP address as an extra TLS-SAN to expose the k3k cluster
-		url, err := url.Parse(appCtx.RestConfig.Host)
+		host, err := extractHost(appCtx.RestConfig.Host, config.kubeconfigServerHost)
 		if err != nil {
 			return err
 		}
 
-		host := strings.Split(url.Host, ":")
-		if config.kubeconfigServerHost != "" {
-			host = []string{config.kubeconfigServerHost}
-		}
+		sans := append([]string{host}, config.tlsSANs...)
 
-		cluster.Spec.TLSSANs = []string{host[0]}
+		cluster.Spec.TLSSANs = uniqueStrings(sans)
 
 		if err := client.Create(ctx, cluster); err != nil {
 			if apierrors.IsAlreadyExists(err) {
@@ -481,4 +479,35 @@ func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// extractHost returns the hostname from the given server URL, stripping any
+// port and correctly handling IPv6 addresses (e.g. "[2001:db8::1]:6443").
+// If override is non-empty it is returned as-is.
+func extractHost(serverURL, override string) (string, error) {
+	if override != "" {
+		return override, nil
+	}
+
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return "", err
+	}
+
+	return u.Hostname(), nil
+}
+
+// uniqueStrings returns a new slice with duplicates removed, preserving the first occurrence order.
+func uniqueStrings(ss []string) []string {
+	seen := make(map[string]struct{}, len(ss))
+	result := make([]string, 0, len(ss))
+
+	for _, s := range ss {
+		if _, ok := seen[s]; !ok {
+			seen[s] = struct{}{}
+			result = append(result, s)
+		}
+	}
+
+	return result
 }

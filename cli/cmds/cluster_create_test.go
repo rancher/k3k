@@ -94,3 +94,52 @@ func Test_printClusterDetails(t *testing.T) {
 		})
 	}
 }
+
+func Test_extractHost(t *testing.T) {
+	tests := []struct {
+		name      string
+		serverURL string
+		override  string
+		want      string
+	}{
+		{
+			name:      "plain host",
+			serverURL: "https://example.com",
+			want:      "example.com",
+		},
+		{
+			name:      "host with port",
+			serverURL: "https://example.com:6443",
+			want:      "example.com",
+		},
+		{
+			name:      "ipv4 with port",
+			serverURL: "https://192.0.2.1:6443",
+			want:      "192.0.2.1",
+		},
+		{
+			name:      "ipv6 without port",
+			serverURL: "https://[2001:db8::1]",
+			want:      "2001:db8::1",
+		},
+		{
+			name:      "ipv6 with port",
+			serverURL: "https://[2001:db8::1]:6443",
+			want:      "2001:db8::1",
+		},
+		{
+			name:      "override wins",
+			serverURL: "https://example.com:6443",
+			override:  "custom.host",
+			want:      "custom.host",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			host, err := extractHost(tt.serverURL, tt.override)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, host)
+		})
+	}
+}

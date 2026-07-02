@@ -25,6 +25,7 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 	cmd.Flags().StringSliceVar(&cfg.agentArgs, "agent-args", []string{}, "agents extra arguments")
 	cmd.Flags().StringSliceVar(&cfg.serverEnvs, "server-envs", []string{}, "servers extra Envs")
 	cmd.Flags().StringSliceVar(&cfg.agentEnvs, "agent-envs", []string{}, "agents extra Envs")
+	cmd.Flags().StringSliceVar(&cfg.tlsSANs, "tls-sans", []string{}, "additional Subject Alternative Names for the cluster server TLS certificate")
 	cmd.Flags().StringArrayVar(&cfg.labels, "labels", []string{}, "Labels to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringArrayVar(&cfg.annotations, "annotations", []string{}, "Annotations to add to the cluster object (e.g. key=value)")
 	cmd.Flags().StringVar(&cfg.version, "version", "", "k3s version")

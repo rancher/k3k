@@ -6,38 +6,25 @@ Kata Containers runs each pod inside a lightweight QEMU VM, providing stronger i
 
 This guide covers the full setup: installing Kata, configuring the QEMU runtime and devmapper snapshotter, preparing a custom K3s image, and deploying a cluster.
 
-## Requirements
+# Prerequisites
+
+## 1. Requirements
 
 - KVM available on the host node (`/dev/kvm` accessible)
 - `vhost_net` and `vhost_vsock` kernel modules available
 - `dmsetup` and `losetup` available (device-mapper utilities)
 - K3s or RKE2 installed on the host
 
-## 1. Install Kata Containers
-
-Download and extract the Kata static binary bundle, then symlink the containerd shim:
+Load the required kernel modules:
 
 ```bash
-curl -sSL https://github.com/kata-containers/kata-containers/releases/download/3.31.0/kata-static-3.31.0-amd64.tar.zst \
-  | sudo tar --zstd -xvf - -C /
-
-ln -s /opt/kata/runtime-rs/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-v2
+sudo modprobe vhost_net
+sudo modprobe vhost_vsock
 ```
 
-## 2. Configure the QEMU Runtime
+To persist these across reboots, add them to `/etc/modules-load.d/kata.conf`.
 
-The default Kata QEMU config requires a few changes. The key ones switch the rootfs and block device transports from `virtio-pmem`/`virtio-scsi` to `virtio-blk-pci`, which is necessary because the devmapper snapshotter provides block devices rather than overlay filesystems. `shared_fs` is also disabled since `virtio-fs` is not needed when using block-backed storage.
-
-```bash
-sed -i \
-  -e 's/vm_rootfs_driver = "virtio-pmem"/vm_rootfs_driver = "virtio-blk-pci"/' \
-  -e 's/shared_fs = "virtio-fs"/shared_fs = "none"/' \
-  -e 's/block_device_driver = "virtio-scsi"/block_device_driver = "virtio-blk-pci"/' \
-  -e 's/disable_image_nvdimm = false/disable_image_nvdimm = true/' \
-  /opt/kata/share/defaults/kata-containers/runtime-rs/configuration-qemu-runtime-rs.toml
-```
-
-## 3. Set Up the devmapper Snapshotter
+## 2. Set Up the devmapper Snapshotter
 
 The default snapshotter will use virtio-fs as the container filesystem, the default overlayfs snapshotter does not work with this type, so devmapper is required in order to provide a block device.
 
@@ -96,11 +83,127 @@ pool_create() {
 pool_create
 ```
 
-The pool does not survive a reboot. Consider wrapping `pool_create` in a systemd service that runs before `k3s.service`.
+The pool does not survive a reboot. Consider wrapping `pool_create` in a systemd service that runs before `rke2-server.service`.
 
-## 4. Configure K3s containerd
+## 3. Handling emptyDir mounts
 
-Place the following template at `/var/lib/rancher/k3s/agent/etc/containerd/config-v3.toml.d/custom.toml`. It registers the `kata-qemu` runtime handler and configures the devmapper snapshotter.
+The standard K3s image declares `emptyDir` volumes in its image manifest. Kata detects these as tmpfs mounts and fails to start the container. The k3k controller automatically strips `emptyDir` volumes from the pod spec at runtime when the cluster's `runtimeClassName` starts with `kata-`, but the declarations baked into the image manifest will still be in place by default.
+
+We can avoid emptyDir mounts from image manifests by either of the following options:
+
+### Option A: Ignore the image manifest volume declaration (recommended)
+
+Configuring containerd to ignore the image manifest volumes is a simpler option, but note that it is a global setting and will apply to all runtimes on a particular node. **If you use the recommended Helm installation below, this configuration is handled automatically via the `ignore_image_defined_volumes` setting in the `kata-values.yaml`.**
+
+### Option B: Build a custom K3s image
+
+Build a custom image that omits those declarations:
+
+```dockerfile
+FROM rancher/k3s:v1.35.3-k3s1 AS rancher
+
+FROM scratch
+
+COPY --from=rancher / /
+
+ENV PATH=/var/lib/rancher/k3s/data/cni:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/bin/aux
+ENV CRI_CONFIG_FILE=/var/lib/rancher/k3s/agent/etc/crictl.yaml
+```
+
+Push this image to a registry accessible from the host cluster and configure the controller to use it for Kata-based clusters.
+
+# Helm Installation (Recommended)
+
+Using Helm is the quickest and simplest way to install Kata Containers. It automates the distribution of Kata binaries, configures containerd, and registers the necessary RuntimeClasses across your cluster. It has been tested with RKE2 1.35 and Kata 3.32.
+
+Ensure you are using a v3 containerd config. This will be the default on 1.35 if no template is provided, or you can create a blank v3 template at `/var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml.tmpl`:
+
+```toml
+{{ template "base" . }}
+```
+
+Install the `kata-deploy` Helm chart:
+
+```bash
+helm upgrade --install kata-deploy oci://ghcr.io/kata-containers/kata-deploy-charts/kata-deploy \
+  --version 3.32.0 \
+  --namespace kata-deploy \
+  --create-namespace \
+  --values=kata-values.yaml
+```
+
+Contents of `kata-values.yaml`:
+
+```yaml
+k8sDistribution: "rke2"
+
+containerd:
+  userDropIn: |
+    version = 3
+
+    [plugins.'io.containerd.cri.v1.runtime']
+      ignore_image_defined_volumes = true
+
+    [plugins.'io.containerd.snapshotter.v1.devmapper']
+      pool_name = "k3s"
+      root_path = "/opt/devmapper"
+      base_image_size = "4GB"
+      discard_blocks = true
+
+snapshotter:
+  setup: []
+
+shims:
+  disableAll: true
+
+  qemu:
+    enabled: true
+    supportedArches:
+      - amd64
+    allowedHypervisorAnnotations: []
+    containerd:
+      snapshotter: "devmapper"
+    dropIn: |
+      [hypervisor.qemu]
+      disable_block_device_use = false
+
+debug: true
+
+defaultShim:
+  amd64: qemu
+```
+
+# Manual Installation (Advanced)
+
+> **Warning:** Manual installation is highly dependent on your host OS and specific environment. The steps below should be treated as a general guide. Helm is strongly recommended for a simpler and more reliable setup.
+
+## 1. Install Kata Containers
+
+Download and extract the Kata static binary bundle, then symlink the containerd shim:
+
+```bash
+curl -sSL https://github.com/kata-containers/kata-containers/releases/download/3.32.0/kata-static-3.32.0-amd64.tar.zst \
+  | sudo tar --zstd -xvf - -C /
+
+sudo ln -s /opt/kata/runtime-rs/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-v2
+```
+
+## 2. Configure the QEMU Runtime
+
+The default Kata QEMU config requires a few changes. The key ones switch the rootfs and block device transports from `virtio-pmem`/`virtio-scsi` to `virtio-blk-pci`, which is necessary because the devmapper snapshotter provides block devices rather than overlay filesystems. `shared_fs` is also disabled since `virtio-fs` is not needed when using block-backed storage.
+
+```bash
+sudo sed -i \
+  -e 's/vm_rootfs_driver = "virtio-pmem"/vm_rootfs_driver = "virtio-blk-pci"/' \
+  -e 's/shared_fs = "virtio-fs"/shared_fs = "none"/' \
+  -e 's/block_device_driver = "virtio-scsi"/block_device_driver = "virtio-blk-pci"/' \
+  -e 's/disable_image_nvdimm = false/disable_image_nvdimm = true/' \
+  /opt/kata/share/defaults/kata-containers/runtime-rs/configuration-qemu-runtime-rs.toml
+```
+
+## 3. Configure containerd
+
+Place the following template at `/var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml.d/custom.toml`. It registers the `kata-qemu` runtime handler and configures the devmapper snapshotter.
 
 ```toml
 version = 3
@@ -120,17 +223,9 @@ version = 3
   base_image_size = "4GB"
   discard_blocks = true
 ```
-## 5. Fixing emptyDir mounts
 
-The standard K3s image declares `emptyDir` volumes in its image manifest. Kata detects these as tmpfs mounts and fails to start the container. The k3k controller automatically strips `emptyDir` volumes from the pod spec at runtime when the cluster's `runtimeClassName` starts with `kata`, but the declarations baked into the image manifest will still be in place by default.
+If you are using Option A from the "Handling emptyDir mounts" section, you must also add the following to `/var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml.d/volumes.toml`:
 
-We can avoid emptyDir mounts from image manifests by either of the following options:
-
-### 5.1 Ignore the image manifest volume declaration (recommended)
-
-Configuring containerd to ignore the image manifest volumes, this is a simpler option but is a global setting and will apply to all runtimes on a particular node.
-
-Place the below at `/var/lib/rancher/k3s/agent/etc/containerd/config-v3.toml.d/volumes.toml`
 ```toml
 version = 3
 
@@ -138,38 +233,7 @@ version = 3
   ignore_image_defined_volumes = true
 ```
 
-### 5.2 Build a custom K3S image
-
-Build a custom image that omits those declarations:
-
-```dockerfile
-FROM rancher/k3s:v1.35.3-k3s1 AS rancher
-
-FROM scratch
-
-COPY --from=rancher / /
-
-ENV PATH=/var/lib/rancher/k3s/data/cni:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/bin/aux
-ENV CRI_CONFIG_FILE=/var/lib/rancher/k3s/agent/etc/crictl.yaml
-```
-
-Push this image to a registry accessible from the host cluster and configure the controller to use it for Kata-based clusters.
-
-An alternative would be an OCI hook to strip the mounts at runtime, but that falls outside the scope of using the Kata project's supplied build artifacts.
-
-
-## 6. Load Kernel Modules
-
-`vhost_net` and `vhost_vsock` are required for VM networking and host-to-guest communication over vsock:
-
-```bash
-modprobe vhost_net
-modprobe vhost_vsock
-```
-
-To persist these across reboots, add them to `/etc/modules-load.d/kata.conf`.
-
-## 7. Create the RuntimeClass
+## 4. Create the RuntimeClass
 
 The `RuntimeClass` name **must start with `kata-`**. This prefix is how the k3k controller identifies Kata-based clusters and applies the necessary pod spec adjustments: stripping `emptyDir` volumes, injecting a `/dev/kmsg` host path mount, and configuring cgroup handling in the K3s startup script.
 
@@ -181,7 +245,7 @@ metadata:
   name: kata-qemu
 ```
 
-## 8. Create a Cluster
+# Create a Cluster
 
 Kata-based clusters require `mode: virtual` and `persistence.type: ephemeral`:
 
@@ -228,3 +292,7 @@ spec:
       secretName: datastore-config
       mountPath: /opt/rancher/k3s/server/config.yaml.d/
 ```
+
+# Notes
+
+- Currently `runtime-rs` is not supported when SELinux is enabled.

@@ -106,12 +106,7 @@ When running the tests the namespaces used are cleaned up. If you want to keep t
 KEEP_NAMESPACES=true make test-e2e
 ```
 
-The e2e and cli tests run against the cluster configured in your KUBECONFIG environment variable. Running the tests with the `K3K_DOCKER_INSTALL` environment variable set will use `tescontainers` instead:
-
-```
-K3K_DOCKER_INSTALL=true make test-e2e
-```
-
+The e2e and cli tests run against the cluster configured in your KUBECONFIG environment variable. Make sure K3k is installed on that cluster (e.g. with `make install`) before running them.
 
 We use [Ginkgo](https://onsi.github.io/ginkgo/), and [`envtest`](https://book.kubebuilder.io/reference/envtest) for testing the controllers.
 

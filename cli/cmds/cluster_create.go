@@ -136,12 +136,14 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return err
 		}
 
-		host := strings.Split(url.Host, ":")
+		host := url.Hostname()
 		if config.kubeconfigServerHost != "" {
-			host = []string{config.kubeconfigServerHost}
+			host = config.kubeconfigServerHost
 		}
 
-		cluster.Spec.TLSSANs = uniqueStrings(append([]string{host[0]}, config.tlsSANs...))
+		sans := append([]string{host}, config.tlsSANs...)
+
+		cluster.Spec.TLSSANs = uniqueStrings(sans)
 
 		if err := client.Create(ctx, cluster); err != nil {
 			if apierrors.IsAlreadyExists(err) {

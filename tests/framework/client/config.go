@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/go-logr/zapr"
-	"github.com/testcontainers/testcontainers-go/modules/k3s"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -28,7 +27,7 @@ type Config struct {
 // InitFromKubeconfig initializes Kubernetes clients from the KUBECONFIG environment variable.
 // It sets up logging, reads the kubeconfig file, creates REST config and clients.
 // The scheme parameter should be created using the scheme package.
-func InitFromKubeconfig(ctx context.Context, scheme *runtime.Scheme, k3sContainer *k3s.K3sContainer) (*Config, error) {
+func InitFromKubeconfig(ctx context.Context, scheme *runtime.Scheme) (*Config, error) {
 	// Setup logger
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -49,12 +48,12 @@ func InitFromKubeconfig(ctx context.Context, scheme *runtime.Scheme, k3sContaine
 		return nil, fmt.Errorf("failed to read kubeconfig from %s: %w", kubeconfigPath, err)
 	}
 
-	return InitFromBytes(ctx, kubeconfig, scheme, k3sContainer)
+	return InitFromBytes(ctx, kubeconfig, scheme)
 }
 
 // InitFromBytes initializes Kubernetes clients from kubeconfig bytes.
 // The scheme parameter should be created using the scheme package.
-func InitFromBytes(ctx context.Context, kubeconfig []byte, scheme *runtime.Scheme, k3sContainer *k3s.K3sContainer) (*Config, error) {
+func InitFromBytes(ctx context.Context, kubeconfig []byte, scheme *runtime.Scheme) (*Config, error) {
 	// Create REST config from kubeconfig
 	restConfig, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	if err != nil {
@@ -62,7 +61,7 @@ func InitFromBytes(ctx context.Context, kubeconfig []byte, scheme *runtime.Schem
 	}
 
 	// Extract host IP from REST config
-	hostIP, err := getServerIP(ctx, restConfig, k3sContainer)
+	hostIP, err := getServerIP(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get server IP: %w", err)
 	}
@@ -87,14 +86,8 @@ func InitFromBytes(ctx context.Context, kubeconfig []byte, scheme *runtime.Schem
 	}, nil
 }
 
-// getServerIP extracts the server IP from the REST config.
-// If running with testcontainers, it returns the container IP.
-// Otherwise, it parses the hostname from the REST config host.
-func getServerIP(ctx context.Context, cfg *rest.Config, k3sContainer *k3s.K3sContainer) (string, error) {
-	if k3sContainer != nil {
-		return k3sContainer.ContainerIP(ctx)
-	}
-
+// getServerIP extracts the server IP by parsing the hostname from the REST config host.
+func getServerIP(cfg *rest.Config) (string, error) {
 	u, err := url.Parse(cfg.Host)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse REST config host: %w", err)

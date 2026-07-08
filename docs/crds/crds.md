@@ -10,6 +10,8 @@
 ### Resource Types
 - [Cluster](#cluster)
 - [ClusterList](#clusterlist)
+- [ETCDSnapshot](#etcdsnapshot)
+- [ETCDSnapshotList](#etcdsnapshotlist)
 - [VirtualClusterPolicy](#virtualclusterpolicy)
 - [VirtualClusterPolicyList](#virtualclusterpolicylist)
 
@@ -269,6 +271,83 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled toggles this feature on or off. | true |  |
 | `sources` _[CredentialSources](#credentialsources)_ | Sources defines the sources for all required custom CA certificates. |  |  |
+
+
+#### ETCDSnapshot
+
+
+
+
+
+
+
+_Appears in:_
+- [ETCDSnapshotList](#etcdsnapshotlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
+| `kind` _string_ | `ETCDSnapshot` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[ETCDSnapshotSpec](#etcdsnapshotspec)_ |  | \{  \} |  |
+| `status` _[ETCDSnapshotStatus](#etcdsnapshotstatus)_ |  | \{  \} |  |
+
+
+#### ETCDSnapshotList
+
+
+
+ETCDSnapshotList is a list of ETCDSnapshot resources.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
+| `kind` _string_ | `ETCDSnapshotList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[ETCDSnapshot](#etcdsnapshot) array_ |  |  |  |
+
+
+#### ETCDSnapshotSpec
+
+
+
+ETCDSnapshotSpec defines the desired state of a ETCDSnapshot.
+
+
+
+_Appears in:_
+- [ETCDSnapshot](#etcdsnapshot)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `clusterName` _string_ | ClusterName is the name of the cluster where the snapshot will be taken |  |  |
+| `s3ConfigSecret` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | S3ConfigSecret defines the S3 configuration secret that contains all<br />s3 configuration, the configuration items are expected to match the following<br />https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support |  |  |
+| `snapshotDir` _string_ | SnapshotDir defines the location where the snapshot will be created, if<br />left empty k3k will use the directory configured for k3s when the<br />cluster was created |  |  |
+| `snapshotCompress` _boolean_ | SnapshotCompress specifies if the snapshot should be compressed |  |  |
+
+
+#### ETCDSnapshotStatus
+
+
+
+ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
+
+
+
+_Appears in:_
+- [ETCDSnapshot](#etcdsnapshot)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `address` _string_ | Address is the absolute file:// or s3:// URI address of the snapshot. |  |  |
+| `size` _[Quantity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#quantity-resource-api)_ | Size is the size of the snapshot file, in bytes. If not specified, the snapshot failed. |  |  |
+| `creationTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#time-v1-meta)_ | CreationTime is the timestamp when the snapshot was taken by etcd. |  |  |
+| `readyToUse` _boolean_ | ReadyToUse indicates that the snapshot is available to be restored. |  |  |
+| `error` _[ETCDSnapshotError](#etcdsnapshoterror)_ | Error is the last observed error during snapshot creation, if any.<br />If the snapshot is retried, this field will be cleared on success. |  |  |
 
 
 #### ExposeConfig

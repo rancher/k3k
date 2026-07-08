@@ -25,6 +25,8 @@ func addKnownTypes(s *runtime.Scheme) error {
 		&ClusterList{},
 		&VirtualClusterPolicy{},
 		&VirtualClusterPolicyList{},
+		&ETCDSnapshot{},
+		&ETCDSnapshotList{},
 	)
 	metav1.AddToGroupVersion(s, SchemeGroupVersion)
 

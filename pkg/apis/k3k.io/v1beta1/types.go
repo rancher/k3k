@@ -3,6 +3,7 @@ package v1beta1
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	k3sv1 "github.com/k3s-io/api/k3s.cattle.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -895,4 +896,91 @@ type VirtualClusterPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 
 	Items []VirtualClusterPolicy `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:JSONPath=".status.address",name="Address",type="string"
+// +kubebuilder:printcolumn:JSONPath=".status.size",name=Size,type=string
+// +kubebuilder:printcolumn:JSONPath=".status.readyToUse",name="Ready To Use",type=boolean
+
+type ETCDSnapshot struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+
+	// +kubebuilder:default={}
+	// +optional
+	Spec ETCDSnapshotSpec `json:"spec"`
+
+	// +kubebuilder:default={}
+	// +optional
+	Status ETCDSnapshotStatus `json:"status,omitempty"`
+}
+
+// ETCDSnapshotSpec defines the desired state of a ETCDSnapshot.
+type ETCDSnapshotSpec struct {
+	// ClusterName is the name of the cluster where the snapshot will be taken
+	//
+	// +optional
+	ClusterName string `json:"clusterName"`
+
+	// S3ConfigSecret defines the S3 configuration secret that contains all
+	// s3 configuration, the configuration items are expected to match the following
+	// https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
+	//
+	// +optional
+	S3ConfigSecret *corev1.SecretReference `json:"s3ConfigSecret,omitempty"`
+
+	// SnapshotDir defines the location where the snapshot will be created, if
+	// left empty k3k will use the directory configured for k3s when the
+	// cluster was created
+	//
+	// +optional
+	SnapshotDir string `json:"snapshotDir,omitempty"`
+
+	// SnapshotCompress specifies if the snapshot should be compressed
+	//
+	// +optional
+	SnapshotCompress bool `json:"snapshotCompress,omitempty"`
+}
+
+// ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
+type ETCDSnapshotStatus struct {
+	// Address is the absolute file:// or s3:// URI address of the snapshot.
+	//
+	// +optional
+	Address string `json:"address,omitempty"`
+
+	// Size is the size of the snapshot file, in bytes. If not specified, the snapshot failed.
+	//
+	// +optional
+	Size *resource.Quantity `json:"size,omitempty" column:""`
+
+	// CreationTime is the timestamp when the snapshot was taken by etcd.
+	//
+	// +optional
+	CreationTime *metav1.Time `json:"creationTime,omitempty" column:""`
+
+	// ReadyToUse indicates that the snapshot is available to be restored.
+	//
+	// +optional
+	ReadyToUse *bool `json:"readyToUse,omitempty"`
+
+	// Error is the last observed error during snapshot creation, if any.
+	// If the snapshot is retried, this field will be cleared on success.
+	//
+	// +optional
+	Error *k3sv1.ETCDSnapshotError `json:"error,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+
+// ETCDSnapshotList is a list of ETCDSnapshot resources.
+type ETCDSnapshotList struct {
+	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `json:",inline"`
+
+	Items []ETCDSnapshot `json:"items"`
 }

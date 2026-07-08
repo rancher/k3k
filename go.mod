@@ -38,6 +38,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.24.1
 )
 
+require github.com/k3s-io/api v0.1.4 // indirect
+
 require (
 	cel.dev/expr v0.25.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect

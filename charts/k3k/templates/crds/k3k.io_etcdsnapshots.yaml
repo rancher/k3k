@@ -1,0 +1,121 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+    helm.sh/resource-policy: keep
+  name: etcdsnapshots.k3k.io
+spec:
+  group: k3k.io
+  names:
+    kind: ETCDSnapshot
+    listKind: ETCDSnapshotList
+    plural: etcdsnapshots
+    singular: etcdsnapshot
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.address
+      name: Address
+      type: string
+    - jsonPath: .status.size
+      name: Size
+      type: string
+    - jsonPath: .status.readyToUse
+      name: Ready To Use
+      type: boolean
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            default: {}
+            description: ETCDSnapshotSpec defines the desired state of a ETCDSnapshot.
+            properties:
+              clusterName:
+                description: ClusterName is the name of the cluster where the snapshot will be taken
+                type: string
+              s3ConfigSecret:
+                description: |-
+                  S3ConfigSecret defines the S3 configuration secret that contains all
+                  s3 configuration, the configuration items are expected to match the following
+                  https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
+                properties:
+                  name:
+                    description: name is unique within a namespace to reference a secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret name must be unique.
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              snapshotCompress:
+                description: SnapshotCompress specifies if the snapshot should be compressed
+                type: boolean
+              snapshotDir:
+                description: |-
+                  SnapshotDir defines the location where the snapshot will be created, if
+                  left empty k3k will use the directory configured for k3s when the
+                  cluster was created
+                type: string
+            type: object
+          status:
+            default: {}
+            description: ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
+            properties:
+              address:
+                description: Address is the absolute file:// or s3:// URI address of the snapshot.
+                type: string
+              creationTime:
+                description: CreationTime is the timestamp when the snapshot was taken by etcd.
+                format: date-time
+                type: string
+              error:
+                description: |-
+                  Error is the last observed error during snapshot creation, if any.
+                  If the snapshot is retried, this field will be cleared on success.
+                properties:
+                  message:
+                    description: |-
+                      Message is a string detailing the encountered error during snapshot creation if specified.
+                      NOTE: message may be logged, and it should not contain sensitive information.
+                    type: string
+                  time:
+                    description: Time is the timestamp when the error was encountered.
+                    format: date-time
+                    type: string
+                type: object
+              readyToUse:
+                description: ReadyToUse indicates that the snapshot is available to be restored.
+                type: boolean
+              size:
+                anyOf:
+                - type: integer
+                - type: string
+                description: Size is the size of the snapshot file, in bytes. If not specified, the snapshot failed.
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

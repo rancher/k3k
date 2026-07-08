@@ -142,7 +142,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to add clusterpolicy controller: %v", err)
 	}
 
-	if err := snapshot.Add(ctx, mgr, maxConcurrentReconciles, nil); err != nil {
+	if err := snapshot.Add(ctx, mgr, maxConcurrentReconciles); err != nil {
 		return err
 	}
 

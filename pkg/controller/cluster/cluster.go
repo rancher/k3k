@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -92,12 +92,12 @@ type ClusterReconciler struct {
 	RestCfg         *rest.Config
 	PortAllocator   *agent.PortAllocator
 
-	record.EventRecorder
+	EventRecorder events.EventRecorder
 	Config
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrentReconciles int, portAllocator *agent.PortAllocator, eventRecorder record.EventRecorder) error {
+func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrentReconciles int, portAllocator *agent.PortAllocator) error {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
 		return err
@@ -107,16 +107,12 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		return errors.New("missing shared agent image")
 	}
 
-	if eventRecorder == nil {
-		eventRecorder = mgr.GetEventRecorderFor(clusterController)
-	}
-
 	// initialize a new Reconciler
 	reconciler := ClusterReconciler{
 		DiscoveryClient: discoveryClient,
 		Client:          mgr.GetClient(),
 		RestCfg:         mgr.GetConfig(),
-		EventRecorder:   eventRecorder,
+		EventRecorder:   mgr.GetEventRecorder(clusterController),
 		PortAllocator:   portAllocator,
 		Config: Config{
 			SharedAgentImage:            config.SharedAgentImage,

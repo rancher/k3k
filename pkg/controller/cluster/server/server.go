@@ -409,7 +409,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
-			ServiceName: headlessServiceName(s.cluster.Name),
+			ServiceName: HeadlessServiceName(s.cluster.Name),
 			Selector:    &selector,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

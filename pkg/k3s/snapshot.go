@@ -1,0 +1,121 @@
+package k3s
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"path/filepath"
+	"time"
+
+	k3sv1 "github.com/k3s-io/api/k3s.cattle.io/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+)
+
+// redefining the ETCDS3 Configuration to avoid k3s-io/k3s dependency
+type EtcdS3 struct {
+	AccessKey     string          `json:"accessKey,omitempty"`
+	Bucket        string          `json:"bucket,omitempty"`
+	BucketLookup  string          `json:"bucketLookup,omitempty"`
+	Endpoint      string          `json:"endpoint,omitempty"`
+	EndpointCA    string          `json:"endpointCA,omitempty"`
+	Folder        string          `json:"folder,omitempty"`
+	Proxy         string          `json:"proxy,omitempty"`
+	Region        string          `json:"region,omitempty"`
+	SecretKey     string          `json:"secretKey,omitempty"`
+	SessionToken  string          `json:"sessionToken,omitempty"`
+	Insecure      bool            `json:"insecure,omitempty"`
+	SkipSSLVerify bool            `json:"skipSSLVerify,omitempty"`
+	Retention     int             `json:"retention,omitempty"`
+	Timeout       metav1.Duration `json:"timeout,omitempty"`
+}
+
+var DefaultEtcdS3 = &EtcdS3{
+	Endpoint: "s3.amazonaws.com",
+	Region:   "us-east-1",
+	Timeout: metav1.Duration{
+		Duration: 5 * time.Minute,
+	},
+	Retention: 5,
+}
+
+var ErrSnapshotRequest = errors.New("failed to execute snapshot request")
+
+type SnapshotOperation string
+
+const (
+	ETCDSnapshotEndpoint                      = "/db/snapshot"
+	SnapshotOperationSave   SnapshotOperation = "save"
+	SnapshotOperationList   SnapshotOperation = "list"
+	SnapshotOperationDelete SnapshotOperation = "delete"
+)
+
+func (c *Client) SaveSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
+	endpoint := "/db/snapshot"
+
+	req := SnapshotRequest{
+		Operation: SnapshotOperationSave,
+		Name:      []string{snapshot.Name},
+		Dir:       new(snapshot.Spec.SnapshotDir),
+		Compress:  new(snapshot.Spec.SnapshotCompress),
+		S3:        s3Config,
+	}
+
+	snapshotResult, err := do[*SnapshotResult](c, endpoint, "server", http.MethodPost, req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrSnapshotRequest, err)
+	}
+
+	return snapshotResult, nil
+}
+
+func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, error) {
+	endpoint := "/db/snapshot"
+
+	req := SnapshotRequest{
+		Operation: SnapshotOperationList,
+		S3:        s3Config,
+	}
+
+	snapshotFileList, err := do[*k3sv1.ETCDSnapshotFileList](c, endpoint, "server", http.MethodPost, req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrSnapshotRequest, err)
+	}
+
+	return snapshotFileList, nil
+}
+
+func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
+	endpoint := "/db/snapshot"
+
+	k3sSnapshotName := filepath.Base(snapshot.Status.Address)
+
+	req := SnapshotRequest{
+		Operation: SnapshotOperationDelete,
+		Name:      []string{k3sSnapshotName},
+		Dir:       new(snapshot.Spec.SnapshotDir),
+		S3:        s3Config,
+	}
+
+	snapshotResult, err := do[*SnapshotResult](c, endpoint, "server", http.MethodPost, req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrSnapshotRequest, err)
+	}
+
+	return snapshotResult, nil
+}
+
+type SnapshotRequest struct {
+	Operation SnapshotOperation `json:"operation"`
+	Name      []string          `json:"name,omitempty"`
+	Dir       *string           `json:"dir,omitempty"`
+	Compress  *bool             `json:"compress,omitempty"`
+	Retention *int              `json:"retention,omitempty"`
+	S3        *EtcdS3           `json:"s3,omitempty"`
+}
+
+type SnapshotResult struct {
+	Created []string `json:"created,omitempty"`
+	Deleted []string `json:"deleted,omitempty"`
+}

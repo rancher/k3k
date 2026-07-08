@@ -27,6 +27,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/policy"
+	"github.com/rancher/k3k/pkg/controller/snapshot"
 	"github.com/rancher/k3k/pkg/log"
 )
 
@@ -139,6 +140,10 @@ func run(cmd *cobra.Command, args []string) error {
 
 	if err := policy.Add(mgr, config.ClusterCIDR, maxConcurrentReconciles); err != nil {
 		return fmt.Errorf("failed to add clusterpolicy controller: %v", err)
+	}
+
+	if err := snapshot.Add(ctx, mgr, maxConcurrentReconciles, nil); err != nil {
+		return err
 	}
 
 	if err := mgr.Start(ctx); err != nil {

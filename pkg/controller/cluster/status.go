@@ -95,7 +95,6 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 
 	// Only emit event on transition to Ready
 	if !meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, ConditionReady, metav1.ConditionTrue) {
-
 		c.EventRecorder.Eventf(cluster, nil, corev1.EventTypeNormal, ReasonProvisioned, "ReconcilingResource", newCondition.Message)
 	}
 

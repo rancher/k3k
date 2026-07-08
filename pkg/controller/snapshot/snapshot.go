@@ -75,6 +75,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 	log := log.FromContext(ctx)
 
 	log.V(1).Info("reconciling snapshot")
+
 	var snapshot v1beta1.ETCDSnapshot
 	if err := r.Client.Get(ctx, req.NamespacedName, &snapshot); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
@@ -143,10 +144,12 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 		if snapshot.Status.Address != "" {
 			// remove the snapshot from k3s cluster
 			log.Info("Deleting snapshot from cluster", "Address", snapshot.Status.Address)
+
 			snapshotResp, err := client.DeleteSnapshot(&snapshot, s3Config)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
+
 			if len(snapshotResp.Deleted) <= 0 {
 				return reconcile.Result{}, fmt.Errorf("failed to delete snapshot")
 			}

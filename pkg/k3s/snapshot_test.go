@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -104,9 +105,11 @@ func Test_SaveSnapshot(t *testing.T) {
 			mockServer := httptest.NewUnstartedServer(mux)
 
 			clientConfig.ServerIP = "127.0.0.1:0"
+
 			if tt.isServerRunning {
 				mockServer.StartTLS()
 				defer mockServer.Close()
+
 				u, err := url.Parse(mockServer.URL)
 				require.NoError(t, err)
 

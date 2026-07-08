@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,15 +40,11 @@ type SnapshotReconciler struct {
 	Scheme        *runtime.Scheme
 	PortAllocator *agent.PortAllocator
 
-	record.EventRecorder
+	EventRecorder events.EventRecorder
 }
 
 // Add adds a new controller to the manager
-func Add(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int, eventRecorder record.EventRecorder) error {
-	if eventRecorder == nil {
-		eventRecorder = mgr.GetEventRecorderFor(snapshotController)
-	}
-
+func Add(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) error {
 	restConfig := mgr.GetConfig()
 
 	clientset, err := kubernetes.NewForConfig(restConfig)
@@ -62,7 +58,7 @@ func Add(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int, 
 		K8sClient:     clientset,
 		RestConfig:    restConfig,
 		Scheme:        mgr.GetScheme(),
-		EventRecorder: eventRecorder,
+		EventRecorder: mgr.GetEventRecorder(snapshotController),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).

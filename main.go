@@ -114,7 +114,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := cluster.Add(ctx, mgr, &config, maxConcurrentReconciles, portAllocator, nil); err != nil {
+	if err := cluster.Add(ctx, mgr, &config, maxConcurrentReconciles, portAllocator); err != nil {
 		return fmt.Errorf("failed to add cluster controller: %v", err)
 	}
 

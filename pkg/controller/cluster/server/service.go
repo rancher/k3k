@@ -140,7 +140,7 @@ func (s *Server) StatefulServerService() *corev1.Service {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      headlessServiceName(s.cluster.Name),
+			Name:      HeadlessServiceName(s.cluster.Name),
 			Namespace: s.cluster.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -171,6 +171,6 @@ func ServiceName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "service")
 }
 
-func headlessServiceName(clusterName string) string {
+func HeadlessServiceName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "service", "headless")
 }

@@ -107,9 +107,10 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 	if snapshot.Spec.S3ConfigSecret != nil {
 		var s3Secret corev1.Secret
 
+		// only work with secrets in the same namespace
 		secretKey := types.NamespacedName{
 			Name:      snapshot.Spec.S3ConfigSecret.Name,
-			Namespace: snapshot.Spec.S3ConfigSecret.Namespace,
+			Namespace: snapshot.Namespace,
 		}
 
 		if err := r.Client.Get(ctx, secretKey, &s3Secret); err != nil {

@@ -1,19 +1,21 @@
 package snapshot
 
 import (
+	"context"
 	"encoding/base64"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
-
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/rancher/k3k/pkg/k3s"
 )
 
-func getS3ConfigFromSecret(s3ConfigSecret *corev1.Secret, logger logr.Logger) (*k3s.EtcdS3, error) {
+func (r *SnapshotReconciler) getS3ConfigFromSecret(ctx context.Context, s3ConfigSecret *corev1.Secret) (*k3s.EtcdS3, error) {
 	etcdS3 := k3s.EtcdS3{
 		AccessKey:    string(s3ConfigSecret.Data["etcd-s3-access-key"]),
 		Bucket:       string(s3ConfigSecret.Data["etcd-s3-bucket"]),
@@ -41,7 +43,7 @@ func getS3ConfigFromSecret(s3ConfigSecret *corev1.Secret, logger logr.Logger) (*
 	// Set timeout from secret if set
 	if v, ok := s3ConfigSecret.Data["etcd-s3-timeout"]; ok {
 		if duration, err := time.ParseDuration(string(v)); err != nil {
-			logger.V(1).Error(err, "Failed to parse etcd-s3-timeout value from S3 config secret")
+			return nil, fmt.Errorf("Failed to parse etcd-s3-timeout value from S3 config secret: %w", err)
 		} else {
 			etcdS3.Timeout.Duration = duration
 		}
@@ -49,7 +51,7 @@ func getS3ConfigFromSecret(s3ConfigSecret *corev1.Secret, logger logr.Logger) (*
 
 	if v, ok := s3ConfigSecret.Data["etcd-s3-retention"]; ok {
 		if retention, err := strconv.Atoi(string(v)); err != nil {
-			logger.V(1).Error(err, "Failed to parse etcd-s3-retention value from S3 config secret")
+			return nil, fmt.Errorf("Failed to parse etcd-s3-retention value from S3 config secret: %w", err)
 		} else {
 			etcdS3.Retention = retention
 		}
@@ -58,7 +60,7 @@ func getS3ConfigFromSecret(s3ConfigSecret *corev1.Secret, logger logr.Logger) (*
 	// configure ssl verification, if value can be parsed
 	if v, ok := s3ConfigSecret.Data["etcd-s3-skip-ssl-verify"]; ok {
 		if b, err := strconv.ParseBool(string(v)); err != nil {
-			logger.V(1).Error(err, "Failed to parse etcd-s3-skip-ssl-verify value from S3 config secret")
+			return nil, fmt.Errorf("Failed to parse etcd-s3-skip-ssl-verify value from S3 config secret: %w", err)
 		} else {
 			etcdS3.SkipSSLVerify = b
 		}
@@ -67,7 +69,7 @@ func getS3ConfigFromSecret(s3ConfigSecret *corev1.Secret, logger logr.Logger) (*
 	// configure insecure http, if value can be parsed
 	if v, ok := s3ConfigSecret.Data["etcd-s3-insecure"]; ok {
 		if b, err := strconv.ParseBool(string(v)); err != nil {
-			logger.V(1).Error(err, "Failed to parse etcd-s3-insecure value from S3 config secret")
+			return nil, fmt.Errorf("Failed to parse etcd-s3-insecure value from S3 config secret %w", err)
 		} else {
 			etcdS3.Insecure = b
 		}
@@ -78,6 +80,21 @@ func getS3ConfigFromSecret(s3ConfigSecret *corev1.Secret, logger logr.Logger) (*
 	// Add inline CA bundle if set
 	if len(s3ConfigSecret.Data["etcd-s3-endpoint-ca"]) > 0 {
 		caBundles = append(caBundles, base64.StdEncoding.EncodeToString(s3ConfigSecret.Data["etcd-s3-endpoint-ca"]))
+	}
+
+	// Add CA bundles from named configmap if set
+	if caConfigMapName := string(s3ConfigSecret.Data["etcd-s3-endpoint-ca-name"]); caConfigMapName != "" {
+		var configMap v1.ConfigMap
+		if err := r.Client.Get(ctx, types.NamespacedName{Name: caConfigMapName, Namespace: s3ConfigSecret.Namespace}, &configMap); err != nil {
+			return nil, fmt.Errorf("Failed to get ConfigMap %s for etcd-s3-endpoint-ca-name value from S3 config secret %s: %w", caConfigMapName, s3ConfigSecret.Name, err)
+		} else {
+			for _, v := range configMap.Data {
+				caBundles = append(caBundles, base64.StdEncoding.EncodeToString([]byte(v)))
+			}
+			for _, v := range configMap.BinaryData {
+				caBundles = append(caBundles, base64.StdEncoding.EncodeToString(v))
+			}
+		}
 	}
 
 	// Concatenate all requested CA bundle strings into config var

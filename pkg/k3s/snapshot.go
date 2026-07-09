@@ -57,8 +57,8 @@ func (c *Client) SaveSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) 
 	req := SnapshotRequest{
 		Operation: SnapshotOperationSave,
 		Name:      []string{snapshot.Name},
-		Dir:       new(snapshot.Spec.SnapshotDir),
-		Compress:  new(snapshot.Spec.SnapshotCompress),
+		Dir:       new(snapshot.Spec.Dir),
+		Compress:  new(snapshot.Spec.Compress),
 		S3:        s3Config,
 	}
 
@@ -89,12 +89,12 @@ func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, e
 func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
 	endpoint := "/db/snapshot"
 
-	k3sSnapshotName := filepath.Base(snapshot.Status.Address)
+	k3sSnapshotName := filepath.Base(snapshot.Status.Location)
 
 	req := SnapshotRequest{
 		Operation: SnapshotOperationDelete,
 		Name:      []string{k3sSnapshotName},
-		Dir:       new(snapshot.Spec.SnapshotDir),
+		Dir:       new(snapshot.Spec.Dir),
 		S3:        s3Config,
 	}
 

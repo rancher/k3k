@@ -16,7 +16,7 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.address
+    - jsonPath: .status.location
       name: Address
       type: string
     - jsonPath: .status.size
@@ -47,11 +47,20 @@ spec:
           metadata:
             type: object
           spec:
-            default: {}
             description: ETCDSnapshotSpec defines the desired state of a ETCDSnapshot.
             properties:
               clusterName:
                 description: ClusterName is the name of the cluster where the snapshot will be taken
+                minLength: 1
+                type: string
+              compress:
+                description: cifies if the snapshot should be compressed
+                type: boolean
+              dir:
+                description: |-
+                  Dir defines the location where the snapshot will be created, if
+                  left empty k3k will use the directory configured for k3s when the
+                  cluster was created
                 type: string
               s3ConfigSecret:
                 description: |-
@@ -67,23 +76,13 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
-              snapshotCompress:
-                description: SnapshotCompress specifies if the snapshot should be compressed
-                type: boolean
-              snapshotDir:
-                description: |-
-                  SnapshotDir defines the location where the snapshot will be created, if
-                  left empty k3k will use the directory configured for k3s when the
-                  cluster was created
-                type: string
+            required:
+            - clusterName
             type: object
           status:
             default: {}
             description: ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
             properties:
-              address:
-                description: Address is the absolute file:// or s3:// URI address of the snapshot.
-                type: string
               creationTime:
                 description: CreationTime is the timestamp when the snapshot was taken by etcd.
                 format: date-time
@@ -103,6 +102,9 @@ spec:
                     format: date-time
                     type: string
                 type: object
+              location:
+                description: Location is the absolute file:// or s3:// URI address of the snapshot.
+                type: string
               readyToUse:
                 description: ReadyToUse indicates that the snapshot is available to be restored.
                 type: boolean
@@ -114,6 +116,8 @@ spec:
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

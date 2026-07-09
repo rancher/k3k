@@ -388,7 +388,7 @@ _Appears In:_
 | *`kind`* __string__ | `ETCDSnapshot` | |
 | *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
  |  | 
-| *`spec`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotspec[$$ETCDSnapshotSpec$$]__ |  | {  } | 
+| *`spec`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotspec[$$ETCDSnapshotSpec$$]__ |  |  | 
 | *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotstatus[$$ETCDSnapshotStatus$$]__ |  | {  } | 
 |===
 
@@ -431,14 +431,15 @@ _Appears In:_
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`clusterName`* __string__ | ClusterName is the name of the cluster where the snapshot will be taken + |  | 
+| *`clusterName`* __string__ | ClusterName is the name of the cluster where the snapshot will be taken + |  | MinLength: 1 +
+
 | *`s3ConfigSecret`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core[$$SecretReference$$]__ | S3ConfigSecret defines the S3 configuration secret that contains all +
 s3 configuration, the configuration items are expected to match the following +
 https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support + |  | 
-| *`snapshotDir`* __string__ | SnapshotDir defines the location where the snapshot will be created, if +
+| *`dir`* __string__ | Dir defines the location where the snapshot will be created, if +
 left empty k3k will use the directory configured for k3s when the +
 cluster was created + |  | 
-| *`snapshotCompress`* __boolean__ | SnapshotCompress specifies if the snapshot should be compressed + |  | 
+| *`compress`* __boolean__ | cifies if the snapshot should be compressed + |  | 
 |===
 
 
@@ -458,7 +459,7 @@ _Appears In:_
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`address`* __string__ | Address is the absolute file:// or s3:// URI address of the snapshot. + |  | 
+| *`location`* __string__ | Location is the absolute file:// or s3:// URI address of the snapshot. + |  | 
 | *`size`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#quantity-resource-api[$$Quantity$$]__ | Size is the size of the snapshot file, in bytes. If not specified, the snapshot failed. + |  | 
 | *`creationTime`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#time-v1-meta[$$Time$$]__ | CreationTime is the timestamp when the snapshot was taken by etcd. + |  | 
 | *`readyToUse`* __boolean__ | ReadyToUse indicates that the snapshot is available to be restored. + |  | 

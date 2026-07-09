@@ -21,9 +21,9 @@ func Test_SaveSnapshot(t *testing.T) {
 			Name: "test-snapshot",
 		},
 		Spec: v1beta1.ETCDSnapshotSpec{
-			ClusterName:      "test-cluster",
-			SnapshotDir:      "/var/lib/rancher/k3s/server/db/snapshots",
-			SnapshotCompress: true,
+			ClusterName: "test-cluster",
+			Dir:         "/var/lib/rancher/k3s/server/db/snapshots",
+			Compress:    true,
 		},
 	}
 
@@ -133,10 +133,10 @@ func Test_SaveSnapshot(t *testing.T) {
 				assert.Equal(t, []string{tt.snapshot.Name}, req.Name)
 
 				require.NotNil(t, req.Dir)
-				assert.Equal(t, tt.snapshot.Spec.SnapshotDir, *req.Dir)
+				assert.Equal(t, tt.snapshot.Spec.Dir, *req.Dir)
 
 				require.NotNil(t, req.Compress)
-				assert.Equal(t, tt.snapshot.Spec.SnapshotCompress, *req.Compress)
+				assert.Equal(t, tt.snapshot.Spec.Compress, *req.Compress)
 
 				assert.Equal(t, tt.s3Config, req.S3)
 			}

@@ -92,7 +92,7 @@ type ClusterReconciler struct {
 	RestCfg         *rest.Config
 	PortAllocator   *agent.PortAllocator
 
-	EventRecorder events.EventRecorder
+	events.EventRecorder
 	Config
 }
 

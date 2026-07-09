@@ -3,6 +3,7 @@ package snapshot
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,7 +41,7 @@ type SnapshotReconciler struct {
 	Scheme        *runtime.Scheme
 	PortAllocator *agent.PortAllocator
 
-	EventRecorder events.EventRecorder
+	events.EventRecorder
 }
 
 // Add adds a new controller to the manager
@@ -93,7 +94,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 	}
 
 	// avoid recreation of snapshot if its already created
-	if snapshot.Status.Address != "" && snapshot.DeletionTimestamp.IsZero() {
+	if snapshot.Status.Location != "" && snapshot.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}
 
@@ -117,7 +118,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 			return reconcile.Result{}, err
 		}
 
-		s3Config, err = getS3ConfigFromSecret(&s3Secret, log)
+		s3Config, err = r.getS3ConfigFromSecret(ctx, &s3Secret)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -138,9 +139,9 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 
 	// if DeletionTimestamp is not Zero -> finalize the object
 	if !snapshot.DeletionTimestamp.IsZero() {
-		if snapshot.Status.Address != "" {
+		if snapshot.Status.Location != "" {
 			// remove the snapshot from k3s cluster
-			log.Info("Deleting snapshot from cluster", "Address", snapshot.Status.Address)
+			log.Info("Deleting snapshot from cluster", "Location", snapshot.Status.Location)
 
 			snapshotResp, err := client.DeleteSnapshot(&snapshot, s3Config)
 			if err != nil {
@@ -193,6 +194,13 @@ func (r *SnapshotReconciler) backpopulateSnapshotStatus(ctx context.Context, sna
 
 	for _, file := range snapshotFileList.Items {
 		if file.Spec.SnapshotName == snapshotName {
+			if s3Config != nil {
+				// if s3Config is populated then we intend to backpopulate s3 snapshot
+				// so we need to skip local snapshot even if it matches the name
+				if strings.HasPrefix(file.Spec.Location, "file://") {
+					continue
+				}
+			}
 			snapshotFile = &file
 		}
 	}
@@ -202,7 +210,7 @@ func (r *SnapshotReconciler) backpopulateSnapshotStatus(ctx context.Context, sna
 	}
 
 	snapshot.Status = v1beta1.ETCDSnapshotStatus{
-		Address:      snapshotFile.Spec.Location,
+		Location:     snapshotFile.Spec.Location,
 		CreationTime: snapshotFile.Status.CreationTime,
 		ReadyToUse:   snapshotFile.Status.ReadyToUse,
 		Size:         snapshotFile.Status.Size,

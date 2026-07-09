@@ -901,7 +901,7 @@ type VirtualClusterPolicyList struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:JSONPath=".status.address",name="Address",type="string"
+// +kubebuilder:printcolumn:JSONPath=".status.location",name="Address",type="string"
 // +kubebuilder:printcolumn:JSONPath=".status.size",name=Size,type=string
 // +kubebuilder:printcolumn:JSONPath=".status.readyToUse",name="Ready To Use",type=boolean
 
@@ -909,8 +909,7 @@ type ETCDSnapshot struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta   `json:",inline"`
 
-	// +kubebuilder:default={}
-	// +optional
+	// +required
 	Spec ETCDSnapshotSpec `json:"spec"`
 
 	// +kubebuilder:default={}
@@ -922,7 +921,8 @@ type ETCDSnapshot struct {
 type ETCDSnapshotSpec struct {
 	// ClusterName is the name of the cluster where the snapshot will be taken
 	//
-	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +required
 	ClusterName string `json:"clusterName"`
 
 	// S3ConfigSecret defines the S3 configuration secret that contains all
@@ -932,25 +932,25 @@ type ETCDSnapshotSpec struct {
 	// +optional
 	S3ConfigSecret *corev1.SecretReference `json:"s3ConfigSecret,omitempty"`
 
-	// SnapshotDir defines the location where the snapshot will be created, if
+	// Dir defines the location where the snapshot will be created, if
 	// left empty k3k will use the directory configured for k3s when the
 	// cluster was created
 	//
 	// +optional
-	SnapshotDir string `json:"snapshotDir,omitempty"`
+	Dir string `json:"dir,omitempty"`
 
-	// SnapshotCompress specifies if the snapshot should be compressed
+	// cifies if the snapshot should be compressed
 	//
 	// +optional
-	SnapshotCompress bool `json:"snapshotCompress,omitempty"`
+	Compress bool `json:"compress,omitempty"`
 }
 
 // ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
 type ETCDSnapshotStatus struct {
-	// Address is the absolute file:// or s3:// URI address of the snapshot.
+	// Location is the absolute file:// or s3:// URI address of the snapshot.
 	//
 	// +optional
-	Address string `json:"address,omitempty"`
+	Location string `json:"location,omitempty"`
 
 	// Size is the size of the snapshot file, in bytes. If not specified, the snapshot failed.
 	//

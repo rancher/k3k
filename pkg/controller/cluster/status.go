@@ -54,7 +54,7 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 			Message: reconcileErr.Error(),
 		})
 
-		c.EventRecorder.Eventf(cluster, nil, corev1.EventTypeWarning, ReasonValidationFailed, ActionReconciling, reconcileErr.Error())
+		c.Eventf(cluster, nil, corev1.EventTypeWarning, ReasonValidationFailed, ActionReconciling, reconcileErr.Error())
 
 		return
 	}
@@ -81,7 +81,7 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 			Message: reconcileErr.Error(),
 		})
 
-		c.EventRecorder.Eventf(cluster, nil, corev1.EventTypeWarning, ReasonProvisioningFailed, ActionReconciling, reconcileErr.Error())
+		c.Eventf(cluster, nil, corev1.EventTypeWarning, ReasonProvisioningFailed, ActionReconciling, reconcileErr.Error())
 
 		return
 	}
@@ -97,7 +97,7 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 
 	// Only emit event on transition to Ready
 	if !meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, ConditionReady, metav1.ConditionTrue) {
-		c.EventRecorder.Eventf(cluster, nil, corev1.EventTypeNormal, ReasonProvisioned, ActionReconciling, newCondition.Message)
+		c.Eventf(cluster, nil, corev1.EventTypeNormal, ReasonProvisioned, ActionReconciling, newCondition.Message)
 	}
 
 	meta.SetStatusCondition(&cluster.Status.Conditions, newCondition)

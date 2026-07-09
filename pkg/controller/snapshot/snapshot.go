@@ -201,6 +201,7 @@ func (r *SnapshotReconciler) backpopulateSnapshotStatus(ctx context.Context, sna
 					continue
 				}
 			}
+
 			snapshotFile = &file
 		}
 	}

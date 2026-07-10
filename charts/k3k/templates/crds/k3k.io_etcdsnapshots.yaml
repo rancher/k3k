@@ -54,7 +54,7 @@ spec:
                 minLength: 1
                 type: string
               compress:
-                description: cifies if the snapshot should be compressed
+                description: Specifies if the snapshot should be compressed
                 type: boolean
               dir:
                 description: |-
@@ -62,7 +62,7 @@ spec:
                   left empty k3k will use the directory configured for k3s when the
                   cluster was created
                 type: string
-              s3ConfigSecret:
+              s3ConfigSecretRef:
                 description: |-
                   S3ConfigSecret defines the S3 configuration secret that contains all
                   s3 configuration, the configuration items are expected to match the following

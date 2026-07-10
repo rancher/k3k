@@ -433,13 +433,13 @@ _Appears In:_
 | Field | Description | Default | Validation
 | *`clusterName`* __string__ | ClusterName is the name of the cluster where the snapshot will be taken + |  | MinLength: 1 +
 
-| *`s3ConfigSecret`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core[$$SecretReference$$]__ | S3ConfigSecret defines the S3 configuration secret that contains all +
+| *`s3ConfigSecretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core[$$SecretReference$$]__ | S3ConfigSecret defines the S3 configuration secret that contains all +
 s3 configuration, the configuration items are expected to match the following +
 https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support + |  | 
 | *`dir`* __string__ | Dir defines the location where the snapshot will be created, if +
 left empty k3k will use the directory configured for k3s when the +
 cluster was created + |  | 
-| *`compress`* __boolean__ | cifies if the snapshot should be compressed + |  | 
+| *`compress`* __boolean__ | Specifies if the snapshot should be compressed + |  | 
 |===
 
 

@@ -930,7 +930,7 @@ type ETCDSnapshotSpec struct {
 	// https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
 	//
 	// +optional
-	S3ConfigSecret *corev1.SecretReference `json:"s3ConfigSecret,omitempty"`
+	S3ConfigSecretRef *corev1.SecretReference `json:"s3ConfigSecretRef,omitempty"`
 
 	// Dir defines the location where the snapshot will be created, if
 	// left empty k3k will use the directory configured for k3s when the

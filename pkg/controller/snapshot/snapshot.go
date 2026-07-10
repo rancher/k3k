@@ -105,12 +105,12 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 
 	var s3Config *k3s.EtcdS3
 
-	if snapshot.Spec.S3ConfigSecret != nil {
+	if snapshot.Spec.S3ConfigSecretRef != nil {
 		var s3Secret corev1.Secret
 
 		// only work with secrets in the same namespace
 		secretKey := types.NamespacedName{
-			Name:      snapshot.Spec.S3ConfigSecret.Name,
+			Name:      snapshot.Spec.S3ConfigSecretRef.Name,
 			Namespace: snapshot.Namespace,
 		}
 

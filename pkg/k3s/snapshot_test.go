@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	k3sv1 "github.com/k3s-io/api/k3s.cattle.io/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	k3sv1 "github.com/k3s-io/api/k3s.cattle.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -213,6 +213,7 @@ func (tt *testCase[T]) testHandler(t *testing.T, req *snapshotRequest, operation
 		require.NotNil(t, req)
 
 		assert.Equal(t, operation, req.Operation)
+
 		if tt.snapshot != nil && tt.snapshot.Status.Location != "" {
 			assert.Equal(t, []string{filepath.Base(tt.snapshot.Status.Location)}, req.Name)
 		}

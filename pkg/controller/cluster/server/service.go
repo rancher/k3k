@@ -167,10 +167,12 @@ func (s *Server) StatefulServerService() *corev1.Service {
 	}
 }
 
+// ServiceName returns the name of the service of the given cluster.
 func ServiceName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "service")
 }
 
+// HeadlessServiceName returns the name of the headless service of the given cluster.
 func HeadlessServiceName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "service", "headless")
 }

@@ -31,6 +31,8 @@ type EtcdS3 struct {
 	Timeout       metav1.Duration `json:"timeout,omitempty"`
 }
 
+// DefaultEtcdS3 is the default S3 configuration used for snapshot
+// operations when no configuration is provided.
 var DefaultEtcdS3 = &EtcdS3{
 	Endpoint: "s3.amazonaws.com",
 	Region:   "us-east-1",
@@ -40,22 +42,23 @@ var DefaultEtcdS3 = &EtcdS3{
 	Retention: 5,
 }
 
-var ErrSnapshotRequest = errors.New("failed to execute snapshot request")
+var errSnapshotRequest = errors.New("failed to execute snapshot request")
 
-type SnapshotOperation string
+type snapshotOperation string
 
 const (
-	ETCDSnapshotEndpoint                      = "/db/snapshot"
-	SnapshotOperationSave   SnapshotOperation = "save"
-	SnapshotOperationList   SnapshotOperation = "list"
-	SnapshotOperationDelete SnapshotOperation = "delete"
+	etcdSnapshotEndpoint = "/db/snapshot"
+
+	snapshotOperationSave   snapshotOperation = "save"
+	snapshotOperationList   snapshotOperation = "list"
+	snapshotOperationDelete snapshotOperation = "delete"
 )
 
 func (c *Client) SaveSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
 	endpoint := "/db/snapshot"
 
-	req := SnapshotRequest{
-		Operation: SnapshotOperationSave,
+	req := snapshotRequest{
+		Operation: snapshotOperationSave,
 		Name:      []string{snapshot.Name},
 		Dir:       new(snapshot.Spec.Dir),
 		Compress:  new(snapshot.Spec.Compress),
@@ -64,7 +67,7 @@ func (c *Client) SaveSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) 
 
 	snapshotResult, err := do[*SnapshotResult](c, endpoint, "server", http.MethodPost, req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrSnapshotRequest, err)
+		return nil, fmt.Errorf("%w: %w", errSnapshotRequest, err)
 	}
 
 	return snapshotResult, nil
@@ -73,14 +76,14 @@ func (c *Client) SaveSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) 
 func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, error) {
 	endpoint := "/db/snapshot"
 
-	req := SnapshotRequest{
-		Operation: SnapshotOperationList,
+	req := snapshotRequest{
+		Operation: snapshotOperationList,
 		S3:        s3Config,
 	}
 
 	snapshotFileList, err := do[*k3sv1.ETCDSnapshotFileList](c, endpoint, "server", http.MethodPost, req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrSnapshotRequest, err)
+		return nil, fmt.Errorf("%w: %w", errSnapshotRequest, err)
 	}
 
 	return snapshotFileList, nil
@@ -91,8 +94,8 @@ func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3
 
 	k3sSnapshotName := filepath.Base(snapshot.Status.Location)
 
-	req := SnapshotRequest{
-		Operation: SnapshotOperationDelete,
+	req := snapshotRequest{
+		Operation: snapshotOperationDelete,
 		Name:      []string{k3sSnapshotName},
 		Dir:       new(snapshot.Spec.Dir),
 		S3:        s3Config,
@@ -100,14 +103,14 @@ func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3
 
 	snapshotResult, err := do[*SnapshotResult](c, endpoint, "server", http.MethodPost, req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrSnapshotRequest, err)
+		return nil, fmt.Errorf("%w: %w", errSnapshotRequest, err)
 	}
 
 	return snapshotResult, nil
 }
 
-type SnapshotRequest struct {
-	Operation SnapshotOperation `json:"operation"`
+type snapshotRequest struct {
+	Operation snapshotOperation `json:"operation"`
 	Name      []string          `json:"name,omitempty"`
 	Dir       *string           `json:"dir,omitempty"`
 	Compress  *bool             `json:"compress,omitempty"`

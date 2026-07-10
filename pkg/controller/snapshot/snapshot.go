@@ -139,17 +139,13 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 
 	// if DeletionTimestamp is not Zero -> finalize the object
 	if !snapshot.DeletionTimestamp.IsZero() {
-		if snapshot.Status.Location != "" {
+		if snapshot.Status.Location != "" && cluster.DeletionTimestamp.IsZero() {
 			// remove the snapshot from k3s cluster
 			log.Info("Deleting snapshot from cluster", "Location", snapshot.Status.Location)
 
-			snapshotResp, err := client.DeleteSnapshot(&snapshot, s3Config)
+			_, err := client.DeleteSnapshot(&snapshot, s3Config)
 			if err != nil {
 				return reconcile.Result{}, err
-			}
-
-			if len(snapshotResp.Deleted) <= 0 {
-				return reconcile.Result{}, fmt.Errorf("failed to delete snapshot")
 			}
 		}
 

@@ -927,7 +927,7 @@ type ETCDSnapshotSpec struct {
 	// +optional
 	Dir string `json:"dir,omitempty"`
 
-	// cifies if the snapshot should be compressed
+	// Specifies if the snapshot should be compressed
 	//
 	// +optional
 	Compress bool `json:"compress,omitempty"`

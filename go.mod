@@ -18,7 +18,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/virtual-kubelet/virtual-kubelet v1.11.1-0.20250530103808-c9f64e872803
-	go.etcd.io/etcd/api/v3 v3.6.12
+	go.etcd.io/etcd/api/v3 v3.6.13
 	go.etcd.io/etcd/client/v3 v3.6.12
 	go.uber.org/zap v1.28.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -121,7 +121,7 @@ require (
 	golang.org/x/crypto v0.51.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.35.0 // indirect
-	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect

@@ -15,8 +15,6 @@ import (
 )
 
 const (
-	k3kNamespace = "k3k-system"
-
 	k3sVersion    = "v1.36.2-k3s1"
 	k3sOldVersion = "v1.36.0-k3s1"
 )

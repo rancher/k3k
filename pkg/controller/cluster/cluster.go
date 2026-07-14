@@ -688,6 +688,7 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 		} else {
 			maps.Copy(currentService.Annotations, expectedService.Annotations)
 		}
+
 		currentService.Spec = expectedService.Spec
 
 		return nil

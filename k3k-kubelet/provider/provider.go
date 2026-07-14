@@ -15,8 +15,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -782,32 +780,51 @@ func (p *Provider) getPodFromHostCluster(ctx context.Context, hostPodName string
 // The Pods returned are expected to be immutable, and may be accessed
 // concurrently outside of the calling goroutine. Therefore it is recommended
 // to return a version after DeepCopy.
+//
+// It returns only the Pods this instance owns: those whose virtual Pod is assigned to this node
+// (spec.nodeName == p.agentHostname), plus genuinely dangling Pods whose virtual counterpart no
+// longer exists. This matters because GetPods feeds the virtual-kubelet framework's startup
+// reconciliation (deleteDanglingPods), which deletes any Pod returned here that is absent from
+// this instance's virtual Pod lister (scoped to the same node) — so on a multi-node host,
+// returning a Pod owned by another node would make this instance wrongly delete it. Ownership is
+// the virtual Pod's node, not the host Pod's physical node: host Pods are scheduled with only a
+// soft, sometimes-absent affinity toward their owner, so their physical placement is unreliable.
 func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	p.logger.V(1).Info("GetPods")
 
-	selector := labels.NewSelector()
+	var hostPods corev1.PodList
 
-	requirement, err := labels.NewRequirement(translate.ClusterNameLabel, selection.Equals, []string{p.ClusterName})
-	if err != nil {
-		p.logger.Error(err, "Error creating label selector for GetPods")
-		return nil, err
-	}
+	listOpts := client.MatchingLabels{translate.ClusterNameLabel: p.ClusterName}
 
-	selector = selector.Add(*requirement)
-
-	var podList corev1.PodList
-
-	err = p.Host.Client.List(ctx, &podList, &client.ListOptions{LabelSelector: selector})
-	if err != nil {
+	if err := p.Host.Client.List(ctx, &hostPods, listOpts); err != nil {
 		p.logger.Error(err, "Error listing pods from host cluster")
 		return nil, err
 	}
 
+	// Map each virtual Pod to its node. Read live (not from the manager cache): this can run at
+	// startup before that cache is synced, and a stale read would misclassify a live Pod as gone.
+	virtualPods, err := p.Virtual.CoreClient.Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		p.logger.Error(err, "Error listing pods from virtual cluster")
+		return nil, err
+	}
+
+	nodeByPod := make(map[types.NamespacedName]string, len(virtualPods.Items))
+	for _, virtPod := range virtualPods.Items {
+		nodeByPod[client.ObjectKeyFromObject(&virtPod)] = virtPod.Spec.NodeName
+	}
+
 	retPods := []*corev1.Pod{}
 
-	for _, pod := range podList.DeepCopy().Items {
-		p.Translator.TranslateFrom(&pod)
-		retPods = append(retPods, &pod)
+	for _, hostPod := range hostPods.DeepCopy().Items {
+		p.Translator.TranslateFrom(&hostPod)
+
+		// skip Pods owned by another node; that node's instance is responsible for them
+		if node := nodeByPod[client.ObjectKeyFromObject(&hostPod)]; node != p.agentHostname {
+			continue
+		}
+
+		retPods = append(retPods, &hostPod)
 	}
 
 	return retPods, nil

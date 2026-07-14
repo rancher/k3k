@@ -1,10 +1,16 @@
 package provider
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/runtime"
+	fakeclientset "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -299,4 +305,80 @@ func Test_configureEnv(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// TestGetPods_ScopedToVirtualNode pins the behavior that GetPods returns only the Pods this
+// instance owns -- determined by the *virtual* Pod's node (spec.nodeName == agentHostname), the
+// same signal the virtual-kubelet framework's deleteDanglingPods uses -- plus genuinely dangling
+// Pods (whose virtual counterpart no longer exists). Pods owned by another node are excluded so
+// this instance never treats them as dangling and deletes them. The host Pod's own physical
+// spec.nodeName is unrelated to ownership and must be ignored.
+func TestGetPods_ScopedToVirtualNode(t *testing.T) {
+	const clusterName = "c-test"
+
+	// host Pods carry the tracking metadata TranslateFrom reads to recover the virtual identity.
+	// Their physical NodeName is set to deliberately-mismatched values to prove it is ignored.
+	newHostPod := func(hostName, virtName, hostNodeName string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      hostName,
+				Namespace: "ns-test",
+				Labels: map[string]string{
+					translate.ClusterNameLabel: clusterName,
+				},
+				Annotations: map[string]string{
+					translate.ResourceNameAnnotation:      virtName,
+					translate.ResourceNamespaceAnnotation: "default",
+				},
+			},
+			Spec: corev1.PodSpec{NodeName: hostNodeName},
+		}
+	}
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	hostClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(
+			newHostPod("host-a1", "a1", "node-b"), // owned by node-a (virtual), physically on node-b
+			newHostPod("host-b1", "b1", "node-a"), // owned by node-b (virtual), physically on node-a
+			newHostPod("host-c1", "c1", "node-a"), // dangling: no virtual Pod exists
+		).
+		Build()
+
+	// virtual Pods: a1 on node-a (ours), b1 on node-b (other); c1 intentionally absent (dangling).
+	virtClient := fakeclientset.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "a1", Namespace: "default"},
+			Spec:       corev1.PodSpec{NodeName: "node-a"},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "b1", Namespace: "default"},
+			Spec:       corev1.PodSpec{NodeName: "node-b"},
+		},
+	)
+
+	p := Provider{
+		Host:    ClusterContext{Client: hostClient},
+		Virtual: ClusterContext{CoreClient: virtClient.CoreV1()},
+		Translator: translate.ToHostTranslator{
+			ClusterName:      clusterName,
+			ClusterNamespace: "ns-test",
+		},
+		ClusterName:   clusterName,
+		agentHostname: "node-a",
+		logger:        logr.Discard(),
+	}
+
+	pods, err := p.GetPods(context.Background())
+	require.NoError(t, err)
+
+	names := map[string]bool{}
+	for _, pod := range pods {
+		names[pod.Name] = true
+	}
+
+	// a1 (own node) and c1 (dangling) are returned; b1 (other node) is excluded.
+	assert.Equal(t, map[string]bool{"a1": true, "c1": true}, names)
 }

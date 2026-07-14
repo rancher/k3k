@@ -307,14 +307,16 @@ func Test_configureEnv(t *testing.T) {
 	}
 }
 
-// TestGetPods_ScopedToVirtualNode pins the behavior that GetPods returns only the Pods this
-// instance owns -- determined by the *virtual* Pod's node (spec.nodeName == agentHostname), the
-// same signal the virtual-kubelet framework's deleteDanglingPods uses -- plus genuinely dangling
-// Pods (whose virtual counterpart no longer exists). Pods owned by another node are excluded so
-// this instance never treats them as dangling and deletes them. The host Pod's own physical
+// TestGetPods_ScopedToVirtualNode pins the behavior that GetPods returns only the Pods whose
+// virtual counterpart is assigned to this node (spec.nodeName == agentHostname), the same signal
+// the virtual-kubelet framework's deleteDanglingPods uses. Pods owned by another node -- and Pods
+// whose virtual counterpart no longer exists -- are excluded. The host Pod's own physical
 // spec.nodeName is unrelated to ownership and must be ignored.
 func TestGetPods_ScopedToVirtualNode(t *testing.T) {
-	const clusterName = "c-test"
+	const (
+		clusterName      = "c-test"
+		clusterNamespace = "ns-test"
+	)
 
 	// host Pods carry the tracking metadata TranslateFrom reads to recover the virtual identity.
 	// Their physical NodeName is set to deliberately-mismatched values to prove it is ignored.
@@ -322,7 +324,7 @@ func TestGetPods_ScopedToVirtualNode(t *testing.T) {
 		return &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      hostName,
-				Namespace: "ns-test",
+				Namespace: clusterNamespace,
 				Labels: map[string]string{
 					translate.ClusterNameLabel: clusterName,
 				},
@@ -364,11 +366,12 @@ func TestGetPods_ScopedToVirtualNode(t *testing.T) {
 		Virtual: ClusterContext{CoreClient: virtClient.CoreV1()},
 		Translator: translate.ToHostTranslator{
 			ClusterName:      clusterName,
-			ClusterNamespace: "ns-test",
+			ClusterNamespace: clusterNamespace,
 		},
-		ClusterName:   clusterName,
-		agentHostname: "node-a",
-		logger:        logr.Discard(),
+		ClusterName:      clusterName,
+		ClusterNamespace: clusterNamespace,
+		agentHostname:    "node-a",
+		logger:           logr.Discard(),
 	}
 
 	pods, err := p.GetPods(context.Background())
@@ -379,6 +382,6 @@ func TestGetPods_ScopedToVirtualNode(t *testing.T) {
 		names[pod.Name] = true
 	}
 
-	// a1 (own node) and c1 (dangling) are returned; b1 (other node) is excluded.
-	assert.Equal(t, map[string]bool{"a1": true, "c1": true}, names)
+	// only a1 (own node) is returned; b1 (other node) and c1 (dangling) are excluded.
+	assert.Equal(t, map[string]bool{"a1": true}, names)
 }

@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FContext("In a shared cluster", Label(e2eTestLabel), Label(slowTestsLabel), Ordered, func() {
+var _ = Context("In a shared cluster", Label(e2eTestLabel), Label(slowTestsLabel), Ordered, func() {
 	var (
 		virtualCluster *VirtualCluster
 		translator     *translate.ToHostTranslator

@@ -794,9 +794,12 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 
 	var hostPods corev1.PodList
 
-	listOpts := client.MatchingLabels{translate.ClusterNameLabel: p.ClusterName}
+	listOpts := []client.ListOption{
+		client.InNamespace(p.ClusterNamespace),
+		client.MatchingLabels{translate.ClusterNameLabel: p.ClusterName},
+	}
 
-	if err := p.Host.Client.List(ctx, &hostPods, listOpts); err != nil {
+	if err := p.Host.Client.List(ctx, &hostPods, listOpts...); err != nil {
 		p.logger.Error(err, "Error listing pods from host cluster")
 		return nil, err
 	}

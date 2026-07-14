@@ -62,7 +62,7 @@ func AddEventSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clust
 // Reconcile implements reconcile.Reconciler and synchronizes relevant events
 // between the host and virtual clusters.
 func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	logger := ctrl.LoggerFrom(ctx).WithValues("cluster", s.ClusterName, "clusterNamespace", s.ClusterName)
+	logger := ctrl.LoggerFrom(ctx).WithValues("cluster", s.ClusterName, "clusterNamespace", s.ClusterNamespace)
 
 	event := &corev1.Event{}
 	if err := s.HostClient.Get(ctx, req.NamespacedName, event); err != nil {

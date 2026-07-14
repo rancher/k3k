@@ -83,7 +83,7 @@ func (r *SecretSyncer) filterResources(object client.Object) bool {
 
 // Reconcile implements reconcile.Reconciler and synchronizes the objects in objs to the host cluster
 func (s *SecretSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("cluster", s.ClusterName, "clusterNamespace", s.ClusterName)
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", s.ClusterName, "clusterNamespace", s.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
 
 	var cluster v1beta1.Cluster

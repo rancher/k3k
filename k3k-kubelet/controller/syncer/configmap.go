@@ -83,7 +83,7 @@ func (c *ConfigMapSyncer) filterResources(object client.Object) bool {
 
 // Reconcile implements reconcile.Reconciler and synchronizes the objects in objs to the host cluster
 func (c *ConfigMapSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues("cluster", c.ClusterName, "clusterNamespace", c.ClusterName)
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", c.ClusterName, "clusterNamespace", c.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
 
 	var cluster v1beta1.Cluster

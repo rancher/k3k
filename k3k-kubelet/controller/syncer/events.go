@@ -74,18 +74,44 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 		return reconcile.Result{}, nil
 	}
 
-	virtualRef := s.Translator.TranslateObjectReferenceFrom(event.InvolvedObject)
+	hostPod := &corev1.Pod{}
+	if err := s.HostClient.Get(ctx, client.ObjectKey{Name: event.InvolvedObject.Name, Namespace: event.InvolvedObject.Namespace}, hostPod); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return reconcile.Result{}, fmt.Errorf("could not load host object: %w", err)
+		}
+
+		logger.V(3).Info("host object not found, skipping event emission",
+			"involvedObject.kind", event.InvolvedObject.Kind,
+			"involvedObject.name", event.InvolvedObject.Name,
+			"involvedObject.namespace", event.InvolvedObject.Namespace,
+		)
+
+		return reconcile.Result{}, nil
+	}
+
+	s.Translator.TranslateFrom(hostPod)
+
+	if hostPod.Name == "" {
+		logger.V(3).Info("Host object has no name - skipping event",
+			"involvedObject.kind", event.InvolvedObject.Kind,
+			"involvedObject.name", event.InvolvedObject.Name,
+			"involvedObject.namespace", event.InvolvedObject.Namespace,
+		)
+
+		return reconcile.Result{}, nil
+	}
 
 	// Look up the corresponding object in the virtual cluster.
 	virtPod := &corev1.Pod{}
-	if err := s.VirtualClient.Get(ctx, client.ObjectKey{Name: virtualRef.Name, Namespace: virtualRef.Namespace}, virtPod); err != nil {
+	if err := s.VirtualClient.Get(ctx, client.ObjectKey{Name: hostPod.Name, Namespace: hostPod.Namespace}, virtPod); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			return reconcile.Result{}, fmt.Errorf("could not load virtual object: %w", err)
 		}
 
 		logger.Info("virtual object not found, skipping event emission",
-			"virtualInvolvedObject.kind", virtualRef.Kind,
-			"virtualInvolvedObject.name", virtualRef.Name,
+			"virtualInvolvedObject.kind", hostPod.Kind,
+			"virtualInvolvedObject.name", hostPod.Name,
+			"virtualInvolvedObject.namespace", hostPod.Namespace,
 		)
 
 		return reconcile.Result{}, nil
@@ -98,7 +124,7 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 	message := translateEventMessage(
 		event.Message,
 		event.InvolvedObject.Name, event.InvolvedObject.Namespace,
-		virtualRef.Name, virtualRef.Namespace,
+		hostPod.Name, hostPod.Namespace,
 	)
 	s.virtEventRecorder.Event(virtPod, event.Type, event.Reason, message)
 

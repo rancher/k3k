@@ -7,8 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 )
@@ -148,49 +146,4 @@ func (t *ToHostTranslator) NamespacedName(obj client.Object) types.NamespacedNam
 		Namespace: t.ClusterNamespace,
 		Name:      t.TranslateName(obj.GetNamespace(), obj.GetName()),
 	}
-}
-
-// TranslateObjectReferenceFrom translates a host-cluster ObjectReference back to
-// virtual-cluster coordinates by reversing the name encoding applied by TranslateName.
-// If the name cannot be reversed (e.g. it was truncated by SafeConcatName), the
-// original host name and namespace are preserved.
-func (t *ToHostTranslator) TranslateObjectReferenceFrom(ref corev1.ObjectReference) *corev1.ObjectReference {
-	result := *ref.DeepCopy()
-	if name, namespace, ok := t.reverseTranslateName(ref.Name); ok {
-		result.Name = name
-		result.Namespace = namespace
-	}
-
-	return &result
-}
-
-// reverseTranslateName attempts to recover the original virtual name and namespace
-// from a host-cluster translated name. TranslateName encodes the original values as
-// a hex string suffix (hex("name+namespace+clusterName")), which this method decodes.
-// Returns ok=false when the name was truncated and cannot be reversed.
-func (t *ToHostTranslator) reverseTranslateName(translatedName string) (name, namespace string, ok bool) {
-	for i := len(translatedName) - 1; i >= 0; i-- {
-		if translatedName[i] != '-' {
-			continue
-		}
-
-		decoded, err := hex.DecodeString(translatedName[i+1:])
-		if err != nil {
-			continue
-		}
-
-		parts := strings.SplitN(string(decoded), "+", 3)
-		switch len(parts) {
-		case 2:
-			if parts[1] == t.ClusterName {
-				return parts[0], "", true
-			}
-		case 3:
-			if parts[2] == t.ClusterName {
-				return parts[0], parts[1], true
-			}
-		}
-	}
-
-	return "", "", false
 }

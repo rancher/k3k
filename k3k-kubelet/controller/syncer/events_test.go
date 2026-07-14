@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,12 +23,38 @@ func TestEventSyncerReconcile(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
 
+	hostPod := func(name, namespace, virtualName, virtualNamespace string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					translate.ResourceNameAnnotation:      virtualName,
+					translate.ResourceNamespaceAnnotation: virtualNamespace,
+				},
+				UID:             types.UID("pod-host-uid"),
+				ResourceVersion: "1",
+			},
+		}
+	}
+
+	virtualPod := func(name, namespace string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            name,
+				Namespace:       namespace,
+				UID:             types.UID("pod-virtual-uid"),
+				ResourceVersion: "1",
+			},
+		}
+	}
+
 	tests := map[string]struct {
 		// the event being reconciled
 		receivedEvent *corev1.Event
-		// virtualObj is stored in the virtual fake client, simulating the resource
-		// in the virtual cluster that the event's InvolvedObject maps to.
-		virtualObj *unstructured.Unstructured
+
+		hostObj    *corev1.Pod
+		virtualObj *corev1.Pod
 		wantEvent  *capturedEvent
 	}{
 		"normal event is re-emitted via virtEventRecorder": {
@@ -48,26 +73,10 @@ func TestEventSyncerReconcile(t *testing.T) {
 				Reason:  "Started",
 				Message: "Container started successfully",
 			},
-			virtualObj: &unstructured.Unstructured{Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]any{
-					"name":            "nginx",
-					"namespace":       "test",
-					"uid":             "pod-virtual-uid",
-					"resourceVersion": "1",
-				},
-			}},
+			hostObj:    hostPod("nginx-test-mycluster-6e67696e782b746573742b6d79636c7573746572", "k3k-mycluster", "nginx", "test"),
+			virtualObj: virtualPod("nginx", "test"),
 			wantEvent: &capturedEvent{
-				Object: &unstructured.Unstructured{Object: map[string]any{
-					"apiVersion": "v1",
-					"kind":       "Pod",
-					"metadata": map[string]any{
-						"name":      "nginx",
-						"namespace": "test",
-						"uid":       "pod-virtual-uid",
-					},
-				}},
+				Object:    virtualPod("nginx", "test"),
 				EventType: corev1.EventTypeNormal,
 				Reason:    "Started",
 				Message:   "Container started successfully",
@@ -89,26 +98,10 @@ func TestEventSyncerReconcile(t *testing.T) {
 				Reason:  "BackOff",
 				Message: "Back-off restarting failed container",
 			},
-			virtualObj: &unstructured.Unstructured{Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]any{
-					"name":            "nginx",
-					"namespace":       "test",
-					"uid":             "pod-virtual-uid",
-					"resourceVersion": "1",
-				},
-			}},
+			hostObj:    hostPod("nginx-test-mycluster-6e67696e782b746573742b6d79636c7573746572", "k3k-mycluster", "nginx", "test"),
+			virtualObj: virtualPod("nginx", "test"),
 			wantEvent: &capturedEvent{
-				Object: &unstructured.Unstructured{Object: map[string]any{
-					"apiVersion": "v1",
-					"kind":       "Pod",
-					"metadata": map[string]any{
-						"name":      "nginx",
-						"namespace": "test",
-						"uid":       "pod-virtual-uid",
-					},
-				}},
+				Object:    virtualPod("nginx", "test"),
 				EventType: corev1.EventTypeWarning,
 				Reason:    "BackOff",
 				Message:   "Back-off restarting failed container",
@@ -130,26 +123,10 @@ func TestEventSyncerReconcile(t *testing.T) {
 				Reason:  "",
 				Message: "some message",
 			},
-			virtualObj: &unstructured.Unstructured{Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]any{
-					"name":            "nginx",
-					"namespace":       "test",
-					"uid":             "pod-virtual-uid",
-					"resourceVersion": "1",
-				},
-			}},
+			hostObj:    hostPod("nginx-test-mycluster-6e67696e782b746573742b6d79636c7573746572", "k3k-mycluster", "nginx", "test"),
+			virtualObj: virtualPod("nginx", "test"),
 			wantEvent: &capturedEvent{
-				Object: &unstructured.Unstructured{Object: map[string]any{
-					"apiVersion": "v1",
-					"kind":       "Pod",
-					"metadata": map[string]any{
-						"name":      "nginx",
-						"namespace": "test",
-						"uid":       "pod-virtual-uid",
-					},
-				}},
+				Object:    virtualPod("nginx", "test"),
 				EventType: "",
 				Reason:    "",
 				Message:   "some message",
@@ -171,26 +148,10 @@ func TestEventSyncerReconcile(t *testing.T) {
 				Reason:  "Scheduled",
 				Message: "Successfully assigned k3k-mycluster/nginx-test-mycluster-6e67696e782b746573742b6d79636c7573746572 to localhost.localdomain",
 			},
-			virtualObj: &unstructured.Unstructured{Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]any{
-					"name":            "nginx",
-					"namespace":       "test",
-					"uid":             "pod-virtual-uid",
-					"resourceVersion": "1",
-				},
-			}},
+			hostObj:    hostPod("nginx-test-mycluster-6e67696e782b746573742b6d79636c7573746572", "k3k-mycluster", "nginx", "test"),
+			virtualObj: virtualPod("nginx", "test"),
 			wantEvent: &capturedEvent{
-				Object: &unstructured.Unstructured{Object: map[string]any{
-					"apiVersion": "v1",
-					"kind":       "Pod",
-					"metadata": map[string]any{
-						"name":      "nginx",
-						"namespace": "test",
-						"uid":       "pod-virtual-uid",
-					},
-				}},
+				Object:    virtualPod("nginx", "test"),
 				EventType: corev1.EventTypeNormal,
 				Reason:    "Scheduled",
 				Message:   "Successfully assigned test/nginx to localhost.localdomain",
@@ -231,6 +192,7 @@ func TestEventSyncerReconcile(t *testing.T) {
 				Reason:  "Started",
 				Message: "Container started",
 			},
+			hostObj: hostPod("some-non-translated-name", "k3k-mycluster", "", ""),
 			// virtualObj is nil: object not found in virtual cluster → event is skipped
 			wantEvent: nil,
 		},
@@ -238,9 +200,14 @@ func TestEventSyncerReconcile(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
+			hostFakeObjs := []client.Object{tt.receivedEvent}
+			if tt.hostObj != nil {
+				hostFakeObjs = append(hostFakeObjs, tt.hostObj)
+			}
+
 			hostFakeClient := fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(tt.receivedEvent).
+				WithObjects(hostFakeObjs...).
 				Build()
 
 			virtFakeObjs := []client.Object{}
@@ -287,7 +254,7 @@ func TestEventSyncerReconcile(t *testing.T) {
 				assert.Equal(t, tt.wantEvent.EventType, got.EventType)
 				assert.Equal(t, tt.wantEvent.Reason, got.Reason)
 				assert.Equal(t, tt.wantEvent.Message, got.Message)
-				wantObj := tt.wantEvent.Object.(*unstructured.Unstructured)
+				wantObj := tt.wantEvent.Object.(*corev1.Pod)
 				gotObj := got.Object.(*corev1.Pod)
 				assert.Equal(t, wantObj.GetName(), gotObj.GetName())
 				assert.Equal(t, wantObj.GetNamespace(), gotObj.GetNamespace())

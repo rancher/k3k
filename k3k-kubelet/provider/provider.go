@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -674,11 +675,33 @@ func updatePod(dst, src *corev1.Pod) {
 	updateContainerImages(dst.Spec.Containers, src.Spec.Containers)
 	updateContainerImages(dst.Spec.InitContainers, src.Spec.InitContainers)
 
+	updateMetadata(dst, src)
+
 	dst.Spec.ActiveDeadlineSeconds = src.Spec.ActiveDeadlineSeconds
 	dst.Spec.Tolerations = src.Spec.Tolerations
+}
 
-	dst.Annotations = src.Annotations
-	dst.Labels = src.Labels
+// updateMetadata copies the labels and annotations from src (the virtual Pod) onto dst (the host Pod),
+// while preserving the k3k metadata (labels and annotations with the "k3k.io/*" prefix)
+func updateMetadata(dst, src *corev1.Pod) {
+	dst.Labels = mergeManagedMetadata(dst.Labels, src.Labels)
+	dst.Annotations = mergeManagedMetadata(dst.Annotations, src.Annotations)
+}
+
+// mergeManagedMetadata returns a new map with all the entries from src (the virtual object),
+// plus the k3k metadata (keys with the translate.MetadataPrefix) carried over from dst (the host object).
+func mergeManagedMetadata(dst, src map[string]string) map[string]string {
+	merged := make(map[string]string, len(src))
+
+	maps.Copy(merged, src)
+
+	for key, value := range dst {
+		if strings.HasPrefix(key, translate.MetadataPrefix) {
+			merged[key] = value
+		}
+	}
+
+	return merged
 }
 
 // updateContainerImages will update the images of the original container images with the same name

@@ -14,18 +14,20 @@ import (
 )
 
 const (
+	// MetadataPrefix is the common prefix for all k3k-managed labels and annotations.
+	MetadataPrefix = "k3k.io/"
 	// ClusterNameLabel is the key for the label that contains the name of the virtual cluster
 	// this resource was made in
-	ClusterNameLabel = "k3k.io/clusterName"
+	ClusterNameLabel = MetadataPrefix + "clusterName"
 	// AgentNameLabel is the key for the label that contains the name of the k3k-kubelet agent
 	// (the host node it runs on) that synced this resource
-	AgentNameLabel = "k3k.io/agentName"
+	AgentNameLabel = MetadataPrefix + "agentName"
 	// ResourceNameAnnotation is the key for the annotation that contains the original name of this
 	// resource in the virtual cluster
-	ResourceNameAnnotation = "k3k.io/name"
+	ResourceNameAnnotation = MetadataPrefix + "name"
 	// ResourceNamespaceAnnotation is the key for the annotation that contains the original namespace of this
 	// resource in the virtual cluster
-	ResourceNamespaceAnnotation = "k3k.io/namespace"
+	ResourceNamespaceAnnotation = MetadataPrefix + "namespace"
 	// MetadataNameField is the downwardapi field for object's name
 	MetadataNameField = "metadata.name"
 	// MetadataNamespaceField is the downward field for the object's namespace

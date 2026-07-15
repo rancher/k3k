@@ -372,3 +372,36 @@ func TestGetPods_ScopedToAgent(t *testing.T) {
 	// only a1 (synced by this agent, in this namespace) is returned.
 	assert.Equal(t, map[string]bool{"a1": true}, names)
 }
+
+func TestUpdateMetadata(t *testing.T) {
+	hostPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "host-pod",
+			Namespace: "ns-test",
+			Labels: map[string]string{
+				translate.ClusterNameLabel: "c-test",
+				translate.AgentNameLabel:   "node-a",
+				"app":                      "nginx",
+			},
+			Annotations: map[string]string{
+				translate.ResourceNameAnnotation:      "my-pod",
+				translate.ResourceNamespaceAnnotation: "default",
+			},
+		},
+	}
+
+	virtualPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-pod",
+			Namespace: "default",
+			Labels:    map[string]string{"app": "nginx"},
+		},
+	}
+
+	updateMetadata(hostPod, virtualPod)
+
+	assert.Equal(t, "c-test", hostPod.Labels[translate.ClusterNameLabel])
+	assert.Equal(t, "node-a", hostPod.Labels[translate.AgentNameLabel])
+	assert.Equal(t, "my-pod", hostPod.Annotations[translate.ResourceNameAnnotation])
+	assert.Equal(t, "default", hostPod.Annotations[translate.ResourceNamespaceAnnotation])
+}

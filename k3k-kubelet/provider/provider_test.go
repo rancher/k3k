@@ -13,7 +13,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	fakeclientset "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 )
@@ -307,33 +306,34 @@ func Test_configureEnv(t *testing.T) {
 	}
 }
 
-// TestGetPods_ScopedToVirtualNode pins the behavior that GetPods returns only the Pods whose
-// virtual counterpart is assigned to this node (spec.nodeName == agentHostname), the same signal
-// the virtual-kubelet framework's deleteDanglingPods uses. Pods owned by another node -- and Pods
-// whose virtual counterpart no longer exists -- are excluded. The host Pod's own physical
-// spec.nodeName is unrelated to ownership and must be ignored.
-func TestGetPods_ScopedToVirtualNode(t *testing.T) {
+// TestGetPods_ScopedToAgent pins the behavior that GetPods returns only the Pods synced by this
+// k3k-kubelet agent, identified by the AgentNameLabel and scoped to this cluster's host namespace.
+// Pods synced by another agent, or living in another namespace, are excluded. Pods are returned
+// regardless of whether their virtual counterpart still exists, so the virtual-kubelet startup
+// reconciliation can still clean up genuine orphans.
+func TestGetPods_ScopedToAgent(t *testing.T) {
 	const (
 		clusterName      = "c-test"
 		clusterNamespace = "ns-test"
+		agentName        = "node-a"
 	)
 
-	// host Pods carry the tracking metadata TranslateFrom reads to recover the virtual identity.
-	// Their physical NodeName is set to deliberately-mismatched values to prove it is ignored.
-	newHostPod := func(hostName, virtName, hostNodeName string) *corev1.Pod {
+	// host Pods carry the tracking metadata TranslateFrom reads to recover the virtual identity,
+	// plus the AgentNameLabel recording which agent synced them.
+	newHostPod := func(name, agent, namespace string) *corev1.Pod {
 		return &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      hostName,
-				Namespace: clusterNamespace,
+				Name:      name,
+				Namespace: namespace,
 				Labels: map[string]string{
 					translate.ClusterNameLabel: clusterName,
+					translate.AgentNameLabel:   agent,
 				},
 				Annotations: map[string]string{
-					translate.ResourceNameAnnotation:      virtName,
+					translate.ResourceNameAnnotation:      name,
 					translate.ResourceNamespaceAnnotation: "default",
 				},
 			},
-			Spec: corev1.PodSpec{NodeName: hostNodeName},
 		}
 	}
 
@@ -343,34 +343,21 @@ func TestGetPods_ScopedToVirtualNode(t *testing.T) {
 	hostClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(
-			newHostPod("host-a1", "a1", "node-b"), // owned by node-a (virtual), physically on node-b
-			newHostPod("host-b1", "b1", "node-a"), // owned by node-b (virtual), physically on node-a
-			newHostPod("host-c1", "c1", "node-a"), // dangling: no virtual Pod exists
+			newHostPod("a1", agentName, clusterNamespace), // synced by this agent -> returned
+			newHostPod("b1", "node-b", clusterNamespace),  // synced by another agent -> excluded
+			newHostPod("d1", agentName, "ns-other"),       // another namespace -> excluded
 		).
 		Build()
 
-	// virtual Pods: a1 on node-a (ours), b1 on node-b (other); c1 intentionally absent (dangling).
-	virtClient := fakeclientset.NewSimpleClientset(
-		&corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{Name: "a1", Namespace: "default"},
-			Spec:       corev1.PodSpec{NodeName: "node-a"},
-		},
-		&corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{Name: "b1", Namespace: "default"},
-			Spec:       corev1.PodSpec{NodeName: "node-b"},
-		},
-	)
-
 	p := Provider{
-		Host:    ClusterContext{Client: hostClient},
-		Virtual: ClusterContext{CoreClient: virtClient.CoreV1()},
+		Host: ClusterContext{Client: hostClient},
 		Translator: translate.ToHostTranslator{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 		},
 		ClusterName:      clusterName,
 		ClusterNamespace: clusterNamespace,
-		agentHostname:    "node-a",
+		agentHostname:    agentName,
 		logger:           logr.Discard(),
 	}
 
@@ -382,6 +369,6 @@ func TestGetPods_ScopedToVirtualNode(t *testing.T) {
 		names[pod.Name] = true
 	}
 
-	// only a1 (own node) is returned; b1 (other node) and c1 (dangling) are excluded.
+	// only a1 (synced by this agent, in this namespace) is returned.
 	assert.Equal(t, map[string]bool{"a1": true}, names)
 }

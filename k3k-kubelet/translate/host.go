@@ -17,6 +17,9 @@ const (
 	// ClusterNameLabel is the key for the label that contains the name of the virtual cluster
 	// this resource was made in
 	ClusterNameLabel = "k3k.io/clusterName"
+	// AgentNameLabel is the key for the label that contains the name of the k3k-kubelet agent
+	// (the host node it runs on) that synced this resource
+	AgentNameLabel = "k3k.io/agentName"
 	// ResourceNameAnnotation is the key for the annotation that contains the original name of this
 	// resource in the virtual cluster
 	ResourceNameAnnotation = "k3k.io/name"

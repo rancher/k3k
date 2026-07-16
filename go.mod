@@ -38,7 +38,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.24.1
 )
 
-require github.com/k3s-io/api v0.1.4 // indirect
+require github.com/k3s-io/api v0.1.4
 
 require (
 	cel.dev/expr v0.25.1 // indirect

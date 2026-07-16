@@ -9,6 +9,7 @@ require (
 	github.com/go-logr/logr v1.4.4
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/go-cmp v0.7.0
+	github.com/k3s-io/api v0.1.4
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.1
 	github.com/rancher/dynamiclistener v1.27.5
@@ -37,8 +38,6 @@ require (
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
 	sigs.k8s.io/controller-runtime v0.24.1
 )
-
-require github.com/k3s-io/api v0.1.4
 
 require (
 	cel.dev/expr v0.25.1 // indirect

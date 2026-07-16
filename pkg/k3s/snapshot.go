@@ -43,7 +43,13 @@ var DefaultEtcdS3 = &EtcdS3{
 }
 
 var (
-	errSnapshotRequest  = errors.New("failed to execute snapshot request")
+	// ErrSaveSnapshot is an error of a failed save snapshot request
+	ErrSaveSnapshot = errors.New("failed to execute save snapshot request")
+	// ErrListSnapshots is an error of a failed list snapshots request
+	ErrListSnapshots = errors.New("failed to execute list snapshots request")
+	// ErrDeleteSnapshot is an error of a failed delete snapshot request
+	ErrDeleteSnapshot = errors.New("failed to execute delete snapshot request")
+	// ErrSnapshotNotFound is an error of snapshot not found in the k3s cluster
 	ErrSnapshotNotFound = errors.New("snapshot not found")
 )
 
@@ -58,8 +64,6 @@ const (
 )
 
 func (c *Client) SaveSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
-	endpoint := "/db/snapshot"
-
 	req := snapshotRequest{
 		Operation: snapshotOperationSave,
 		Name:      []string{snapshot.Name},
@@ -68,46 +72,42 @@ func (c *Client) SaveSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) 
 		S3:        s3Config,
 	}
 
-	snapshotResult, err := do[*SnapshotResult](c, endpoint, "server", http.MethodPost, req)
+	snapshotResult, err := do[*SnapshotResult](c, etcdSnapshotEndpoint, "server", http.MethodPost, req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errSnapshotRequest, err)
+		return nil, fmt.Errorf("%w: %w", ErrSaveSnapshot, err)
 	}
 
 	return snapshotResult, nil
 }
 
 func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, error) {
-	endpoint := "/db/snapshot"
-
 	req := snapshotRequest{
 		Operation: snapshotOperationList,
 		S3:        s3Config,
 	}
 
-	snapshotFileList, err := do[*k3sv1.ETCDSnapshotFileList](c, endpoint, "server", http.MethodPost, req)
+	snapshotFileList, err := do[*k3sv1.ETCDSnapshotFileList](c, etcdSnapshotEndpoint, "server", http.MethodPost, req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errSnapshotRequest, err)
+		return nil, fmt.Errorf("%w: %w", ErrListSnapshots, err)
 	}
 
 	return snapshotFileList, nil
 }
 
 func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
-	endpoint := "/db/snapshot"
-
 	req := snapshotRequest{
 		Operation: snapshotOperationDelete,
-		Name:      []string{snapshot.Status.SnapshotFileName},
+		Name:      []string{snapshot.Status.FileName},
 		Dir:       new(snapshot.Spec.Dir),
 		S3:        s3Config,
 	}
 
-	snapshotResult, err := do[*SnapshotResult](c, endpoint, "server", http.MethodPost, req)
+	snapshotResult, err := do[*SnapshotResult](c, etcdSnapshotEndpoint, "server", http.MethodPost, req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errSnapshotRequest, err)
+		return nil, fmt.Errorf("%w: %w", ErrDeleteSnapshot, err)
 	}
 
-	if !slices.Contains(snapshotResult.Deleted, snapshot.Status.SnapshotFileName) {
+	if !slices.Contains(snapshotResult.Deleted, snapshot.Status.FileName) {
 		return nil, ErrSnapshotNotFound
 	}
 

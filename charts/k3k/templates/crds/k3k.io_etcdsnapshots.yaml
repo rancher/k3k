@@ -16,8 +16,8 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.snapshotFileName
-      name: Snapshot File
+    - jsonPath: .status.fileName
+      name: File Name
       type: string
     name: v1beta1
     schema:
@@ -58,7 +58,7 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
               compress:
-                description: Specifies if the snapshot should be compressed
+                description: Compress specifies if the snapshot should be compressed
                 type: boolean
               dir:
                 description: |-
@@ -87,10 +87,10 @@ spec:
             default: {}
             description: ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
             properties:
-              snapshotFileName:
+              fileName:
                 description: |-
-                  SnapshotFileName is the name of the ETCDSnapshotFile object in the virtual
-                  cluster that backs this snapshot.
+                  FileName is the name of the snapshot file created in
+                  the virtual cluster
                 type: string
             type: object
         required:

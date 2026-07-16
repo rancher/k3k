@@ -438,7 +438,7 @@ https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-s
 | *`dir`* __string__ | Dir defines the location where the snapshot will be created, if +
 left empty k3k will use the directory configured for k3s when the +
 cluster was created + |  | 
-| *`compress`* __boolean__ | Specifies if the snapshot should be compressed + |  | 
+| *`compress`* __boolean__ | Compress specifies if the snapshot should be compressed + |  | 
 |===
 
 
@@ -458,8 +458,8 @@ _Appears In:_
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`snapshotFileName`* __string__ | SnapshotFileName is the name of the ETCDSnapshotFile object in the virtual +
-cluster that backs this snapshot. + |  | 
+| *`fileName`* __string__ | FileName is the name of the snapshot file created in +
+the virtual cluster + |  | 
 |===
 
 

@@ -900,7 +900,7 @@ type VirtualClusterPolicyList struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:JSONPath=".status.snapshotFileName",name="Snapshot File",type="string"
+// +kubebuilder:printcolumn:JSONPath=".status.fileName",name="File Name",type="string"
 
 type ETCDSnapshot struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -935,7 +935,7 @@ type ETCDSnapshotSpec struct {
 	// +optional
 	Dir string `json:"dir,omitempty"`
 
-	// Specifies if the snapshot should be compressed
+	// Compress specifies if the snapshot should be compressed
 	//
 	// +optional
 	Compress bool `json:"compress,omitempty"`
@@ -943,11 +943,11 @@ type ETCDSnapshotSpec struct {
 
 // ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
 type ETCDSnapshotStatus struct {
-	// SnapshotFileName is the name of the ETCDSnapshotFile object in the virtual
-	// cluster that backs this snapshot.
+	// FileName is the name of the snapshot file created in
+	// the virtual cluster
 	//
 	// +optional
-	SnapshotFileName string `json:"snapshotFileName,omitempty"`
+	FileName string `json:"fileName,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

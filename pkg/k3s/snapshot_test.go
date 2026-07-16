@@ -69,7 +69,7 @@ func Test_SaveSnapshot(t *testing.T) {
 			snapshot:        snapshot,
 			isServerRunning: true,
 			serverStatus:    http.StatusInternalServerError,
-			expectedErr:     errSnapshotRequest,
+			expectedErr:     ErrSaveSnapshot,
 		},
 		{
 			name:            "invalid server response",
@@ -77,7 +77,7 @@ func Test_SaveSnapshot(t *testing.T) {
 			isServerRunning: true,
 			serverStatus:    http.StatusOK,
 			serverResponse:  `not-a-json`,
-			expectedErr:     errSnapshotRequest,
+			expectedErr:     ErrSaveSnapshot,
 		},
 	}
 
@@ -101,7 +101,7 @@ func Test_DeleteSnapshot(t *testing.T) {
 			Compress:   true,
 		},
 		Status: v1beta1.ETCDSnapshotStatus{
-			SnapshotFileName: "on-demand-test-snapshot",
+			FileName: "on-demand-test-snapshot",
 		},
 	}
 
@@ -142,7 +142,7 @@ func Test_DeleteSnapshot(t *testing.T) {
 			snapshot:        snapshot,
 			isServerRunning: true,
 			serverStatus:    http.StatusInternalServerError,
-			expectedErr:     errSnapshotRequest,
+			expectedErr:     ErrDeleteSnapshot,
 		},
 		{
 			name:            "invalid server response",
@@ -150,7 +150,7 @@ func Test_DeleteSnapshot(t *testing.T) {
 			isServerRunning: true,
 			serverStatus:    http.StatusOK,
 			serverResponse:  `not-a-json`,
-			expectedErr:     errSnapshotRequest,
+			expectedErr:     ErrDeleteSnapshot,
 		},
 	}
 
@@ -197,6 +197,19 @@ func Test_ListSnapshots(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:            "server error",
+			isServerRunning: true,
+			serverStatus:    http.StatusInternalServerError,
+			expectedErr:     ErrListSnapshots,
+		},
+		{
+			name:            "invalid server response",
+			isServerRunning: true,
+			serverStatus:    http.StatusOK,
+			serverResponse:  `not-a-json`,
+			expectedErr:     ErrListSnapshots,
+		},
 	}
 
 	for _, tt := range tests {
@@ -228,7 +241,7 @@ func (tt *testCase[T]) testHandler(t *testing.T, operation snapshotOperation) ht
 		}
 
 		if operation == snapshotOperationDelete {
-			assert.Equal(t, []string{tt.snapshot.Status.SnapshotFileName}, req.Name)
+			assert.Equal(t, []string{tt.snapshot.Status.FileName}, req.Name)
 		}
 
 		if req.Dir != nil {

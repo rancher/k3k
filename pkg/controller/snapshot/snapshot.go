@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -81,7 +82,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 	var cluster v1beta1.Cluster
 
 	nn := types.NamespacedName{
-		Name:      snapshot.Spec.ClusterName,
+		Name:      snapshot.Spec.ClusterRef.Name,
 		Namespace: snapshot.Namespace,
 	}
 
@@ -94,7 +95,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 	}
 
 	// avoid recreation of snapshot if its already created
-	if snapshot.Status.Location != "" && snapshot.DeletionTimestamp.IsZero() {
+	if snapshot.Status.SnapshotFileName != "" && snapshot.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}
 
@@ -139,12 +140,13 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req reconcile.Reques
 
 	// if DeletionTimestamp is not Zero -> finalize the object
 	if !snapshot.DeletionTimestamp.IsZero() {
-		if snapshot.Status.Location != "" && cluster.DeletionTimestamp.IsZero() {
+		if snapshot.Status.SnapshotFileName != "" && cluster.DeletionTimestamp.IsZero() {
 			// remove the snapshot from k3s cluster
-			log.Info("Deleting snapshot from cluster", "Location", snapshot.Status.Location)
+			log.Info("Deleting snapshot from cluster")
 
 			_, err := client.DeleteSnapshot(&snapshot, s3Config)
-			if err != nil {
+			// do not return error if snapshot is not found in the virtual cluster
+			if err != nil && !errors.Is(err, k3s.ErrSnapshotNotFound) {
 				return reconcile.Result{}, err
 			}
 		}
@@ -183,6 +185,9 @@ func (r *SnapshotReconciler) backpopulateSnapshotStatus(ctx context.Context, sna
 		snapshotFile     *k3sv1.ETCDSnapshotFile
 	)
 
+	// we use list snapshot instead of getting the etcdSnapshotFile due to a bug in k3s
+	// for agentless servers, where prunning is run on each snapshot save and it does not
+	// execlude the the agentless nodes https://github.com/k3s-io/k3s/pull/14345
 	snapshotFileList, err := k3sClient.ListSnapshots(s3Config)
 	if err != nil {
 		return err
@@ -207,11 +212,7 @@ func (r *SnapshotReconciler) backpopulateSnapshotStatus(ctx context.Context, sna
 	}
 
 	snapshot.Status = v1beta1.ETCDSnapshotStatus{
-		Location:     snapshotFile.Spec.Location,
-		CreationTime: snapshotFile.Status.CreationTime,
-		ReadyToUse:   snapshotFile.Status.ReadyToUse,
-		Size:         snapshotFile.Status.Size,
-		Error:        snapshotFile.Status.Error,
+		SnapshotFileName: snapshotFile.Spec.SnapshotName,
 	}
 
 	return r.Client.Status().Update(ctx, snapshot)

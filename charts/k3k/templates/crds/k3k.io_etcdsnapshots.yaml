@@ -16,15 +16,9 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.location
-      name: Address
+    - jsonPath: .status.snapshotFileName
+      name: Snapshot File
       type: string
-    - jsonPath: .status.size
-      name: Size
-      type: string
-    - jsonPath: .status.readyToUse
-      name: Ready To Use
-      type: boolean
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -49,10 +43,20 @@ spec:
           spec:
             description: ETCDSnapshotSpec defines the desired state of a ETCDSnapshot.
             properties:
-              clusterName:
-                description: ClusterName is the name of the cluster where the snapshot will be taken
-                minLength: 1
-                type: string
+              clusterRef:
+                description: ClusterRef is a reference to the cluster where the snapshot will be taken.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               compress:
                 description: Specifies if the snapshot should be compressed
                 type: boolean
@@ -77,44 +81,17 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
             required:
-            - clusterName
+            - clusterRef
             type: object
           status:
             default: {}
             description: ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
             properties:
-              creationTime:
-                description: CreationTime is the timestamp when the snapshot was taken by etcd.
-                format: date-time
-                type: string
-              error:
+              snapshotFileName:
                 description: |-
-                  Error is the last observed error during snapshot creation, if any.
-                  If the snapshot is retried, this field will be cleared on success.
-                properties:
-                  message:
-                    description: |-
-                      Message is a string detailing the encountered error during snapshot creation if specified.
-                      NOTE: message may be logged, and it should not contain sensitive information.
-                    type: string
-                  time:
-                    description: Time is the timestamp when the error was encountered.
-                    format: date-time
-                    type: string
-                type: object
-              location:
-                description: Location is the absolute file:// or s3:// URI address of the snapshot.
+                  SnapshotFileName is the name of the ETCDSnapshotFile object in the virtual
+                  cluster that backs this snapshot.
                 type: string
-              readyToUse:
-                description: ReadyToUse indicates that the snapshot is available to be restored.
-                type: boolean
-              size:
-                anyOf:
-                - type: integer
-                - type: string
-                description: Size is the size of the snapshot file, in bytes. If not specified, the snapshot failed.
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
             type: object
         required:
         - spec

@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	k3sv1 "github.com/k3s-io/api/k3s.cattle.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -34,9 +34,9 @@ func Test_SaveSnapshot(t *testing.T) {
 			Name: "test-snapshot",
 		},
 		Spec: v1beta1.ETCDSnapshotSpec{
-			ClusterName: "test-cluster",
-			Dir:         "/var/lib/rancher/k3s/server/db/snapshots",
-			Compress:    true,
+			ClusterRef: corev1.LocalObjectReference{Name: "test-cluster"},
+			Dir:        "/var/lib/rancher/k3s/server/db/snapshots",
+			Compress:   true,
 		},
 	}
 
@@ -96,12 +96,12 @@ func Test_DeleteSnapshot(t *testing.T) {
 			Name: "test-snapshot",
 		},
 		Spec: v1beta1.ETCDSnapshotSpec{
-			ClusterName: "test-cluster",
-			Dir:         "/var/lib/rancher/k3s/server/db/snapshots",
-			Compress:    true,
+			ClusterRef: corev1.LocalObjectReference{Name: "test-cluster"},
+			Dir:        "/var/lib/rancher/k3s/server/db/snapshots",
+			Compress:   true,
 		},
 		Status: v1beta1.ETCDSnapshotStatus{
-			Location: "/var/lib/rancher/k3s/server/db/snapshots/test-snapshot-123",
+			SnapshotFileName: "on-demand-test-snapshot",
 		},
 	}
 
@@ -128,6 +128,14 @@ func Test_DeleteSnapshot(t *testing.T) {
 			serverStatus:    http.StatusOK,
 			serverResponse:  `{"deleted":["on-demand-test-snapshot"]}`,
 			expectedResult:  &SnapshotResult{Deleted: []string{"on-demand-test-snapshot"}},
+		},
+		{
+			name:            "snapshot not found",
+			snapshot:        snapshot,
+			isServerRunning: true,
+			serverStatus:    http.StatusOK,
+			serverResponse:  `{"deleted":[], "created":[]}`,
+			expectedErr:     ErrSnapshotNotFound,
 		},
 		{
 			name:            "server error",
@@ -200,7 +208,7 @@ func Test_ListSnapshots(t *testing.T) {
 	}
 }
 
-func (tt *testCase[T]) testHandler(t *testing.T, req *snapshotRequest, operation snapshotOperation) http.HandlerFunc {
+func (tt *testCase[T]) testHandler(t *testing.T, operation snapshotOperation) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
 
@@ -208,21 +216,24 @@ func (tt *testCase[T]) testHandler(t *testing.T, req *snapshotRequest, operation
 		assert.True(t, ok)
 		assert.Equal(t, "server", user)
 
-		req = &snapshotRequest{}
+		req := &snapshotRequest{}
 		require.NoError(t, json.NewDecoder(r.Body).Decode(req))
-		require.NotNil(t, req)
+
+		assert.Equal(t, tt.s3Config, req.S3)
 
 		assert.Equal(t, operation, req.Operation)
 
-		if tt.snapshot != nil && tt.snapshot.Status.Location != "" {
-			assert.Equal(t, []string{filepath.Base(tt.snapshot.Status.Location)}, req.Name)
+		if operation == snapshotOperationSave {
+			assert.Equal(t, []string{tt.snapshot.Name}, req.Name)
+		}
+
+		if operation == snapshotOperationDelete {
+			assert.Equal(t, []string{tt.snapshot.Status.SnapshotFileName}, req.Name)
 		}
 
 		if req.Dir != nil {
 			assert.Equal(t, tt.snapshot.Spec.Dir, *req.Dir)
 		}
-
-		assert.Equal(t, tt.s3Config, req.S3)
 
 		w.WriteHeader(tt.serverStatus)
 		_, err := w.Write([]byte(tt.serverResponse))
@@ -231,13 +242,10 @@ func (tt *testCase[T]) testHandler(t *testing.T, req *snapshotRequest, operation
 }
 
 func (tt *testCase[T]) run(t *testing.T, operation snapshotOperation, k3sRequset func(*Client) (T, error)) {
-	var (
-		req          = &snapshotRequest{}
-		clientConfig = ClientConfig{}
-	)
+	clientConfig := ClientConfig{}
 
 	mux := http.NewServeMux()
-	mux.Handle(etcdSnapshotEndpoint, tt.testHandler(t, req, operation))
+	mux.Handle(etcdSnapshotEndpoint, tt.testHandler(t, operation))
 
 	mockServer := httptest.NewUnstartedServer(mux)
 

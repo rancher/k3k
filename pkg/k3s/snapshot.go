@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"path/filepath"
+	"slices"
 	"time"
 
 	k3sv1 "github.com/k3s-io/api/k3s.cattle.io/v1"
@@ -28,7 +28,7 @@ type EtcdS3 struct {
 	Insecure      bool            `json:"insecure,omitempty"`
 	SkipSSLVerify bool            `json:"skipSSLVerify,omitempty"`
 	Retention     int             `json:"retention,omitempty"`
-	Timeout       metav1.Duration `json:"timeout,omitempty"`
+	Timeout       metav1.Duration `json:"timeout"`
 }
 
 // DefaultEtcdS3 is the default S3 configuration used for snapshot
@@ -42,7 +42,10 @@ var DefaultEtcdS3 = &EtcdS3{
 	Retention: 5,
 }
 
-var errSnapshotRequest = errors.New("failed to execute snapshot request")
+var (
+	errSnapshotRequest  = errors.New("failed to execute snapshot request")
+	ErrSnapshotNotFound = errors.New("snapshot not found")
+)
 
 type snapshotOperation string
 
@@ -92,11 +95,9 @@ func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, e
 func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
 	endpoint := "/db/snapshot"
 
-	k3sSnapshotName := filepath.Base(snapshot.Status.Location)
-
 	req := snapshotRequest{
 		Operation: snapshotOperationDelete,
-		Name:      []string{k3sSnapshotName},
+		Name:      []string{snapshot.Status.SnapshotFileName},
 		Dir:       new(snapshot.Spec.Dir),
 		S3:        s3Config,
 	}
@@ -104,6 +105,10 @@ func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3
 	snapshotResult, err := do[*SnapshotResult](c, endpoint, "server", http.MethodPost, req)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errSnapshotRequest, err)
+	}
+
+	if !slices.Contains(snapshotResult.Deleted, snapshot.Status.SnapshotFileName) {
+		return nil, ErrSnapshotNotFound
 	}
 
 	return snapshotResult, nil

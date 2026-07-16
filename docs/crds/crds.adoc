@@ -427,8 +427,7 @@ _Appears In:_
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`clusterName`* __string__ | ClusterName is the name of the cluster where the snapshot will be taken + |  | MinLength: 1 +
-
+| *`clusterRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | ClusterRef is a reference to the cluster where the snapshot will be taken. + |  | 
 | *`s3ConfigSecretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core[$$SecretReference$$]__ | S3ConfigSecret defines the S3 configuration secret that contains all +
 s3 configuration, the configuration items are expected to match the following +
 https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support + |  | 
@@ -455,12 +454,8 @@ _Appears In:_
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`location`* __string__ | Location is the absolute file:// or s3:// URI address of the snapshot. + |  | 
-| *`size`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#quantity-resource-api[$$Quantity$$]__ | Size is the size of the snapshot file, in bytes. If not specified, the snapshot failed. + |  | 
-| *`creationTime`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#time-v1-meta[$$Time$$]__ | CreationTime is the timestamp when the snapshot was taken by etcd. + |  | 
-| *`readyToUse`* __boolean__ | ReadyToUse indicates that the snapshot is available to be restored. + |  | 
-| *`error`* __xref:{anchor_prefix}-github-com-k3s-io-api-k3s-cattle-io-v1-etcdsnapshoterror[$$ETCDSnapshotError$$]__ | Error is the last observed error during snapshot creation, if any. +
-If the snapshot is retried, this field will be cleared on success. + |  | 
+| *`snapshotFileName`* __string__ | SnapshotFileName is the name of the ETCDSnapshotFile object in the virtual +
+cluster that backs this snapshot. + |  | 
 |===
 
 

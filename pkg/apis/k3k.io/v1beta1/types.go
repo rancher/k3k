@@ -921,7 +921,7 @@ type ETCDSnapshotSpec struct {
 	// +required
 	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
 
-	// S3ConfigSecret defines the S3 configuration secret that contains all
+	// S3ConfigSecretRef defines the S3 configuration secret that contains all
 	// s3 configuration, the configuration items are expected to match the following
 	// https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
 	//

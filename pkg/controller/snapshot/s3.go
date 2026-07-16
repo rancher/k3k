@@ -86,7 +86,7 @@ func (r *Reconciler) getS3ConfigFromSecret(ctx context.Context, snapshot *v1beta
 	// configure insecure http, if value can be parsed
 	if v, ok := s3Secret.Data["etcd-s3-insecure"]; ok {
 		if b, err := strconv.ParseBool(string(v)); err != nil {
-			return nil, fmt.Errorf("failed to parse etcd-s3-insecure value from S3 config secret %w", err)
+			return nil, fmt.Errorf("failed to parse etcd-s3-insecure value from S3 config secret: %w", err)
 		} else {
 			etcdS3.Insecure = b
 		}

@@ -432,7 +432,7 @@ _Appears In:_
 |===
 | Field | Description | Default | Validation
 | *`clusterRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | ClusterRef is a reference to the cluster where the snapshot will be taken. + |  | 
-| *`s3ConfigSecretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core[$$SecretReference$$]__ | S3ConfigSecret defines the S3 configuration secret that contains all +
+| *`s3ConfigSecretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core[$$SecretReference$$]__ | S3ConfigSecretRef defines the S3 configuration secret that contains all +
 s3 configuration, the configuration items are expected to match the following +
 https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support + |  | 
 | *`dir`* __string__ | Dir defines the location where the snapshot will be created, if +

@@ -34,7 +34,7 @@ const (
 	// FailedCreateSnapshotReason is added in an event when a snapshot is failed to be created.
 	FailedCreateSnapshotReason = "FailedCreate"
 	// SuccessfulCreateSnapshotReason is added in an event when a snapshot is successfully created.
-	SuccessfulCreateSnaspshotReason = "SuccessfulCreate"
+	SuccessfulCreateSnapshotReason = "SuccessfulCreate"
 	// FailedDeleteSnapshotReason is added in an event when a snapshot is failed to be deleted.
 	FailedDeleteSnapshotReason = "FailedDelete"
 	// SuccessfulDeleteSnapshotReason is added in an event when a snapshot is successfully deleted.
@@ -93,7 +93,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulCreateSnaspshotReason, actionSnapshotReconciling, "Snapshot was successfully created")
+	r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulCreateSnapshotReason, actionSnapshotReconciling, "Snapshot was successfully created")
 
 	return reconcile.Result{}, nil
 }
@@ -154,8 +154,8 @@ func (r *Reconciler) backpopulateSnapshotStatus(ctx context.Context, snapshotNam
 	)
 
 	// we use list snapshot instead of getting the etcdSnapshotFile due to a bug in k3s
-	// for agentless servers, where prunning is run on each snapshot save and it does not
-	// execlude the the agentless nodes https://github.com/k3s-io/k3s/pull/14345
+	// for agentless servers, where pruning is run on each snapshot save and it does not
+	// exclude the agentless nodes https://github.com/k3s-io/k3s/pull/14345
 	snapshotFileList, err := k3sClient.ListSnapshots(s3Config)
 	if err != nil {
 		return err

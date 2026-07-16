@@ -12,36 +12,53 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/k3s"
 )
 
-func (r *SnapshotReconciler) getS3ConfigFromSecret(ctx context.Context, s3ConfigSecret *corev1.Secret) (*k3s.EtcdS3, error) {
+func (r *Reconciler) getS3ConfigFromSecret(ctx context.Context, snapshot *v1beta1.ETCDSnapshot) (*k3s.EtcdS3, error) {
+	if snapshot.Spec.S3ConfigSecretRef == nil {
+		return nil, nil
+	}
+
+	var s3Secret corev1.Secret
+
+	// only work with secrets in the same namespace as snapshot
+	secretKey := types.NamespacedName{
+		Name:      snapshot.Spec.S3ConfigSecretRef.Name,
+		Namespace: snapshot.Namespace,
+	}
+
+	if err := r.Client.Get(ctx, secretKey, &s3Secret); err != nil {
+		return nil, err
+	}
+
 	etcdS3 := k3s.EtcdS3{
-		AccessKey:    string(s3ConfigSecret.Data["etcd-s3-access-key"]),
-		Bucket:       string(s3ConfigSecret.Data["etcd-s3-bucket"]),
-		BucketLookup: string(s3ConfigSecret.Data["etcd-s3-bucket-lookup-type"]),
+		AccessKey:    string(s3Secret.Data["etcd-s3-access-key"]),
+		Bucket:       string(s3Secret.Data["etcd-s3-bucket"]),
+		BucketLookup: string(s3Secret.Data["etcd-s3-bucket-lookup-type"]),
 		Endpoint:     k3s.DefaultEtcdS3.Endpoint,
-		Folder:       string(s3ConfigSecret.Data["etcd-s3-folder"]),
-		Proxy:        string(s3ConfigSecret.Data["etcd-s3-proxy"]),
+		Folder:       string(s3Secret.Data["etcd-s3-folder"]),
+		Proxy:        string(s3Secret.Data["etcd-s3-proxy"]),
 		Region:       k3s.DefaultEtcdS3.Region,
-		SecretKey:    string(s3ConfigSecret.Data["etcd-s3-secret-key"]),
-		SessionToken: string(s3ConfigSecret.Data["etcd-s3-session-token"]),
+		SecretKey:    string(s3Secret.Data["etcd-s3-secret-key"]),
+		SessionToken: string(s3Secret.Data["etcd-s3-session-token"]),
 		Retention:    k3s.DefaultEtcdS3.Retention,
 		Timeout:      *k3s.DefaultEtcdS3.Timeout.DeepCopy(),
 	}
 
 	// Set endpoint from secret if set
-	if v, ok := s3ConfigSecret.Data["etcd-s3-endpoint"]; ok {
+	if v, ok := s3Secret.Data["etcd-s3-endpoint"]; ok {
 		etcdS3.Endpoint = string(v)
 	}
 
 	// Set region from secret if set
-	if v, ok := s3ConfigSecret.Data["etcd-s3-region"]; ok {
+	if v, ok := s3Secret.Data["etcd-s3-region"]; ok {
 		etcdS3.Region = string(v)
 	}
 
 	// Set timeout from secret if set
-	if v, ok := s3ConfigSecret.Data["etcd-s3-timeout"]; ok {
+	if v, ok := s3Secret.Data["etcd-s3-timeout"]; ok {
 		if duration, err := time.ParseDuration(string(v)); err != nil {
 			return nil, fmt.Errorf("failed to parse etcd-s3-timeout value from S3 config secret: %w", err)
 		} else {
@@ -49,7 +66,7 @@ func (r *SnapshotReconciler) getS3ConfigFromSecret(ctx context.Context, s3Config
 		}
 	}
 
-	if v, ok := s3ConfigSecret.Data["etcd-s3-retention"]; ok {
+	if v, ok := s3Secret.Data["etcd-s3-retention"]; ok {
 		if retention, err := strconv.Atoi(string(v)); err != nil {
 			return nil, fmt.Errorf("failed to parse etcd-s3-retention value from S3 config secret: %w", err)
 		} else {
@@ -58,7 +75,7 @@ func (r *SnapshotReconciler) getS3ConfigFromSecret(ctx context.Context, s3Config
 	}
 
 	// configure ssl verification, if value can be parsed
-	if v, ok := s3ConfigSecret.Data["etcd-s3-skip-ssl-verify"]; ok {
+	if v, ok := s3Secret.Data["etcd-s3-skip-ssl-verify"]; ok {
 		if b, err := strconv.ParseBool(string(v)); err != nil {
 			return nil, fmt.Errorf("failed to parse etcd-s3-skip-ssl-verify value from S3 config secret: %w", err)
 		} else {
@@ -67,7 +84,7 @@ func (r *SnapshotReconciler) getS3ConfigFromSecret(ctx context.Context, s3Config
 	}
 
 	// configure insecure http, if value can be parsed
-	if v, ok := s3ConfigSecret.Data["etcd-s3-insecure"]; ok {
+	if v, ok := s3Secret.Data["etcd-s3-insecure"]; ok {
 		if b, err := strconv.ParseBool(string(v)); err != nil {
 			return nil, fmt.Errorf("failed to parse etcd-s3-insecure value from S3 config secret %w", err)
 		} else {
@@ -78,15 +95,15 @@ func (r *SnapshotReconciler) getS3ConfigFromSecret(ctx context.Context, s3Config
 	// encode CA bundles from value, and keys in configmap if one is named
 	caBundles := []string{}
 	// Add inline CA bundle if set
-	if len(s3ConfigSecret.Data["etcd-s3-endpoint-ca"]) > 0 {
-		caBundles = append(caBundles, base64.StdEncoding.EncodeToString(s3ConfigSecret.Data["etcd-s3-endpoint-ca"]))
+	if len(s3Secret.Data["etcd-s3-endpoint-ca"]) > 0 {
+		caBundles = append(caBundles, base64.StdEncoding.EncodeToString(s3Secret.Data["etcd-s3-endpoint-ca"]))
 	}
 
 	// Add CA bundles from named configmap if set
-	if caConfigMapName := string(s3ConfigSecret.Data["etcd-s3-endpoint-ca-name"]); caConfigMapName != "" {
+	if caConfigMapName := string(s3Secret.Data["etcd-s3-endpoint-ca-name"]); caConfigMapName != "" {
 		var configMap corev1.ConfigMap
-		if err := r.Client.Get(ctx, types.NamespacedName{Name: caConfigMapName, Namespace: s3ConfigSecret.Namespace}, &configMap); err != nil {
-			return nil, fmt.Errorf("failed to get ConfigMap %s for etcd-s3-endpoint-ca-name value from S3 config secret %s: %w", caConfigMapName, s3ConfigSecret.Name, err)
+		if err := r.Client.Get(ctx, types.NamespacedName{Name: caConfigMapName, Namespace: s3Secret.Namespace}, &configMap); err != nil {
+			return nil, fmt.Errorf("failed to get ConfigMap %s for etcd-s3-endpoint-ca-name value from S3 config secret %s: %w", caConfigMapName, s3Secret.Name, err)
 		} else {
 			for _, v := range configMap.Data {
 				caBundles = append(caBundles, base64.StdEncoding.EncodeToString([]byte(v)))

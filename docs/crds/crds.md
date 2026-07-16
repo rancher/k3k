@@ -325,7 +325,7 @@ _Appears in:_
 | `clusterRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | ClusterRef is a reference to the cluster where the snapshot will be taken. |  |  |
 | `s3ConfigSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | S3ConfigSecret defines the S3 configuration secret that contains all<br />s3 configuration, the configuration items are expected to match the following<br />https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support |  |  |
 | `dir` _string_ | Dir defines the location where the snapshot will be created, if<br />left empty k3k will use the directory configured for k3s when the<br />cluster was created |  |  |
-| `compress` _boolean_ | Specifies if the snapshot should be compressed |  |  |
+| `compress` _boolean_ | Compress specifies if the snapshot should be compressed |  |  |
 
 
 #### ETCDSnapshotStatus
@@ -341,7 +341,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `snapshotFileName` _string_ | SnapshotFileName is the name of the ETCDSnapshotFile object in the virtual<br />cluster that backs this snapshot. |  |  |
+| `fileName` _string_ | FileName is the name of the snapshot file created in<br />the virtual cluster |  |  |
 
 
 #### ExposeConfig

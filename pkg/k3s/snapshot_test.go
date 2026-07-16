@@ -254,7 +254,7 @@ func (tt *testCase[T]) testHandler(t *testing.T, operation snapshotOperation) ht
 	}
 }
 
-func (tt *testCase[T]) run(t *testing.T, operation snapshotOperation, k3sRequset func(*Client) (T, error)) {
+func (tt *testCase[T]) run(t *testing.T, operation snapshotOperation, k3sRequest func(*Client) (T, error)) {
 	clientConfig := ClientConfig{}
 
 	mux := http.NewServeMux()
@@ -276,7 +276,7 @@ func (tt *testCase[T]) run(t *testing.T, operation snapshotOperation, k3sRequset
 
 	k3sClient := New(clientConfig)
 
-	result, err := k3sRequset(k3sClient)
+	result, err := k3sRequest(k3sClient)
 	if tt.expectedErr != nil {
 		require.ErrorIs(t, err, tt.expectedErr)
 	} else {

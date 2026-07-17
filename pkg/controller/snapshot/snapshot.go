@@ -16,7 +16,6 @@ import (
 
 	k3sv1 "github.com/k3s-io/api/k3s.cattle.io/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 
@@ -195,54 +194,72 @@ func (r *Reconciler) backpopulateSnapshotStatus(ctx context.Context, snapshotNam
 }
 
 func (r *Reconciler) finalizeSnapshot(ctx context.Context, snapshot *v1beta1.EtcdSnapshot) error {
-	log := log.FromContext(ctx)
-
-	var cluster v1beta1.Cluster
-
-	clusterKey := types.NamespacedName{Name: snapshot.Spec.ClusterRef.Name, Namespace: snapshot.Namespace}
-
-	err := r.Get(ctx, clusterKey, &cluster)
-	if err != nil && !apierrors.IsNotFound(err) {
+	if err := r.deleteSnapshot(ctx, snapshot); err != nil {
 		return err
-	}
-
-	// only request deletion of the snapshot if the cluster is found and not deleted
-	if err == nil && cluster.DeletionTimestamp.IsZero() && snapshot.Status.Filename != "" {
-		// remove the snapshot from k3s cluster
-		log.Info("Deleting snapshot from cluster")
-
-		token, err := k3kcluster.GetClusterToken(ctx, r.Client, &cluster)
-		if err != nil {
-			return err
-		}
-
-		initServerPodName := controller.SafeConcatNameWithPrefix(cluster.Name, "server-0")
-		k3sClient := k3s.New(k3s.ClientConfig{
-			Token:    token,
-			ServerIP: fmt.Sprintf("%s.%s.%s:6443", initServerPodName, server.HeadlessServiceName(cluster.Name), snapshot.Namespace),
-		})
-
-		var s3Config *k3s.EtcdS3
-
-		if snapshot.Spec.S3ConfigSecretRef != nil {
-			var err error
-
-			s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
-			if err != nil {
-				return err
-			}
-		}
-
-		_, err = k3sClient.DeleteSnapshot(snapshot, s3Config)
-
-		// do not return error if snapshot is not found in the virtual cluster
-		if err != nil && !errors.Is(err, k3s.ErrSnapshotNotFound) {
-			return err
-		}
 	}
 
 	if controllerutil.RemoveFinalizer(snapshot, snapshotFinalizerName) {
 		return r.Update(ctx, snapshot)
+	}
+
+	return nil
+}
+
+func (r *Reconciler) deleteSnapshot(ctx context.Context, snapshot *v1beta1.EtcdSnapshot) error {
+	log := log.FromContext(ctx)
+
+	// no op if there is no snapshot file reference
+	if snapshot.Status.Filename == "" {
+		return nil
+	}
+
+	var cluster v1beta1.Cluster
+
+	clusterKey := types.NamespacedName{
+		Name:      snapshot.Spec.ClusterRef.Name,
+		Namespace: snapshot.Namespace,
+	}
+
+	err := r.Get(ctx, clusterKey, &cluster)
+	if err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	// skip deletion if the clsuter is terminating
+	if !cluster.DeletionTimestamp.IsZero() {
+		return nil
+	}
+
+	// remove the snapshot from k3s cluster
+	log.Info("Deleting snapshot from cluster")
+
+	token, err := k3kcluster.GetClusterToken(ctx, r.Client, &cluster)
+	if err != nil {
+		return err
+	}
+
+	initServerPodName := controller.SafeConcatNameWithPrefix(cluster.Name, "server-0")
+	k3sClient := k3s.New(k3s.ClientConfig{
+		Token:    token,
+		ServerIP: fmt.Sprintf("%s.%s.%s:6443", initServerPodName, server.HeadlessServiceName(cluster.Name), snapshot.Namespace),
+	})
+
+	var s3Config *k3s.EtcdS3
+
+	if snapshot.Spec.S3ConfigSecretRef != nil {
+		var err error
+
+		s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = k3sClient.DeleteSnapshot(snapshot, s3Config)
+
+	// do not return error if snapshot is not found in the virtual cluster
+	if err != nil && !errors.Is(err, k3s.ErrSnapshotNotFound) {
+		return err
 	}
 
 	return nil

@@ -1057,8 +1057,8 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 func (c *ClusterReconciler) validateCustomCACerts(credentialSources v1beta1.CredentialSources) error {
 	if credentialSources.ClientCA.SecretName == "" ||
 		credentialSources.ServerCA.SecretName == "" ||
-		credentialSources.ETCDPeerCA.SecretName == "" ||
-		credentialSources.ETCDServerCA.SecretName == "" ||
+		credentialSources.EtcdPeerCA.SecretName == "" ||
+		credentialSources.EtcdServerCA.SecretName == "" ||
 		credentialSources.RequestHeaderCA.SecretName == "" ||
 		credentialSources.ServiceAccountToken.SecretName == "" {
 		return ErrCustomCACertSecretMissing

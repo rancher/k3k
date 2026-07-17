@@ -525,12 +525,12 @@ type LoadBalancerConfig struct {
 	// +optional
 	ServerPort *int32 `json:"serverPort,omitempty"`
 
-	// ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.
+	// EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.
 	// If not specified, the default etcd 2379 port will be allocated.
 	// If 0 or negative, the port will not be exposed.
 	//
 	// +optional
-	ETCDPort *int32 `json:"etcdPort,omitempty"`
+	EtcdPort *int32 `json:"etcdPort,omitempty"`
 }
 
 // NodePortConfig specifies options for exposing the API server through NodePort.
@@ -542,12 +542,12 @@ type NodePortConfig struct {
 	// +optional
 	ServerPort *int32 `json:"serverPort,omitempty"`
 
-	// ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
+	// EtcdPort is the port on each node on which the Etcd service is exposed when type is NodePort.
 	// If not specified, a random port between 30000-32767 will be allocated.
 	// If out of range, the port will not be exposed.
 	//
 	// +optional
-	ETCDPort *int32 `json:"etcdPort,omitempty"`
+	EtcdPort *int32 `json:"etcdPort,omitempty"`
 }
 
 // CustomCAs specifies the cert/key pairs for custom CA certificates.
@@ -573,11 +573,11 @@ type CredentialSources struct {
 	// RequestHeaderCA specifies the request-header-ca cert/key pair.
 	RequestHeaderCA CredentialSource `json:"requestHeaderCA"`
 
-	// ETCDServerCA specifies the etcd-server-ca cert/key pair.
-	ETCDServerCA CredentialSource `json:"etcdServerCA"`
+	// EtcdServerCA specifies the etcd-server-ca cert/key pair.
+	EtcdServerCA CredentialSource `json:"etcdServerCA"`
 
-	// ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
-	ETCDPeerCA CredentialSource `json:"etcdPeerCA"`
+	// EtcdPeerCA specifies the etcd-peer-ca cert/key pair.
+	EtcdPeerCA CredentialSource `json:"etcdPeerCA"`
 
 	// ServiceAccountToken specifies the service-account-token key.
 	ServiceAccountToken CredentialSource `json:"serviceAccountToken"`
@@ -890,20 +890,20 @@ type VirtualClusterPolicyList struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:JSONPath=".status.filename",name="File Name",type="string"
 
-type ETCDSnapshot struct {
+type EtcdSnapshot struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta   `json:",inline"`
 
 	// +required
-	Spec ETCDSnapshotSpec `json:"spec"`
+	Spec EtcdSnapshotSpec `json:"spec"`
 
 	// +kubebuilder:default={}
 	// +optional
-	Status ETCDSnapshotStatus `json:"status,omitempty"`
+	Status EtcdSnapshotStatus `json:"status,omitempty"`
 }
 
-// ETCDSnapshotSpec defines the desired state of a ETCDSnapshot.
-type ETCDSnapshotSpec struct {
+// EtcdSnapshotSpec defines the desired state of a EtcdSnapshot.
+type EtcdSnapshotSpec struct {
 	// ClusterRef is a reference to the cluster where the snapshot will be taken.
 	//
 	// +required
@@ -925,8 +925,8 @@ type ETCDSnapshotSpec struct {
 	Compress bool `json:"compress,omitempty"`
 }
 
-// ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
-type ETCDSnapshotStatus struct {
+// EtcdSnapshotStatus reflects the observed state of a EtcdSnapshot.
+type EtcdSnapshotStatus struct {
 	// Filename is the name of the snapshot file created in
 	// the virtual cluster
 	//
@@ -937,10 +937,10 @@ type ETCDSnapshotStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 
-// ETCDSnapshotList is a list of ETCDSnapshot resources.
-type ETCDSnapshotList struct {
+// EtcdSnapshotList is a list of EtcdSnapshot resources.
+type EtcdSnapshotList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta `json:",inline"`
 
-	Items []ETCDSnapshot `json:"items"`
+	Items []EtcdSnapshot `json:"items"`
 }

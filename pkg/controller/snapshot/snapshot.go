@@ -56,16 +56,16 @@ func Add(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) 
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1beta1.ETCDSnapshot{}).
+		For(&v1beta1.EtcdSnapshot{}).
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
-	log.Info("Reconciling ETCDSnapshot")
+	log.Info("Reconciling EtcdSnapshot")
 
-	var snapshot v1beta1.ETCDSnapshot
+	var snapshot v1beta1.EtcdSnapshot
 	if err := r.Get(ctx, req.NamespacedName, &snapshot); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
@@ -100,7 +100,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.ETCDSnapshot) error {
+func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.EtcdSnapshot) error {
 	var cluster v1beta1.Cluster
 
 	nn := types.NamespacedName{
@@ -155,7 +155,7 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.ET
 	return r.backpopulateSnapshotStatus(ctx, snapshotResp.Created[0], snapshot, k3sClient, s3Config)
 }
 
-func (r *Reconciler) backpopulateSnapshotStatus(ctx context.Context, snapshotName string, snapshot *v1beta1.ETCDSnapshot, k3sClient *k3s.Client, s3Config *k3s.EtcdS3) error {
+func (r *Reconciler) backpopulateSnapshotStatus(ctx context.Context, snapshotName string, snapshot *v1beta1.EtcdSnapshot, k3sClient *k3s.Client, s3Config *k3s.EtcdS3) error {
 	var (
 		snapshotFileList *k3sv1.ETCDSnapshotFileList
 		snapshotFile     *k3sv1.ETCDSnapshotFile
@@ -187,14 +187,14 @@ func (r *Reconciler) backpopulateSnapshotStatus(ctx context.Context, snapshotNam
 		return fmt.Errorf("snapshot file %s not found in virtual cluster", snapshotName)
 	}
 
-	snapshot.Status = v1beta1.ETCDSnapshotStatus{
+	snapshot.Status = v1beta1.EtcdSnapshotStatus{
 		Filename: snapshotFile.Spec.SnapshotName,
 	}
 
 	return r.Client.Status().Update(ctx, snapshot)
 }
 
-func (r *Reconciler) finalizeSnapshot(ctx context.Context, snapshot *v1beta1.ETCDSnapshot) error {
+func (r *Reconciler) finalizeSnapshot(ctx context.Context, snapshot *v1beta1.EtcdSnapshot) error {
 	log := log.FromContext(ctx)
 
 	var cluster v1beta1.Cluster

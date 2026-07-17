@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-// redefining the ETCDS3 Configuration to avoid k3s-io/k3s dependency
+// redefining the EtcdS3 Configuration to avoid k3s-io/k3s dependency
 type EtcdS3 struct {
 	AccessKey     string          `json:"accessKey,omitempty"`
 	Bucket        string          `json:"bucket,omitempty"`
@@ -63,7 +63,7 @@ const (
 	snapshotOperationDelete snapshotOperation = "delete"
 )
 
-func (c *Client) SaveSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
+func (c *Client) SaveSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
 	req := snapshotRequest{
 		Operation: snapshotOperationSave,
 		Name:      []string{snapshot.Name},
@@ -93,7 +93,7 @@ func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, e
 	return snapshotFileList, nil
 }
 
-func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
+func (c *Client) DeleteSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
 	req := snapshotRequest{
 		Operation: snapshotOperationDelete,
 		Name:      []string{snapshot.Status.Filename},

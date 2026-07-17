@@ -288,10 +288,10 @@ func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster,
 				ServerCA: v1beta1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "server-ca"),
 				},
-				ETCDServerCA: v1beta1.CredentialSource{
+				EtcdServerCA: v1beta1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-server-ca"),
 				},
-				ETCDPeerCA: v1beta1.CredentialSource{
+				EtcdPeerCA: v1beta1.CredentialSource{
 					SecretName: controller.SafeConcatNameWithPrefix(cluster.Name, "etcd-peer-ca"),
 				},
 				RequestHeaderCA: v1beta1.CredentialSource{

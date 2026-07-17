@@ -93,11 +93,11 @@ func addLoadBalancerPorts(service *corev1.Service, loadbalancerConfig v1beta1.Lo
 	}
 
 	// If the etcd port is not specified, use the default port
-	if loadbalancerConfig.ETCDPort == nil {
+	if loadbalancerConfig.EtcdPort == nil {
 		service.Spec.Ports = append(service.Spec.Ports, etcdPort)
-	} else if *loadbalancerConfig.ETCDPort > 0 {
+	} else if *loadbalancerConfig.EtcdPort > 0 {
 		// If the etcd port is specified, set the port, otherwise the service will not be exposed
-		etcdPort.Port = *loadbalancerConfig.ETCDPort
+		etcdPort.Port = *loadbalancerConfig.EtcdPort
 		service.Spec.Ports = append(service.Spec.Ports, etcdPort)
 	}
 }
@@ -119,10 +119,10 @@ func addNodePortPorts(service *corev1.Service, nodePortConfig v1beta1.NodePortCo
 	}
 
 	// If the etcd port is not specified Kubernetes will set the node port to a random port between 30000-32767
-	if nodePortConfig.ETCDPort == nil {
+	if nodePortConfig.EtcdPort == nil {
 		service.Spec.Ports = append(service.Spec.Ports, etcdPort)
 	} else {
-		etcdNodePort := *nodePortConfig.ETCDPort
+		etcdNodePort := *nodePortConfig.EtcdPort
 
 		// If the etcd port is in the range of 30000-32767, set the node port
 		// otherwise the service will not be exposed

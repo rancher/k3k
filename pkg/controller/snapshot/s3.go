@@ -16,7 +16,7 @@ import (
 	"github.com/rancher/k3k/pkg/k3s"
 )
 
-func (r *Reconciler) getS3ConfigFromSecret(ctx context.Context, snapshot *v1beta1.ETCDSnapshot) (*k3s.EtcdS3, error) {
+func (r *Reconciler) getS3ConfigFromSecret(ctx context.Context, snapshot *v1beta1.EtcdSnapshot) (*k3s.EtcdS3, error) {
 	var s3Secret corev1.Secret
 
 	// only work with secrets in the same namespace as snapshot

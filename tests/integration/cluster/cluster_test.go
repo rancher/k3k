@@ -150,7 +150,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 							Expose: &v1beta1.ExposeConfig{
 								NodePort: &v1beta1.NodePortConfig{
 									ServerPort: ptr.To[int32](30010),
-									ETCDPort:   ptr.To[int32](30011),
+									EtcdPort:   ptr.To[int32](30011),
 								},
 							},
 						},
@@ -199,7 +199,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 						Spec: v1beta1.ClusterSpec{
 							Expose: &v1beta1.ExposeConfig{
 								NodePort: &v1beta1.NodePortConfig{
-									ETCDPort: ptr.To[int32](2222),
+									EtcdPort: ptr.To[int32](2222),
 								},
 							},
 						},

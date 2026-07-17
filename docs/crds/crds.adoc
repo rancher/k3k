@@ -15,8 +15,8 @@
 === Resource Types
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-cluster[$$Cluster$$]
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterlist[$$ClusterList$$]
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot[$$ETCDSnapshot$$]
-- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotlist[$$ETCDSnapshotList$$]
+- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot[$$EtcdSnapshot$$]
+- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotlist[$$EtcdSnapshotList$$]
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicy[$$VirtualClusterPolicy$$]
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicylist[$$VirtualClusterPolicyList$$]
 
@@ -341,8 +341,8 @@ _Appears In:_
 | *`serverCA`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsource[$$CredentialSource$$]__ | ServerCA specifies the server-ca cert/key pair. + |  | 
 | *`clientCA`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsource[$$CredentialSource$$]__ | ClientCA specifies the client-ca cert/key pair. + |  | 
 | *`requestHeaderCA`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsource[$$CredentialSource$$]__ | RequestHeaderCA specifies the request-header-ca cert/key pair. + |  | 
-| *`etcdServerCA`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsource[$$CredentialSource$$]__ | ETCDServerCA specifies the etcd-server-ca cert/key pair. + |  | 
-| *`etcdPeerCA`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsource[$$CredentialSource$$]__ | ETCDPeerCA specifies the etcd-peer-ca cert/key pair. + |  | 
+| *`etcdServerCA`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsource[$$CredentialSource$$]__ | EtcdServerCA specifies the etcd-server-ca cert/key pair. + |  | 
+| *`etcdPeerCA`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsource[$$CredentialSource$$]__ | EtcdPeerCA specifies the etcd-peer-ca cert/key pair. + |  | 
 | *`serviceAccountToken`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsource[$$CredentialSource$$]__ | ServiceAccountToken specifies the service-account-token key. + |  | 
 |===
 
@@ -369,7 +369,7 @@ _Appears In:_
 
 
 [id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot"]
-=== ETCDSnapshot
+=== EtcdSnapshot
 
 
 
@@ -379,26 +379,26 @@ _Appears In:_
 
 _Appears In:_
 
-* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotlist[$$ETCDSnapshotList$$]
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotlist[$$EtcdSnapshotList$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
 | *`apiVersion`* __string__ | `k3k.io/v1beta1` | |
-| *`kind`* __string__ | `ETCDSnapshot` | |
+| *`kind`* __string__ | `EtcdSnapshot` | |
 | *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
  |  | 
-| *`spec`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotspec[$$ETCDSnapshotSpec$$]__ |  |  | 
-| *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotstatus[$$ETCDSnapshotStatus$$]__ |  | {  } | 
+| *`spec`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotspec[$$EtcdSnapshotSpec$$]__ |  |  | 
+| *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotstatus[$$EtcdSnapshotStatus$$]__ |  | {  } | 
 |===
 
 
 [id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotlist"]
-=== ETCDSnapshotList
+=== EtcdSnapshotList
 
 
 
-ETCDSnapshotList is a list of ETCDSnapshot resources.
+EtcdSnapshotList is a list of EtcdSnapshot resources.
 
 
 
@@ -408,25 +408,25 @@ ETCDSnapshotList is a list of ETCDSnapshot resources.
 |===
 | Field | Description | Default | Validation
 | *`apiVersion`* __string__ | `k3k.io/v1beta1` | |
-| *`kind`* __string__ | `ETCDSnapshotList` | |
+| *`kind`* __string__ | `EtcdSnapshotList` | |
 | *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#listmeta-v1-meta[$$ListMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
  |  | 
-| *`items`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot[$$ETCDSnapshot$$] array__ |  |  | 
+| *`items`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot[$$EtcdSnapshot$$] array__ |  |  | 
 |===
 
 
 [id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotspec"]
-=== ETCDSnapshotSpec
+=== EtcdSnapshotSpec
 
 
 
-ETCDSnapshotSpec defines the desired state of a ETCDSnapshot.
+EtcdSnapshotSpec defines the desired state of a EtcdSnapshot.
 
 
 
 _Appears In:_
 
-* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot[$$ETCDSnapshot$$]
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot[$$EtcdSnapshot$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -443,17 +443,17 @@ to S3, when the request is deleted both files on disk and s3 will be deleted + |
 
 
 [id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotstatus"]
-=== ETCDSnapshotStatus
+=== EtcdSnapshotStatus
 
 
 
-ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
+EtcdSnapshotStatus reflects the observed state of a EtcdSnapshot.
 
 
 
 _Appears In:_
 
-* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot[$$ETCDSnapshot$$]
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot[$$EtcdSnapshot$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
@@ -550,7 +550,7 @@ _Appears In:_
 | *`serverPort`* __integer__ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer. +
 If not specified, the default https 443 port will be allocated. +
 If 0 or negative, the port will not be exposed. + |  | 
-| *`etcdPort`* __integer__ | ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer. +
+| *`etcdPort`* __integer__ | EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer. +
 If not specified, the default etcd 2379 port will be allocated. +
 If 0 or negative, the port will not be exposed. + |  | 
 |===
@@ -575,7 +575,7 @@ _Appears In:_
 | *`serverPort`* __integer__ | ServerPort is the port on each node on which the K3s server is exposed when type is NodePort. +
 If not specified, a random port between 30000-32767 will be allocated. +
 If out of range, the port will not be exposed. + |  | 
-| *`etcdPort`* __integer__ | ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort. +
+| *`etcdPort`* __integer__ | EtcdPort is the port on each node on which the Etcd service is exposed when type is NodePort. +
 If not specified, a random port between 30000-32767 will be allocated. +
 If out of range, the port will not be exposed. + |  | 
 |===

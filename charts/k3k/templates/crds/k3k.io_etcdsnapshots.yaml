@@ -9,8 +9,8 @@ metadata:
 spec:
   group: k3k.io
   names:
-    kind: ETCDSnapshot
-    listKind: ETCDSnapshotList
+    kind: EtcdSnapshot
+    listKind: EtcdSnapshotList
     plural: etcdsnapshots
     singular: etcdsnapshot
   scope: Namespaced
@@ -41,7 +41,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ETCDSnapshotSpec defines the desired state of a ETCDSnapshot.
+            description: EtcdSnapshotSpec defines the desired state of a EtcdSnapshot.
             properties:
               clusterRef:
                 description: ClusterRef is a reference to the cluster where the snapshot will be taken.
@@ -82,7 +82,7 @@ spec:
             type: object
           status:
             default: {}
-            description: ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
+            description: EtcdSnapshotStatus reflects the observed state of a EtcdSnapshot.
             properties:
               filename:
                 description: |-

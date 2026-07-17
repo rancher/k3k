@@ -19,7 +19,7 @@ import (
 
 type testCase[T any] struct {
 	name            string
-	snapshot        *v1beta1.ETCDSnapshot
+	snapshot        *v1beta1.EtcdSnapshot
 	s3Config        *EtcdS3
 	isServerRunning bool
 	serverStatus    int
@@ -29,11 +29,11 @@ type testCase[T any] struct {
 }
 
 func Test_SaveSnapshot(t *testing.T) {
-	snapshot := &v1beta1.ETCDSnapshot{
+	snapshot := &v1beta1.EtcdSnapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-snapshot",
 		},
-		Spec: v1beta1.ETCDSnapshotSpec{
+		Spec: v1beta1.EtcdSnapshotSpec{
 			ClusterRef: corev1.LocalObjectReference{Name: "test-cluster"},
 			Compress:   true,
 		},
@@ -90,15 +90,15 @@ func Test_SaveSnapshot(t *testing.T) {
 }
 
 func Test_DeleteSnapshot(t *testing.T) {
-	snapshot := &v1beta1.ETCDSnapshot{
+	snapshot := &v1beta1.EtcdSnapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-snapshot",
 		},
-		Spec: v1beta1.ETCDSnapshotSpec{
+		Spec: v1beta1.EtcdSnapshotSpec{
 			ClusterRef: corev1.LocalObjectReference{Name: "test-cluster"},
 			Compress:   true,
 		},
-		Status: v1beta1.ETCDSnapshotStatus{
+		Status: v1beta1.EtcdSnapshotStatus{
 			Filename: "on-demand-test-snapshot",
 		},
 	}

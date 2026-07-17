@@ -10,8 +10,8 @@
 ### Resource Types
 - [Cluster](#cluster)
 - [ClusterList](#clusterlist)
-- [ETCDSnapshot](#etcdsnapshot)
-- [ETCDSnapshotList](#etcdsnapshotlist)
+- [EtcdSnapshot](#etcdsnapshot)
+- [EtcdSnapshotList](#etcdsnapshotlist)
 - [VirtualClusterPolicy](#virtualclusterpolicy)
 - [VirtualClusterPolicyList](#virtualclusterpolicylist)
 
@@ -251,8 +251,8 @@ _Appears in:_
 | `serverCA` _[CredentialSource](#credentialsource)_ | ServerCA specifies the server-ca cert/key pair. |  |  |
 | `clientCA` _[CredentialSource](#credentialsource)_ | ClientCA specifies the client-ca cert/key pair. |  |  |
 | `requestHeaderCA` _[CredentialSource](#credentialsource)_ | RequestHeaderCA specifies the request-header-ca cert/key pair. |  |  |
-| `etcdServerCA` _[CredentialSource](#credentialsource)_ | ETCDServerCA specifies the etcd-server-ca cert/key pair. |  |  |
-| `etcdPeerCA` _[CredentialSource](#credentialsource)_ | ETCDPeerCA specifies the etcd-peer-ca cert/key pair. |  |  |
+| `etcdServerCA` _[CredentialSource](#credentialsource)_ | EtcdServerCA specifies the etcd-server-ca cert/key pair. |  |  |
+| `etcdPeerCA` _[CredentialSource](#credentialsource)_ | EtcdPeerCA specifies the etcd-peer-ca cert/key pair. |  |  |
 | `serviceAccountToken` _[CredentialSource](#credentialsource)_ | ServiceAccountToken specifies the service-account-token key. |  |  |
 
 
@@ -273,7 +273,7 @@ _Appears in:_
 | `sources` _[CredentialSources](#credentialsources)_ | Sources defines the sources for all required custom CA certificates. |  |  |
 
 
-#### ETCDSnapshot
+#### EtcdSnapshot
 
 
 
@@ -282,22 +282,22 @@ _Appears in:_
 
 
 _Appears in:_
-- [ETCDSnapshotList](#etcdsnapshotlist)
+- [EtcdSnapshotList](#etcdsnapshotlist)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `k3k.io/v1beta1` | | |
-| `kind` _string_ | `ETCDSnapshot` | | |
+| `kind` _string_ | `EtcdSnapshot` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[ETCDSnapshotSpec](#etcdsnapshotspec)_ |  |  |  |
-| `status` _[ETCDSnapshotStatus](#etcdsnapshotstatus)_ |  | \{  \} |  |
+| `spec` _[EtcdSnapshotSpec](#etcdsnapshotspec)_ |  |  |  |
+| `status` _[EtcdSnapshotStatus](#etcdsnapshotstatus)_ |  | \{  \} |  |
 
 
-#### ETCDSnapshotList
+#### EtcdSnapshotList
 
 
 
-ETCDSnapshotList is a list of ETCDSnapshot resources.
+EtcdSnapshotList is a list of EtcdSnapshot resources.
 
 
 
@@ -306,21 +306,21 @@ ETCDSnapshotList is a list of ETCDSnapshot resources.
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `k3k.io/v1beta1` | | |
-| `kind` _string_ | `ETCDSnapshotList` | | |
+| `kind` _string_ | `EtcdSnapshotList` | | |
 | `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[ETCDSnapshot](#etcdsnapshot) array_ |  |  |  |
+| `items` _[EtcdSnapshot](#etcdsnapshot) array_ |  |  |  |
 
 
-#### ETCDSnapshotSpec
+#### EtcdSnapshotSpec
 
 
 
-ETCDSnapshotSpec defines the desired state of a ETCDSnapshot.
+EtcdSnapshotSpec defines the desired state of a EtcdSnapshot.
 
 
 
 _Appears in:_
-- [ETCDSnapshot](#etcdsnapshot)
+- [EtcdSnapshot](#etcdsnapshot)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -329,16 +329,16 @@ _Appears in:_
 | `compress` _boolean_ | Compress specifies if the snapshot should be compressed |  |  |
 
 
-#### ETCDSnapshotStatus
+#### EtcdSnapshotStatus
 
 
 
-ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
+EtcdSnapshotStatus reflects the observed state of a EtcdSnapshot.
 
 
 
 _Appears in:_
-- [ETCDSnapshot](#etcdsnapshot)
+- [EtcdSnapshot](#etcdsnapshot)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -413,7 +413,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />If not specified, the default https 443 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
-| `etcdPort` _integer_ | ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
+| `etcdPort` _integer_ | EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
 
 
 #### NodePortConfig
@@ -430,7 +430,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `serverPort` _integer_ | ServerPort is the port on each node on which the K3s server is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
-| `etcdPort` _integer_ | ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
+| `etcdPort` _integer_ | EtcdPort is the port on each node on which the Etcd service is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
 
 
 #### PersistenceConfig

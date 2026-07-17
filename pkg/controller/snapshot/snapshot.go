@@ -40,12 +40,11 @@ const (
 	// SuccessfulDeleteSnapshotReason is added in an event when a snapshot is successfully deleted.
 	SuccessfulDeleteSnapshotReason = "SuccessfulDelete"
 
-	actionSnapshotReconciling = "Reconciling"
+	snapshotReconcilingAction = "Reconciling"
 )
 
 type Reconciler struct {
-	Client client.Client
-
+	client.Client
 	events.EventRecorder
 }
 
@@ -67,33 +66,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Info("Reconciling ETCDSnapshot")
 
 	var snapshot v1beta1.ETCDSnapshot
-	if err := r.Client.Get(ctx, req.NamespacedName, &snapshot); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, &snapshot); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// handle snapshot deletion
 	if !snapshot.DeletionTimestamp.IsZero() {
 		if err := r.finalizeSnapshot(ctx, &snapshot); err != nil {
-			r.Eventf(&snapshot, nil, corev1.EventTypeWarning, FailedDeleteSnapshotReason, actionSnapshotReconciling, err.Error())
+			r.Eventf(&snapshot, nil, corev1.EventTypeWarning, FailedDeleteSnapshotReason, snapshotReconcilingAction, err.Error())
 			return reconcile.Result{}, err
 		}
 
-		r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulDeleteSnapshotReason, actionSnapshotReconciling, "Snapshot was successfully deleted")
+		r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulDeleteSnapshotReason, snapshotReconcilingAction, "Snapshot was successfully deleted")
 
 		return reconcile.Result{}, nil
 	}
 
 	// avoid recreating snapshot if status is populated
-	if snapshot.Status.FileName != "" {
+	if snapshot.Status.Filename != "" {
 		return reconcile.Result{}, nil
 	}
 
 	if err := r.reconcileSnapshot(ctx, &snapshot); err != nil {
-		r.Eventf(&snapshot, nil, corev1.EventTypeWarning, FailedCreateSnapshotReason, actionSnapshotReconciling, err.Error())
+		r.Eventf(&snapshot, nil, corev1.EventTypeWarning, FailedCreateSnapshotReason, snapshotReconcilingAction, err.Error())
 		return reconcile.Result{}, err
 	}
 
-	r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulCreateSnapshotReason, actionSnapshotReconciling, "Snapshot was successfully created")
+	// only emit event when the file is actually created and populated to the status
+	if snapshot.Status.Filename != "" {
+		r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulCreateSnapshotReason, snapshotReconcilingAction, "Snapshot was successfully created")
+	}
 
 	return reconcile.Result{}, nil
 }
@@ -106,7 +108,7 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.ET
 		Namespace: snapshot.Namespace,
 	}
 
-	if err := r.Client.Get(ctx, nn, &cluster); err != nil {
+	if err := r.Get(ctx, nn, &cluster); err != nil {
 		return err
 	}
 
@@ -115,12 +117,7 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.ET
 	}
 
 	if controllerutil.AddFinalizer(snapshot, snapshotFinalizerName) {
-		return r.Client.Update(ctx, snapshot)
-	}
-
-	s3Config, err := r.getS3ConfigFromSecret(ctx, snapshot)
-	if err != nil {
-		return err
+		return r.Update(ctx, snapshot)
 	}
 
 	token, err := k3kcluster.GetClusterToken(ctx, r.Client, &cluster)
@@ -133,6 +130,17 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.ET
 		Token:    token,
 		ServerIP: fmt.Sprintf("%s.%s.%s:6443", initServerPodName, server.HeadlessServiceName(cluster.Name), snapshot.Namespace),
 	})
+
+	var s3Config *k3s.EtcdS3
+
+	if snapshot.Spec.S3ConfigSecretRef != nil {
+		var err error
+
+		s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
+		if err != nil {
+			return err
+		}
+	}
 
 	snapshotResp, err := k3sClient.SaveSnapshot(snapshot, s3Config)
 	if err != nil {
@@ -180,7 +188,7 @@ func (r *Reconciler) backpopulateSnapshotStatus(ctx context.Context, snapshotNam
 	}
 
 	snapshot.Status = v1beta1.ETCDSnapshotStatus{
-		FileName: snapshotFile.Spec.SnapshotName,
+		Filename: snapshotFile.Spec.SnapshotName,
 	}
 
 	return r.Client.Status().Update(ctx, snapshot)
@@ -193,20 +201,15 @@ func (r *Reconciler) finalizeSnapshot(ctx context.Context, snapshot *v1beta1.ETC
 
 	clusterKey := types.NamespacedName{Name: snapshot.Spec.ClusterRef.Name, Namespace: snapshot.Namespace}
 
-	err := r.Client.Get(ctx, clusterKey, &cluster)
+	err := r.Get(ctx, clusterKey, &cluster)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
 	// only request deletion of the snapshot if the cluster is found and not deleted
-	if err == nil && cluster.DeletionTimestamp.IsZero() && snapshot.Status.FileName != "" {
+	if err == nil && cluster.DeletionTimestamp.IsZero() && snapshot.Status.Filename != "" {
 		// remove the snapshot from k3s cluster
 		log.Info("Deleting snapshot from cluster")
-
-		s3Config, err := r.getS3ConfigFromSecret(ctx, snapshot)
-		if err != nil {
-			return err
-		}
 
 		token, err := k3kcluster.GetClusterToken(ctx, r.Client, &cluster)
 		if err != nil {
@@ -219,6 +222,17 @@ func (r *Reconciler) finalizeSnapshot(ctx context.Context, snapshot *v1beta1.ETC
 			ServerIP: fmt.Sprintf("%s.%s.%s:6443", initServerPodName, server.HeadlessServiceName(cluster.Name), snapshot.Namespace),
 		})
 
+		var s3Config *k3s.EtcdS3
+
+		if snapshot.Spec.S3ConfigSecretRef != nil {
+			var err error
+
+			s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
+			if err != nil {
+				return err
+			}
+		}
+
 		_, err = k3sClient.DeleteSnapshot(snapshot, s3Config)
 
 		// do not return error if snapshot is not found in the virtual cluster
@@ -228,7 +242,7 @@ func (r *Reconciler) finalizeSnapshot(ctx context.Context, snapshot *v1beta1.ETC
 	}
 
 	if controllerutil.RemoveFinalizer(snapshot, snapshotFinalizerName) {
-		return r.Client.Update(ctx, snapshot)
+		return r.Update(ctx, snapshot)
 	}
 
 	return nil

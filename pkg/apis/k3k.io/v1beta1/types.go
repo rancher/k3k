@@ -888,7 +888,7 @@ type VirtualClusterPolicyList struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:JSONPath=".status.fileName",name="File Name",type="string"
+// +kubebuilder:printcolumn:JSONPath=".status.filename",name="File Name",type="string"
 
 type ETCDSnapshot struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -913,15 +913,11 @@ type ETCDSnapshotSpec struct {
 	// s3 configuration, the configuration items are expected to match the following
 	// https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
 	//
-	// +optional
-	S3ConfigSecretRef *corev1.SecretReference `json:"s3ConfigSecretRef,omitempty"`
-
-	// Dir defines the location where the snapshot will be created, if
-	// left empty k3k will use the directory configured for k3s when the
-	// cluster was created
+	// Setting this will also cause k3s to create a local etcd snapshot on disk and then upload it
+	// to S3, when the request is deleted both files on disk and s3 will be deleted
 	//
 	// +optional
-	Dir string `json:"dir,omitempty"`
+	S3ConfigSecretRef *corev1.SecretReference `json:"s3ConfigSecretRef,omitempty"`
 
 	// Compress specifies if the snapshot should be compressed
 	//
@@ -931,11 +927,11 @@ type ETCDSnapshotSpec struct {
 
 // ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
 type ETCDSnapshotStatus struct {
-	// FileName is the name of the snapshot file created in
+	// Filename is the name of the snapshot file created in
 	// the virtual cluster
 	//
 	// +optional
-	FileName string `json:"fileName,omitempty"`
+	Filename string `json:"filename,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

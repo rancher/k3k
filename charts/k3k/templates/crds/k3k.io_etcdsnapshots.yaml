@@ -16,7 +16,7 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.fileName
+    - jsonPath: .status.filename
       name: File Name
       type: string
     name: v1beta1
@@ -60,17 +60,14 @@ spec:
               compress:
                 description: Compress specifies if the snapshot should be compressed
                 type: boolean
-              dir:
-                description: |-
-                  Dir defines the location where the snapshot will be created, if
-                  left empty k3k will use the directory configured for k3s when the
-                  cluster was created
-                type: string
               s3ConfigSecretRef:
                 description: |-
                   S3ConfigSecretRef defines the S3 configuration secret that contains all
                   s3 configuration, the configuration items are expected to match the following
                   https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
+
+                  Setting this will also cause k3s to create a local etcd snapshot on disk and then upload it
+                  to S3, when the request is deleted both files on disk and s3 will be deleted
                 properties:
                   name:
                     description: name is unique within a namespace to reference a secret resource.
@@ -87,9 +84,9 @@ spec:
             default: {}
             description: ETCDSnapshotStatus reflects the observed state of a ETCDSnapshot.
             properties:
-              fileName:
+              filename:
                 description: |-
-                  FileName is the name of the snapshot file created in
+                  Filename is the name of the snapshot file created in
                   the virtual cluster
                 type: string
             type: object

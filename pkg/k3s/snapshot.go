@@ -67,7 +67,6 @@ func (c *Client) SaveSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) 
 	req := snapshotRequest{
 		Operation: snapshotOperationSave,
 		Name:      []string{snapshot.Name},
-		Dir:       new(snapshot.Spec.Dir),
 		Compress:  new(snapshot.Spec.Compress),
 		S3:        s3Config,
 	}
@@ -97,8 +96,7 @@ func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, e
 func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
 	req := snapshotRequest{
 		Operation: snapshotOperationDelete,
-		Name:      []string{snapshot.Status.FileName},
-		Dir:       new(snapshot.Spec.Dir),
+		Name:      []string{snapshot.Status.Filename},
 		S3:        s3Config,
 	}
 
@@ -107,7 +105,7 @@ func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3
 		return nil, fmt.Errorf("%w: %w", ErrDeleteSnapshot, err)
 	}
 
-	if !slices.Contains(snapshotResult.Deleted, snapshot.Status.FileName) {
+	if !slices.Contains(snapshotResult.Deleted, snapshot.Status.Filename) {
 		return nil, ErrSnapshotNotFound
 	}
 
@@ -117,9 +115,7 @@ func (c *Client) DeleteSnapshot(snapshot *v1beta1.ETCDSnapshot, s3Config *EtcdS3
 type snapshotRequest struct {
 	Operation snapshotOperation `json:"operation"`
 	Name      []string          `json:"name,omitempty"`
-	Dir       *string           `json:"dir,omitempty"`
 	Compress  *bool             `json:"compress,omitempty"`
-	Retention *int              `json:"retention,omitempty"`
 	S3        *EtcdS3           `json:"s3,omitempty"`
 }
 

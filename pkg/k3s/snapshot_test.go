@@ -35,7 +35,6 @@ func Test_SaveSnapshot(t *testing.T) {
 		},
 		Spec: v1beta1.ETCDSnapshotSpec{
 			ClusterRef: corev1.LocalObjectReference{Name: "test-cluster"},
-			Dir:        "/var/lib/rancher/k3s/server/db/snapshots",
 			Compress:   true,
 		},
 	}
@@ -97,11 +96,10 @@ func Test_DeleteSnapshot(t *testing.T) {
 		},
 		Spec: v1beta1.ETCDSnapshotSpec{
 			ClusterRef: corev1.LocalObjectReference{Name: "test-cluster"},
-			Dir:        "/var/lib/rancher/k3s/server/db/snapshots",
 			Compress:   true,
 		},
 		Status: v1beta1.ETCDSnapshotStatus{
-			FileName: "on-demand-test-snapshot",
+			Filename: "on-demand-test-snapshot",
 		},
 	}
 
@@ -241,11 +239,7 @@ func (tt *testCase[T]) testHandler(t *testing.T, operation snapshotOperation) ht
 		}
 
 		if operation == snapshotOperationDelete {
-			assert.Equal(t, []string{tt.snapshot.Status.FileName}, req.Name)
-		}
-
-		if req.Dir != nil {
-			assert.Equal(t, tt.snapshot.Spec.Dir, *req.Dir)
+			assert.Equal(t, []string{tt.snapshot.Status.Filename}, req.Name)
 		}
 
 		w.WriteHeader(tt.serverStatus)

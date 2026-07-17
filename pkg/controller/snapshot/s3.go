@@ -17,10 +17,6 @@ import (
 )
 
 func (r *Reconciler) getS3ConfigFromSecret(ctx context.Context, snapshot *v1beta1.ETCDSnapshot) (*k3s.EtcdS3, error) {
-	if snapshot.Spec.S3ConfigSecretRef == nil {
-		return nil, nil
-	}
-
 	var s3Secret corev1.Secret
 
 	// only work with secrets in the same namespace as snapshot
@@ -29,7 +25,7 @@ func (r *Reconciler) getS3ConfigFromSecret(ctx context.Context, snapshot *v1beta
 		Namespace: snapshot.Namespace,
 	}
 
-	if err := r.Client.Get(ctx, secretKey, &s3Secret); err != nil {
+	if err := r.Get(ctx, secretKey, &s3Secret); err != nil {
 		return nil, err
 	}
 
@@ -102,7 +98,7 @@ func (r *Reconciler) getS3ConfigFromSecret(ctx context.Context, snapshot *v1beta
 	// Add CA bundles from named configmap if set
 	if caConfigMapName := string(s3Secret.Data["etcd-s3-endpoint-ca-name"]); caConfigMapName != "" {
 		var configMap corev1.ConfigMap
-		if err := r.Client.Get(ctx, types.NamespacedName{Name: caConfigMapName, Namespace: s3Secret.Namespace}, &configMap); err != nil {
+		if err := r.Get(ctx, types.NamespacedName{Name: caConfigMapName, Namespace: s3Secret.Namespace}, &configMap); err != nil {
 			return nil, fmt.Errorf("failed to get ConfigMap %s for etcd-s3-endpoint-ca-name value from S3 config secret %s: %w", caConfigMapName, s3Secret.Name, err)
 		} else {
 			for _, v := range configMap.Data {

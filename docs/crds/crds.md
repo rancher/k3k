@@ -324,8 +324,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `clusterRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | ClusterRef is a reference to the cluster where the snapshot will be taken. |  |  |
-| `s3ConfigSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | S3ConfigSecretRef defines the S3 configuration secret that contains all<br />s3 configuration, the configuration items are expected to match the following<br />https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support<br />Setting this will also cause k3s to create a local etcd snapshot on disk and then upload it<br />to S3, when the request is deleted both files on disk and s3 will be deleted |  |  |
+| `clusterRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | ClusterRef is a reference to the cluster where the snapshot will be taken.<br />This field is immutable. |  |  |
+| `s3ConfigSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | S3ConfigSecretRef defines the S3 configuration secret that contains all<br />s3 configuration, the configuration items are expected to match the following<br />https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support,<br />this field is immutable to avoid inconsistencies after snapshot creation.<br />Setting this will also cause k3s to create a local etcd snapshot on disk and then upload it<br />to S3, when the request is deleted both files on disk and s3 will be deleted |  |  |
 | `compress` _boolean_ | Compress specifies if the snapshot should be compressed |  |  |
 
 

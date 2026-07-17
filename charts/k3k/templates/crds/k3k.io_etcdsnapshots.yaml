@@ -44,7 +44,9 @@ spec:
             description: EtcdSnapshotSpec defines the desired state of a EtcdSnapshot.
             properties:
               clusterRef:
-                description: ClusterRef is a reference to the cluster where the snapshot will be taken.
+                description: |-
+                  ClusterRef is a reference to the cluster where the snapshot will be taken.
+                  This field is immutable.
                 properties:
                   name:
                     default: ""
@@ -57,14 +59,21 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: clusterRef is immutable
+                  rule: self == oldSelf
               compress:
                 description: Compress specifies if the snapshot should be compressed
                 type: boolean
+                x-kubernetes-validations:
+                - message: compress is immutable
+                  rule: self == oldSelf
               s3ConfigSecretRef:
                 description: |-
                   S3ConfigSecretRef defines the S3 configuration secret that contains all
                   s3 configuration, the configuration items are expected to match the following
-                  https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
+                  https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support,
+                  this field is immutable to avoid inconsistencies after snapshot creation.
 
                   Setting this will also cause k3s to create a local etcd snapshot on disk and then upload it
                   to S3, when the request is deleted both files on disk and s3 will be deleted
@@ -77,6 +86,9 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: s3ConfigSecretRef is immutable
+                  rule: self == oldSelf
             required:
             - clusterRef
             type: object

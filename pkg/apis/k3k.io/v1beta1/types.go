@@ -904,23 +904,29 @@ type EtcdSnapshot struct {
 
 // EtcdSnapshotSpec defines the desired state of a EtcdSnapshot.
 type EtcdSnapshotSpec struct {
+
 	// ClusterRef is a reference to the cluster where the snapshot will be taken.
+	// This field is immutable.
 	//
+	// +kubebuilder:validation:XValidation:message="clusterRef is immutable",rule="self == oldSelf"
 	// +required
 	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
 
 	// S3ConfigSecretRef defines the S3 configuration secret that contains all
 	// s3 configuration, the configuration items are expected to match the following
-	// https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
+	// https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support,
+	// this field is immutable to avoid inconsistencies after snapshot creation.
 	//
 	// Setting this will also cause k3s to create a local etcd snapshot on disk and then upload it
 	// to S3, when the request is deleted both files on disk and s3 will be deleted
 	//
+	// +kubebuilder:validation:XValidation:message="s3ConfigSecretRef is immutable",rule="self == oldSelf"
 	// +optional
 	S3ConfigSecretRef *corev1.SecretReference `json:"s3ConfigSecretRef,omitempty"`
 
 	// Compress specifies if the snapshot should be compressed
 	//
+	// +kubebuilder:validation:XValidation:message="compress is immutable",rule="self == oldSelf"
 	// +optional
 	Compress bool `json:"compress,omitempty"`
 }

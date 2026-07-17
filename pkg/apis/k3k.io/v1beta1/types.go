@@ -904,7 +904,6 @@ type EtcdSnapshot struct {
 
 // EtcdSnapshotSpec defines the desired state of a EtcdSnapshot.
 type EtcdSnapshotSpec struct {
-
 	// ClusterRef is a reference to the cluster where the snapshot will be taken.
 	// This field is immutable.
 	//

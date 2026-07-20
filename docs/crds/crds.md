@@ -288,7 +288,7 @@ _Appears in:_
 | `kind` _string_ | `EtcdSnapshot` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[EtcdSnapshotSpec](#etcdsnapshotspec)_ |  |  |  |
-| `status` _[EtcdSnapshotStatus](#etcdsnapshotstatus)_ |  | \{  \} |  |
+| `status` _[EtcdSnapshotStatus](#etcdsnapshotstatus)_ |  |  |  |
 
 
 #### EtcdSnapshotList
@@ -324,7 +324,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `clusterRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | ClusterRef is a reference to the cluster where the snapshot will be taken.<br />This field is immutable. |  |  |
 | `s3ConfigSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | S3ConfigSecretRef defines the S3 configuration secret that contains all<br />S3 configuration. The configuration items are expected to match the following:<br />https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support<br />This field is immutable to avoid inconsistencies after snapshot creation.<br />Setting this will also cause k3s to create a local etcd snapshot on disk and then upload<br />it to S3. When the request is deleted, both the on-disk and S3 files will be deleted. |  |  |
-| `compress` _boolean_ | Compress specifies if the snapshot should be compressed |  |  |
+| `compress` _boolean_ | Compress specifies if the snapshot should be compressed | false |  |
 
 
 #### EtcdSnapshotStatus

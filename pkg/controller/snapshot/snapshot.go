@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
@@ -42,6 +43,8 @@ const (
 	snapshotReconcilingAction = "Reconciling"
 )
 
+var errClusterNotReady = errors.New("cluster is not ready")
+
 type Reconciler struct {
 	client.Client
 	events.EventRecorder
@@ -76,7 +79,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
-		r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulDeleteSnapshotReason, snapshotReconcilingAction, "Snapshot was successfully deleted")
+		r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulDeleteSnapshotReason, snapshotReconcilingAction, "Snapshot was deleted")
 
 		return reconcile.Result{}, nil
 	}
@@ -87,13 +90,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.reconcileSnapshot(ctx, &snapshot); err != nil {
+		if errors.Is(err, errClusterNotReady) {
+			log.V(1).Info("Cluster not ready, requeueing")
+			return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+		}
+
 		r.Eventf(&snapshot, nil, corev1.EventTypeWarning, FailedCreateSnapshotReason, snapshotReconcilingAction, err.Error())
+
 		return reconcile.Result{}, err
 	}
 
 	// only emit event when the file is actually created and populated to the status
 	if snapshot.Status.Filename != "" {
-		r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulCreateSnapshotReason, snapshotReconcilingAction, "Snapshot was successfully created")
+		r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulCreateSnapshotReason, snapshotReconcilingAction, "Snapshot was created")
 	}
 
 	return reconcile.Result{}, nil
@@ -112,7 +121,7 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.Et
 	}
 
 	if cluster.Status.Phase != v1beta1.ClusterReady {
-		return fmt.Errorf("cluster is not ready")
+		return errClusterNotReady
 	}
 
 	if controllerutil.AddFinalizer(snapshot, snapshotFinalizerName) {
@@ -141,7 +150,7 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.Et
 
 	snapshotResp, err := k3sClient.SaveSnapshot(snapshot, s3Config)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to save snapshot for cluster %s: %w", cluster.Name, err)
 	}
 
 	if len(snapshotResp.Created) <= 0 {

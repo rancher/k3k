@@ -909,9 +909,8 @@ type EtcdSnapshot struct {
 	// +required
 	Spec EtcdSnapshotSpec `json:"spec"`
 
-	// +kubebuilder:default={}
 	// +optional
-	Status EtcdSnapshotStatus `json:"status,omitempty"`
+	Status EtcdSnapshotStatus `json:"status,omitzero"`
 }
 
 // EtcdSnapshotSpec defines the desired state of an EtcdSnapshot.
@@ -939,8 +938,9 @@ type EtcdSnapshotSpec struct {
 	// Compress specifies if the snapshot should be compressed
 	//
 	// +kubebuilder:validation:XValidation:message="compress is immutable",rule="self == oldSelf"
+	// +kubebuilder:default=false
 	// +optional
-	Compress bool `json:"compress,omitempty"`
+	Compress bool `json:"compress"`
 }
 
 // EtcdSnapshotStatus reflects the observed state of an EtcdSnapshot.

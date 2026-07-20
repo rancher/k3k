@@ -389,7 +389,7 @@ _Appears In:_
 | *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
  |  | 
 | *`spec`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotspec[$$EtcdSnapshotSpec$$]__ |  |  | 
-| *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotstatus[$$EtcdSnapshotStatus$$]__ |  | {  } | 
+| *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotstatus[$$EtcdSnapshotStatus$$]__ |  |  | 
 |===
 
 
@@ -441,7 +441,7 @@ This field is immutable to avoid inconsistencies after snapshot creation. +
 
 Setting this will also cause k3s to create a local etcd snapshot on disk and then upload +
 it to S3. When the request is deleted, both the on-disk and S3 files will be deleted. + |  | 
-| *`compress`* __boolean__ | Compress specifies if the snapshot should be compressed + |  | 
+| *`compress`* __boolean__ | Compress specifies if the snapshot should be compressed + | false | 
 |===
 
 

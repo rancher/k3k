@@ -63,6 +63,7 @@ spec:
                 - message: clusterRef is immutable
                   rule: self == oldSelf
               compress:
+                default: false
                 description: Compress specifies if the snapshot should be compressed
                 type: boolean
                 x-kubernetes-validations:
@@ -94,7 +95,6 @@ spec:
             - clusterRef
             type: object
           status:
-            default: {}
             description: EtcdSnapshotStatus reflects the observed state of an EtcdSnapshot.
             properties:
               filename:

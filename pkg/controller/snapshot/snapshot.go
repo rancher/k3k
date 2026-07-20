@@ -133,8 +133,6 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.Et
 	var s3Config *k3s.EtcdS3
 
 	if snapshot.Spec.S3ConfigSecretRef != nil {
-		var err error
-
 		s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
 		if err != nil {
 			return err
@@ -220,12 +218,11 @@ func (r *Reconciler) deleteSnapshot(ctx context.Context, snapshot *v1beta1.EtcdS
 		Namespace: snapshot.Namespace,
 	}
 
-	err := r.Get(ctx, clusterKey, &cluster)
-	if err != nil {
+	if err := r.Get(ctx, clusterKey, &cluster); err != nil {
 		return client.IgnoreNotFound(err)
 	}
 
-	// skip deletion if the clsuter is terminating
+	// skip deletion if the cluster is terminating
 	if !cluster.DeletionTimestamp.IsZero() {
 		return nil
 	}
@@ -247,8 +244,6 @@ func (r *Reconciler) deleteSnapshot(ctx context.Context, snapshot *v1beta1.EtcdS
 	var s3Config *k3s.EtcdS3
 
 	if snapshot.Spec.S3ConfigSecretRef != nil {
-		var err error
-
 		s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
 		if err != nil {
 			return err

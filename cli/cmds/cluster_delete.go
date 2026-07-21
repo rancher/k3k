@@ -3,6 +3,7 @@ package cmds
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -47,14 +48,22 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 
 		namespace := appCtx.Namespace(name)
 
-		logrus.Infof("Deleting '%s' cluster in namespace '%s'", name, namespace)
-
 		cluster := v1beta1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
 			},
 		}
+		if err := client.Get(ctx, ctrlclient.ObjectKeyFromObject(&cluster), &cluster); err != nil {
+			if apierrors.IsNotFound(err) {
+				return fmt.Errorf("cluster %q not found in namespace %q; specify the correct namespace with --namespace", name, namespace)
+			}
+
+			return err
+		}
+
+		logrus.Infof("Deleting '%s' cluster in namespace '%s'", name, namespace)
+
 		// keep bootstrap secrets and tokens if --keep-data flag is passed
 		if keepData {
 			// skip removing tokenSecret

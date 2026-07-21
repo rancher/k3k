@@ -463,13 +463,13 @@ func (s *Server) setupStartCommand() (string, error) {
 		runtimeClass = *s.cluster.Spec.RuntimeClassName
 	}
 
-	tmplCmd, err := template.New("").Parse(tmpl)
+	tmplCmd, err := template.New("").Option("missingkey=error").Parse(tmpl)
 	if err != nil {
 		return "", err
 	}
 
 	if err := tmplCmd.Execute(&output, map[string]string{
-		"Etcd_DIR":      k3sEtcdDataDir,
+		"ETCD_DIR":      k3sEtcdDataDir,
 		"INIT_CONFIG":   filepath.Join(k3sInitConfigDir, "config.yaml"),
 		"SERVER_CONFIG": filepath.Join(k3sConfigDir, "config.yaml"),
 		"CLUSTER_MODE":  mode,

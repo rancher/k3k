@@ -44,7 +44,8 @@ func TestService(t *testing.T) {
 					c.Spec = v1beta1.ClusterSpec{
 						Expose: &v1beta1.ExposeConfig{
 							LoadBalancer: &v1beta1.LoadBalancerConfig{
-								ServerPort: ptr.To[int32](9443),
+								LoadBalancerClass: ptr.To("example.com/internal"),
+								ServerPort:        ptr.To[int32](9443),
 							},
 						},
 					}
@@ -53,6 +54,7 @@ func TestService(t *testing.T) {
 			serviceOpts: []func(*corev1.Service){
 				func(s *corev1.Service) {
 					s.Spec.Type = corev1.ServiceTypeLoadBalancer
+					s.Spec.LoadBalancerClass = ptr.To("example.com/internal")
 					s.Spec.Ports = []corev1.ServicePort{
 						{
 							Name:       "k3s-server-port",

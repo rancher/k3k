@@ -67,6 +67,7 @@ func Service(cluster *v1beta1.Cluster) *corev1.Service {
 		switch {
 		case expose.LoadBalancer != nil:
 			service.Spec.Type = corev1.ServiceTypeLoadBalancer
+			service.Spec.LoadBalancerClass = expose.LoadBalancer.LoadBalancerClass
 			addLoadBalancerPorts(service, *expose.LoadBalancer, k3sServerPort, etcdPort)
 		case expose.NodePort != nil:
 			service.Spec.Type = corev1.ServiceTypeNodePort

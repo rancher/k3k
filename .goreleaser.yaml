@@ -52,13 +52,15 @@ builds:
       - -X "github.com/rancher/k3k/pkg/buildinfo.Version={{ .Tag }}"
 
 archives:
-  - format: binary
+  - formats:
+      - binary
     name_template: >-
       {{ .Binary }}-{{- .Os }}-{{ .Arch }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
 
 # For the image_templates we are using the following expression to build images for the correct registry
 #    {{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}
@@ -66,79 +68,42 @@ archives:
 # REGISTRY=        -> rancher/k3k:vX.Y.Z
 # REGISTRY=ghcr.io -> ghcr.io/rancher/k3k:latest:vX.Y.Z
 #
-dockers:
-  # k3k amd64
-  - use: buildx
-    goarch: amd64
-    ids:
-      - k3k
-      - k3kcli
-    dockerfile: "package/Dockerfile.k3k"
-    skip_push: false
-    image_templates:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}:{{ .Tag }}-amd64"
-    build_flag_templates:
-      - "--build-arg=BIN_K3K=k3k"
-      - "--build-arg=BIN_K3KCLI=k3kcli"
-      - "--pull"
-      - "--platform=linux/amd64"
-  
-  # k3k arm64
-  - use: buildx
-    goarch: arm64
-    ids:
-      - k3k
-      - k3kcli
-    dockerfile: "package/Dockerfile.k3k"
-    skip_push: false
-    image_templates:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}:{{ .Tag }}-arm64"
-    build_flag_templates:
-      - "--build-arg=BIN_K3K=k3k"
-      - "--build-arg=BIN_K3KCLI=k3kcli"
-      - "--pull"
-      - "--platform=linux/arm64"
-
-  # k3k-kubelet amd64
-  - use: buildx
-    goarch: amd64
-    ids:
-      - k3k-kubelet
-    dockerfile: "package/Dockerfile.k3k-kubelet"
-    skip_push: false
-    image_templates:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet:{{ .Tag }}-amd64"
-    build_flag_templates:
-      - "--build-arg=BIN_K3K_KUBELET=k3k-kubelet"
-      - "--pull"
-      - "--platform=linux/amd64"
-
-  # k3k-kubelet arm64
-  - use: buildx
-    goarch: arm64
-    ids:
-      - k3k-kubelet
-    dockerfile: "package/Dockerfile.k3k-kubelet"
-    skip_push: false
-    image_templates:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet:{{ .Tag }}-arm64"
-    build_flag_templates:
-      - "--build-arg=BIN_K3K_KUBELET=k3k-kubelet"
-      - "--pull"
-      - "--platform=linux/arm64"
-
-docker_manifests:
+dockers_v2:
   # k3k
-  - name_template: "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}:{{ .Tag }}"
-    image_templates:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}:{{ .Tag }}-amd64"
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}:{{ .Tag }}-arm64"
-  
-  # k3k-kubelet arm64
-  - name_template: "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet:{{ .Tag }}"
-    image_templates:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet:{{ .Tag }}-amd64"
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet:{{ .Tag }}-arm64"
+  - id: k3k
+    ids:
+      - k3k
+      - k3kcli
+    dockerfile: "package/Dockerfile.k3k"
+    images:
+      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}"
+    tags:
+      - "{{ .Tag }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    build_args:
+      BIN_K3K: k3k
+      BIN_K3KCLI: k3kcli
+    flags:
+      - "--pull"
+
+  # k3k-kubelet
+  - id: k3k-kubelet
+    ids:
+      - k3k-kubelet
+    dockerfile: "package/Dockerfile.k3k-kubelet"
+    images:
+      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet"
+    tags:
+      - "{{ .Tag }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    build_args:
+      BIN_K3K_KUBELET: k3k-kubelet
+    flags:
+      - "--pull"
 
 changelog:
   sort: asc

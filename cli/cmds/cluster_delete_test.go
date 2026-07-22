@@ -18,5 +18,5 @@ func TestDeleteMissingCluster(t *testing.T) {
 	appCtx := &AppContext{Client: fake.NewClientBuilder().WithScheme(scheme).Build()}
 	err := delete(appCtx)(&cobra.Command{}, []string{"missing"})
 
-	require.EqualError(t, err, `cluster "missing" not found in namespace "k3k-missing"; specify the correct namespace with --namespace`)
+	require.EqualError(t, err, `cluster "missing" not found in namespace "k3k-missing"`)
 }

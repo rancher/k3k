@@ -56,7 +56,7 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 		}
 		if err := client.Get(ctx, ctrlclient.ObjectKeyFromObject(&cluster), &cluster); err != nil {
 			if apierrors.IsNotFound(err) {
-				return fmt.Errorf("cluster %q not found in namespace %q; specify the correct namespace with --namespace", name, namespace)
+				return fmt.Errorf("cluster %q not found in namespace %q", name, namespace)
 			}
 
 			return err

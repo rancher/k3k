@@ -16,8 +16,8 @@ permissions:
   id-token: write
 
 env:
-  GORELEASER_VERSION: v2.15.2
-  GORELEASER_CHECKSUM_x86_64: 0ebdbf0353aba566b969dde746cc4e4806f96c27aa2f3971b229a9df7611fedc
+  GORELEASER_VERSION: v2.17.0
+  GORELEASER_CHECKSUM_x86_64: dde10e2d5a13cef969c0eec00c74f359c0ac306d702b1bd291ad9337b4e54c1d
 
 jobs:
   release:

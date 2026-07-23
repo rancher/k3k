@@ -76,7 +76,7 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 
 	hostPod := &corev1.Pod{}
 	if err := s.HostClient.Get(ctx, client.ObjectKey{Name: event.InvolvedObject.Name, Namespace: event.InvolvedObject.Namespace}, hostPod); err != nil {
-		if client.IgnoreNotFound(err) != nil {
+		if apierrors.IsNotFound(err){
 			return reconcile.Result{}, fmt.Errorf("could not load host object: %w", err)
 		}
 

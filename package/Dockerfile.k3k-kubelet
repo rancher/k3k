@@ -1,8 +1,14 @@
 # TODO: swicth this to BCI-micro or scratch. Left as base right now so that debug can be done a bit easier
 FROM registry.suse.com/bci/bci-base:16.1
 
-ARG BIN_K3K_KUBELET=bin/k3k-kubelet
+ARG TARGETPLATFORM
+# BIN_DIR is the directory containing the binaries within the build context.
+# GoReleaser (dockers_v2) stages binaries under a per-platform directory that
+# matches TARGETPLATFORM (e.g. linux/amd64), so that is the default. Other
+# callers (e.g. the Makefile) can override it, for example with BIN_DIR=bin.
+ARG BIN_DIR=${TARGETPLATFORM}
+ARG BIN_K3K_KUBELET=k3k-kubelet
 
-COPY ${BIN_K3K_KUBELET} /usr/bin/
+COPY ${BIN_DIR}/${BIN_K3K_KUBELET} /usr/bin/
 
 ENTRYPOINT ["/usr/bin/k3k-kubelet"]

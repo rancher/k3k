@@ -990,6 +990,8 @@ func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy v1beta1.Vi
 		if err := c.validateCustomCACerts(cluster.Spec.CustomCAs.Sources); err != nil {
 			return fmt.Errorf("%w: %w", ErrClusterValidation, err)
 		}
+	if cluster.Spec.Persistence.StorageRequestSize != nil && cluster.Spec.Persistence.StorageRequestSize.Sign() <= 0 {
+		return fmt.Errorf("%w: storageRequestSize must be greater than zero", ErrClusterValidation)
 	}
 
 	return nil

@@ -67,8 +67,12 @@ func validateCreateConfig(cfg *CreateConfig) error {
 	}
 
 	if cfg.storageRequestSize != "" {
-		if _, err := resource.ParseQuantity(cfg.storageRequestSize); err != nil {
+		qty, err := resource.ParseQuantity(cfg.storageRequestSize)
+		if err != nil {
 			return errors.New(`invalid storage size, should be a valid resource quantity e.g "10Gi"`)
+		}
+		if qty.Sign() <= 0 {
+			return errors.New(`invalid storage size: must be greater than zero`)
 		}
 	}
 

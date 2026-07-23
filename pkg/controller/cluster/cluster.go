@@ -977,6 +977,10 @@ func validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) er
 		}
 	}
 
+	if size := cluster.Spec.Persistence.StorageRequestSize; size != nil && size.Sign() <= 0 {
+		return fmt.Errorf("%w: persistence.storageRequestSize must be greater than zero, got %q", ErrClusterValidation, size.String())
+	}
+
 	// The Ingress hosts are taken from the tlsSANs, and the IP addresses are not valid.
 	// Without at least one DNS name the generated Ingress would have no rules,
 	// and the API server would reject it.

@@ -128,9 +128,10 @@ func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, ku
 
 func (s *SharedAgent) daemonset(ctx context.Context) error {
 	labels := map[string]string{
-		"cluster": s.cluster.Name,
-		"type":    "agent",
-		"mode":    "shared",
+		"cluster":                  s.cluster.Name,
+		translate.ClusterNameLabel: s.cluster.Name,
+		"type":                     "agent",
+		"mode":                     "shared",
 	}
 
 	deploy := &appsv1.DaemonSet{

@@ -1,13 +1,11 @@
 FROM registry.suse.com/bci/bci-base:16.1
 
-ARG TARGETPLATFORM
-# BIN_DIR is the directory containing the binaries within the build context.
-# GoReleaser (dockers_v2) stages binaries under a per-platform directory that
-# matches TARGETPLATFORM (e.g. linux/amd64), so that is the default. Other
-# callers (e.g. the Makefile) can override it, for example with BIN_DIR=bin.
-ARG BIN_DIR=${TARGETPLATFORM}
 ARG BIN_K3K=k3k
 ARG BIN_K3KCLI=k3kcli
+
+# BIN_DIR defaults to the buildx per-platform dir; override (e.g. BIN_DIR=bin) for flat layouts.
+ARG TARGETPLATFORM
+ARG BIN_DIR=${TARGETPLATFORM}
 
 COPY ${BIN_DIR}/${BIN_K3K} /usr/bin/
 COPY ${BIN_DIR}/${BIN_K3KCLI} /usr/bin/

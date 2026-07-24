@@ -152,3 +152,48 @@ func completionClient(cmd *cobra.Command) (client.Client, error) {
 
 	return client, nil
 }
+
+// completeClusterNames is a cobra.CompletionFunc that completes with the names of clusters in the selected namespace.
+func completeClusterNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	cl, err := completionClient(cmd)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	namespace := "default"
+	if ns, err := cmd.Flags().GetString("namespace"); err == nil && ns != "" {
+		namespace = ns
+	}
+
+	var clusters v1beta1.ClusterList
+	if err := cl.List(cmd.Context(), &clusters, client.InNamespace(namespace)); err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	names := make([]string, 0, len(clusters.Items))
+	for _, c := range clusters.Items {
+		names = append(names, c.Name)
+	}
+
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completePolicyNames is a cobra.CompletionFunc that completes with the names of VirtualClusterPolicies.
+func completePolicyNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	cl, err := completionClient(cmd)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	var policies v1beta1.VirtualClusterPolicyList
+	if err := cl.List(cmd.Context(), &policies); err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	names := make([]string, 0, len(policies.Items))
+	for _, p := range policies.Items {
+		names = append(names, p.Name)
+	}
+
+	return names, cobra.ShellCompDirectiveNoFileComp
+}

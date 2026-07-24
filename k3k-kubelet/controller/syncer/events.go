@@ -80,7 +80,7 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 			return reconcile.Result{}, fmt.Errorf("could not load host object: %w", err)
 		}
 
-		logger.V(3).Info("host object not found, skipping event emission",
+		logger.V(1).Info("host object not found, skipping event emission",
 			"involvedObject.kind", event.InvolvedObject.Kind,
 			"involvedObject.name", event.InvolvedObject.Name,
 			"involvedObject.namespace", event.InvolvedObject.Namespace,
@@ -92,7 +92,7 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 	s.Translator.TranslateFrom(hostPod)
 
 	if hostPod.Name == "" {
-		logger.V(3).Info("Host object has no name - skipping event",
+		logger.V(1).Info("Host object has no name - skipping event",
 			"involvedObject.kind", event.InvolvedObject.Kind,
 			"involvedObject.name", event.InvolvedObject.Name,
 			"involvedObject.namespace", event.InvolvedObject.Namespace,
@@ -108,7 +108,7 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 			return reconcile.Result{}, fmt.Errorf("could not load virtual object: %w", err)
 		}
 
-		logger.Info("virtual object not found, skipping event emission",
+		logger.V(1).Info("virtual object not found, skipping event emission",
 			"virtualInvolvedObject.kind", hostPod.Kind,
 			"virtualInvolvedObject.name", hostPod.Name,
 			"virtualInvolvedObject.namespace", hostPod.Namespace,

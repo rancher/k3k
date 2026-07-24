@@ -26,8 +26,9 @@ func NewClusterDeleteCmd(appCtx *AppContext) *cobra.Command {
 		Use:     "delete",
 		Short:   "Delete an existing cluster.",
 		Example: "k3kcli cluster delete [command options] NAME",
-		RunE:    delete(appCtx),
-		Args:    cobra.ExactArgs(1),
+		RunE:              delete(appCtx),
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completeClusterNames,
 	}
 
 	cmd.Flags().BoolVar(&keepData, "keep-data", false, "keeps persistence volumes created for the cluster after deletion")

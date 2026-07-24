@@ -26,6 +26,7 @@ import (
 type GenerateKubeconfigConfig struct {
 	name                 string
 	configName           string
+	out                  string
 	cn                   string
 	org                  []string
 	altNames             []string
@@ -50,15 +51,17 @@ func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
 	cfg := &GenerateKubeconfigConfig{}
 
 	cmd := &cobra.Command{
-		Use:   "generate",
-		Short: "Generate kubeconfig for clusters.",
-		RunE:  generate(appCtx, cfg),
-		Args:  cobra.NoArgs,
+		Use:               "generate [NAME]",
+		Short:             "Generate kubeconfig for clusters.",
+		RunE:              generate(appCtx, cfg),
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeClusterNames,
 	}
 
 	CobraFlagNamespace(appCtx, cmd, completeClusterNamespaces)
 
 	generateKubeconfigFlags(cmd, cfg)
+	mustRegisterFlagCompletion(cmd, "name", completeClusterNames)
 
 	return cmd
 }
@@ -66,6 +69,7 @@ func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
 func generateKubeconfigFlags(cmd *cobra.Command, cfg *GenerateKubeconfigConfig) {
 	cmd.Flags().StringVar(&cfg.name, "name", "", "cluster name")
 	cmd.Flags().StringVar(&cfg.configName, "config-name", "", "the name of the generated kubeconfig file")
+	cmd.Flags().StringVar(&cfg.out, "out", "", "the path where to save the generated kubeconfig file")
 	cmd.Flags().StringVar(&cfg.cn, "cn", controller.AdminCommonName, "Common name (CN) of the generated certificates for the kubeconfig")
 	cmd.Flags().StringSliceVar(&cfg.org, "org", nil, "Organization name (ORG) of the generated certificates for the kubeconfig")
 	cmd.Flags().StringSliceVar(&cfg.altNames, "altNames", nil, "altNames of the generated certificates for the kubeconfig")
@@ -77,6 +81,14 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := appCtx.Client
+
+		if len(args) > 0 && cfg.name == "" {
+			cfg.name = args[0]
+		}
+
+		if cfg.name == "" {
+			return errors.New("cluster name is required")
+		}
 
 		clusterKey := types.NamespacedName{
 			Name:      cfg.name,
@@ -122,7 +134,7 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 			return err
 		}
 
-		if err := writeKubeconfigFile(&cluster, kubeconfig, cfg.configName); err != nil {
+		if err := writeKubeconfigFile(&cluster, kubeconfig, cfg.configName, cfg.out); err != nil {
 			return err
 		}
 
@@ -150,13 +162,25 @@ func resolveServerHost(restConfigHost, override string) (string, error) {
 	return u.Hostname(), nil
 }
 
-func writeKubeconfigFile(cluster *v1beta1.Cluster, kubeconfig *clientcmdapi.Config, configName string) error {
-	if configName == "" {
-		configName = cluster.Namespace + "-" + cluster.Name + "-kubeconfig.yaml"
+func writeKubeconfigFile(cluster *v1beta1.Cluster, kubeconfig *clientcmdapi.Config, configName, outPath string) error {
+	var targetPath string
+	if outPath != "" {
+		targetPath = outPath
+	} else if configName != "" {
+		targetPath = configName
+	} else {
+		configDir := os.Getenv("XDG_CONFIG_HOME")
+		if configDir == "" {
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				return err
+			}
+			configDir = filepath.Join(homeDir, ".config")
+		}
+		targetPath = filepath.Join(configDir, "k3k", cluster.Namespace, cluster.Name+".yaml")
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 		return err
 	}
 
@@ -164,12 +188,12 @@ func writeKubeconfigFile(cluster *v1beta1.Cluster, kubeconfig *clientcmdapi.Conf
 
 	export KUBECONFIG=%s
 	kubectl cluster-info
-	`, filepath.Join(pwd, configName))
+	`, targetPath)
 
 	kubeconfigData, err := clientcmd.Write(*kubeconfig)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(configName, kubeconfigData, 0o644)
+	return os.WriteFile(targetPath, kubeconfigData, 0o644)
 }

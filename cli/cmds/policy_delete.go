@@ -16,8 +16,9 @@ func NewPolicyDeleteCmd(appCtx *AppContext) *cobra.Command {
 		Use:     "delete",
 		Short:   "Delete an existing policy.",
 		Example: "k3kcli policy delete [command options] NAME",
-		RunE:    policyDeleteAction(appCtx),
-		Args:    cobra.ExactArgs(1),
+		RunE:              policyDeleteAction(appCtx),
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completePolicyNames,
 	}
 }
 

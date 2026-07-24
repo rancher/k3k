@@ -38,6 +38,8 @@ jobs:
           label-filter: "pod || app || sync || policy || status"
         - name: features
           label-filter: "networking || certificates || registry || addons || datastore"
+        - name: k3k-upgrade
+          label-filter: "k3k-upgrade"
 
     name: tests-e2e (${{ matrix.name }})
 

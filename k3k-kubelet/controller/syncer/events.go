@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -76,7 +77,7 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 
 	hostPod := &corev1.Pod{}
 	if err := s.HostClient.Get(ctx, client.ObjectKey{Name: event.InvolvedObject.Name, Namespace: event.InvolvedObject.Namespace}, hostPod); err != nil {
-		if apierrors.IsNotFound(err){
+		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, fmt.Errorf("could not load host object: %w", err)
 		}
 

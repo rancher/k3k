@@ -93,3 +93,37 @@ func Test_completeClusterNamespaces(t *testing.T) {
 	// only namespaces that contain a cluster, deduplicated; "default" is excluded
 	assert.ElementsMatch(t, []string{"k3k-foo", "k3k-bar"}, names)
 }
+
+func Test_completeClusterNames(t *testing.T) {
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(completionTestScheme(t)).
+		WithObjects(
+			cluster("foo", "k3k-foo"),
+			cluster("bar", "k3k-bar"),
+			cluster("bar-2", "k3k-bar"),
+		).
+		Build()
+
+	names, directive := clusterNameCompletions(t.Context(), fakeClient, "")
+
+	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	// clusters across all namespaces, in "namespace/name" form
+	assert.ElementsMatch(t, []string{"k3k-foo/foo", "k3k-bar/bar", "k3k-bar/bar-2"}, names)
+}
+
+func Test_completeClusterNames_filtersNamespace(t *testing.T) {
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(completionTestScheme(t)).
+		WithObjects(
+			cluster("foo", "k3k-foo"),
+			cluster("bar", "k3k-bar"),
+			cluster("bar-2", "k3k-bar"),
+		).
+		Build()
+
+	names, directive := clusterNameCompletions(t.Context(), fakeClient, "k3k-bar")
+
+	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	// only the clusters in the requested namespace
+	assert.ElementsMatch(t, []string{"k3k-bar/bar", "k3k-bar/bar-2"}, names)
+}

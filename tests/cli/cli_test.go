@@ -1,11 +1,9 @@
 package cli_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -18,6 +16,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/policy"
+	fwcmd "github.com/rancher/k3k/tests/framework/cmd"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -25,23 +24,11 @@ import (
 )
 
 func K3kcli(args ...string) (string, string, error) {
-	return runCmd("k3kcli", args...)
+	return fwcmd.RunCmd("k3kcli", args...)
 }
 
 func Kubectl(args ...string) (string, string, error) {
-	return runCmd("kubectl", args...)
-}
-
-func runCmd(cmdName string, args ...string) (string, string, error) {
-	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-
-	cmd := exec.CommandContext(context.Background(), cmdName, args...)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-
-	err := cmd.Run()
-
-	return stdout.String(), stderr.String(), err
+	return fwcmd.RunCmd("kubectl", args...)
 }
 
 func checkCluster(path string) {

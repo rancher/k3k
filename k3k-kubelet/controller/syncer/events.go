@@ -82,9 +82,8 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 		}
 
 		logger.V(1).Info("host object not found, skipping event emission",
-			"involvedObject.kind", event.InvolvedObject.Kind,
-			"involvedObject.name", event.InvolvedObject.Name,
-			"involvedObject.namespace", event.InvolvedObject.Namespace,
+			"involvedObjectName", event.InvolvedObject.Name,
+			"involvedObjectNamespace", event.InvolvedObject.Namespace,
 		)
 
 		return reconcile.Result{}, nil
@@ -94,9 +93,8 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 
 	if hostPod.Name == "" {
 		logger.V(1).Info("Host object has no name - skipping event",
-			"involvedObject.kind", event.InvolvedObject.Kind,
-			"involvedObject.name", event.InvolvedObject.Name,
-			"involvedObject.namespace", event.InvolvedObject.Namespace,
+			"involvedObjectName", event.InvolvedObject.Name,
+			"involvedObjectNamespace", event.InvolvedObject.Namespace,
 		)
 
 		return reconcile.Result{}, nil
@@ -110,17 +108,16 @@ func (s *EventSyncer) Reconcile(ctx context.Context, req reconcile.Request) (rec
 		}
 
 		logger.V(1).Info("virtual object not found, skipping event emission",
-			"virtualInvolvedObject.kind", hostPod.Kind,
-			"virtualInvolvedObject.name", hostPod.Name,
-			"virtualInvolvedObject.namespace", hostPod.Namespace,
+			"virtualInvolvedObjectName", hostPod.Name,
+			"virtualInvolvedObjectNamespace", hostPod.Namespace,
 		)
 
 		return reconcile.Result{}, nil
 	}
 
-	logger.V(3).Info("Emitting event into virtual cluster", "virtPod.name",
-		virtPod.GetName(), "virtPod.namespace", virtPod.GetNamespace(), "reason",
-		event.Reason, "message", event.Message, "type", event.Type)
+	logger.V(1).Info("Emitting event into virtual cluster",
+		"virtPodName", virtPod.GetName(), "virtPodNamespace", virtPod.GetNamespace(),
+		"reason", event.Reason, "message", event.Message, "type", event.Type)
 
 	message := translateEventMessage(
 		event.Message,

@@ -127,11 +127,8 @@ func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, ku
 }
 
 func (s *SharedAgent) daemonset(ctx context.Context) error {
-	labels := map[string]string{
-		"cluster": s.cluster.Name,
-		"type":    "agent",
-		"mode":    "shared",
-	}
+	selectorLabels := agentSelectorLabels(s.cluster.Name, SharedNodeMode)
+	labels := agentLabels(s.cluster.Name, SharedNodeMode)
 
 	deploy := &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
@@ -145,7 +142,7 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
+				MatchLabels: selectorLabels,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

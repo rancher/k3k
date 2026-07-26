@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	namePrefix      = "k3k"
-	AdminCommonName = "system:admin"
+	namePrefix       = "k3k"
+	MetadataPrefix   = "k3k.io/"
+	ClusterNameLabel = MetadataPrefix + "clusterName"
+	AdminCommonName  = "system:admin"
 )
 
 // Backoff is the cluster creation duration backoff

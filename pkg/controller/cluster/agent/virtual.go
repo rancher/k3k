@@ -109,12 +109,9 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 	const name = "k3k-agent"
 
 	selector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"cluster": v.cluster.Name,
-			"type":    "agent",
-			"mode":    "virtual",
-		},
+		MatchLabels: agentSelectorLabels(v.cluster.Name, VirtualNodeMode),
 	}
+	labels := agentLabels(v.cluster.Name, VirtualNodeMode)
 	podSpec := v.podSpec(ctx, image, name)
 
 	if len(v.cluster.Spec.SecretMounts) > 0 {
@@ -133,14 +130,14 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      v.Name(),
 			Namespace: v.cluster.Namespace,
-			Labels:    selector.MatchLabels,
+			Labels:    labels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: v.cluster.Spec.Agents,
 			Selector: &selector,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: selector.MatchLabels,
+					Labels: labels,
 				},
 				Spec: podSpec,
 			},

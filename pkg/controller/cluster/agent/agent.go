@@ -29,6 +29,24 @@ type Config struct {
 	scheme  *runtime.Scheme
 }
 
+func agentSelectorLabels(clusterName, mode string) map[string]string {
+	return map[string]string{
+		"cluster": clusterName,
+		"type":    "agent",
+		"mode":    mode,
+	}
+}
+
+func agentLabels(clusterName, mode string) map[string]string {
+	return map[string]string{
+		"cluster":                   clusterName,
+		"type":                      "agent",
+		"mode":                      mode,
+		controller.ClusterNameLabel: clusterName,
+		"role":                      "agent",
+	}
+}
+
 func NewConfig(cluster *v1beta1.Cluster, client ctrlruntimeclient.Client) *Config {
 	return &Config{
 		cluster: cluster,

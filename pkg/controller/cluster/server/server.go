@@ -52,6 +52,22 @@ type Server struct {
 	imagePullSecrets []string
 }
 
+func serverSelectorLabels(clusterName string) map[string]string {
+	return map[string]string{
+		"cluster": clusterName,
+		"role":    "server",
+	}
+}
+
+func serverLabels(clusterName, mode string) map[string]string {
+	return map[string]string{
+		"cluster":                   clusterName,
+		"role":                      "server",
+		"mode":                      mode,
+		controller.ClusterNameLabel: clusterName,
+	}
+}
+
 func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePullPolicy string, imagePullSecrets []string) *Server {
 	return &Server{
 		cluster:          cluster,
@@ -372,11 +388,9 @@ func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error
 	}
 
 	selector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"cluster": s.cluster.Name,
-			"role":    "server",
-		},
+		MatchLabels: serverSelectorLabels(s.cluster.Name),
 	}
+	labels := serverLabels(s.cluster.Name, s.mode)
 
 	startupCommand, err := s.setupStartCommand()
 	if err != nil {
@@ -395,7 +409,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: s.cluster.Namespace,
-			Labels:    selector.MatchLabels,
+			Labels:    labels,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
@@ -403,7 +417,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error
 			Selector:    &selector,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: selector.MatchLabels,
+					Labels: labels,
 				},
 				Spec: podSpec,
 			},

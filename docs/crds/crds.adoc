@@ -66,10 +66,12 @@ This includes both node affinity and pod affinity/anti-affinity rules. + |  |
 | *`agentAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy. +
 This includes both node affinity and pod affinity/anti-affinity rules. + |  | 
 | *`sync`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]__ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. + |  | 
-| *`runtimeClassName`* __string__ | SecurityContext specifies custom SecurityContext to be added +
-to the agent and server pods of the cluster in virtual or shared mode. + |  | 
-| *`securityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core[$$SecurityContext$$]__ | RuntimeClassName specifies alternative runtime class for the +
+| *`runtimeClassName`* __string__ | RuntimeClassName specifies alternative runtime class for the +
 agent and server pods of the cluster in virtual or shared mode. + |  | 
+| *`podSecurityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podsecuritycontext-v1-core[$$PodSecurityContext$$]__ | PodSecurityContext specifies custom SecurityContext to be added +
+to the agent and server pods of the cluster in virtual or shared mode. + |  | 
+| *`securityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core[$$SecurityContext$$]__ | SecurityContext specifies custom container SecurityContext to be added +
+to the agent and server containers of the cluster in virtual or shared mode. + |  | 
 | *`hostUsers`* __boolean__ | HostUsers sets the user namespace for server and agent pods. +
 If set to true or not present, the pod will be run in the host user namespace. +
 When set to false, a new userns is created for the pod. +
@@ -227,8 +229,10 @@ are mirrored into the virtual cluster. + |  |
 | *`sync`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]__ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. + | {  } | 
 | *`secretMounts`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-secretmount[$$SecretMount$$] array__ | SecretMounts specifies a list of secrets to mount into server and agent pods. +
 Each entry defines a secret and its mount path within the pods. + |  | 
-| *`securityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core[$$SecurityContext$$]__ | SecurityContext specifies custom SecurityContext to be added +
-to the agent and server pods of the cluster in virtual or shared mode. +
+| *`podSecurityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podsecuritycontext-v1-core[$$PodSecurityContext$$]__ | PodSecurityContext specifies custom PodSecurityContext to be added +
+to the agent and server pods of the cluster in virtual or shared mode. + |  | 
+| *`securityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core[$$SecurityContext$$]__ | SecurityContext specifies custom container SecurityContext to be added +
+to the agent and server containers of the cluster in virtual or shared mode. +
 This option will override the SecurityContext set by default for virtual mode. + |  | 
 | *`runtimeClassName`* __string__ | RuntimeClassName specifies alternative runtime class for the +
 agent and server pods of the cluster in virtual or shared mode. + |  | 

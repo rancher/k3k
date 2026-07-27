@@ -94,6 +94,10 @@ test-integration:	## Run the controller tests that use envtest (tests/integratio
 test-e2e:	## Run the e2e tests
 	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=$(FLAKE_ATTEMPTS) --label-filter="$(E2E_LABEL_FILTER)" tests/e2e
 
+.PHONY: test-upgrade
+test-upgrade:	## Run the k3k upgrade tests
+	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=$(FLAKE_ATTEMPTS) tests/upgrade
+
 .PHONY: test-cli
 test-cli:	## Run the cli tests
 	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=3 tests/cli

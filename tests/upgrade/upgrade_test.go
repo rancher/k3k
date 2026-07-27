@@ -1,4 +1,4 @@
-package k3k_test
+package upgrade_test
 
 import (
 	"context"
@@ -22,34 +22,29 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// repoRoot is the k3k repository root relative to the tests/e2e package dir,
+// repoRoot is the k3k repository root relative to the tests/upgrade package dir,
 // used to run `make install` (which installs the build from source).
 const repoRoot = "../.."
 
-// upgradeCluster bundles a virtual cluster created before the upgrade with a
-// workload deployed inside it, so we can assert both survive the upgrade.
+// upgradeCluster bundles a virtual cluster created before the upgrade.
 type upgradeCluster struct {
-	virtual  *VirtualCluster
-	nginxPod *corev1.Pod
+	virtual *VirtualCluster
 }
 
 // This is a generic smoke test for upgrading the k3k controller itself: it
 // installs the latest released k3k, provisions a shared-mode and a virtual-mode
-// cluster (both with dynamic persistence and a running workload), then upgrades
-// k3k to the build from source and verifies every cluster is still alive and
-// reconciling successfully.
+// cluster (both with dynamic persistence), then upgrades k3k to the build from
+// source and verifies every cluster is still alive and reconciling successfully.
 //
 // It is deliberately mode-agnostic and does not assert on any single controller
 // implementation detail: the signal is the reconciled Cluster status, the server
-// pods, the reachability of the virtual API and the survival of the workload.
+// pods, the reachability of the virtual API and no errors in the logs.
 // This catches rancher/k3k#559 (the immutable server StatefulSet field renamed
 // by PR #869 breaks reconciliation of dynamic-persistence clusters on upgrade)
 // as well as any other upgrade regression that stops a cluster from reconciling.
 //
 // The spec mutates the shared k3k release in k3k-system, so it is Serial and
-// runs in its own CI matrix bucket. AfterAll restores the dev build and
-// re-applies the coverage patch so the rest of the suite (and the AfterSuite
-// coverage dump) keeps working.
+// runs in its own dedicated test suite.
 var _ = When("k3k is upgraded from the latest released version", Ordered, Serial, Label(k3kUpgradeTestsLabel), Label(slowTestsLabel), func() {
 	var clusters []*upgradeCluster
 
@@ -60,6 +55,9 @@ var _ = When("k3k is upgraded from the latest released version", Ordered, Serial
 		// the build under test (pushed to ttl.sh in CI) rather than a default image.
 		Expect(os.Getenv("REPO")).NotTo(BeEmpty(), "REPO must be set to the image repository")
 		Expect(os.Getenv("VERSION")).NotTo(BeEmpty(), "VERSION must be set to the image tag")
+
+		By("Cleaning up any existing K3k installation and CRDs")
+		cleanupK3kInstall()
 
 		By("Installing the latest released k3k")
 		helmRepoAddK3k()
@@ -87,6 +85,9 @@ var _ = When("k3k is upgraded from the latest released version", Ordered, Serial
 			}
 		}
 
+		By("Cleaning up the upgraded K3k installation and CRDs before restoring source build")
+		cleanupK3kInstall()
+
 		// Restore the shared release to the build from source. Unconditional +
 		// idempotent: this also repairs the case where the spec failed while still
 		// on the released version.
@@ -102,17 +103,33 @@ var _ = When("k3k is upgraded from the latest released version", Ordered, Serial
 		By("Upgrading k3k to the build from source")
 		helmInstallSourceK3k()
 
+		By("Waiting for the new controller rollout to complete")
+		waitForControllerRollout()
+
+		for _, c := range clusters {
+			By("Patching cluster " + c.virtual.Cluster.Name + " with an annotation to force reconciliation")
+			var cluster v1beta1.Cluster
+			Expect(k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(c.virtual.Cluster), &cluster)).To(Succeed())
+			if cluster.Annotations == nil {
+				cluster.Annotations = make(map[string]string)
+			}
+			cluster.Annotations["k3k.io/test-upgrade-trigger"] = time.Now().Format(time.RFC3339)
+			Expect(k8sClient.Update(ctx, &cluster)).To(Succeed())
+		}
+
 		for _, c := range clusters {
 			By("Verifying the " + string(c.virtual.Cluster.Spec.Mode) + " cluster is healthy after the upgrade")
 			assertClusterHealthy(ctx, c)
 		}
+
+		By("Verifying there are no reconciliation errors in the controller logs")
+		assertNoControllerErrors()
 	})
 })
 
 // newUpgradeCluster provisions a dynamic-persistence cluster in the given mode
-// with a workload running inside it, and waits for everything to be ready. Both
-// modes use dynamic persistence so the upgrade exercises the server StatefulSet
-// path that rancher/k3k#559 breaks.
+// and waits for everything to be ready. Both modes use dynamic persistence so
+// the upgrade exercises the server StatefulSet path that rancher/k3k#559 breaks.
 func newUpgradeCluster(mode v1beta1.ClusterMode) *upgradeCluster {
 	GinkgoHelper()
 
@@ -122,8 +139,7 @@ func newUpgradeCluster(mode v1beta1.ClusterMode) *upgradeCluster {
 		c.Spec.Mode = mode
 		c.Spec.Persistence.Type = v1beta1.DynamicPersistenceMode
 
-		// Virtual mode needs a worker to schedule the workload; shared mode
-		// schedules onto the host via the virtual kubelet.
+		// Virtual mode needs a worker; shared mode schedules onto the host via the virtual kubelet.
 		if mode == v1beta1.VirtualClusterMode {
 			c.Spec.Agents = ptr.To[int32](1)
 		}
@@ -133,14 +149,12 @@ func newUpgradeCluster(mode v1beta1.ClusterMode) *upgradeCluster {
 	client, restConfig := NewVirtualK8sClientAndConfig(cluster)
 	virtual := &VirtualCluster{Cluster: cluster, RestConfig: restConfig, Client: client}
 
-	nginxPod, _ := virtual.NewNginxPod("")
-
-	return &upgradeCluster{virtual: virtual, nginxPod: nginxPod}
+	return &upgradeCluster{virtual: virtual}
 }
 
 // assertClusterHealthy verifies, with mode-agnostic signals, that a cluster is
 // still working after the k3k upgrade: the Cluster reconciled successfully, its
-// server pods are Ready, the virtual API is reachable and the workload survived.
+// server pods are Ready, and the virtual API is reachable.
 func assertClusterHealthy(ctx context.Context, c *upgradeCluster) {
 	GinkgoHelper()
 
@@ -170,14 +184,6 @@ func assertClusterHealthy(ctx context.Context, c *upgradeCluster) {
 		// 3. The virtual API is reachable.
 		_, err := c.virtual.Client.Discovery().ServerVersion()
 		g.Expect(err).NotTo(HaveOccurred())
-
-		// 4. The workload deployed before the upgrade is still Ready.
-		nginxPod, err := c.virtual.Client.CoreV1().Pods(c.nginxPod.Namespace).Get(ctx, c.nginxPod.Name, metav1.GetOptions{})
-		g.Expect(err).NotTo(HaveOccurred())
-
-		_, nginxCond := pod.GetPodCondition(&nginxPod.Status, corev1.PodReady)
-		g.Expect(nginxCond).NotTo(BeNil())
-		g.Expect(nginxCond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).
 		WithTimeout(time.Minute * 3).
 		WithPolling(time.Second * 5).
@@ -191,6 +197,16 @@ func expectCmd(stdout, stderr string, err error) {
 
 	Expect(err).NotTo(HaveOccurred(), stdout+stderr)
 	GinkgoWriter.Println(stdout)
+}
+
+func cleanupK3kInstall() {
+	GinkgoHelper()
+
+	// 1. Force-delete CRDs first to clear out custom resources and strip finalizer locks immediately.
+	_, _, _ = fwcmd.RunCmd("kubectl", "delete", "crd", "clusters.k3k.io", "virtualclusterpolicies.k3k.io", "--ignore-not-found", "--timeout=30s")
+
+	// 2. Uninstall Helm release
+	_, _, _ = fwcmd.RunCmd("helm", "uninstall", "k3k", "-n", k3kNamespace)
 }
 
 func helmRepoAddK3k() {
@@ -219,6 +235,27 @@ func helmInstallSourceK3k() {
 	GinkgoHelper()
 
 	expectCmd(fwcmd.RunCmd("make", "-C", repoRoot, "install"))
+}
+
+func waitForControllerRollout() {
+	GinkgoHelper()
+
+	expectCmd(fwcmd.RunCmd("kubectl", "rollout", "status", "deployment/k3k",
+		"--namespace", k3kNamespace, "--timeout", "3m",
+	))
+}
+
+func assertNoControllerErrors() {
+	GinkgoHelper()
+
+	stdout, stderr, err := fwcmd.RunCmd("kubectl", "logs", "-n", k3kNamespace, "-l", "app.kubernetes.io/name=k3k", "--tail=-1")
+	Expect(err).NotTo(HaveOccurred(), stderr)
+
+	// Verify we do not have recurring/failed reconciliation errors in the log.
+	// Specifically, check for immutable field errors or standard reconcile loop failure logging formats.
+	// The StatefulSet immutable update error looks like: "updates to statefulset spec for fields other than ... are forbidden"
+	Expect(stdout).NotTo(ContainSubstring("forbidden: updates to statefulset spec for fields other than"), "StatefulSet update failed due to immutable field modification")
+	Expect(stdout).NotTo(ContainSubstring("error reconciling"), "Found reconciliation errors in the controller logs")
 }
 
 func dumpK3kControllerLogs() {

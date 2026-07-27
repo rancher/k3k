@@ -251,6 +251,16 @@ func (s *SharedAgent) podSpec(ctx context.Context) corev1.PodSpec {
 		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
 	}
 
+	// pod security context
+	podSecurityContext := s.cluster.Spec.PodSecurityContext
+	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.PodSecurityContext != nil {
+		log.V(1).Info("Using container pod securityContext configuration from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
+		podSecurityContext = s.cluster.Status.Policy.PodSecurityContext
+	}
+
+	podSpec.SecurityContext = podSecurityContext
+
+	// container security context
 	securityContext := s.cluster.Spec.SecurityContext
 	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.SecurityContext != nil {
 		log.V(1).Info("Using securityContext configuration from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)

@@ -11,7 +11,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -249,18 +248,29 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 			},
 		},
 	}
+
 	// virtual mode runs an embedded kubelet inside the server pod and therefore
 	// requires Privileged. shared and hcp modes are agentless (no kubelet) and
 	// run unprivileged.
 	if s.mode == string(v1beta1.VirtualClusterMode) {
 		podSpec.Containers[0].SecurityContext = &corev1.SecurityContext{
-			Privileged: ptr.To(true),
+			Privileged: new(true),
 		}
 	}
 
+	// pod security context
+	podSecurityContext := s.cluster.Spec.PodSecurityContext
+	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.PodSecurityContext != nil {
+		log.V(1).Info("Using container pod securityContext configuration from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
+		podSecurityContext = s.cluster.Status.Policy.PodSecurityContext
+	}
+
+	podSpec.SecurityContext = podSecurityContext
+
+	// container security context
 	securityContext := s.cluster.Spec.SecurityContext
 	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.SecurityContext != nil {
-		log.V(1).Info("Using securityContext configuration from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
+		log.V(1).Info("Using container securityContext configuration from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
 		securityContext = s.cluster.Status.Policy.SecurityContext
 	}
 

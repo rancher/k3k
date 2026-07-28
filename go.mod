@@ -22,7 +22,7 @@ require (
 	go.etcd.io/etcd/api/v3 v3.7.0
 	go.etcd.io/etcd/client/v3 v3.7.0
 	go.uber.org/zap v1.28.0
-	gopkg.in/yaml.v3 v3.0.1
+	go.yaml.in/yaml/v4 v4.0.0-rc.6
 	k8s.io/api v0.36.2
 	k8s.io/apiextensions-apiserver v0.36.2
 	k8s.io/apimachinery v0.36.2
@@ -37,6 +37,8 @@ require (
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
 	sigs.k8s.io/controller-runtime v0.24.1
 )
+
+require gopkg.in/yaml.v3 v3.0.1 // indirect
 
 require (
 	cel.dev/expr v0.25.1 // indirect

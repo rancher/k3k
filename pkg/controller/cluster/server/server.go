@@ -193,7 +193,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 						ReadOnly:  false,
 					},
 					{
-						Name:      "var-lib-rancher-k3s",
+						Name:      "varlibrancherk3s",
 						MountPath: k3sDataDir,
 						ReadOnly:  false,
 					},
@@ -423,7 +423,7 @@ func (s *Server) setupDynamicPersistence() corev1.PersistentVolumeClaim {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "var-lib-rancher-k3s",
+			Name:      "varlibrancherk3s",
 			Namespace: s.cluster.Namespace,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{

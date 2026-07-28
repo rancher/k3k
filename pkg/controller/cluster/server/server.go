@@ -216,7 +216,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	podSpec.Containers[0].Command = cmd
 	if !persistent {
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-			Name: "var-lib-rancher-k3s",
+			Name: "varlibrancherk3s",
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},

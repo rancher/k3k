@@ -3,7 +3,7 @@ package server
 import (
 	"fmt"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	corev1 "k8s.io/api/core/v1"

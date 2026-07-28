@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/registry/core/service/portallocator"

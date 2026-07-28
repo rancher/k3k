@@ -52,6 +52,14 @@ controller:
   #     memory: "100Mi"
   resources: {}
 
+  # podSecurityContext allows you to set custom securityContext for the controller
+  # deployment Pod spec
+  podSecurityContext: {}
+
+  # securityContext allows you to set custom security context for the
+  # controller's Container
+  securityContext: {}
+
 # configuration related to k3s server component in k3k
 server:
   imagePullSecrets: []

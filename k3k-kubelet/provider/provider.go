@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/transport/spdy"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -493,12 +492,17 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	// inject networking information to the pod including the virtual cluster controlplane endpoint
-	configureNetworking(hostPod, virtualPod.Name, virtualPod.Namespace, p.serverIP, p.dnsIP)
+	configureNetworking(hostPod, &virtualPod, p.serverIP, p.dnsIP)
 
 	// set ownerReference to the cluster object
 	if err := controllerutil.SetControllerReference(&cluster, hostPod, p.Host.Client.Scheme()); err != nil {
 		logger.Error(err, "Unable to set owner reference for pod")
 		return err
+	}
+
+	// harden coreDNS pod
+	if isCoreDNSPod(virtualPod) {
+		hardenCoreDNS(hostPod)
 	}
 
 	if err := p.Host.Client.Create(ctx, hostPod); err != nil {
@@ -836,12 +840,42 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	return retPods, nil
 }
 
+const nobodyUID = int64(65534)
+
+func isCoreDNSPod(pod corev1.Pod) bool {
+	return pod.Namespace == metav1.NamespaceSystem && pod.Labels["k8s-app"] == "kube-dns"
+}
+
+// hardenCoreDNS will add security contexts needed for CoreDNS pod to run in
+// restricted PSS mode, this is not possible by modifying the k3s manifests.
+func hardenCoreDNS(pod *corev1.Pod) {
+	for i := range pod.Spec.Containers {
+		securityContext := pod.Spec.Containers[i].SecurityContext
+		if securityContext == nil {
+			securityContext = &corev1.SecurityContext{}
+			pod.Spec.Containers[i].SecurityContext = securityContext
+		}
+
+		securityContext.AllowPrivilegeEscalation = new(false)
+		securityContext.Capabilities = &corev1.Capabilities{
+			Add:  []corev1.Capability{"NET_BIND_SERVICE"},
+			Drop: []corev1.Capability{"ALL"},
+		}
+		securityContext.RunAsNonRoot = new(true)
+		securityContext.RunAsUser = new(nobodyUID)
+		securityContext.RunAsGroup = new(nobodyUID)
+		securityContext.SeccompProfile = &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		}
+	}
+}
+
 // configureNetworking will inject network information to each pod to connect them to the
 // virtual cluster api server, as well as confiugre DNS information to connect them to the
 // synced coredns on the host cluster.
-func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP string) {
+func configureNetworking(hostPod, virtualPod *corev1.Pod, serverIP, dnsIP string) {
 	// inject serverIP to hostalias for the pod
-	pod.Spec.HostAliases = append(pod.Spec.HostAliases, corev1.HostAlias{
+	hostPod.Spec.HostAliases = append(hostPod.Spec.HostAliases, corev1.HostAlias{
 		IP: serverIP,
 		Hostnames: []string{
 			"kubernetes",
@@ -853,21 +887,21 @@ func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP
 	})
 
 	// injecting cluster DNS IP to the pods except for coredns pod
-	if !strings.HasPrefix(podName, "coredns") && pod.Spec.DNSConfig == nil {
-		pod.Spec.DNSPolicy = corev1.DNSNone
-		pod.Spec.DNSConfig = &corev1.PodDNSConfig{
+	if !isCoreDNSPod(*virtualPod) && hostPod.Spec.DNSConfig == nil {
+		hostPod.Spec.DNSPolicy = corev1.DNSNone
+		hostPod.Spec.DNSConfig = &corev1.PodDNSConfig{
 			Nameservers: []string{
 				dnsIP,
 			},
 			Searches: []string{
-				podNamespace + ".svc.cluster.local",
+				virtualPod.Namespace + ".svc.cluster.local",
 				"svc.cluster.local",
 				"cluster.local",
 			},
 			Options: []corev1.PodDNSConfigOption{
 				{
 					Name:  "ndots",
-					Value: ptr.To("5"),
+					Value: new("5"),
 				},
 			},
 		}
@@ -881,18 +915,18 @@ func configureNetworking(pod *corev1.Pod, podName, podNamespace, serverIP, dnsIP
 	}
 
 	// inject networking information to the pod's environment variables
-	for i := range pod.Spec.Containers {
-		pod.Spec.Containers[i].Env = mergeEnvVars(pod.Spec.Containers[i].Env, updatedEnvVars)
+	for i := range hostPod.Spec.Containers {
+		hostPod.Spec.Containers[i].Env = mergeEnvVars(hostPod.Spec.Containers[i].Env, updatedEnvVars)
 	}
 
 	// handle init containers as well
-	for i := range pod.Spec.InitContainers {
-		pod.Spec.InitContainers[i].Env = mergeEnvVars(pod.Spec.InitContainers[i].Env, updatedEnvVars)
+	for i := range hostPod.Spec.InitContainers {
+		hostPod.Spec.InitContainers[i].Env = mergeEnvVars(hostPod.Spec.InitContainers[i].Env, updatedEnvVars)
 	}
 
 	// handle ephemeral containers as well
-	for i := range pod.Spec.EphemeralContainers {
-		pod.Spec.EphemeralContainers[i].Env = mergeEnvVars(pod.Spec.EphemeralContainers[i].Env, updatedEnvVars)
+	for i := range hostPod.Spec.EphemeralContainers {
+		hostPod.Spec.EphemeralContainers[i].Env = mergeEnvVars(hostPod.Spec.EphemeralContainers[i].Env, updatedEnvVars)
 	}
 }
 

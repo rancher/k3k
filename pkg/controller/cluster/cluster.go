@@ -422,7 +422,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 
 	serviceIP := service.Spec.ClusterIP
 
-	if err := c.createClusterConfigs(ctx, cluster, s, serviceIP); err != nil {
+	if err := c.ensureClusterConfigs(ctx, cluster, s, serviceIP); err != nil {
 		return err
 	}
 
@@ -534,37 +534,43 @@ func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster 
 	return err
 }
 
-func (c *ClusterReconciler) createClusterConfigs(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, serviceIP string) error {
-	// create init node config
+func (c *ClusterReconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, serviceIP string) error {
+	// init node config
 	initServerConfig, err := server.Config(true, serviceIP)
 	if err != nil {
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(cluster, initServerConfig, c.Client.Scheme()); err != nil {
+	currentInitServerConfig := initServerConfig.DeepCopy()
+	if _, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentInitServerConfig, func() error {
+		if err := controllerutil.SetControllerReference(cluster, currentInitServerConfig, c.Client.Scheme()); err != nil {
+			return err
+		}
+
+		currentInitServerConfig.Data = initServerConfig.Data
+
+		return nil
+	}); err != nil {
 		return err
 	}
 
-	if err := c.Client.Create(ctx, initServerConfig); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-
-	// create servers configuration
+	// servers configuration
 	serverConfig, err := server.Config(false, serviceIP)
 	if err != nil {
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(cluster, serverConfig, c.Client.Scheme()); err != nil {
-		return err
-	}
-
-	if err := c.Client.Create(ctx, serverConfig); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
+	currentServerConfig := serverConfig.DeepCopy()
+	if _, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerConfig, func() error {
+		if err := controllerutil.SetControllerReference(cluster, currentServerConfig, c.Client.Scheme()); err != nil {
 			return err
 		}
+
+		currentServerConfig.Data = serverConfig.Data
+
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	return nil

@@ -213,8 +213,14 @@ type ClusterSpec struct {
 	// +optional
 	SecretMounts []SecretMount `json:"secretMounts,omitempty"`
 
-	// SecurityContext specifies custom SecurityContext to be added
+	// PodSecurityContext specifies custom PodSecurityContext to be added
 	// to the agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// SecurityContext specifies custom container SecurityContext to be added
+	// to the agent and server containers of the cluster in virtual or shared mode.
 	// This option will override the SecurityContext set by default for virtual mode.
 	//
 	// +optional
@@ -683,14 +689,20 @@ type AppliedPolicy struct {
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
 
-	// SecurityContext specifies custom SecurityContext to be added
-	// to the agent and server pods of the cluster in virtual or shared mode.
+	// RuntimeClassName specifies alternative runtime class for the
+	// agent and server pods of the cluster in virtual or shared mode.
 	//
 	// +optional
 	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 
-	// RuntimeClassName specifies alternative runtime class for the
-	// agent and server pods of the cluster in virtual or shared mode.
+	// PodSecurityContext specifies custom SecurityContext to be added
+	// to the agent and server pods of the cluster in virtual or shared mode.
+	//
+	// +optional
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// SecurityContext specifies custom container SecurityContext to be added
+	// to the agent and server containers of the cluster in virtual or shared mode.
 	//
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`

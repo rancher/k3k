@@ -15,6 +15,10 @@ spec:
       labels:
         {{- include "k3k.selectorLabels" . | nindent 8 }}
     spec:
+      {{- with .Values.controller.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       imagePullSecrets: {{- include "image.pullSecrets" (concat .Values.controller.imagePullSecrets .Values.global.imagePullSecrets) | nindent 8 }}
       containers:
         - image: "{{- include "controller.registry" .}}{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default .Chart.AppVersion }}"
@@ -54,4 +58,8 @@ spec:
           - containerPort: 8080
             name: https
             protocol: TCP
+          {{- with .Values.controller.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
       serviceAccountName: {{ include "k3k.serviceAccountName" . }}

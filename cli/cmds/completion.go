@@ -50,6 +50,29 @@ func completeClusterNamespaces(cmd *cobra.Command, args []string, toComplete str
 	return clusterNamespaceCompletions(cmd.Context(), client)
 }
 
+// completeClusterNames is a cobra.CompletionFunc that completes the cluster name argument with "namespace/name" values.
+// When the "namespace" flag is set the results are filtered to that namespace.
+func completeClusterNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// only the first positional argument is a cluster name
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// with --all no cluster name is expected, so suppress completions
+	if all, _ := cmd.Flags().GetBool("all"); all {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	cl, err := completionClient(cmd)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	namespace, _ := cmd.Flags().GetString("namespace")
+
+	return clusterNameCompletions(cmd.Context(), cl, namespace)
+}
+
 // namespaceCompletions lists every namespace in the host cluster, excluding any
 // already provided to the command's "namespace" flag.
 func namespaceCompletions(cmd *cobra.Command, cl client.Client) ([]string, cobra.ShellCompDirective) {
@@ -87,6 +110,27 @@ func clusterNamespaceCompletions(ctx context.Context, client client.Client) ([]s
 	}
 
 	return sets.List(names), cobra.ShellCompDirectiveNoFileComp
+}
+
+// clusterNameCompletions lists the k3k Clusters as "namespace/name" values, optionally filtered to a single namespace.
+func clusterNameCompletions(ctx context.Context, cl client.Client, namespace string) ([]string, cobra.ShellCompDirective) {
+	var opts []client.ListOption
+
+	if namespace != "" {
+		opts = append(opts, client.InNamespace(namespace))
+	}
+
+	var clusters v1beta1.ClusterList
+	if err := cl.List(ctx, &clusters, opts...); err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	names := make([]string, 0, len(clusters.Items))
+	for _, cluster := range clusters.Items {
+		names = append(names, cluster.Namespace+"/"+cluster.Name)
+	}
+
+	return names, cobra.ShellCompDirectiveNoFileComp
 }
 
 // mustRegisterFlagCompletion registers a completion function for a flag and

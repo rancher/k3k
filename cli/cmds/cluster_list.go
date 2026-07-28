@@ -1,8 +1,6 @@
 package cmds
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -29,7 +27,7 @@ func NewClusterListCmd(appCtx *AppContext) *cobra.Command {
 
 func list(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := cmd.Context()
 		client := appCtx.Client
 
 		var clusters v1beta1.ClusterList

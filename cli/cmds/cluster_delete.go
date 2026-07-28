@@ -63,6 +63,11 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
+			if len(clusters.Items) == 0 {
+				logrus.Infof("No clusters found in namespace '%s'", appCtx.namespace)
+				return nil
+			}
+
 			for i := range clusters.Items {
 				if err := deleteCluster(ctx, client, &clusters.Items[i]); err != nil {
 					return err
@@ -103,10 +108,9 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 	}
 }
 
-// resolveClusterArg splits an arg that may be in "namespace/name" form. A bare "name"
-// falls back to the k3k-<name> convention (respecting the -n flag) via appCtx.Namespace.
-// When both the -n flag and an explicit namespace prefix are given and they disagree an
-// error is returned.
+// resolveClusterArg splits an arg that may be in "namespace/name" form.
+// A bare "name" falls back to the k3k-<name> convention (respecting the -n flag) via appCtx.Namespace.
+// When both the -n flag and an explicit namespace prefix are given and they disagree an error is returned.
 func resolveClusterArg(appCtx *AppContext, arg string) (namespace, name string, err error) {
 	if ns, clusterName, ok := strings.Cut(arg, "/"); ok {
 		if appCtx.namespace != "" && appCtx.namespace != ns {

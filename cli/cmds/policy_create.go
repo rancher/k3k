@@ -58,7 +58,7 @@ func NewPolicyCreateCmd(appCtx *AppContext) *cobra.Command {
 
 func policyCreateAction(appCtx *AppContext, config *VirtualClusterPolicyCreateConfig) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := cmd.Context()
 		client := appCtx.Client
 		policyName := args[0]
 

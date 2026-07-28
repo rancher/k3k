@@ -1,8 +1,6 @@
 package cmds
 
 import (
-	"context"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -23,7 +21,7 @@ func NewPolicyDeleteCmd(appCtx *AppContext) *cobra.Command {
 
 func policyDeleteAction(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := cmd.Context()
 		client := appCtx.Client
 		name := args[0]
 

@@ -1,7 +1,6 @@
 package cmds
 
 import (
-	"context"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -75,7 +74,7 @@ func generateKubeconfigFlags(cmd *cobra.Command, cfg *GenerateKubeconfigConfig) 
 
 func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := cmd.Context()
 		client := appCtx.Client
 
 		clusterKey := types.NamespacedName{

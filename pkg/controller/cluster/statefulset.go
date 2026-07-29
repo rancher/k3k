@@ -152,7 +152,7 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1b
 	// if etcd pod is marked for deletion then we need to remove it from the etcd member list before deletion
 
 	// check if cluster is deleted then remove the finalizer from the pod
-	if cluster.Name == "" {
+	if cluster.Name == "" || cluster.Status.Phase == v1beta1.ClusterRestoring {
 		if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
 			log.V(1).Info("Cluster was deleted. Deleting Server Pod removing finalizer", "pod", pod.Name, "namespace", pod.Namespace)
 

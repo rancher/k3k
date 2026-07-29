@@ -14,6 +14,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	k3kclient "github.com/rancher/k3k/pkg/controller/client"
 )
 
 const (
@@ -53,7 +54,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (r
 	// get cluster from the object
 	cluster := clusterNamespacedName(&pod)
 
-	virtualClient, err := newVirtualClient(ctx, r.Client, cluster.Name, cluster.Namespace)
+	virtualClient, err := k3kclient.NewVirtualClient(ctx, r.Client, cluster.Name, cluster.Namespace, nil)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

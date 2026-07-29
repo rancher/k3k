@@ -50,9 +50,10 @@ type Server struct {
 	image            string
 	imagePullPolicy  string
 	imagePullSecrets []string
+	snapshot         *v1beta1.EtcdSnapshot
 }
 
-func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePullPolicy string, imagePullSecrets []string) *Server {
+func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePullPolicy string, imagePullSecrets []string, snapshot *v1beta1.EtcdSnapshot) *Server {
 	return &Server{
 		cluster:          cluster,
 		client:           client,
@@ -61,6 +62,7 @@ func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePull
 		image:            image,
 		imagePullPolicy:  imagePullPolicy,
 		imagePullSecrets: imagePullSecrets,
+		snapshot:         snapshot,
 	}
 }
 

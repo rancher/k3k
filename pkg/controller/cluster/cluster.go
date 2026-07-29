@@ -38,6 +38,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
+	k3kclient "github.com/rancher/k3k/pkg/controller/client"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
@@ -84,7 +85,6 @@ type Config struct {
 	ServerImagePullSecrets      []string
 	AgentImagePullSecrets       []string
 }
-
 type ClusterReconciler struct {
 	DiscoveryClient *discovery.DiscoveryClient
 	Client          client.Client
@@ -159,6 +159,7 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		Watches(&storagev1.StorageClass{},
 			handler.EnqueueRequestsFromMapFunc(reconciler.mapStorageClassToCluster),
 		).
+		Watches(&v1beta1.ETCDRestore{}, handler.EnqueueRequestsFromMapFunc(reconciler.mapRestoreToCluster)).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
@@ -199,6 +200,23 @@ func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj cl
 	}
 
 	return requests
+}
+
+func (r *ClusterReconciler) mapRestoreToCluster(ctx context.Context, obj client.Object) []reconcile.Request {
+	restore, ok := obj.(*v1beta1.ETCDRestore)
+
+	if !ok {
+		return nil
+	}
+
+	if restore.Spec.ClusterName == "" {
+		return nil
+	}
+
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{
+		Name:      restore.Spec.ClusterName,
+		Namespace: restore.Namespace,
+	}}}
 }
 
 func namespaceEventHandler(r *ClusterReconciler) handler.Funcs {
@@ -248,6 +266,16 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	// if DeletionTimestamp is not Zero -> finalize the object
 	if !cluster.DeletionTimestamp.IsZero() {
 		return c.finalizeCluster(ctx, &cluster)
+	}
+
+	// check for restoration requests
+	eligibleRestore, err := c.findEligibleRestore(ctx, &cluster)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if eligibleRestore != nil {
+		return c.restoreCluster(ctx, &cluster, eligibleRestore)
 	}
 
 	// Set initial status if not already set
@@ -317,6 +345,63 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	return reconcile.Result{}, nil
 }
 
+func (c *ClusterReconciler) restoreCluster(ctx context.Context, cluster *v1beta1.Cluster, eligibleRestore *v1beta1.ETCDRestore) (reconcile.Result, error) {
+	log := ctrl.LoggerFrom(ctx)
+
+	origRestore := eligibleRestore.DeepCopy()
+
+	// set initial condition for restoration
+	if changed := setRestoreCondition(&eligibleRestore.Status, RestoringCondition, metav1.ConditionTrue, RestoreReasonInProgress, "Restoration is in progress"); changed {
+		if err := c.Client.Status().Update(ctx, eligibleRestore); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{Requeue: true}, nil
+	}
+
+	// if the cluster is not already restoring then set the status to restore
+	if cluster.Status.Phase != v1beta1.ClusterRestoring {
+		// set cluster status phase to cluster restoring
+		cluster.Status.Phase = v1beta1.ClusterRestoring
+
+		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
+			Type:    ConditionReady,
+			Status:  metav1.ConditionFalse,
+			Reason:  ReasonRestoring,
+			Message: "Cluster is being restored",
+		})
+
+		if err := c.Client.Status().Update(ctx, cluster); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	restoreErr := c.restore(ctx, cluster, eligibleRestore)
+	// update restore object status
+	c.updateRestoreStatus(eligibleRestore, restoreErr)
+
+	if !equality.Semantic.DeepEqual(eligibleRestore.Status, origRestore.Status) {
+		log.Info("Updating Restore status")
+
+		if err := c.Client.Status().Update(ctx, eligibleRestore); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	if restoreErr != nil {
+		if isRestoreInProgress(eligibleRestore) {
+			log.V(1).Info("restoring in progress", "error", restoreErr)
+			return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+		}
+
+	}
+
+	// updating cluster status
+	c.updateStatus(ctx, cluster, restoreErr)
+
+	return reconcile.Result{}, restoreErr
+}
+
 func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1beta1.Cluster) error {
 	err := c.reconcile(ctx, cluster)
 	c.updateStatus(ctx, cluster, err)
@@ -373,7 +458,7 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 		return err
 	}
 
-	s := server.New(cluster, c.Client, token, c.K3SServerImage, c.K3SServerImagePullPolicy, c.ServerImagePullSecrets)
+	s := server.New(cluster, c.Client, token, c.K3SServerImage, c.K3SServerImagePullPolicy, c.ServerImagePullSecrets, nil)
 
 	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
 	if cluster.Status.ClusterCIDR == "" {
@@ -741,7 +826,7 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring cluster StorageClasses")
 
-	virtualClient, err := newVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace)
+	virtualClient, err := k3kclient.NewVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace, nil)
 	if err != nil {
 		return fmt.Errorf("failed creating virtual client: %w", err)
 	}

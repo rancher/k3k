@@ -24,6 +24,9 @@ const (
 	ReasonProvisioned        = "Provisioned"
 	ReasonProvisioningFailed = "ProvisioningFailed"
 	ReasonTerminating        = "Terminating"
+	ReasonRestoring          = "Restoring"
+	ReasonRestoringFailed    = "RestoringFailed"
+	ReasonRestored           = "Restored"
 
 	ActionReconciling = "Reconciling"
 )
@@ -71,17 +74,25 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 		return
 	}
 
+	reason := ReasonProvisioningFailed
+	msg := "Cluster successfully provisioned"
+	// if previous state was restoring, then we update the condition reason
+	if cluster.Status.Phase == v1beta1.ClusterRestoring {
+		reason = ReasonRestoringFailed
+		msg = "Cluster successfully restored"
+	}
+
 	// If there's an error, but it's not a validation error, the cluster is in a failed state.
 	if reconcileErr != nil {
 		cluster.Status.Phase = v1beta1.ClusterFailed
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 			Type:    ConditionReady,
 			Status:  metav1.ConditionFalse,
-			Reason:  ReasonProvisioningFailed,
+			Reason:  reason,
 			Message: reconcileErr.Error(),
 		})
 
-		c.Eventf(cluster, nil, corev1.EventTypeWarning, ReasonProvisioningFailed, ActionReconciling, reconcileErr.Error())
+		c.Eventf(cluster, nil, corev1.EventTypeWarning, reason, ActionReconciling, reconcileErr.Error())
 
 		return
 	}
@@ -91,13 +102,13 @@ func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.C
 	newCondition := metav1.Condition{
 		Type:    ConditionReady,
 		Status:  metav1.ConditionTrue,
-		Reason:  ReasonProvisioned,
-		Message: "Cluster successfully provisioned",
+		Reason:  reason,
+		Message: msg,
 	}
 
 	// Only emit event on transition to Ready
 	if !meta.IsStatusConditionPresentAndEqual(cluster.Status.Conditions, ConditionReady, metav1.ConditionTrue) {
-		c.Eventf(cluster, nil, corev1.EventTypeNormal, ReasonProvisioned, ActionReconciling, newCondition.Message)
+		c.Eventf(cluster, nil, corev1.EventTypeNormal, reason, ActionReconciling, newCondition.Message)
 	}
 
 	meta.SetStatusCondition(&cluster.Status.Conditions, newCondition)

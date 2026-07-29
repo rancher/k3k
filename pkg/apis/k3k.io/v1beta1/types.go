@@ -643,7 +643,7 @@ type ClusterStatus struct {
 	// Phase is a high-level summary of the cluster's current lifecycle state.
 	//
 	// +kubebuilder:default=Unknown
-	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Failed;Terminating;Unknown
+	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Restoring;Failed;Terminating;Unknown
 	// +optional
 	Phase ClusterPhase `json:"phase,omitempty"`
 }
@@ -714,6 +714,7 @@ const (
 	ClusterFailed       = ClusterPhase("Failed")
 	ClusterTerminating  = ClusterPhase("Terminating")
 	ClusterUnknown      = ClusterPhase("Unknown")
+	ClusterRestoring    = ClusterPhase("Restoring")
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -949,4 +950,57 @@ type EtcdSnapshotList struct {
 	metav1.TypeMeta `json:",inline"`
 
 	Items []EtcdSnapshot `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=`.status.conditions[?(@.type=='Ready')].status`
+// +kubebuilder:printcolumn:name="REASON",type="string",JSONPath=`.status.conditions[?(@.type=='Ready')].reason`
+
+type ETCDRestore struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+
+	// +kubebuilder:default={}
+	// +optional
+	Spec ETCDRestoreSpec `json:"spec"`
+
+	// +kubebuilder:default={}
+	// +optional
+	Status ETCDRestoreStatus `json:"status,omitempty"`
+}
+
+// ETCDRestoreSpec defines the desired state of a ETCDRestore.
+type ETCDRestoreSpec struct {
+	// ClusterName is the name of the cluster where the snapshot will be taken
+	//
+	//
+	// +optional
+	ClusterName string `json:"clusterName"`
+
+	// SnapshotName defines the snapshot
+	//
+	//
+	// +optional
+	SnapshotName string `json:"snapshotName"`
+}
+
+// ETCDRestoreStatus reflects the observed state of a ETCDRestore.
+type ETCDRestoreStatus struct {
+	// Conditions are the individual conditions for the cluster set.
+	//
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+
+// ETCDRestoreList is a list of ETCDSnapshot resources.
+type ETCDRestoreList struct {
+	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `json:",inline"`
+
+	Items []ETCDRestore `json:"items"`
 }

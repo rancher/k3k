@@ -56,6 +56,9 @@ start_single_node() {
 
 	# checking for existing data in single server if found we must perform reset
 	if [ -d "{{.ETCD_DIR}}" ]; then
+		# this is important in case there was previous reset caused by snapshot restoration
+		rm -f /var/lib/rancher/k3s/server/db/reset-flag
+
 		info "Existing data found in single node setup. Performing cluster-reset to ensure quorum..."
 
 		if ! /bin/k3s server --cluster-reset --config {{.INIT_CONFIG}} $EXTRA_ARGS > /dev/null 2>&1; then

@@ -14,6 +14,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	k3kclient "github.com/rancher/k3k/pkg/controller/client"
 )
 
 const (
@@ -60,7 +61,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	// get cluster from the object
 	cluster := clusterNamespacedName(&hostService)
 
-	virtualClient, err := newVirtualClient(ctx, r.HostClient, cluster.Name, cluster.Namespace)
+	virtualClient, err := k3kclient.NewVirtualClient(ctx, r.HostClient, cluster.Name, cluster.Namespace, nil)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get cluster info: %v", err)
 	}

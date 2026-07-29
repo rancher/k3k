@@ -72,11 +72,7 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		if err := client.Delete(ctx, &cluster); err != nil {
-			return ctrlclient.IgnoreNotFound(err)
-		}
-
-		return nil
+		return client.Delete(ctx, &cluster)
 	}
 }
 

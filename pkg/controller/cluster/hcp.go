@@ -14,6 +14,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	k3kclient "github.com/rancher/k3k/pkg/controller/client"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 )
 
@@ -77,7 +78,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 		return fmt.Errorf("invalid IP address %q", addr.IP)
 	}
 
-	virtClient, err := newVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace)
+	virtClient, err := k3kclient.NewVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace, c.Client.Scheme())
 	if err != nil {
 		return fmt.Errorf("creating virtual cluster client: %w", err)
 	}
@@ -134,7 +135,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cl
 		return err
 	}
 
-	virtClient, err := newVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace)
+	virtClient, err := k3kclient.NewVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace, c.Client.Scheme())
 	if err != nil {
 		return fmt.Errorf("creating virtual cluster client: %w", err)
 	}

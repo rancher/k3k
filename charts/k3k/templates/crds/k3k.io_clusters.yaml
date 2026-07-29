@@ -3062,6 +3062,7 @@ spec:
                 - Pending
                 - Provisioning
                 - Ready
+                - Restoring
                 - Failed
                 - Terminating
                 - Unknown

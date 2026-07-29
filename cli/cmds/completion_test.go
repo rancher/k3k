@@ -36,6 +36,10 @@ func cluster(name, ns string) *v1beta1.Cluster {
 	return &v1beta1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns}}
 }
 
+func virtualClusterPolicy(name string) *v1beta1.VirtualClusterPolicy {
+	return &v1beta1.VirtualClusterPolicy{ObjectMeta: metav1.ObjectMeta{Name: name}}
+}
+
 func Test_completeNamespaces(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(completionTestScheme(t)).
@@ -126,4 +130,42 @@ func Test_completeClusterNames_filtersNamespace(t *testing.T) {
 	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
 	// only the clusters in the requested namespace
 	assert.ElementsMatch(t, []string{"k3k-bar/bar", "k3k-bar/bar-2"}, names)
+}
+
+func Test_completePolicyNames(t *testing.T) {
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(completionTestScheme(t)).
+		WithObjects(
+			virtualClusterPolicy("foo"),
+			virtualClusterPolicy("bar"),
+			// policies are cluster scoped, so clusters and namespaces are not completed
+			namespace("k3k-foo"),
+			cluster("foo", "k3k-foo"),
+		).
+		Build()
+
+	names, directive := policyNameCompletions(t.Context(), fakeClient)
+
+	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	assert.ElementsMatch(t, []string{"foo", "bar"}, names)
+}
+
+func Test_completePolicyNames_empty(t *testing.T) {
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(completionTestScheme(t)).
+		Build()
+
+	names, directive := policyNameCompletions(t.Context(), fakeClient)
+
+	// no policies is not an error
+	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	assert.Empty(t, names)
+}
+
+func Test_completeClusterMode(t *testing.T) {
+	modes, directive := completeClusterMode(&cobra.Command{}, nil, "")
+
+	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	// every mode accepted by validClusterModes must be completed
+	assert.ElementsMatch(t, []string{"shared", "virtual", "hcp"}, modes)
 }

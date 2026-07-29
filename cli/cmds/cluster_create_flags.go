@@ -37,6 +37,7 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 
 	mustRegisterFlagCompletion(cmd, "mode", completeClusterMode)
 	mustRegisterFlagCompletion(cmd, "persistence-type", completePersistenceMode)
+	mustRegisterFlagCompletion(cmd, "policy", completePolicyNames)
 
 	if err := cmd.MarkFlagDirname("custom-certs"); err != nil {
 		logrus.Fatal(err)

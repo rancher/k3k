@@ -29,6 +29,14 @@ func (p *Provider) transformTokens(ctx context.Context, virtualPod, hostPod *cor
 	logger := p.logger.WithValues("namespace", virtualPod.Namespace, "name", virtualPod.Name, "serviceAccountName", virtualPod.Spec.ServiceAccountName)
 	logger.V(1).Info("Transforming service account tokens")
 
+	// The virtual pod's service account does not exist on the host cluster, so the
+	// pod must never reference it there — even when it has no kube-api-access volume
+	// (e.g. automountServiceAccountToken: false), otherwise host admission rejects
+	// the pod with "serviceaccount not found".
+	hostPod.Spec.ServiceAccountName = ""
+	hostPod.Spec.DeprecatedServiceAccount = ""
+	hostPod.Spec.AutomountServiceAccountToken = ptr.To(false)
+
 	// transform projected service account token
 	if err := p.transformProjectedTokens(ctx, virtualPod, hostPod); err != nil {
 		return err
@@ -76,10 +84,6 @@ func (p *Provider) transformKubeAccessToken(ctx context.Context, virtualPod, hos
 	if err != nil {
 		return err
 	}
-
-	hostPod.Spec.ServiceAccountName = ""
-	hostPod.Spec.DeprecatedServiceAccount = ""
-	hostPod.Spec.AutomountServiceAccountToken = ptr.To(false)
 
 	removeKubeAccessVolume(hostPod)
 	addKubeAccessVolume(hostPod, hostSecret.Name)

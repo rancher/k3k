@@ -617,6 +617,23 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 
 	updatePod(&hostPod, pod)
 
+	// updatePod copies the virtual pod's labels/annotations verbatim; re-assert
+	// the translator-owned identity metadata the virtual pod does not carry,
+	// otherwise every update strips it from the host pod (breaking label-selector
+	// services like k3k-<cluster>-kube-dns and any policy selecting on it).
+	if hostPod.Labels == nil {
+		hostPod.Labels = map[string]string{}
+	}
+
+	hostPod.Labels[translate.ClusterNameLabel] = p.ClusterName
+
+	if hostPod.Annotations == nil {
+		hostPod.Annotations = map[string]string{}
+	}
+
+	hostPod.Annotations[translate.ResourceNameAnnotation] = pod.Name
+	hostPod.Annotations[translate.ResourceNamespaceAnnotation] = pod.Namespace
+
 	if err := p.Host.Client.Update(ctx, &hostPod); err != nil {
 		logger.Error(err, "Unable to update Pod in host cluster")
 		return err

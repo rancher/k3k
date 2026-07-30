@@ -75,6 +75,8 @@ func clusterDelete(appCtx *AppContext) func(cmd *cobra.Command, args []string) e
 				}
 			}
 
+			removeKubeconfigContexts(appCtx, clusters.Items...)
+
 			return nil
 		}
 
@@ -105,7 +107,13 @@ func clusterDelete(appCtx *AppContext) func(cmd *cobra.Command, args []string) e
 			return err
 		}
 
-		return deleteCluster(ctx, client, &cluster)
+		if err := deleteCluster(ctx, client, &cluster); err != nil {
+			return err
+		}
+
+		removeKubeconfigContexts(appCtx, cluster)
+
+		return nil
 	}
 }
 

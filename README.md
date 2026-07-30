@@ -106,7 +106,8 @@ k3kcli cluster create mycluster
 >
 > This ensures the generated kubeconfig connects to the correct endpoint.
 
-When the K3s server is ready, `k3kcli` will generate the necessary kubeconfig file and print instructions on how to use it.  
+When the K3s server is ready, `k3kcli` adds the cluster to your kubeconfig as a
+`<namespace>/<name>` context, and prints instructions on how to use it.
 
 Here's an example of the output:
 
@@ -115,19 +116,32 @@ INFO[0000] Creating a new cluster [mycluster]
 INFO[0000] Extracting Kubeconfig for [mycluster] cluster 
 INFO[0000] waiting for cluster to be available..        
 INFO[0073] certificate CN=system:admin,O=system:masters signed by CN=k3s-client-ca@1738746570: notBefore=2025-02-05 09:09:30 +0000 UTC notAfter=2026-02-05 09:10:42 +0000 UTC 
-INFO[0073] You can start using the cluster with: 
+INFO[0073] Added the 'k3k-mycluster/mycluster' context in the current kubeconfig (/home/user/.kube/config)
 
-        export KUBECONFIG=/my/current/directory/mycluster-kubeconfig.yaml
+You can start using the cluster with:
+
+        kubectl config use-context k3k-mycluster/mycluster
         kubectl cluster-info  
 ```
 
-After exporting the generated kubeconfig, you should be able to reach your Kubernetes cluster:
+The context is only added: your current context is never switched for you. After selecting it,
+you should be able to reach your Kubernetes cluster:
 
 ```bash
-export KUBECONFIG=/my/current/directory/mycluster-kubeconfig.yaml
+kubectl config use-context k3k-mycluster/mycluster
 kubectl get nodes
 kubectl get pods -A
 ```
+
+The context is added to the kubeconfig `k3kcli` itself reads, following the same precedence
+`kubectl` uses: the `--kubeconfig` flag, then `$KUBECONFIG`, then `$HOME/.kube/config`. Deleting
+the cluster with `k3kcli cluster delete` removes the context again.
+
+> [!NOTE]
+> `k3kcli` also still writes a standalone `./<namespace>-<name>-kubeconfig.yaml` file to the
+> current directory. **This is deprecated and will be removed in a future release.** Use
+> `--out <path>` to keep writing a standalone kubeconfig somewhere explicit, or `--no-out` to
+> write none and silence the warning.
 
 You can also directly create a Cluster resource in some namespace, to create a K3k cluster:
 

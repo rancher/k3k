@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"k8s.io/client-go/kubernetes"
@@ -28,13 +30,43 @@ var (
 	restcfg   *rest.Config
 	k8s       *kubernetes.Clientset
 	k8sClient client.Client
+
+	// kubeconfigPath is a copy of the kubeconfig of the host cluster, used as the $KUBECONFIG
+	// of every command run by the suite.
+	//
+	// k3kcli adds a context to the kubeconfig it reads, so the suite must never be pointed at
+	// the real kubeconfig of the developer or of the CI runner.
+	kubeconfigPath string
 )
 
 var _ = BeforeSuite(func() {
 	ctx := context.Background()
 
 	initKubernetesClient(ctx)
+
+	kubeconfigPath = copyHostKubeconfig()
 })
+
+// copyHostKubeconfig copies the kubeconfig of the host cluster to a temporary file, returning
+// its path.
+func copyHostKubeconfig() string {
+	GinkgoHelper()
+
+	data, err := os.ReadFile(os.Getenv("KUBECONFIG"))
+	Expect(err).To(Not(HaveOccurred()))
+
+	dir, err := os.MkdirTemp("", "k3k-cli")
+	Expect(err).To(Not(HaveOccurred()))
+
+	DeferCleanup(func() {
+		_ = os.RemoveAll(dir)
+	})
+
+	path := filepath.Join(dir, "config")
+	Expect(os.WriteFile(path, data, 0o600)).To(Succeed())
+
+	return path
+}
 
 func initKubernetesClient(ctx context.Context) {
 	scheme := fwclient.NewScheme()

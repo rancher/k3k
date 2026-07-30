@@ -34,6 +34,8 @@ import (
 
 // CreateConfig holds the flags of the "cluster create" command.
 type CreateConfig struct {
+	kubeconfigOutFlags
+
 	token                string
 	clusterCIDR          string
 	serviceCIDR          string
@@ -76,6 +78,8 @@ func NewClusterCreateCmd(appCtx *AppContext) *cobra.Command {
 	createFlags(cmd, createConfig)
 
 	CobraFlagNamespace(appCtx, cmd, completeNamespaces)
+
+	CobraFlagKubeconfigOut(cmd, &createConfig.kubeconfigOutFlags)
 
 	return cmd
 }
@@ -210,21 +214,20 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			kubeCluster.Server = serverURL.String()
 		}
 
-		if err := writeKubeconfigFile(cluster, kubeconfig, ""); err != nil {
+		if err := writeKubeconfig(appCtx, cluster, kubeconfig, config.standalonePath(cluster)); err != nil {
 			return err
 		}
 
 		if cluster.Spec.Mode == v1beta1.HCPClusterMode {
-			printHCPJoinInstructions(cluster, kubeconfig)
+			printHCPJoinInstructions(cluster, serverURL.String())
 		}
 
 		return nil
 	}
 }
 
-func printHCPJoinInstructions(cluster *v1beta1.Cluster, kc *clientcmdapi.Config) {
+func printHCPJoinInstructions(cluster *v1beta1.Cluster, serverURL string) {
 	tokenSecretName := k3kcluster.TokenSecretName(cluster.Name)
-	serverURL := kc.Clusters["default"].Server
 	k3sVersion := controller.ResolveK3sVersion(cluster)
 
 	logrus.Infof(`To join an external worker node to this HCP cluster:

@@ -18,6 +18,7 @@ var completeClusterMode = cobra.FixedCompletions(
 	[]string{
 		string(v1beta1.SharedClusterMode),
 		string(v1beta1.VirtualClusterMode),
+		string(v1beta1.HCPClusterMode),
 	},
 	cobra.ShellCompDirectiveNoFileComp,
 )
@@ -71,6 +72,28 @@ func completeClusterNames(cmd *cobra.Command, args []string, toComplete string) 
 	namespace, _ := cmd.Flags().GetString("namespace")
 
 	return clusterNameCompletions(cmd.Context(), cl, namespace)
+}
+
+// completePolicyNameArg is a cobra.CompletionFunc that completes a single policy name argument.
+// It is the positional counterpart of completePolicyNames, which stays unguarded so that it can
+// also be used as a flag completion, where args holds the positional arguments parsed so far.
+func completePolicyNameArg(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// only the first positional argument is a policy name
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return completePolicyNames(cmd, args, toComplete)
+}
+
+// completePolicyNames is a cobra.CompletionFunc that completes with the k3k policy names.
+func completePolicyNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	cl, err := completionClient(cmd)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	return policyNameCompletions(cmd.Context(), cl)
 }
 
 // namespaceCompletions lists every namespace in the host cluster, excluding any
@@ -128,6 +151,21 @@ func clusterNameCompletions(ctx context.Context, cl client.Client, namespace str
 	names := make([]string, 0, len(clusters.Items))
 	for _, cluster := range clusters.Items {
 		names = append(names, cluster.Namespace+"/"+cluster.Name)
+	}
+
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
+// policyNameCompletions lists the k3k VirtualClusterPolicies by name.
+func policyNameCompletions(ctx context.Context, cl client.Client) ([]string, cobra.ShellCompDirective) {
+	var policies v1beta1.VirtualClusterPolicyList
+	if err := cl.List(ctx, &policies); err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	names := make([]string, 0, len(policies.Items))
+	for _, policy := range policies.Items {
+		names = append(names, policy.Name)
 	}
 
 	return names, cobra.ShellCompDirectiveNoFileComp

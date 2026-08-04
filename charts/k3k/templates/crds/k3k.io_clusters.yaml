@@ -1219,6 +1219,39 @@ spec:
                 - enabled
                 - sources
                 type: object
+              customDNS:
+                description: |-
+                  CustomDNS provides custom configuration for coredns in the virtual
+                  cluster.
+                properties:
+                  forwarders:
+                    description: |-
+                      Forwarders configures the virtual cluster coredns installation to forward
+                      requests to recursor.
+                    items:
+                      properties:
+                        domain:
+                          description: |-
+                            Domain configures CoreDNS to only forward domains within this domain to the
+                            forwarders.
+                          type: string
+                        forwarders:
+                          description: |-
+                            Forwarders is a set IP addresses that will be used to configure
+                            coredns forwarders.
+                          items:
+                            type: string
+                          minItems: 1
+                          type: array
+                        log:
+                          description: Log indicates that forward requests should be logged.
+                          type: boolean
+                      required:
+                      - forwarders
+                      - log
+                      type: object
+                    type: array
+                type: object
               expose:
                 description: |-
                   Expose specifies options for exposing the API server.

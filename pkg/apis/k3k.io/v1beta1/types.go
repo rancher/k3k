@@ -239,6 +239,33 @@ type ClusterSpec struct {
 	//
 	// +optional
 	HostUsers *bool `json:"hostUsers,omitempty"`
+
+	// CustomDNS provides custom configuration for coredns in the virtual
+	// cluster.
+	CustomDNS *CustomDNS `json:"customDNS,omitempty"`
+}
+
+type CustomDNSForwarder struct {
+	// Forwarders is a set IP addresses that will be used to configure
+	// coredns forwarders.
+	//
+	// +kubebuilder:validation:MinItems=1
+	Forwarders []string `json:"forwarders"`
+
+	// Domain configures CoreDNS to only forward domains within this domain to the
+	// forwarders.
+	// +optional
+	Domain string `json:"domain,omitempty"`
+
+	// Log indicates that forward requests should be logged.
+	Log bool `json:"log"`
+}
+
+// CustomDNS provides the configuration for coredns.
+type CustomDNS struct {
+	// Forwarders configures the virtual cluster coredns installation to forward
+	// requests to recursor.
+	Forwarders []CustomDNSForwarder `json:"forwarders,omitempty"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,

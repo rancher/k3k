@@ -203,6 +203,7 @@ func (k *kubelet) start(ctx context.Context) error {
 		if err != nil {
 			k.logger.Error(err, "host manager stopped")
 		}
+
 		errChan <- err
 	}()
 
@@ -211,6 +212,7 @@ func (k *kubelet) start(ctx context.Context) error {
 		if err != nil {
 			k.logger.Error(err, "virtual manager stopped")
 		}
+
 		errChan <- err
 	}()
 
@@ -238,12 +240,12 @@ func (k *kubelet) start(ctx context.Context) error {
 		defer k.eb.Shutdown()
 
 		k.logger.Info("node exited successfully")
+
 		return nil
 	case err := <-errChan:
 		k.logger.Error(err, "manager stopped, exiting")
 		return err
 	}
-
 }
 
 func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {

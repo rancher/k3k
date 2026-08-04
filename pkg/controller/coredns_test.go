@@ -66,6 +66,7 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 				if len(cm.Data) != 0 {
 					t.Errorf("expected empty data, got %v", cm.Data)
 				}
+
 				return
 			}
 

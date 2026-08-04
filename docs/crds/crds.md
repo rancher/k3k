@@ -171,6 +171,7 @@ _Appears in:_
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | SecurityContext specifies custom container SecurityContext to be added<br />to the agent and server containers of the cluster in virtual or shared mode.<br />This option will override the SecurityContext set by default for virtual mode. |  |  |
 | `runtimeClassName` _string_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
 | `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
+| `customDNS` _[CustomDNS](#customdns)_ | CustomDNS provides custom configuration for coredns in the virtual<br />cluster. |  |  |
 
 
 #### ClusterStatus
@@ -269,6 +270,39 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled toggles this feature on or off. | true |  |
 | `sources` _[CredentialSources](#credentialsources)_ | Sources defines the sources for all required custom CA certificates. |  |  |
+
+
+#### CustomDNS
+
+
+
+CustomDNS provides the configuration for coredns.
+
+
+
+_Appears in:_
+- [ClusterSpec](#clusterspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `forwarders` _[CustomForwarder](#customforwarder) array_ | Forwarders configures the custom forwarding in coredns. |  |  |
+
+
+#### CustomForwarder
+
+
+
+CustomForwarder provides configuration for customising the forwarding
+behaviour in coredns.
+
+
+
+_Appears in:_
+- [CustomDNS](#customdns)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `ips` _string array_ | IPs is a set of IP addresses referencing recursors to forward requests to. |  | MinItems: 1 <br />items:Pattern: ((^((([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5])\.)\{3\}([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]))$)\|(^(([0-9a-fA-F]\{1,4\}:)\{7,7\}[0-9a-fA-F]\{1,4\}\|([0-9a-fA-F]\{1,4\}:)\{1,7\}:\|([0-9a-fA-F]\{1,4\}:)\{1,6\}:[0-9a-fA-F]\{1,4\}\|([0-9a-fA-F]\{1,4\}:)\{1,5\}(:[0-9a-fA-F]\{1,4\})\{1,2\}\|([0-9a-fA-F]\{1,4\}:)\{1,4\}(:[0-9a-fA-F]\{1,4\})\{1,3\}\|([0-9a-fA-F]\{1,4\}:)\{1,3\}(:[0-9a-fA-F]\{1,4\})\{1,4\}\|([0-9a-fA-F]\{1,4\}:)\{1,2\}(:[0-9a-fA-F]\{1,4\})\{1,5\}\|[0-9a-fA-F]\{1,4\}:((:[0-9a-fA-F]\{1,4\})\{1,6\})\|:((:[0-9a-fA-F]\{1,4\})\{1,7\}\|:))$)) <br /> |
 
 
 #### ExposeConfig

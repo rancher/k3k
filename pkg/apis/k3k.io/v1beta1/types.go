@@ -242,6 +242,8 @@ type ClusterSpec struct {
 
 	// CustomDNS provides custom configuration for coredns in the virtual
 	// cluster.
+	//
+	// +optional
 	CustomDNS *CustomDNS `json:"customDNS,omitempty"`
 }
 
@@ -251,6 +253,7 @@ type CustomForwarder struct {
 	// IPs is a set of IP addresses referencing recursors to forward requests to.
 	//
 	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:Pattern="((^((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))$)|(^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$))"
 	// +optional
 	IPs []string `json:"ips"`
 }
@@ -258,6 +261,7 @@ type CustomForwarder struct {
 // CustomDNS provides the configuration for coredns.
 type CustomDNS struct {
 	// Forwarders configures the custom forwarding in coredns.
+	//
 	// +optional
 	Forwarders []CustomForwarder `json:"forwarders,omitempty"`
 }

@@ -1,6 +1,7 @@
 package k3k_test
 
 import (
+	"context"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,10 +19,13 @@ import (
 )
 
 var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label(slowTestsLabel), func() {
-	var virtualCluster *VirtualCluster
+	var (
+		virtualCluster *VirtualCluster
+		namespace      *corev1.Namespace
+	)
 
 	BeforeEach(func() {
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace = fwk3k.CreateNamespace(k8s)
 
 		DeferCleanup(func() {
 			fwk3k.DeleteNamespaces(k8s, namespace.Name)
@@ -30,6 +34,9 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 		cluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
 			c.Spec.Expose.Annotations = map[string]string{
 				"example.com/test": "testing",
+			}
+			c.Spec.CustomDNS = &v1beta1.CustomDNS{
+				Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8"}}},
 			}
 		})
 		CreateCluster(cluster)
@@ -136,6 +143,77 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 			WithTimeout(time.Minute).
 			WithPolling(time.Second).
 			Should(Succeed())
+	})
+
+	It("creates a coredns-custom configmap", func(ctx context.Context) {
+		Eventually(func(g Gomega) {
+			configMap, err := virtualCluster.Client.CoreV1().ConfigMaps("kube-system").Get(
+				ctx, "coredns-custom", metav1.GetOptions{})
+			g.Expect(err).To(Not(HaveOccurred()))
+			g.Expect(configMap.Data).To(Equal(map[string]string{
+				"custom.override": "    forward . 8.8.8.8\n",
+			}))
+		}).
+			WithTimeout(time.Minute * 1).
+			WithPolling(time.Second).
+			Should(Succeed())
+	})
+
+	It("updates the coredns-custom configmap when the cluster is updated", func(ctx context.Context) {
+		Eventually(func(g Gomega) {
+			configMap, err := virtualCluster.Client.CoreV1().ConfigMaps("kube-system").Get(
+				ctx, "coredns-custom", metav1.GetOptions{})
+			g.Expect(err).To(Not(HaveOccurred()))
+			g.Expect(configMap.Data).To(Equal(map[string]string{
+				"custom.override": "    forward . 8.8.8.8\n",
+			}))
+		}).
+			WithTimeout(time.Minute * 1).
+			WithPolling(time.Second).
+			Should(Succeed())
+
+		cluster := virtualCluster.Cluster
+		key := client.ObjectKeyFromObject(cluster)
+		Expect(k8sClient.Get(ctx, key, cluster)).To(Succeed())
+
+		cluster.Spec.CustomDNS = &v1beta1.CustomDNS{
+			Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8", "1.1.1.1"}}},
+		}
+		Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
+
+		Eventually(func(g Gomega) {
+			ctx := GinkgoT().Context()
+
+			configMap, err := virtualCluster.Client.CoreV1().ConfigMaps("kube-system").Get(
+				ctx, "coredns-custom", metav1.GetOptions{})
+			g.Expect(err).To(Not(HaveOccurred()))
+			g.Expect(configMap.Data).To(Equal(map[string]string{
+				"custom.override": "    forward . 8.8.8.8 1.1.1.1\n",
+			}))
+		}).
+			WithTimeout(time.Minute * 1).
+			WithPolling(time.Second).
+			Should(Succeed())
+	})
+
+	It("rejects forwarding with no addresses", func(ctx context.Context) {
+		invalidCluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
+			c.Spec.CustomDNS = &v1beta1.CustomDNS{
+				Forwarders: []v1beta1.CustomForwarder{{IPs: []string{}}},
+			}
+		})
+		err := k8sClient.Create(ctx, invalidCluster)
+		Expect(err).To(MatchError(ContainSubstring("ips in body should have at least 1 items")))
+	})
+
+	It("rejects invalid IPv4 addresses", func(ctx context.Context) {
+		invalidCluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
+			c.Spec.CustomDNS = &v1beta1.CustomDNS{
+				Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"192.168.1"}}},
+			}
+		})
+		err := k8sClient.Create(ctx, invalidCluster)
+		Expect(err).To(MatchError(ContainSubstring("ips[0] in body should match")))
 	})
 })
 

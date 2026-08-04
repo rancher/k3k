@@ -42,5 +42,6 @@ func generateForwardingConfig(forwarders []v1beta1.CustomForwarder) string {
 	for _, f := range forwarders {
 		ips = append(ips, f.IPs...)
 	}
+
 	return fmt.Sprintf("    forward . %s\n", strings.Join(ips, " "))
 }

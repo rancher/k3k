@@ -1225,30 +1225,18 @@ spec:
                   cluster.
                 properties:
                   forwarders:
-                    description: |-
-                      Forwarders configures the virtual cluster coredns installation to forward
-                      requests to recursor.
+                    description: Forwarders configures the custom forwarding in coredns.
                     items:
+                      description: |-
+                        CustomForwarder provides configuration for customising the forwarding
+                        behaviour in coredns.
                       properties:
-                        domain:
-                          description: |-
-                            Domain configures CoreDNS to only forward domains within this domain to the
-                            forwarders.
-                          type: string
-                        forwarders:
-                          description: |-
-                            Forwarders is a set IP addresses that will be used to configure
-                            coredns forwarders.
+                        ips:
+                          description: IPs is a set of IP addresses referencing recursors to forward requests to.
                           items:
                             type: string
                           minItems: 1
                           type: array
-                        log:
-                          description: Log indicates that forward requests should be logged.
-                          type: boolean
-                      required:
-                      - forwarders
-                      - log
                       type: object
                     type: array
                 type: object

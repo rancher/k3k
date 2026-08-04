@@ -28,14 +28,12 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 				Spec: v1beta1.ClusterSpec{
 					CustomDNS: &v1beta1.CustomDNS{
-						Forwarders: []v1beta1.CustomDNSForwarder{
-							{Forwarders: []string{"8.8.8.8"}},
-						},
+						Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8"}}},
 					},
 				},
 			},
 			expectData:       true,
-			expectedCorefile: ".:53 {\n    forward . 8.8.8.8\n}\n",
+			expectedCorefile: "    forward . 8.8.8.8\n",
 		},
 		{
 			name: "multiple upstream IPs",
@@ -43,60 +41,12 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 				Spec: v1beta1.ClusterSpec{
 					CustomDNS: &v1beta1.CustomDNS{
-						Forwarders: []v1beta1.CustomDNSForwarder{
-							{Forwarders: []string{"8.8.8.8", "1.1.1.1"}},
-						},
+						Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8", "1.1.1.1"}}},
 					},
 				},
 			},
 			expectData:       true,
-			expectedCorefile: ".:53 {\n    forward . 8.8.8.8 1.1.1.1\n}\n",
-		},
-		{
-			name: "domain-scoped forwarder",
-			cluster: &v1beta1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-				Spec: v1beta1.ClusterSpec{
-					CustomDNS: &v1beta1.CustomDNS{
-						Forwarders: []v1beta1.CustomDNSForwarder{
-							{Domain: "example.com", Forwarders: []string{"8.8.8.8"}},
-						},
-					},
-				},
-			},
-			expectData:       true,
-			expectedCorefile: "example.com:53 {\n    forward . 8.8.8.8\n}\n",
-		},
-		{
-			name: "forwarder with logging",
-			cluster: &v1beta1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-				Spec: v1beta1.ClusterSpec{
-					CustomDNS: &v1beta1.CustomDNS{
-						Forwarders: []v1beta1.CustomDNSForwarder{
-							{Forwarders: []string{"8.8.8.8"}, Log: true},
-						},
-					},
-				},
-			},
-			expectData:       true,
-			expectedCorefile: ".:53 {\n    forward . 8.8.8.8\n    log\n}\n",
-		},
-		{
-			name: "multiple forwarder blocks",
-			cluster: &v1beta1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-				Spec: v1beta1.ClusterSpec{
-					CustomDNS: &v1beta1.CustomDNS{
-						Forwarders: []v1beta1.CustomDNSForwarder{
-							{Domain: "internal.corp", Forwarders: []string{"10.0.0.1"}},
-							{Forwarders: []string{"8.8.8.8"}},
-						},
-					},
-				},
-			},
-			expectData:       true,
-			expectedCorefile: "internal.corp:53 {\n    forward . 10.0.0.1\n}\n.:53 {\n    forward . 8.8.8.8\n}\n",
+			expectedCorefile: "    forward . 8.8.8.8 1.1.1.1\n",
 		},
 	}
 

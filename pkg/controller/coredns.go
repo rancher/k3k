@@ -36,19 +36,11 @@ func GenerateCustomConfigMap(cluster *v1beta1.Cluster) *corev1.ConfigMap {
 	return cm
 }
 
-// generateForwardingConfig returns CoreDNS server blocks for each configured forwarder.
-func generateForwardingConfig(forwarders []v1beta1.CustomDNSForwarder) string {
-	var sb strings.Builder
+// generateForwardingConfig returns a CoreDNS forward directive with all recursor IPs.
+func generateForwardingConfig(forwarders []v1beta1.CustomForwarder) string {
+	var ips []string
 	for _, f := range forwarders {
-		zone := "."
-		if f.Domain != "" {
-			zone = f.Domain
-		}
-		fmt.Fprintf(&sb, "%s:53 {\n    forward . %s\n", zone, strings.Join(f.Forwarders, " "))
-		if f.Log {
-			sb.WriteString("    log\n")
-		}
-		sb.WriteString("}\n")
+		ips = append(ips, f.IPs...)
 	}
-	return sb.String()
+	return fmt.Sprintf("    forward . %s\n", strings.Join(ips, " "))
 }

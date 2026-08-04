@@ -193,7 +193,9 @@ func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostCl
 	return service.Spec.ClusterIP, nil
 }
 
-func (k *kubelet) start(ctx context.Context) {
+func (k *kubelet) start(ctx context.Context) error {
+	errChan := make(chan error, 2)
+
 	// any one of the following 3 tasks (host manager, virtual manager, node) crashing will stop the
 	// program, and all 3 of them block on start, so we start them here in go-routines
 	go func() {
@@ -201,6 +203,7 @@ func (k *kubelet) start(ctx context.Context) {
 		if err != nil {
 			k.logger.Error(err, "host manager stopped")
 		}
+		errChan <- err
 	}()
 
 	go func() {
@@ -208,10 +211,10 @@ func (k *kubelet) start(ctx context.Context) {
 		if err != nil {
 			k.logger.Error(err, "virtual manager stopped")
 		}
+		errChan <- err
 	}()
 
 	// run the node async so that we can wait for it to be ready in another call
-
 	go func() {
 		klog.SetLogger(k.logger.V(1))
 
@@ -223,16 +226,24 @@ func (k *kubelet) start(ctx context.Context) {
 
 	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
 		k.logger.Error(err, "node was not ready within timeout of 1 minute")
+		return err
 	}
 
-	<-k.node.Done()
+	select {
+	case <-k.node.Done():
+		if err := k.node.Err(); err != nil {
+			k.logger.Error(err, "node stopped with an error")
+			return err
+		}
+		defer k.eb.Shutdown()
 
-	if err := k.node.Err(); err != nil {
-		k.logger.Error(err, "node stopped with an error")
+		k.logger.Info("node exited successfully")
+		return nil
+	case err := <-errChan:
+		k.logger.Error(err, "manager stopped, exiting")
+		return err
 	}
-	defer k.eb.Shutdown()
 
-	k.logger.Info("node exited successfully")
 }
 
 func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {

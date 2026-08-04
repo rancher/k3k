@@ -468,7 +468,11 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 	}
 
 	// Important: if you need to call the Server API of the Virtual Cluster
-	// this needs to be done AFTER he kubeconfig has been generated
+	// this needs to be done AFTER the kubeconfig has been generated
+
+	if err := c.ensureCustomCoreDNS(ctx, cluster); err != nil {
+		return err
+	}
 
 	if err := c.ensureStorageClasses(ctx, cluster); err != nil {
 		return err
@@ -1087,6 +1091,43 @@ func (c *ClusterReconciler) validateCustomCACerts(credentialSources v1beta1.Cred
 		credentialSources.RequestHeaderCA.SecretName == "" ||
 		credentialSources.ServiceAccountToken.SecretName == "" {
 		return ErrCustomCACertSecretMissing
+	}
+
+	return nil
+}
+
+func (c *ClusterReconciler) ensureCustomCoreDNS(ctx context.Context, cluster *v1beta1.Cluster) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.V(1).Info("Ensuring custom CoreDNS ConfigMap")
+
+	virtualClient, err := newVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace)
+	if err != nil {
+		return fmt.Errorf("failed creating virtual client: %w", err)
+	}
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "coredns-custom",
+			Namespace: metav1.NamespaceSystem,
+		},
+	}
+
+	desired := controller.GenerateCustomConfigMap(cluster)
+	if desired == nil {
+		return client.IgnoreNotFound(virtualClient.Delete(ctx, cm))
+	}
+
+	result, err := controllerutil.CreateOrUpdate(ctx, virtualClient, cm, func() error {
+		cm.Data = desired.Data
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if result != controllerutil.OperationResultNone {
+		key := client.ObjectKeyFromObject(cm)
+		log.V(1).Info("Custom CoreDNS ConfigMap updated", "key", key, "result", result)
 	}
 
 	return nil

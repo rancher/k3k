@@ -171,6 +171,7 @@ _Appears in:_
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | SecurityContext specifies custom container SecurityContext to be added<br />to the agent and server containers of the cluster in virtual or shared mode.<br />This option will override the SecurityContext set by default for virtual mode. |  |  |
 | `runtimeClassName` _string_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
 | `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
+| `dns` _[CustomDNS](#customdns)_ | DNS provides custom configuration for coredns in the virtual<br />cluster. |  |  |
 
 
 #### ClusterStatus
@@ -213,6 +214,22 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+
+
+#### CoreDNS
+
+
+
+CoreDNS provides the configuration for coredns.
+
+
+
+_Appears in:_
+- [CustomDNS](#customdns)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `customConfig` _[CustomDNSConfig](#customdnsconfig) array_ |  |  |  |
 
 
 #### CredentialSource
@@ -269,6 +286,40 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled toggles this feature on or off. | true |  |
 | `sources` _[CredentialSources](#credentialsources)_ | Sources defines the sources for all required custom CA certificates. |  |  |
+
+
+#### CustomDNS
+
+
+
+CustomDNS allows customising configuration for the virtual cluster.
+
+
+
+_Appears in:_
+- [ClusterSpec](#clusterspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `coreDNS` _[CoreDNS](#coredns)_ |  |  |  |
+
+
+#### CustomDNSConfig
+
+
+
+CustomDNSConfig is a name/value field that is written as a key to the coredns
+configuration in the virtual cluster.
+
+
+
+_Appears in:_
+- [CoreDNS](#coredns)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ |  |  |  |
+| `value` _string_ |  |  |  |
 
 
 #### ExposeConfig

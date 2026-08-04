@@ -1219,6 +1219,33 @@ spec:
                 - enabled
                 - sources
                 type: object
+              dns:
+                description: |-
+                  DNS provides custom configuration for coredns in the virtual
+                  cluster.
+                properties:
+                  coreDNS:
+                    description: CoreDNS provides the configuration for coredns.
+                    properties:
+                      customConfig:
+                        items:
+                          description: |-
+                            CustomDNSConfig is a name/value field that is written as a key to the coredns
+                            configuration in the virtual cluster.
+                          properties:
+                            name:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                    required:
+                    - customConfig
+                    type: object
+                type: object
               expose:
                 description: |-
                   Expose specifies options for exposing the API server.

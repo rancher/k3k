@@ -81,9 +81,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to register new node: %w", err)
 	}
 
-	k.start(ctx)
-
-	return nil
+	return k.start(ctx)
 }
 
 // InitializeConfig sets up viper to read from config file, environment variables, and flags.

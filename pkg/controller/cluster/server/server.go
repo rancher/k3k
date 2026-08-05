@@ -243,7 +243,12 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 				Command: []string{
 					"sh",
 					"-c",
-					`grep -q "rejoin the cluster" /var/log/k3s.log && exit 1 || exit 0`,
+					// Fail if k3s reported it must rejoin the cluster.
+					// The startup script (run_k3s) writes this sentinel
+					// when it detects the "rejoin the cluster" message,
+					// so the probe doesn't grep an ever-growing log file.
+					// See: rancher/k3k#537
+					`test -f /var/log/k3s-rejoin && exit 1 || exit 0`,
 				},
 			},
 		},

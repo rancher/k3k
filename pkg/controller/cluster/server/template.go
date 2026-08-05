@@ -12,6 +12,27 @@ fatal()
     exit 1
 }
 
+# Sentinel file checked by the liveness probe. run_k3s creates it when k3s
+# reports it must rejoin the cluster, so the probe can restart the pod.
+REJOIN_MARKER=/var/log/k3s-rejoin
+
+# run_k3s starts the k3s server, streams its output to stdout ("kubectl logs" keeps working)
+# and drops the sentinel file when the "rejoin the cluster" message appears.
+# This replaces piping the full log to a growing file that the
+# liveness probe used to grep on every check (see rancher/k3k#537).
+run_k3s() {
+	rm -f "$REJOIN_MARKER"
+
+	/bin/k3s server "$@" 2>&1 | while IFS= read -r line; do
+		printf '%s\n' "$line"
+		case $line in
+		*"rejoin the cluster"*)
+			printf '1' > "$REJOIN_MARKER"
+			;;
+		esac
+	done
+}
+
 # safe mode function to reset node IP after pod restarts
 safe_mode() {
 	CURRENT_IP=""
@@ -27,7 +48,7 @@ safe_mode() {
 	if [ -d "{{.ETCD_DIR}}" ]; then
 
 		info "Starting K3s in Safe Mode (Network Policy Disabled) to patch Node IP from ${CURRENT_IP} to ${POD_IP}"
-		/bin/k3s server --disable-network-policy --config $1 $EXTRA_ARGS > /dev/null 2>&1 &
+		run_k3s --disable-network-policy --config $1 $EXTRA_ARGS > /dev/null 2>&1 &
 		PID=$!
 
 		# Start the loop to wait for the nodeIP to change
@@ -58,7 +79,7 @@ start_single_node() {
 	if [ -d "{{.ETCD_DIR}}" ]; then
 		info "Existing data found in single node setup. Performing cluster-reset to ensure quorum..."
 
-		if ! /bin/k3s server --cluster-reset --config {{.INIT_CONFIG}} $EXTRA_ARGS > /dev/null 2>&1; then
+		if ! run_k3s --cluster-reset --config {{.INIT_CONFIG}} $EXTRA_ARGS > /dev/null 2>&1; then
 			fatal "cluster reset failed!"
 		fi
 		info "Cluster reset complete. Removing Reset flag file."
@@ -71,7 +92,7 @@ start_single_node() {
 	info "Adding pod IP file."
 	echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-	/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
+	run_k3s --config {{.INIT_CONFIG}} $EXTRA_ARGS
 }
 
 start_ha_node() {
@@ -81,14 +102,14 @@ start_ha_node() {
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
+		run_k3s --config {{.INIT_CONFIG}} $EXTRA_ARGS
 	else
 		safe_mode {{.SERVER_CONFIG}}
 
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.info 
+		run_k3s --config {{.SERVER_CONFIG}} $EXTRA_ARGS
 	fi
 }
 

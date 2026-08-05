@@ -12,7 +12,6 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 	tests := []struct {
 		name             string
 		cluster          *v1beta1.Cluster
-		expectData       bool
 		expectedCorefile string
 	}{
 		{
@@ -20,7 +19,6 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 			cluster: &v1beta1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 			},
-			expectData: false,
 		},
 		{
 			name: "single forwarder",
@@ -32,7 +30,6 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 					},
 				},
 			},
-			expectData:       true,
 			expectedCorefile: "    forward . 8.8.8.8\n",
 		},
 		{
@@ -45,7 +42,6 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 					},
 				},
 			},
-			expectData:       true,
 			expectedCorefile: "    forward . 8.8.8.8 1.1.1.1\n",
 		},
 	}
@@ -54,20 +50,20 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cm := GenerateCustomConfigMap(tt.cluster)
 
+			if tt.expectedCorefile == "" {
+				if cm != nil {
+					t.Errorf("expected nil ConfigMap, got %v", cm)
+				}
+
+				return
+			}
+
 			if cm == nil {
 				t.Fatal("expected non-nil ConfigMap")
 			}
 
 			if cm.Namespace != tt.cluster.Namespace {
 				t.Errorf("namespace: got %q, want %q", cm.Namespace, tt.cluster.Namespace)
-			}
-
-			if !tt.expectData {
-				if len(cm.Data) != 0 {
-					t.Errorf("expected empty data, got %v", cm.Data)
-				}
-
-				return
 			}
 
 			corefile, ok := cm.Data["custom.override"]

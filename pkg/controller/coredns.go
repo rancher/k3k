@@ -26,7 +26,7 @@ func GenerateCustomConfigMap(cluster *v1beta1.Cluster) *corev1.ConfigMap {
 	}
 
 	if cluster.Spec.CustomDNS == nil || len(cluster.Spec.CustomDNS.Forwarders) == 0 {
-		return cm
+		return nil
 	}
 
 	cm.Data = map[string]string{

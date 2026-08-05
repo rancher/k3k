@@ -1112,11 +1112,10 @@ func (c *ClusterReconciler) ensureCustomCoreDNS(ctx context.Context, cluster *v1
 		},
 	}
 
-	if cluster.Spec.CustomDNS == nil || len(cluster.Spec.CustomDNS.Forwarders) == 0 {
+	desired := controller.GenerateCustomConfigMap(cluster)
+	if desired == nil {
 		return client.IgnoreNotFound(virtualClient.Delete(ctx, cm))
 	}
-
-	desired := controller.GenerateCustomConfigMap(cluster)
 
 	result, err := controllerutil.CreateOrUpdate(ctx, virtualClient, cm, func() error {
 		cm.Data = desired.Data

@@ -9,13 +9,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/onsi/gomega/gcustom"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	"github.com/onsi/gomega/types"
 )
 
 var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label(slowTestsLabel), func() {
@@ -49,10 +52,8 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 		}
 	})
 
-	It("creates nodes with the worker role", func() {
+	It("creates nodes with the worker role", func(ctx context.Context) {
 		Eventually(func(g Gomega) {
-			ctx := GinkgoT().Context()
-
 			nodes, err := virtualCluster.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
 			g.Expect(nodes.Items).To(HaveLen(1))
@@ -63,10 +64,8 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 			Should(Succeed())
 	})
 
-	It("creates services with annotations", func() {
+	It("creates services with annotations", func(ctx context.Context) {
 		Eventually(func(g Gomega) {
-			ctx := GinkgoT().Context()
-
 			cluster := virtualCluster.Cluster
 			service, err := k8s.CoreV1().Services(cluster.Namespace).Get(
 				ctx, "k3k-"+cluster.GetName()+"-service", metav1.GetOptions{})
@@ -81,9 +80,8 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 			Should(Succeed())
 	})
 
-	It("updates the annotations when the cluster is updated", func() {
+	It("updates the annotations when the cluster is updated", func(ctx context.Context) {
 		// Wait for Service to be created.
-		ctx := GinkgoT().Context()
 		cluster := virtualCluster.Cluster
 
 		Eventually(func(g Gomega) {
@@ -132,10 +130,8 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 			Should(Succeed())
 	})
 
-	It("has the provider.cattle.io label set to k3k", func() {
+	It("has the provider.cattle.io label set to k3k", func(ctx context.Context) {
 		Eventually(func(g Gomega) {
-			ctx := GinkgoT().Context()
-
 			key := client.ObjectKeyFromObject(virtualCluster.Cluster)
 			g.Expect(k8sClient.Get(ctx, key, virtualCluster.Cluster)).To(Succeed())
 			g.Expect(virtualCluster.Cluster.Labels).To(HaveKeyWithValue("provider.cattle.io", "k3k"))
@@ -182,14 +178,42 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 		Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
 		Eventually(func(g Gomega) {
-			ctx := GinkgoT().Context()
-
 			configMap, err := virtualCluster.Client.CoreV1().ConfigMaps("kube-system").Get(
 				ctx, "coredns-custom", metav1.GetOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
 			g.Expect(configMap.Data).To(Equal(map[string]string{
 				"custom.override": "    forward . 8.8.8.8 1.1.1.1\n",
 			}))
+		}).
+			WithTimeout(time.Minute * 1).
+			WithPolling(time.Second).
+			Should(Succeed())
+	})
+
+	It("deletes the coredns-custom configmap when the cluster is updated with no forwarders", func(ctx context.Context) {
+		Eventually(func(g Gomega) {
+			configMap, err := virtualCluster.Client.CoreV1().ConfigMaps("kube-system").Get(
+				ctx, "coredns-custom", metav1.GetOptions{})
+			g.Expect(err).To(Not(HaveOccurred()))
+			g.Expect(configMap.Data).To(Equal(map[string]string{
+				"custom.override": "    forward . 8.8.8.8\n",
+			}))
+		}).
+			WithTimeout(time.Minute * 1).
+			WithPolling(time.Second).
+			Should(Succeed())
+
+		cluster := virtualCluster.Cluster
+		key := client.ObjectKeyFromObject(cluster)
+		Expect(k8sClient.Get(ctx, key, cluster)).To(Succeed())
+
+		cluster.Spec.CustomDNS = nil
+		Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
+
+		Eventually(func(g Gomega) {
+			_, err := virtualCluster.Client.CoreV1().ConfigMaps("kube-system").Get(
+				ctx, "coredns-custom", metav1.GetOptions{})
+			g.Expect(err).To(BeNotFound())
 		}).
 			WithTimeout(time.Minute * 1).
 			WithPolling(time.Second).
@@ -306,3 +330,9 @@ var _ = When("creating an HCP mode cluster", Label(lifecycleTestsLabel), Label(s
 			Should(Succeed())
 	})
 })
+
+func BeNotFound() types.GomegaMatcher {
+	return gcustom.MakeMatcher(func(err error) (bool, error) {
+		return apierrors.IsNotFound(err), nil
+	}).WithTemplate("Expected:\n{{.FormattedActual}}\n{{.To}} be not found")
+}

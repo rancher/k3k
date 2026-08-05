@@ -25,12 +25,12 @@ func GenerateCustomConfigMap(cluster *v1beta1.Cluster) *corev1.ConfigMap {
 		},
 	}
 
-	if cluster.Spec.CustomDNS == nil || len(cluster.Spec.CustomDNS.Forwarders) == 0 {
+	if cluster.Spec.CustomDNS == nil || cluster.Spec.CustomDNS.Overrides == nil || len(cluster.Spec.CustomDNS.Overrides.Forwarders) == 0 {
 		return nil
 	}
 
 	cm.Data = map[string]string{
-		coreDNSCustomConfigKey: generateForwardingConfig(cluster.Spec.CustomDNS.Forwarders),
+		coreDNSCustomConfigKey: generateForwardingConfig(cluster.Spec.CustomDNS.Overrides.Forwarders),
 	}
 
 	return cm

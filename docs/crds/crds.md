@@ -216,6 +216,22 @@ _Appears in:_
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
+#### CoreDNSOverrides
+
+
+
+CoreDNSOverrides represents "overrides" for coredns configuration.
+
+
+
+_Appears in:_
+- [CustomDNS](#customdns)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `forwarders` _[CustomForwarder](#customforwarder) array_ | Forwarders configures the custom forwarding in coredns. |  |  |
+
+
 #### CredentialSource
 
 
@@ -285,7 +301,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `forwarders` _[CustomForwarder](#customforwarder) array_ | Forwarders configures the custom forwarding in coredns. |  |  |
+| `overrides` _[CoreDNSOverrides](#corednsoverrides)_ | Overrides are written to a .overrides file which is included into the<br />coredns configuration. |  |  |
 
 
 #### CustomForwarder
@@ -298,7 +314,7 @@ behaviour in coredns.
 
 
 _Appears in:_
-- [CustomDNS](#customdns)
+- [CoreDNSOverrides](#corednsoverrides)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |

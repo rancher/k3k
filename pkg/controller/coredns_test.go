@@ -26,7 +26,9 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 				Spec: v1beta1.ClusterSpec{
 					CustomDNS: &v1beta1.CustomDNS{
-						Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8"}}},
+						Overrides: &v1beta1.CoreDNSOverrides{
+							Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8"}}},
+						},
 					},
 				},
 			},
@@ -38,7 +40,9 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 				Spec: v1beta1.ClusterSpec{
 					CustomDNS: &v1beta1.CustomDNS{
-						Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8", "1.1.1.1"}}},
+						Overrides: &v1beta1.CoreDNSOverrides{
+							Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8", "1.1.1.1"}}},
+						},
 					},
 				},
 			},

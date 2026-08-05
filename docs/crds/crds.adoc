@@ -298,6 +298,26 @@ then all resources of the given type will be synced. + |  |
 |===
 
 
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-corednsoverrides"]
+=== CoreDNSOverrides
+
+
+
+CoreDNSOverrides represents "overrides" for coredns configuration.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customdns[$$CustomDNS$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`forwarders`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customforwarder[$$CustomForwarder$$] array__ | Forwarders configures the custom forwarding in coredns. + |  | 
+|===
+
+
 [id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsource"]
 === CredentialSource
 
@@ -384,7 +404,8 @@ _Appears In:_
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`forwarders`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customforwarder[$$CustomForwarder$$] array__ | Forwarders configures the custom forwarding in coredns. + |  | 
+| *`overrides`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-corednsoverrides[$$CoreDNSOverrides$$]__ | Overrides are written to a .overrides file which is included into the +
+coredns configuration. + |  | 
 |===
 
 
@@ -400,7 +421,7 @@ behaviour in coredns.
 
 _Appears In:_
 
-* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customdns[$$CustomDNS$$]
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-corednsoverrides[$$CoreDNSOverrides$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===

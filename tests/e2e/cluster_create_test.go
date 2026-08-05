@@ -4,21 +4,21 @@ import (
 	"context"
 	"time"
 
+	"github.com/onsi/gomega/gcustom"
+	"github.com/onsi/gomega/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/onsi/gomega/gcustom"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-	"github.com/onsi/gomega/types"
 )
 
 var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label(slowTestsLabel), func() {
@@ -39,7 +39,9 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 				"example.com/test": "testing",
 			}
 			c.Spec.CustomDNS = &v1beta1.CustomDNS{
-				Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8"}}},
+				Overrides: &v1beta1.CoreDNSOverrides{
+					Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8"}}},
+				},
 			}
 		})
 		CreateCluster(cluster)
@@ -173,7 +175,11 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 		Expect(k8sClient.Get(ctx, key, cluster)).To(Succeed())
 
 		cluster.Spec.CustomDNS = &v1beta1.CustomDNS{
-			Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"8.8.8.8", "1.1.1.1"}}},
+			Overrides: &v1beta1.CoreDNSOverrides{
+				Forwarders: []v1beta1.CustomForwarder{
+					{IPs: []string{"8.8.8.8", "1.1.1.1"}},
+				},
+			},
 		}
 		Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
@@ -223,7 +229,9 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 	It("rejects forwarding with no addresses", func(ctx context.Context) {
 		invalidCluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
 			c.Spec.CustomDNS = &v1beta1.CustomDNS{
-				Forwarders: []v1beta1.CustomForwarder{{IPs: []string{}}},
+				Overrides: &v1beta1.CoreDNSOverrides{
+					Forwarders: []v1beta1.CustomForwarder{{IPs: []string{}}},
+				},
 			}
 		})
 		err := k8sClient.Create(ctx, invalidCluster)
@@ -233,7 +241,9 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 	It("rejects invalid IPv4 addresses", func(ctx context.Context) {
 		invalidCluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
 			c.Spec.CustomDNS = &v1beta1.CustomDNS{
-				Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"192.168.1"}}},
+				Overrides: &v1beta1.CoreDNSOverrides{
+					Forwarders: []v1beta1.CustomForwarder{{IPs: []string{"192.168.1"}}},
+				},
 			}
 		})
 		err := k8sClient.Create(ctx, invalidCluster)

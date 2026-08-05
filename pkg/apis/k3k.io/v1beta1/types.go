@@ -258,12 +258,19 @@ type CustomForwarder struct {
 	IPs []string `json:"ips"`
 }
 
-// CustomDNS provides the configuration for coredns.
-type CustomDNS struct {
+// CoreDNSOverrides represents "overrides" for coredns configuration.
+type CoreDNSOverrides struct {
 	// Forwarders configures the custom forwarding in coredns.
 	//
 	// +optional
 	Forwarders []CustomForwarder `json:"forwarders,omitempty"`
+}
+
+// CustomDNS provides the configuration for coredns.
+type CustomDNS struct {
+	// Overrides are written to a .overrides file which is included into the
+	// coredns configuration.
+	Overrides *CoreDNSOverrides `json:"overrides,omitempty"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,

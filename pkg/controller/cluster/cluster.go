@@ -573,6 +573,37 @@ func (c *ClusterReconciler) ensureClusterConfigs(ctx context.Context, cluster *v
 		return err
 	}
 
+	// The server-scale ConfigMap carries the desired server count. It is surfaced
+	// to server pods as the SERVER_COUNT env var (via configMapKeyRef) so the
+	// startup script can tell a single-server cluster (which must cluster-reset to
+	// recover after a pod re-IP) from a multi-server one (which rejoins). Unlike
+	// the config Secrets above it is CreateOrUpdated so scaling keeps it current;
+	// because pods reference it by name (not value), updating it does not change
+	// the pod template and therefore does not roll the servers.
+	servers := int32(1)
+	if cluster.Spec.Servers != nil {
+		servers = *cluster.Spec.Servers
+	}
+
+	// build the desired ConfigMap via the Server (the "server" package name is
+	// shadowed by the parameter here), then CreateOrUpdate an in-cluster copy.
+	desiredScaleConfigMap := server.ScaleConfigMap(servers)
+
+	scaleConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      desiredScaleConfigMap.Name,
+			Namespace: desiredScaleConfigMap.Namespace,
+		},
+	}
+
+	if _, err := controllerutil.CreateOrUpdate(ctx, c.Client, scaleConfigMap, func() error {
+		scaleConfigMap.Data = desiredScaleConfigMap.Data
+
+		return controllerutil.SetControllerReference(cluster, scaleConfigMap, c.Client.Scheme())
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 

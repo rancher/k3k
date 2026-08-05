@@ -27,6 +27,7 @@ import (
 const (
 	initConfigName   = "init-server-config"
 	configName       = "server-config"
+	scaleConfigName  = "server-scale"
 	serverName       = "server"
 	k3sInitConfigDir = "/opt/rancher/k3s/init"
 	k3sConfigDir     = "/opt/rancher/k3s/server"
@@ -156,6 +157,24 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 						ValueFrom: &corev1.EnvVarSource{
 							FieldRef: &corev1.ObjectFieldSelector{
 								FieldPath: "status.podIP",
+							},
+						},
+					},
+					// Desired server count, sourced from a ConfigMap so it can
+					// change (on scale) without altering the pod template and
+					// rolling the servers. Consumed by the startup script to
+					// decide single-server cluster-reset vs rejoin. Optional so a
+					// missing ConfigMap doesn't block startup (treated as
+					// multi-server, the safe default).
+					{
+						Name: "SERVER_COUNT",
+						ValueFrom: &corev1.EnvVarSource{
+							ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: ScaleConfigMapName(s.cluster.Name),
+								},
+								Key:      ScaleConfigServersKey,
+								Optional: ptr.To(true),
 							},
 						},
 					},
@@ -453,11 +472,6 @@ func (s *Server) setupStartCommand() (string, error) {
 
 	tmpl := StartupCommand
 
-	mode := "single"
-	if *s.cluster.Spec.Servers > 1 {
-		mode = "ha"
-	}
-
 	var runtimeClass string
 	if s.cluster.Spec.RuntimeClassName != nil {
 		runtimeClass = *s.cluster.Spec.RuntimeClassName
@@ -468,11 +482,14 @@ func (s *Server) setupStartCommand() (string, error) {
 		return "", err
 	}
 
+	// Note: the rendered command intentionally does NOT depend on the server
+	// count. The single-server vs multi-server distinction is provided at runtime
+	// via the SERVER_COUNT env var (see podSpec), so scaling never changes the
+	// command and therefore never rolls the existing server pods.
 	if err := tmplCmd.Execute(&output, map[string]string{
 		"ETCD_DIR":      k3sETCDDataDir,
 		"INIT_CONFIG":   filepath.Join(k3sInitConfigDir, "config.yaml"),
 		"SERVER_CONFIG": filepath.Join(k3sConfigDir, "config.yaml"),
-		"CLUSTER_MODE":  mode,
 		"K3K_MODE":      string(s.cluster.Spec.Mode),
 		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
 		"RUNTIME_CLASS": runtimeClass,

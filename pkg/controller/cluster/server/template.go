@@ -51,44 +51,65 @@ safe_mode() {
 	fi
 }
 
-start_single_node() {
-	info "Starting single node setup..."
+# start_node starts the k3s server. Its behaviour depends only on the pod
+# ordinal and on-disk etcd state, NOT on the desired server count, so that
+# scaling the cluster never changes the rendered command and therefore never
+# rolls (recreates) the existing server pods. SERVER_COUNT is provided by the
+# controller via an env var (a ConfigMap reference, so it updates without
+# changing the pod template); it is only consulted to recover a single-server
+# cluster after a pod re-IP.
+start_node() {
+	ordinal="${POD_NAME##*-}"
+	info "Starting pod $POD_NAME (ordinal ${ordinal})"
 
-	# checking for existing data in single server if found we must perform reset
-	if [ -d "{{.ETCD_DIR}}" ]; then
-		info "Existing data found in single node setup. Performing cluster-reset to ensure quorum..."
+	# First boot: no etcd data yet.
+	if [ ! -d "{{.ETCD_DIR}}" ]; then
+		info "Adding pod IP file."
+		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
+
+		if [ "$ordinal" = "0" ]; then
+			# founding server: initialize the etcd cluster
+			/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
+		else
+			# additional server: join the existing cluster
+			/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
+		fi
+
+		return
+	fi
+
+	# Restart / reschedule with existing etcd data.
+	#
+	# The founding server of a *single-server* cluster is the only etcd member,
+	# so after a pod re-IP it must cluster-reset to recover quorum. Any other
+	# server (or any server in a multi-server cluster) instead rejoins the still
+	# running quorum -- resetting there would destroy the other members. We only
+	# reset when SERVER_COUNT is exactly "1"; a missing/other value is treated as
+	# multi-server (rejoin), which is the safe default.
+	if [ "$ordinal" = "0" ] && [ "${SERVER_COUNT:-}" = "1" ]; then
+		info "Existing data found in single-server cluster. Performing cluster-reset to ensure quorum..."
 
 		if ! /bin/k3s server --cluster-reset --config {{.INIT_CONFIG}} $EXTRA_ARGS > /dev/null 2>&1; then
 			fatal "cluster reset failed!"
 		fi
 		info "Cluster reset complete. Removing Reset flag file."
 		rm -f /var/lib/rancher/k3s/server/db/reset-flag
-	fi
 
-	# entering safe mode to ensure correct NodeIP
-	safe_mode {{.INIT_CONFIG}}
+		# entering safe mode to ensure correct NodeIP
+		safe_mode {{.INIT_CONFIG}}
 
-	info "Adding pod IP file."
-	echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
-
-	/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
-}
-
-start_ha_node() {
-	info "Starting pod $POD_NAME in HA node setup"
-
-	if [ ${POD_NAME: -1} == 0 ] && [ ! -d "{{.ETCD_DIR}}" ]; then
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
 		/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
 	else
+		# entering safe mode to ensure correct NodeIP
 		safe_mode {{.SERVER_CONFIG}}
 
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.info 
+		/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
 	fi
 }
 
@@ -140,11 +161,4 @@ if [ ! -f /etc/machine-id ]; then
 	printf '%s' "$MACHINE_ID" > /etc/machine-id
 fi
 
-case "{{.CLUSTER_MODE}}" in
-    "ha")
-        start_ha_node
-        ;;
-    "single"|*)
-        start_single_node
-        ;;
-esac`
+start_node`

@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"strconv"
 
 	"go.yaml.in/yaml/v4"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -111,4 +112,33 @@ func configSecretName(clusterName string, init bool) string {
 	}
 
 	return controller.SafeConcatNameWithPrefix(clusterName, initConfigName)
+}
+
+// ScaleConfigServersKey is the ConfigMap key holding the desired server count.
+const ScaleConfigServersKey = "servers"
+
+// ScaleConfigMapName returns the name of the ConfigMap that carries the desired
+// server count for a cluster. It is surfaced to server pods as the SERVER_COUNT
+// env var (via configMapKeyRef) so it can change without rolling the pods.
+func ScaleConfigMapName(clusterName string) string {
+	return controller.SafeConcatNameWithPrefix(clusterName, scaleConfigName)
+}
+
+// ScaleConfigMap builds the ConfigMap that carries the desired server count for
+// the cluster. It is a method (rather than a package func) so callers where the
+// "server" package name is shadowed by a variable can still build it.
+func (s *Server) ScaleConfigMap(servers int32) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ScaleConfigMapName(s.cluster.Name),
+			Namespace: s.cluster.Namespace,
+		},
+		Data: map[string]string{
+			ScaleConfigServersKey: strconv.Itoa(int(servers)),
+		},
+	}
 }

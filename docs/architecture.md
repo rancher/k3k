@@ -75,11 +75,11 @@ This approach provides a clear and direct way to control the resources available
 
 The `virtual` mode offers more isolation than `shared` mode due to the dedicated K3s clusters deployed for each virtual cluster.  Because each virtual cluster runs its own separate control plane and worker nodes, workloads are effectively isolated from each other and from the host cluster.  This architecture minimizes the risk of one virtual cluster impacting others or the host cluster.
 
-Currently `virtual` mode runs servers and agents with `Privileged` securityContext to allow Kubelet and other component to function properly. As a results of this drawback any pod that is privileged inside a virtual cluster also holds full privileges on the real host node.
+Currently, `virtual` mode runs the server and agent pods with a `Privileged` securityContext to allow the kubelet and other components to function properly.  As a result of this drawback, any pod that is privileged inside a virtual cluster also holds full privileges on the real host node.
 
-Pod Security Admission configured *inside* a virtual cluster is administered by the owner of that virtual cluster, who can relax or remove it.  It restricts the workloads of that cluster, it does not protect the host cluster from the owner of the virtual cluster.
+Pod Security Admission configured *inside* a virtual cluster is administered by the owner of that virtual cluster, who can relax or remove it.  It restricts the workloads of that cluster; it does not protect the host cluster from the owner of the virtual cluster.
 
-To close this gap however, the server and agent pods can be run under a sandboxed runtime by setting `runtimeClassName` on the `Cluster` (or on a `VirtualClusterPolicy`, to apply it to every cluster in the bound Namespaces):
+To close this gap, however, the server and agent pods can be run under a sandboxed runtime by setting `runtimeClassName` on the `Cluster` (or on a `VirtualClusterPolicy`, to apply it to every cluster in the bound Namespaces):
 
 ```yaml
 apiVersion: k3k.io/v1beta1
@@ -91,7 +91,7 @@ spec:
   runtimeClassName: kata-qemu
 ```
 
-Runtimes such as [Kata Containers](./howtos/using-kata-containers.md), which runs each pod in a lightweight VM, or [Sysbox](https://github.com/nestybox/sysbox) provide a kernel or hardware boundary between the virtual cluster and the host node.  Support for these runtimes is experimental, see the [Kata Containers how-to](./howtos/using-kata-containers.md) for a full setup walkthrough.
+Runtimes such as [Kata Containers](./howtos/using-kata-containers.md), which runs each pod in a lightweight VM, or [Sysbox](https://github.com/nestybox/sysbox) provide a kernel or hardware boundary between the virtual cluster and the host node.  Support for these runtimes is experimental; see the [Kata Containers how-to](./howtos/using-kata-containers.md) for a full setup walkthrough.
 
 Beyond that, standard Kubernetes security best practices still apply, and K3k emphasizes a layered security approach.  K3k recommends minimizing the privileges of the virtual cluster pods whenever possible and adhering to the principle of least privilege; `securityContext` and `podSecurityContext` on the `Cluster` can be used to override the defaults, keeping in mind that the nested kubelet and container runtime require most of these privileges to function.  Further information on K3s security best practices can be found in the official K3s documentation: [https://docs.k3s.io/security](https://docs.k3s.io/security) (This link provides general security guidance, including discussions of capabilities and other relevant topics).
 

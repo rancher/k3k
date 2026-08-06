@@ -75,7 +75,7 @@ This approach provides a clear and direct way to control the resources available
 
 The `virtual` mode offers more isolation than `shared` mode due to the dedicated K3s clusters deployed for each virtual cluster.  Because each virtual cluster runs its own separate control plane and worker nodes, workloads are effectively isolated from each other and from the host cluster.  This architecture minimizes the risk of one virtual cluster impacting others or the host cluster.
 
-Currently `virtual` mode runs servers and agents with `Privileged` securityContext to allow Kubelet and other component to function properly, the following are the results of this drawback any pod that is privileged inside a virtual cluster also holds full privileges on the real host node.
+Currently `virtual` mode runs servers and agents with `Privileged` securityContext to allow Kubelet and other component to function properly. As a results of this drawback any pod that is privileged inside a virtual cluster also holds full privileges on the real host node.
 
 Pod Security Admission configured *inside* a virtual cluster is administered by the owner of that virtual cluster, who can relax or remove it.  It restricts the workloads of that cluster, it does not protect the host cluster from the owner of the virtual cluster.
 

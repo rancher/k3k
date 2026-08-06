@@ -8,7 +8,7 @@
 [![Conformance Tests - Virtual Mode](https://github.com/rancher/k3k/actions/workflows/test-conformance-virtual.yaml/badge.svg)](https://github.com/rancher/k3k/actions/workflows/test-conformance-virtual.yaml) [![Conformance Tests - HCP Mode](https://github.com/rancher/k3k/actions/workflows/test-conformance-hcp.yaml/badge.svg)](https://github.com/rancher/k3k/actions/workflows/test-conformance-hcp.yaml)
 
 
-K3k, Kubernetes in Kubernetes, is a tool that empowers you to create and manage isolated K3s clusters within your existing Kubernetes environment.  It enables efficient multi-tenancy, streamlined experimentation, and robust resource isolation, minimizing infrastructure costs by allowing you to run multiple lightweight Kubernetes clusters on the same physical host. K3k offers both "shared" mode, optimizing resource utilization, and "virtual" mode, providing complete isolation with dedicated K3s server pods. This allows you to access a full Kubernetes experience without the overhead of managing separate physical resources. 
+K3k, Kubernetes in Kubernetes, is a tool that empowers you to create and manage isolated K3s clusters within your existing Kubernetes environment.  It enables efficient multi-tenancy, streamlined experimentation, and robust resource isolation, minimizing infrastructure costs by allowing you to run multiple lightweight Kubernetes clusters on the same physical host. K3k offers both "shared" mode, optimizing resource utilization, and "virtual" mode, providing more isolation with dedicated K3s server and agent pods. This allows you to access a full Kubernetes experience without the overhead of managing separate physical resources. 
 
 K3k integrates seamlessly with Rancher for simplified management of your embedded clusters.
 
@@ -24,7 +24,7 @@ K3k integrates seamlessly with Rancher for simplified management of your embedde
 
 - **Optimized Resource Utilization (Shared Mode):** Maximize your infrastructure investment by running multiple K3s clusters on the same physical host. K3k's shared mode allows you to efficiently share underlying resources, reducing overhead and minimizing costs.
 
-- **Complete Isolation (Virtual Mode):** For enhanced security and isolation, K3k's virtual mode provides dedicated K3s server pods for each embedded cluster. This ensures complete separation of workloads and eliminates any potential resource contention or security risks.
+- **Stronger Isolation (Virtual Mode):** For enhanced isolation, K3k's virtual mode provides dedicated K3s server and agent pods for each embedded cluster, so every cluster gets its own control plane, CNI, and nodes, without resource contention from other clusters. Note that the agent pods currently run privileged on the host node, so a pod that is privileged inside a virtual cluster is also privileged on the real host node. A sandboxed runtime such as [Kata Containers](./docs/howtos/using-kata-containers.md) can be configured with `spec.runtimeClassName` to provide stronger isolation. See [Isolation and Security](./docs/architecture.md#isolation-and-security-1) for details.
 
 - **Rancher Integration:** Simplify the management of your K3k clusters with Rancher. Leverage Rancher's intuitive UI and powerful features to monitor, manage, and scale your embedded clusters with ease.
 

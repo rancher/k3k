@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -81,7 +82,7 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 			return errors.New("expected exactly one cluster name")
 		}
 
-		namespace, name, err := resolveClusterArg(appCtx, args[0])
+		namespace, name, err := resolveClusterArg(ctx, appCtx, args[0])
 		if err != nil {
 			return err
 		}
@@ -109,9 +110,9 @@ func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 }
 
 // resolveClusterArg splits an arg that may be in "namespace/name" form.
-// A bare "name" falls back to the k3k-<name> convention (respecting the -n flag) via appCtx.Namespace.
 // When both the -n flag and an explicit namespace prefix are given and they disagree an error is returned.
-func resolveClusterArg(appCtx *AppContext, arg string) (namespace, name string, err error) {
+// A bare "name" is looked up across the namespaces the user can see, see resolveClusterNamespace.
+func resolveClusterArg(ctx context.Context, appCtx *AppContext, arg string) (namespace, name string, err error) {
 	if ns, clusterName, ok := strings.Cut(arg, "/"); ok {
 		if appCtx.namespace != "" && appCtx.namespace != ns {
 			return "", "", fmt.Errorf("namespace mismatch: flag --namespace %q conflicts with argument namespace %q", appCtx.namespace, ns)
@@ -120,7 +121,49 @@ func resolveClusterArg(appCtx *AppContext, arg string) (namespace, name string, 
 		return ns, clusterName, nil
 	}
 
-	return appCtx.Namespace(arg), arg, nil
+	if appCtx.namespace != "" {
+		return appCtx.namespace, arg, nil
+	}
+
+	namespace, err = resolveClusterNamespace(ctx, appCtx.Client, arg)
+	if err != nil {
+		return "", "", err
+	}
+
+	return namespace, arg, nil
+}
+
+// resolveClusterNamespace finds the namespace of the cluster named name.
+// Clusters in different namespaces can share the same name, so deleting the one matching the
+// k3k-<name> convention could delete a cluster the user did not mean to: when the name is
+// ambiguous an error asking for --namespace is returned instead.
+// The k3k-<name> convention is kept as a fallback when the clusters cannot be listed, as the
+// user may only have access to their own namespace.
+func resolveClusterNamespace(ctx context.Context, client ctrlclient.Client, name string) (string, error) {
+	defaultNamespace := "k3k-" + name
+
+	var clusters v1beta1.ClusterList
+	if err := client.List(ctx, &clusters); err != nil {
+		return defaultNamespace, nil
+	}
+
+	var namespaces []string
+
+	for _, cluster := range clusters.Items {
+		if cluster.Name == name {
+			namespaces = append(namespaces, cluster.Namespace)
+		}
+	}
+
+	switch len(namespaces) {
+	case 0:
+		return defaultNamespace, nil
+	case 1:
+		return namespaces[0], nil
+	default:
+		sort.Strings(namespaces)
+		return "", fmt.Errorf("multiple clusters named %q found in namespaces %v, specify one with --namespace/-n", name, namespaces)
+	}
 }
 
 // deleteCluster removes a cluster and, unless --keep-data is set, its server PersistentVolumeClaims.

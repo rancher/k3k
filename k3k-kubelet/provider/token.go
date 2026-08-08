@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1 "k8s.io/api/authentication/v1"
@@ -28,6 +27,10 @@ const (
 func (p *Provider) transformTokens(ctx context.Context, virtualPod, hostPod *corev1.Pod) error {
 	logger := p.logger.WithValues("namespace", virtualPod.Namespace, "name", virtualPod.Name, "serviceAccountName", virtualPod.Spec.ServiceAccountName)
 	logger.V(1).Info("Transforming service account tokens")
+
+	hostPod.Spec.ServiceAccountName = ""
+	hostPod.Spec.DeprecatedServiceAccount = ""
+	hostPod.Spec.AutomountServiceAccountToken = new(false)
 
 	// transform projected service account token
 	if err := p.transformProjectedTokens(ctx, virtualPod, hostPod); err != nil {
@@ -76,10 +79,6 @@ func (p *Provider) transformKubeAccessToken(ctx context.Context, virtualPod, hos
 	if err != nil {
 		return err
 	}
-
-	hostPod.Spec.ServiceAccountName = ""
-	hostPod.Spec.DeprecatedServiceAccount = ""
-	hostPod.Spec.AutomountServiceAccountToken = ptr.To(false)
 
 	removeKubeAccessVolume(hostPod)
 	addKubeAccessVolume(hostPod, hostSecret.Name)
@@ -291,10 +290,6 @@ func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
 
 func generateTokenSecretName(serviceAccountName, tokenPath string, tokenReq *authv1.TokenRequest) string {
 	nameComponents := []string{serviceAccountName}
-
-	if tokenReq.Spec.Audiences != nil {
-		nameComponents = append(nameComponents, tokenReq.Spec.Audiences...)
-	}
 
 	if exp := tokenReq.Spec.ExpirationSeconds; exp != nil {
 		nameComponents = append(nameComponents, strconv.FormatInt(*exp, 10))

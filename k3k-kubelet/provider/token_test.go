@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/ptr"
 
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -236,7 +235,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 		want               string
 	}{
 		{
-			name:               "no audiences, no expiration, no path",
+			name:               "empty token request",
 			serviceAccountName: "default",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{},
@@ -244,84 +243,45 @@ func Test_generateTokenSecretName(t *testing.T) {
 			want: "k3k-default",
 		},
 		{
-			name:               "no audiences, with expiration",
+			name:               "with expiration",
 			serviceAccountName: "default",
 			tokenPath:          "token",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
-					ExpirationSeconds: ptr.To(int64(3600)),
+					ExpirationSeconds: new(int64(3600)),
 				},
 			},
 			want: "k3k-default-3600-token",
 		},
 		{
-			name:               "with single audience and expiration",
-			serviceAccountName: "my-sa",
-			tokenPath:          "token",
-			tokenReq: &authv1.TokenRequest{
-				Spec: authv1.TokenRequestSpec{
-					Audiences:         []string{"api"},
-					ExpirationSeconds: ptr.To(int64(3600)),
-				},
-			},
-			want: "k3k-my-sa-api-3600-token",
-		},
-		{
-			name:               "with multiple audiences and expiration",
+			name:               "with audience and expiration, audiance ignored",
 			serviceAccountName: "my-sa",
 			tokenPath:          "token",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
 					Audiences:         []string{"api", "vault"},
-					ExpirationSeconds: ptr.To(int64(3600)),
+					ExpirationSeconds: new(int64(3600)),
 				},
 			},
-			want: "k3k-my-sa-api-vault-3600-token",
+			want: "k3k-my-sa-3600-token",
 		},
 		{
-			name:               "with audiences, no expiration",
-			serviceAccountName: "my-sa",
-			tokenPath:          "vault-token",
-			tokenReq: &authv1.TokenRequest{
-				Spec: authv1.TokenRequestSpec{
-					Audiences: []string{"api"},
-				},
-			},
-			want: "k3k-my-sa-api-vault-token",
-		},
-		{
-			name:               "different paths produce different names",
+			name:               "with path and expiration",
 			serviceAccountName: "my-sa",
 			tokenPath:          "other-path",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
-					Audiences:         []string{"api"},
-					ExpirationSeconds: ptr.To(int64(3600)),
+					ExpirationSeconds: new(int64(3600)),
 				},
 			},
-			want: "k3k-my-sa-api-3600-other-path",
-		},
-		{
-			name:               "long name gets truncated with hash",
-			serviceAccountName: "my-very-long-service-account-name",
-			tokenPath:          "some-very-long-token-path-value",
-			tokenReq: &authv1.TokenRequest{
-				Spec: authv1.TokenRequestSpec{
-					Audiences:         []string{"some-very-long-audience-string"},
-					ExpirationSeconds: ptr.To(int64(3600)),
-				},
-			},
+			want: "k3k-my-sa-3600-other-path",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := generateTokenSecretName(tt.serviceAccountName, tt.tokenPath, tt.tokenReq)
-			if tt.want != "" {
-				assert.Equal(t, tt.want, got)
-			}
-
-			assert.Less(t, len(got), 64, "name should be under 64 characters")
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

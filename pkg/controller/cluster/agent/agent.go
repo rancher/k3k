@@ -29,14 +29,6 @@ type Config struct {
 	scheme  *runtime.Scheme
 }
 
-func agentSelectorLabels(clusterName, mode string) map[string]string {
-	return map[string]string{
-		"cluster": clusterName,
-		"type":    "agent",
-		"mode":    mode,
-	}
-}
-
 func agentLabels(clusterName, mode string) map[string]string {
 	return map[string]string{
 		"cluster":                   clusterName,

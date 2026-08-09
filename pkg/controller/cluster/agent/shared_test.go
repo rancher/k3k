@@ -13,7 +13,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	"github.com/rancher/k3k/pkg/controller"
 )
+
+func TestAgentLabels(t *testing.T) {
+	assert.Equal(t, map[string]string{
+		"cluster":                   "test-cluster",
+		"type":                      "agent",
+		"mode":                      "shared",
+		controller.ClusterNameLabel: "test-cluster",
+		"role":                      "agent",
+	}, agentLabels("test-cluster", SharedNodeMode))
+}
 
 func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 	return corev1.PodSpec{

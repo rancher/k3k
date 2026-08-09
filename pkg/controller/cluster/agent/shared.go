@@ -127,7 +127,6 @@ func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, ku
 }
 
 func (s *SharedAgent) daemonset(ctx context.Context) error {
-	selectorLabels := agentSelectorLabels(s.cluster.Name, SharedNodeMode)
 	labels := agentLabels(s.cluster.Name, SharedNodeMode)
 
 	deploy := &appsv1.DaemonSet{
@@ -142,7 +141,7 @@ func (s *SharedAgent) daemonset(ctx context.Context) error {
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: selectorLabels,
+				MatchLabels: labels,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

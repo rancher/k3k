@@ -52,13 +52,6 @@ type Server struct {
 	imagePullSecrets []string
 }
 
-func serverSelectorLabels(clusterName string) map[string]string {
-	return map[string]string{
-		"cluster": clusterName,
-		"role":    "server",
-	}
-}
-
 func serverLabels(clusterName, mode string) map[string]string {
 	return map[string]string{
 		"cluster":                   clusterName,
@@ -387,10 +380,10 @@ func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error
 		volumeMounts = append(volumeMounts, mounts...)
 	}
 
-	selector := metav1.LabelSelector{
-		MatchLabels: serverSelectorLabels(s.cluster.Name),
-	}
 	labels := serverLabels(s.cluster.Name, s.mode)
+	selector := metav1.LabelSelector{
+		MatchLabels: labels,
+	}
 
 	startupCommand, err := s.setupStartCommand()
 	if err != nil {

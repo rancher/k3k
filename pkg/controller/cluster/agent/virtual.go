@@ -108,10 +108,10 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 
 	const name = "k3k-agent"
 
-	selector := metav1.LabelSelector{
-		MatchLabels: agentSelectorLabels(v.cluster.Name, VirtualNodeMode),
-	}
 	labels := agentLabels(v.cluster.Name, VirtualNodeMode)
+	selector := metav1.LabelSelector{
+		MatchLabels: labels,
+	}
 	podSpec := v.podSpec(ctx, image, name)
 
 	if len(v.cluster.Spec.SecretMounts) > 0 {

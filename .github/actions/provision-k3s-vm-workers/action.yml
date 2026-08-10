@@ -36,7 +36,8 @@ runs:
       sudo apt-get install -y --no-install-recommends \
         qemu-kvm \
         qemu-utils \
-        cloud-image-utils
+        cloud-image-utils \
+        cpu-checker
       sudo usermod -aG kvm $USER
 
       kvm-ok

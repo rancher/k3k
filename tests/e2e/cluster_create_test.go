@@ -38,9 +38,9 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 			c.Spec.Expose.Annotations = map[string]string{
 				"example.com/test": "testing",
 			}
-			c.Spec.DNS = &v1beta1.CustomDNS{
+			c.Spec.DNS = &v1beta1.DNSConfig{
 				CoreDNS: &v1beta1.CoreDNS{
-					CustomConfig: []v1beta1.CustomDNSConfig{
+					CustomConfig: []v1beta1.CustomConfigMap{
 						{
 							Name:  "forward.override",
 							Value: "   forward . 8.8.8.8\n",
@@ -179,9 +179,9 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 		key := client.ObjectKeyFromObject(cluster)
 		Expect(k8sClient.Get(ctx, key, cluster)).To(Succeed())
 
-		cluster.Spec.DNS = &v1beta1.CustomDNS{
+		cluster.Spec.DNS = &v1beta1.DNSConfig{
 			CoreDNS: &v1beta1.CoreDNS{
-				CustomConfig: []v1beta1.CustomDNSConfig{
+				CustomConfig: []v1beta1.CustomConfigMap{
 					{
 						Name:  "forward.override",
 						Value: "   forward . 8.8.8.8 1.1.1.1\n",

@@ -27,9 +27,9 @@ func TestGenerateCustomConfigMap(t *testing.T) {
 			cluster: &v1beta1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 				Spec: v1beta1.ClusterSpec{
-					DNS: &v1beta1.CustomDNS{
+					DNS: &v1beta1.DNSConfig{
 						CoreDNS: &v1beta1.CoreDNS{
-							CustomConfig: []v1beta1.CustomDNSConfig{
+							CustomConfig: []v1beta1.CustomConfigMap{
 								{
 									Name:  "forward.override",
 									Value: "   forward . 8.8.8.8 1.1.1.1",

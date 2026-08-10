@@ -240,7 +240,7 @@ agent and server pods of the cluster in virtual or shared mode. + |  |
 If set to true or not present, the pod will be run in the host user namespace. +
 When set to false, a new userns is created for the pod. +
 This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. + |  | 
-| *`dns`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customdns[$$CustomDNS$$]__ | DNS provides custom configuration for coredns in the virtual +
+| *`dns`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-dnsconfig[$$DNSConfig$$]__ | DNS provides custom configuration for coredns in the virtual +
 cluster. + |  | 
 |===
 
@@ -309,12 +309,12 @@ CoreDNS provides the configuration for coredns.
 
 _Appears In:_
 
-* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customdns[$$CustomDNS$$]
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-dnsconfig[$$DNSConfig$$]
 
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`customConfig`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customdnsconfig[$$CustomDNSConfig$$] array__ |  |  | 
+| *`customConfig`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customconfigmap[$$CustomConfigMap$$] array__ |  |  | 
 |===
 
 
@@ -388,32 +388,12 @@ _Appears In:_
 |===
 
 
-[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customdns"]
-=== CustomDNS
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customconfigmap"]
+=== CustomConfigMap
 
 
 
-CustomDNS allows customising configuration for the virtual cluster.
-
-
-
-_Appears In:_
-
-* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
-
-[cols="25a,55a,10a,10a", options="header"]
-|===
-| Field | Description | Default | Validation
-| *`coreDNS`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-coredns[$$CoreDNS$$]__ |  |  | 
-|===
-
-
-[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-customdnsconfig"]
-=== CustomDNSConfig
-
-
-
-CustomDNSConfig is a name/value field that is written as a key to the coredns
+CustomConfigMap is a name/value field that is written as a key to the coredns
 configuration in the virtual cluster.
 
 
@@ -427,6 +407,26 @@ _Appears In:_
 | Field | Description | Default | Validation
 | *`name`* __string__ |  |  | 
 | *`value`* __string__ |  |  | 
+|===
+
+
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-dnsconfig"]
+=== DNSConfig
+
+
+
+DNSConfig allows customising configuration for the virtual cluster.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`coreDNS`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-coredns[$$CoreDNS$$]__ |  |  | 
 |===
 
 

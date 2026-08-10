@@ -244,24 +244,24 @@ type ClusterSpec struct {
 	// cluster.
 	//
 	// +optional
-	DNS *CustomDNS `json:"dns,omitempty"`
+	DNS *DNSConfig `json:"dns,omitempty"`
 }
 
-// CustomDNS allows customising configuration for the virtual cluster.
-type CustomDNS struct {
+// DNSConfig allows customising configuration for the virtual cluster.
+type DNSConfig struct {
 	CoreDNS *CoreDNS `json:"coreDNS,omitempty"`
 }
 
-// CustomDNSConfig is a name/value field that is written as a key to the coredns
+// CustomConfigMap is a name/value field that is written as a key to the coredns
 // configuration in the virtual cluster.
-type CustomDNSConfig struct {
+type CustomConfigMap struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
 
 // CoreDNS provides the configuration for coredns.
 type CoreDNS struct {
-	CustomConfig []CustomDNSConfig `json:"customConfig"`
+	CustomConfig []CustomConfigMap `json:"customConfig"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,

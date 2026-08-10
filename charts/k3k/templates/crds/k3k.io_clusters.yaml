@@ -1230,7 +1230,7 @@ spec:
                       customConfig:
                         items:
                           description: |-
-                            CustomDNSConfig is a name/value field that is written as a key to the coredns
+                            CustomConfigMap is a name/value field that is written as a key to the coredns
                             configuration in the virtual cluster.
                           properties:
                             name:

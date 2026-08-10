@@ -33,19 +33,11 @@ runs:
       echo "CIDR_PREFIX=${{ inputs.bridge-cidr-prefix }}" >> "$GITHUB_ENV"
 
       sudo apt-get update
-
-      # Pinned to the versions available on the runner's Ubuntu 24.04 (noble) image at the
-      # time of writing. These come from Ubuntu's regular archive, which does not retain
-      # superseded versions — a routine security update to any of these will make the pin
-      # unresolvable and fail the install below. If that happens, check the versions
-      # currently available (logged on every run) and update the pins to match.
-      echo "Available versions for pinned packages:"
-      apt-cache madison qemu-kvm qemu-utils cloud-image-utils
-
-      sudo apt-get install -y \
-        qemu-kvm=1:8.2.2+ds-0ubuntu1.17 \
-        qemu-utils=1:8.2.2+ds-0ubuntu1.17 \
-        cloud-image-utils=0.33-1
+      sudo apt-get install -y --no-install-recommends \
+        qemu-kvm \
+        qemu-utils \
+        cloud-image-utils \
+        cpu-checker
       sudo usermod -aG kvm $USER
 
       kvm-ok

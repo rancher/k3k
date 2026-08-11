@@ -47,7 +47,7 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
       with:
-        version: v0.35.0
+        version: v0.36.0
 
     - name: "Read secrets"
       uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
@@ -66,7 +66,7 @@ jobs:
         echo "DOCKER_PASSWORD=${{ github.token }}"  >> $GITHUB_ENV
 
     - name: Login to container registry
-      uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c # v4
+      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ env.DOCKER_USERNAME }}

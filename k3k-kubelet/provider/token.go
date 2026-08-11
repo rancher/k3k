@@ -2,7 +2,10 @@ package provider
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -291,13 +294,34 @@ func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
 func generateTokenSecretName(serviceAccountName, tokenPath string, tokenReq *authv1.TokenRequest) string {
 	nameComponents := []string{serviceAccountName}
 
+	for _, aud := range tokenReq.Spec.Audiences {
+		nameComponents = append(nameComponents, sanitizeNameComponent(aud))
+	}
+
 	if exp := tokenReq.Spec.ExpirationSeconds; exp != nil {
 		nameComponents = append(nameComponents, strconv.FormatInt(*exp, 10))
 	}
 
 	if tokenPath != "" {
-		nameComponents = append(nameComponents, tokenPath)
+		nameComponents = append(nameComponents, sanitizeNameComponent(tokenPath))
 	}
 
 	return k3kcontroller.SafeConcatNameWithPrefix(nameComponents...)
+}
+
+var invalidNameChars = regexp.MustCompile(`[^a-z0-9.-]+`)
+
+// sanitizeNameComponent lowercases s and replaces any character that is invalid in a Kubernetes
+// name with "-". If the result is identical to s it is returned as is, otherwise a 6 character
+// sha256 digest of the original is appended to keep distinct inputs distinct, in the form
+// <sanitized-string>-<digest>.
+func sanitizeNameComponent(s string) string {
+	sanitized := strings.Trim(invalidNameChars.ReplaceAllString(strings.ToLower(s), "-"), "-.")
+	if sanitized == s {
+		return sanitized
+	}
+
+	digest := sha256.Sum256([]byte(s))
+
+	return sanitized + "-" + hex.EncodeToString(digest[:])[:6]
 }

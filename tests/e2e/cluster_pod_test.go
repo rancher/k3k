@@ -549,18 +549,18 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 		})
 	})
 
-	When("creating a Pod with a projected serviceaccount token", Label("test"), func() {
+	When("creating a Pod with a projected serviceaccount token", func() {
 		var (
-			pod                     *corev1.Pod
-			serviceAccountName      = "sa-nginx"
-			serviceAccountTokenExp  = int64(3600)
-			serviceAccountTokenPath = "token"
+			pod                                  *corev1.Pod
+			serviceAccountName                   = "sa-nginx"
+			serviceAccountTokenExp               = int64(3600)
+			serviceAccountTokenPath              = "token"
+			serviceAccountTokenAudience          = "https://kubernetes.default.svc.cluster.local"
+			serviceAccountTokenSanitizedAudience = "https-kubernetes.default.svc.cluster.local-4f3059"
 		)
 
-		BeforeAll(func() {
+		BeforeAll(func(ctx context.Context) {
 			var err error
-
-			ctx := context.Background()
 
 			serviceaccount := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
@@ -597,7 +597,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 									Sources: []corev1.VolumeProjection{
 										{
 											ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
-												Audience:          "https://kubernetes.default.svc.cluster.local",
+												Audience:          serviceAccountTokenAudience,
 												ExpirationSeconds: new(serviceAccountTokenExp),
 												Path:              serviceAccountTokenPath,
 											},
@@ -614,20 +614,19 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 			Expect(err).To(Not(HaveOccurred()))
 		})
 
-		It("should have translated projected serviceaccount token to secret", func() {
-			ctx := context.Background()
-
+		It("should have translated projected serviceaccount token to secret", func(ctx context.Context) {
 			Eventually(func(g Gomega) {
 				hostPodName := translator.NamespacedName(pod)
 
-				virtualSecretName := controller.SafeConcatNameWithPrefix([]string{serviceAccountName, strconv.FormatInt(serviceAccountTokenExp, 10), serviceAccountTokenPath}...)
+				// there is no way to get the result of the token request from the API, so the
+				// name of the secret holding it has to be rebuilt the same way the provider does
+				virtualSecretName := controller.SafeConcatNameWithPrefix([]string{serviceAccountName, serviceAccountTokenSanitizedAudience, strconv.FormatInt(serviceAccountTokenExp, 10), serviceAccountTokenPath}...)
 				hostSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      virtualSecretName,
 						Namespace: pod.Namespace,
 					},
 				}
-				// there is no way to get the result of the token request from the API
 				translator.TranslateTo(hostSecret)
 
 				hostPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})

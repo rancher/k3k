@@ -44,7 +44,7 @@ safe_mode() {
 				fatal "timed out waiting for node to change IP from $CURRENT_IP to $POD_IP"
 			fi
 		done
-		
+
 		info "Node IP is set to ${POD_IP} successfully. Stopping Safe Mode process..."
 		kill $PID
 		wait $PID 2>/dev/null || true
@@ -58,7 +58,12 @@ start_single_node() {
 	if [ -d "{{.ETCD_DIR}}" ]; then
 		info "Existing data found in single node setup. Performing cluster-reset to ensure quorum..."
 
-		if ! /bin/k3s server --cluster-reset --config {{.INIT_CONFIG}} $EXTRA_ARGS > /dev/null 2>&1; then
+		# clear any reset flags left behind by interrupted or failed reset
+		# prevents crashloop on failed/interrupted cluster reset
+		rm -f /var/lib/rancher/k3s/server/db/reset-flag
+
+		# The reset output is left visible in the container logs so failures are diagnosable.
+		if ! /bin/k3s server --cluster-reset --config {{.INIT_CONFIG}} $EXTRA_ARGS; then
 			fatal "cluster reset failed!"
 		fi
 		info "Cluster reset complete. Removing Reset flag file."
@@ -88,7 +93,7 @@ start_ha_node() {
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.info 
+		/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.info
 	fi
 }
 
@@ -117,7 +122,7 @@ configure_cgroups() {
 
 	# only configure the cgroups if the runtime used is the default and the mode is virtual
 	# shared and hcp run agentless (no kubelet) and don't need cgroup overrides.
-	if [ -n "$runtime_class" ] || [ "{{.K3K_MODE}}" != "virtual" ]; then	
+	if [ -n "$runtime_class" ] || [ "{{.K3K_MODE}}" != "virtual" ]; then
 		return
 	fi
 

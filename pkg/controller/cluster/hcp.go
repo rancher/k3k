@@ -57,6 +57,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 	}
 
 	portStr := cmp.Or(url.Port(), "443")
+
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return err
@@ -151,6 +152,7 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cl
 	}
 
 	portStr := cmp.Or(url.Port(), "443")
+
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return err

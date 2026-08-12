@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/ptr"
 
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -217,12 +216,12 @@ func Test_addKubeAccessVolume(t *testing.T) {
 }
 
 func Test_virtualSecret(t *testing.T) {
-	s := virtualSecret("my-secret", "my-ns", "my-sa")
+	s := virtualSecret("my-secret", "my-ns", "my-serviceaccount")
 
 	assert.Equal(t, "my-secret", s.Name)
 	assert.Equal(t, "my-ns", s.Namespace)
 	assert.Equal(t, corev1.SecretTypeServiceAccountToken, s.Type)
-	assert.Equal(t, "my-sa", s.Annotations[corev1.ServiceAccountNameKey])
+	assert.Equal(t, "my-serviceaccount", s.Annotations[corev1.ServiceAccountNameKey])
 	assert.Equal(t, "Secret", s.Kind)
 	assert.Equal(t, "v1", s.APIVersion)
 }
@@ -236,7 +235,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 		want               string
 	}{
 		{
-			name:               "no audiences, no expiration, no path",
+			name:               "empty token request",
 			serviceAccountName: "default",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{},
@@ -244,84 +243,166 @@ func Test_generateTokenSecretName(t *testing.T) {
 			want: "k3k-default",
 		},
 		{
-			name:               "no audiences, with expiration",
+			name:               "with expiration",
 			serviceAccountName: "default",
-			tokenPath:          "token",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
-					ExpirationSeconds: ptr.To(int64(3600)),
+					ExpirationSeconds: new(int64(3600)),
 				},
 			},
-			want: "k3k-default-3600-token",
+			want: "k3k-default-3600",
 		},
 		{
-			name:               "with single audience and expiration",
-			serviceAccountName: "my-sa",
-			tokenPath:          "token",
+			name:               "with audience",
+			serviceAccountName: "my-serviceaccount",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
-					Audiences:         []string{"api"},
-					ExpirationSeconds: ptr.To(int64(3600)),
+					Audiences: []string{"api", "vault"},
 				},
 			},
-			want: "k3k-my-sa-api-3600-token",
+			want: "k3k-my-serviceaccount-api-vault",
 		},
 		{
-			name:               "with multiple audiences and expiration",
-			serviceAccountName: "my-sa",
-			tokenPath:          "token",
+			name:               "with empty audiences slice",
+			serviceAccountName: "my-serviceaccount",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
+					Audiences: []string{},
+				},
+			},
+			want: "k3k-my-serviceaccount",
+		},
+		{
+			name:               "with unsanitized audience",
+			serviceAccountName: "my-serviceaccount",
+			tokenReq: &authv1.TokenRequest{
+				Spec: authv1.TokenRequestSpec{
+					Audiences: []string{"https://unsanitized-audience"},
+				},
+			},
+			want: "k3k-my-serviceaccount-https-unsanitized-audience-23d739",
+		},
+		{
+			name:               "with uppercase audience",
+			serviceAccountName: "my-serviceaccount",
+			tokenReq: &authv1.TokenRequest{
+				Spec: authv1.TokenRequestSpec{
+					Audiences: []string{"MyAudience"},
+				},
+			},
+			want: "k3k-my-serviceaccount-myaudience-753a30",
+		},
+		{
+			name:               "with sanitized and unsanitized audiences",
+			serviceAccountName: "my-serviceaccount",
+			tokenReq: &authv1.TokenRequest{
+				Spec: authv1.TokenRequestSpec{
+					Audiences: []string{"api", "vault.example.com:8200"},
+				},
+			},
+			want: "k3k-my-serviceaccount-api-vault.example.com-8200-2a7048",
+		},
+		{
+			name:               "with path",
+			serviceAccountName: "my-serviceaccount",
+			tokenPath:          "token",
+			tokenReq:           &authv1.TokenRequest{},
+			want:               "k3k-my-serviceaccount-token",
+		},
+		{
+			name:               "with unsanitized path",
+			serviceAccountName: "my-serviceaccount",
+			tokenPath:          "other-path/..",
+			tokenReq:           &authv1.TokenRequest{},
+			want:               "k3k-my-serviceaccount-other-path-0e329c",
+		},
+		{
+			name:               "with expiration and audience",
+			serviceAccountName: "my-serviceaccount",
+			tokenReq: &authv1.TokenRequest{
+				Spec: authv1.TokenRequestSpec{
+					ExpirationSeconds: new(int64(3600)),
 					Audiences:         []string{"api", "vault"},
-					ExpirationSeconds: ptr.To(int64(3600)),
 				},
 			},
-			want: "k3k-my-sa-api-vault-3600-token",
+			want: "k3k-my-serviceaccount-api-vault-3600",
 		},
 		{
-			name:               "with audiences, no expiration",
-			serviceAccountName: "my-sa",
-			tokenPath:          "vault-token",
+			name:               "with expiration and unsanitized audience",
+			serviceAccountName: "my-serviceaccount",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
-					Audiences: []string{"api"},
+					ExpirationSeconds: new(int64(3600)),
+					Audiences:         []string{"https://unsanitized-audience"},
 				},
 			},
-			want: "k3k-my-sa-api-vault-token",
+			want: "k3k-my-serviceaccount-https-unsanitized-audience-23d739-3600",
 		},
 		{
-			name:               "different paths produce different names",
-			serviceAccountName: "my-sa",
-			tokenPath:          "other-path",
+			name:               "with expiration and path",
+			serviceAccountName: "my-serviceaccount",
+			tokenPath:          "token",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
-					Audiences:         []string{"api"},
-					ExpirationSeconds: ptr.To(int64(3600)),
+					ExpirationSeconds: new(int64(3600)),
 				},
 			},
-			want: "k3k-my-sa-api-3600-other-path",
+			want: "k3k-my-serviceaccount-3600-token",
 		},
 		{
-			name:               "long name gets truncated with hash",
-			serviceAccountName: "my-very-long-service-account-name",
-			tokenPath:          "some-very-long-token-path-value",
+			name:               "with audience and path",
+			serviceAccountName: "my-serviceaccount",
+			tokenPath:          "token",
 			tokenReq: &authv1.TokenRequest{
 				Spec: authv1.TokenRequestSpec{
-					Audiences:         []string{"some-very-long-audience-string"},
-					ExpirationSeconds: ptr.To(int64(3600)),
+					Audiences: []string{"api", "vault"},
 				},
 			},
+			want: "k3k-my-serviceaccount-api-vault-token",
+		},
+		{
+			name:               "with unsanitized audience and unsanitized path",
+			serviceAccountName: "my-serviceaccount",
+			tokenPath:          "other-path/..",
+			tokenReq: &authv1.TokenRequest{
+				Spec: authv1.TokenRequestSpec{
+					Audiences: []string{"https://unsanitized-audience"},
+				},
+			},
+			want: "k3k-my-serviceaccount-https-unsanitized-audience-23d739-o-0aa54",
+		},
+		{
+			name:               "with expiration, audience and path",
+			serviceAccountName: "my-serviceaccount",
+			tokenPath:          "token",
+			tokenReq: &authv1.TokenRequest{
+				Spec: authv1.TokenRequestSpec{
+					ExpirationSeconds: new(int64(3600)),
+					Audiences:         []string{"api", "vault"},
+				},
+			},
+			want: "k3k-my-serviceaccount-api-vault-3600-token",
+		},
+		{
+			name:               "with expiration, unsanitized audience and unsanitized path",
+			serviceAccountName: "my-serviceaccount",
+			tokenPath:          "other-path/..",
+			tokenReq: &authv1.TokenRequest{
+				Spec: authv1.TokenRequestSpec{
+					ExpirationSeconds: new(int64(3600)),
+					Audiences:         []string{"https://unsanitized-audience"},
+				},
+			},
+			// since the full name is longer than 63 characters, SafeConcatName() will truncate the
+			// name and append the first 5 characters of the sha256-encoded full name
+			want: "k3k-my-serviceaccount-https-unsanitized-audience-23d739-3-39d9d",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := generateTokenSecretName(tt.serviceAccountName, tt.tokenPath, tt.tokenReq)
-			if tt.want != "" {
-				assert.Equal(t, tt.want, got)
-			}
-
-			assert.Less(t, len(got), 64, "name should be under 64 characters")
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

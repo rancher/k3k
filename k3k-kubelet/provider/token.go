@@ -2,12 +2,14 @@ package provider
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1 "k8s.io/api/authentication/v1"
@@ -28,6 +30,10 @@ const (
 func (p *Provider) transformTokens(ctx context.Context, virtualPod, hostPod *corev1.Pod) error {
 	logger := p.logger.WithValues("namespace", virtualPod.Namespace, "name", virtualPod.Name, "serviceAccountName", virtualPod.Spec.ServiceAccountName)
 	logger.V(1).Info("Transforming service account tokens")
+
+	hostPod.Spec.ServiceAccountName = ""
+	hostPod.Spec.DeprecatedServiceAccount = ""
+	hostPod.Spec.AutomountServiceAccountToken = new(false)
 
 	// transform projected service account token
 	if err := p.transformProjectedTokens(ctx, virtualPod, hostPod); err != nil {
@@ -76,10 +82,6 @@ func (p *Provider) transformKubeAccessToken(ctx context.Context, virtualPod, hos
 	if err != nil {
 		return err
 	}
-
-	hostPod.Spec.ServiceAccountName = ""
-	hostPod.Spec.DeprecatedServiceAccount = ""
-	hostPod.Spec.AutomountServiceAccountToken = ptr.To(false)
 
 	removeKubeAccessVolume(hostPod)
 	addKubeAccessVolume(hostPod, hostSecret.Name)
@@ -292,8 +294,8 @@ func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
 func generateTokenSecretName(serviceAccountName, tokenPath string, tokenReq *authv1.TokenRequest) string {
 	nameComponents := []string{serviceAccountName}
 
-	if tokenReq.Spec.Audiences != nil {
-		nameComponents = append(nameComponents, tokenReq.Spec.Audiences...)
+	for _, aud := range tokenReq.Spec.Audiences {
+		nameComponents = append(nameComponents, sanitizeNameComponent(aud))
 	}
 
 	if exp := tokenReq.Spec.ExpirationSeconds; exp != nil {
@@ -301,8 +303,25 @@ func generateTokenSecretName(serviceAccountName, tokenPath string, tokenReq *aut
 	}
 
 	if tokenPath != "" {
-		nameComponents = append(nameComponents, tokenPath)
+		nameComponents = append(nameComponents, sanitizeNameComponent(tokenPath))
 	}
 
 	return k3kcontroller.SafeConcatNameWithPrefix(nameComponents...)
+}
+
+var invalidNameChars = regexp.MustCompile(`[^a-z0-9.-]+`)
+
+// sanitizeNameComponent lowercases s and replaces any character that is invalid in a Kubernetes
+// name with "-". If the result is identical to s it is returned as is, otherwise a 6 character
+// sha256 digest of the original is appended to keep distinct inputs distinct, in the form
+// <sanitized-string>-<digest>.
+func sanitizeNameComponent(s string) string {
+	sanitized := strings.Trim(invalidNameChars.ReplaceAllString(strings.ToLower(s), "-"), "-.")
+	if sanitized == s {
+		return sanitized
+	}
+
+	digest := sha256.Sum256([]byte(s))
+
+	return sanitized + "-" + hex.EncodeToString(digest[:])[:6]
 }

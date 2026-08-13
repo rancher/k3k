@@ -30,6 +30,7 @@ func ConfigureNode(logger logr.Logger, node *corev1.Node, hostname string, servi
 		node.Annotations = hostNode.GetAnnotations()
 		node.Finalizers = hostNode.GetFinalizers()
 		node.Status.DaemonEndpoints.KubeletEndpoint.Port = int32(servicePort)
+		node.Status.NodeInfo.KubeletVersion = version
 	} else {
 		node.Status.Conditions = nodeConditions()
 		node.Status.DaemonEndpoints.KubeletEndpoint.Port = int32(servicePort)

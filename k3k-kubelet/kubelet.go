@@ -348,5 +348,13 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 		return fmt.Errorf("failed to add event syncer controller: %w", err)
 	}
 
+	if c.MirrorHostNodes {
+		logger.Info("adding node syncer controller")
+
+		if err := syncer.AddNodeSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+			return fmt.Errorf("failed to add node syncer controller: %w", err)
+		}
+	}
+
 	return nil
 }

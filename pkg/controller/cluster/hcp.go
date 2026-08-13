@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"net"
@@ -55,7 +56,9 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 		return err
 	}
 
-	port, err := strconv.Atoi(url.Port())
+	portStr := cmp.Or(url.Port(), "443")
+
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return err
 	}
@@ -148,7 +151,9 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cl
 		},
 	}
 
-	port, err := strconv.Atoi(url.Port())
+	portStr := cmp.Or(url.Port(), "443")
+
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return err
 	}

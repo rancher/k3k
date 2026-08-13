@@ -78,6 +78,29 @@ func TestNodeSyncerReconcile(t *testing.T) {
 		assert.True(t, synced.Spec.Unschedulable)
 	})
 
+	t.Run("preserves virtual-kubelet annotations", func(t *testing.T) {
+		virtWithVKAnnotation := virtNode.DeepCopy()
+		virtWithVKAnnotation.Annotations = map[string]string{
+			"virtual-kubelet.io/last-applied-node-status": "{...}",
+		}
+
+		syncer := newNodeSyncer(
+			[]runtime.Object{hostNode.DeepCopy()},
+			[]runtime.Object{virtWithVKAnnotation},
+			scheme,
+		)
+
+		req := reconcile.Request{NamespacedName: types.NamespacedName{Name: "node-1"}}
+		_, err := syncer.Reconcile(context.Background(), req)
+		require.NoError(t, err)
+
+		var synced corev1.Node
+		require.NoError(t, syncer.VirtualClient.Get(context.Background(), req.NamespacedName, &synced))
+
+		assert.Equal(t, "{...}", synced.Annotations["virtual-kubelet.io/last-applied-node-status"])
+		assert.Equal(t, "annotation", synced.Annotations["some"])
+	})
+
 	t.Run("no virtual counterpart is a no-op", func(t *testing.T) {
 		syncer := newNodeSyncer(
 			[]runtime.Object{hostNode.DeepCopy()},

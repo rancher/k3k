@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"context"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/types"
@@ -20,6 +21,10 @@ import (
 
 const (
 	nodeControllerName = "node-syncer"
+
+	// virtualKubeletAnnotationPrefix marks node annotations owned by the
+	// virtual kubelet itself — never overwritten by the host mirror.
+	virtualKubeletAnnotationPrefix = "virtual-kubelet.io/"
 )
 
 // NodeSyncer keeps mirrored virtual nodes in sync with their host node
@@ -112,8 +117,22 @@ func (s *NodeSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	patch := ctrlruntimeclient.MergeFrom(virtNode.DeepCopy())
 
+	// Preserve annotations owned by the virtual side: the virtual kubelet
+	// keeps its status bookkeeping (e.g. last-applied-node-status) on the
+	// mirrored node, and wiping it forces needless full status re-applies.
+	annotations := map[string]string{}
+	for k, v := range hostNode.GetAnnotations() {
+		annotations[k] = v
+	}
+
+	for k, v := range virtNode.GetAnnotations() {
+		if strings.HasPrefix(k, virtualKubeletAnnotationPrefix) {
+			annotations[k] = v
+		}
+	}
+
 	virtNode.Labels = hostNode.GetLabels()
-	virtNode.Annotations = hostNode.GetAnnotations()
+	virtNode.Annotations = annotations
 	virtNode.Spec.Taints = hostNode.Spec.Taints
 	virtNode.Spec.Unschedulable = hostNode.Spec.Unschedulable
 

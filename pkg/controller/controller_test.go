@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,6 +10,46 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
+
+func Test_FilterDNSNames(t *testing.T) {
+	tests := map[string]struct {
+		names    []string
+		expected []string
+	}{
+		"no names": {
+			names:    nil,
+			expected: nil,
+		},
+		"only IPs": {
+			names:    []string{"10.0.0.5", "192.168.1.1", "::1"},
+			expected: []string{},
+		},
+		"only DNS names": {
+			names:    []string{"my-cluster.example.com", "other.example.com"},
+			expected: []string{"my-cluster.example.com", "other.example.com"},
+		},
+		"mixed IPs and DNS names keeps the order": {
+			names:    []string{"10.0.0.5", "my-cluster.example.com", "fd00::1", "other.example.com"},
+			expected: []string{"my-cluster.example.com", "other.example.com"},
+		},
+		"wildcards are kept": {
+			names:    []string{"*.example.com"},
+			expected: []string{"*.example.com"},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			original := slices.Clone(tt.names)
+
+			filtered := FilterDNSNames(tt.names)
+			assert.Equal(t, tt.expected, filtered)
+
+			// the given slice should be left untouched
+			assert.Equal(t, original, tt.names)
+		})
+	}
+}
 
 func Test_K3S_Image(t *testing.T) {
 	type args struct {

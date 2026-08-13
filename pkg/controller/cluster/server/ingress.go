@@ -1,8 +1,6 @@
 package server
 
 import (
-	"context"
-
 	"k8s.io/utils/ptr"
 
 	networkingv1 "k8s.io/api/networking/v1"
@@ -22,7 +20,7 @@ func IngressName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "ingress")
 }
 
-func Ingress(ctx context.Context, cluster *v1beta1.Cluster) networkingv1.Ingress {
+func Ingress(cluster *v1beta1.Cluster) networkingv1.Ingress {
 	ingress := networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Ingress",
@@ -72,7 +70,9 @@ func ingressRules(cluster *v1beta1.Cluster) []networkingv1.IngressRule {
 		},
 	}
 
-	hosts := cluster.Spec.TLSSANs
+	// the IP addresses of the tlsSANs are skipped: the Ingress API only accepts DNS names
+	hosts := controller.FilterDNSNames(cluster.Spec.TLSSANs)
+
 	for _, host := range hosts {
 		ingressRules = append(ingressRules, networkingv1.IngressRule{
 			Host: host,

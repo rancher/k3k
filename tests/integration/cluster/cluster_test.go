@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -12,6 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -334,6 +336,99 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(etcdPort.Name).To(Equal("k3s-etcd-port"))
 					Expect(etcdPort.Port).To(BeEquivalentTo(2379))
 					Expect(etcdPort.TargetPort.IntValue()).To(BeEquivalentTo(2379))
+				})
+			})
+
+			When("exposing the cluster with ingress", func() {
+				It("will not be provisioned without a DNS name in the tlsSANs", func() {
+					cluster := &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1beta1.ClusterSpec{
+							Expose: &v1beta1.ExposeConfig{
+								Ingress: &v1beta1.IngressConfig{},
+							},
+						},
+					}
+
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+
+					// the Ingress hosts come from the tlsSANs: without one the generated
+					// Ingress would have no rules and be rejected by the API server, so
+					// the cluster should stay Pending with a validation error instead.
+					Eventually(func(g Gomega) {
+						err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)
+						g.Expect(err).To(Not(HaveOccurred()))
+
+						g.Expect(cluster.Status.Phase).To(Equal(v1beta1.ClusterPending))
+
+						readyCondition := meta.FindStatusCondition(cluster.Status.Conditions, "Ready")
+						g.Expect(readyCondition).To(Not(BeNil()))
+						g.Expect(readyCondition.Status).To(Equal(metav1.ConditionFalse))
+						g.Expect(readyCondition.Reason).To(Equal("ValidationFailed"))
+						g.Expect(readyCondition.Message).To(ContainSubstring("spec.tlsSANs"))
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					// no invalid Ingress should have been submitted
+					ingressKey := client.ObjectKey{
+						Name:      server.IngressName(cluster.Name),
+						Namespace: cluster.Namespace,
+					}
+
+					var ingress networkingv1.Ingress
+					Expect(apierrors.IsNotFound(k8sClient.Get(ctx, ingressKey, &ingress))).To(BeTrue())
+				})
+
+				It("will create an Ingress with only the DNS names from the tlsSANs", func() {
+					cluster := &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1beta1.ClusterSpec{
+							// the IP is not a valid Ingress host and must be skipped
+							TLSSANs: []string{"10.0.0.5", "my-cluster.example.com"},
+							Expose: &v1beta1.ExposeConfig{
+								Ingress: &v1beta1.IngressConfig{
+									IngressClassName: "nginx",
+									Annotations: map[string]string{
+										"nginx.ingress.kubernetes.io/ssl-passthrough": "true",
+									},
+								},
+							},
+						},
+					}
+
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+
+					ingressKey := client.ObjectKey{
+						Name:      server.IngressName(cluster.Name),
+						Namespace: cluster.Namespace,
+					}
+
+					var ingress networkingv1.Ingress
+
+					Eventually(func() error {
+						return k8sClient.Get(ctx, ingressKey, &ingress)
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					Expect(ingress.Spec.IngressClassName).To(Equal(ptr.To("nginx")))
+					Expect(ingress.Annotations).To(HaveKeyWithValue("nginx.ingress.kubernetes.io/ssl-passthrough", "true"))
+
+					Expect(ingress.Spec.Rules).To(HaveLen(1))
+					Expect(ingress.Spec.Rules[0].Host).To(Equal("my-cluster.example.com"))
+
+					backend := ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service
+					Expect(backend.Name).To(Equal(server.ServiceName(cluster.Name)))
+					Expect(backend.Port.Number).To(BeEquivalentTo(443))
 				})
 			})
 

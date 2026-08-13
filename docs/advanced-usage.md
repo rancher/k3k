@@ -89,7 +89,77 @@ The `expose` field contains options for exposing the API server of the virtual c
 
 You can use the `expose` field to enable exposure via `NodePort`, `LoadBalancer`, or `Ingress`.
 
-In this example we are exposing the Cluster with a Nginx ingress-controller, that has to be configured with the `--enable-ssl-passthrough` flag.
+#### TLS passthrough is required
+
+The K3s API server authenticates clients with mTLS certificates, so **the TLS connection must reach
+the API server untouched**. An ingress controller that terminates TLS will break both `kubectl` and
+agent authentication. Any controller used with `expose.ingress` must therefore support TLS
+passthrough.
+
+`expose.ingress` also requires at least one **DNS name** in `spec.tlsSANs`: the SANs are used as the
+Ingress hosts, and the Ingress API does not accept IP addresses there. IPs in `tlsSANs` are ignored
+when building the Ingress, and a cluster with no DNS SAN stays in the `Pending` phase with a
+`ValidationFailed` condition rather than generating an invalid Ingress.
+
+#### Nginx
+
+Supported directly through `expose.ingress`. The ingress controller has to be started with the
+`--enable-ssl-passthrough` flag, and the annotations enabling passthrough must be set on the
+Ingress:
+
+```yaml
+spec:
+  tlsSANs:
+    - my-cluster.example.com
+  expose:
+    ingress:
+      ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+        nginx.ingress.kubernetes.io/ssl-redirect: "HTTPS"
+```
+
+#### Traefik
+
+Traefik **cannot** perform layer 4 TLS passthrough with a standard `Ingress`, so `expose.ingress`
+does not work with it. This matters on K3s and RKE2, where Traefik is the default ingress
+controller.
+
+Use `expose.loadBalancer` or `expose.nodePort` instead, or leave `expose` unset and create a Traefik
+`IngressRouteTCP` pointing at the cluster's `ClusterIP` service:
+
+```yaml
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: my-virtual-cluster
+  namespace: my-namespace
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: HostSNI(`my-cluster.example.com`)
+      services:
+        - name: k3k-my-virtual-cluster-service # k3k-<cluster-name>-service
+          port: 443
+  tls:
+    passthrough: true
+```
+
+Add `my-cluster.example.com` to `spec.tlsSANs` so the API server certificate covers it, and generate
+the kubeconfig with the matching endpoint:
+
+```bash
+k3kcli kubeconfig generate --namespace my-namespace --name my-virtual-cluster \
+  --kubeconfig-server https://my-cluster.example.com
+```
+
+**Limitation in `hcp` mode:** when the routing resource is managed outside of K3k, K3k does not know
+the external endpoint. In `hcp` mode it owns the `default/kubernetes` Endpoints inside the virtual
+cluster so that pods on external worker nodes can reach the API server, and without an `expose`
+configuration it can only point them at the host cluster's `ClusterIP`, which external nodes cannot
+route to. For `hcp` clusters with external workers, use `expose.nodePort` or `expose.loadBalancer`.
 
 
 ### `clusterCIDR`

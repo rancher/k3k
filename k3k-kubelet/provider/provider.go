@@ -412,6 +412,10 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	// record which k3k-kubelet agent synced this Pod, so GetPods can scope to this agent's own Pods
 	hostPod.Labels[translate.AgentNameLabel] = p.agentHostname
 
+	// record the virtual namespace as a label so that synced namespace-scoped selectors
+	// (e.g. PodDisruptionBudgets) can be scoped to the Pods of their original namespace
+	hostPod.Labels[translate.NamespaceNameLabel] = virtualPod.Namespace
+
 	logger = logger.WithValues("pod", hostPod.Name)
 
 	// Clear the NodeName to allow scheduling, and set affinity to prefer scheduling the Pod on the same host node as the virtual kubelet,

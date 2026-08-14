@@ -338,6 +338,12 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 		return fmt.Errorf("failed to add pvc syncer controller: %w", err)
 	}
 
+	logger.Info("adding pdb syncer controller")
+
+	if err := syncer.AddPodDisruptionBudgetSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return fmt.Errorf("failed to add pdb syncer controller: %w", err)
+	}
+
 	logger.Info("adding priorityclass controller")
 
 	if err := syncer.AddPriorityClassSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {

@@ -407,6 +407,23 @@ _Appears in:_
 | `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
 
 
+#### PodDisruptionBudgetSyncConfig
+
+
+
+PodDisruptionBudgetSyncConfig specifies the sync options for PodDisruptionBudgets.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+
+
 #### PodSecurityAdmissionLevel
 
 _Underlying type:_ _string_
@@ -534,6 +551,7 @@ _Appears in:_
 | `secrets` _[SecretSyncConfig](#secretsyncconfig)_ | Secrets resources sync configuration. | \{ enabled:true \} |  |
 | `ingresses` _[IngressSyncConfig](#ingresssyncconfig)_ | Ingresses resources sync configuration. | \{ enabled:false \} |  |
 | `persistentVolumeClaims` _[PersistentVolumeClaimSyncConfig](#persistentvolumeclaimsyncconfig)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:true \} |  |
+| `podDisruptionBudgets` _[PodDisruptionBudgetSyncConfig](#poddisruptionbudgetsyncconfig)_ | PodDisruptionBudgets resources sync configuration. | \{ enabled:false \} |  |
 | `priorityClasses` _[PriorityClassSyncConfig](#priorityclasssyncconfig)_ | PriorityClasses resources sync configuration. | \{ enabled:false \} |  |
 | `storageClasses` _[StorageClassSyncConfig](#storageclasssyncconfig)_ | StorageClasses resources sync configuration. | \{ enabled:false \} |  |
 

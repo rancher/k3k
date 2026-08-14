@@ -24,6 +24,7 @@ var _ = When("creating a shared mode cluster with postgres datastore via server 
 		DeferCleanup(func() {
 			fwk3k.DeleteNamespaces(k8s, namespace.Name)
 		})
+
 		postgresEndpoint := fmt.Sprintf("postgres-k3k.%s.svc.cluster.local:5432", namespace.Name)
 
 		cluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {

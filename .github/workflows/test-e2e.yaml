@@ -61,8 +61,7 @@ jobs:
 
         echo "COVERAGE=true" >> $GITHUB_ENV
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
-        echo "REPO=ttl.sh/$(uuidgen)" >> $GITHUB_ENV
-        echo "VERSION=1h" >> $GITHUB_ENV
+        echo "REPO=k3k.local" >> $GITHUB_ENV
         echo "K3S_HOST_VERSION=${{ env.KUBERNETES_VERSION }}+k3s1" >> $GITHUB_ENV
 
     - name: Install k3s
@@ -100,22 +99,30 @@ jobs:
           done
         '
 
-    - name: Build and package and push dev images
+    - name: Build and package and import dev images
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-        REPO: ${{ env.REPO }}
-        VERSION: ${{ env.VERSION }}
       run: |
         make build
         make package
-        make push
+        make save
+
+        # Import straight into each node's containerd
+        sudo k3s ctr images import k3k-images.tar
+
+        # The worker VMs have no checkout, so import there directly
+        for i in 1 2; do
+          IP="192.168.100.1${i}"
+          scp -i ./id_rsa -o StrictHostKeyChecking=no k3k-images.tar ubuntu@${IP}:/tmp/
+          ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
+            "sudo k3s ctr images import /tmp/k3k-images.tar && rm -f /tmp/k3k-images.tar"
+        done
+
         make install
 
     - name: Run e2e tests
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-        REPO: ${{ env.REPO }}
-        VERSION: ${{ env.VERSION }}
       run: make E2E_LABEL_FILTER="${{ matrix.label-filter }}" test-e2e
 
     - name: Convert coverage data

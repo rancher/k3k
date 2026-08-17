@@ -74,10 +74,11 @@ var _ = When("k3k is upgraded from the latest released version", Ordered, Serial
 	ctx := context.Background()
 
 	BeforeAll(func() {
-		// Guard early: `make install` (the upgrade under test) needs these to install
-		// the build under test (pushed to ttl.sh in CI) rather than a default image.
-		Expect(os.Getenv("REPO")).NotTo(BeEmpty(), "REPO must be set to the image repository")
-		Expect(os.Getenv("VERSION")).NotTo(BeEmpty(), "VERSION must be set to the image tag")
+		// Guard early: `make install` (the upgrade under test) must install the build
+		// under test, not the default `rancher/k3k` image. REPO has to point at the
+		// images built from this checkout and available to every node (in CI they are
+		// tagged `k3k.local/...` and imported into containerd directly).
+		Expect(os.Getenv("REPO")).NotTo(BeEmpty(), "REPO must be set to the image repository of the build under test")
 
 		By("Cleaning up any existing K3k installation and CRDs")
 		cleanupK3kInstall()
@@ -347,9 +348,8 @@ func helmInstallLatestReleasedK3k() {
 }
 
 // helmInstallSourceK3k installs the build from source by running `make install`
-// from the repo root, reusing the exact Helm flags of the Makefile install
-// target (dev images from $REPO/$VERSION, ttl.sh in CI) so it can never drift
-// from a manual installation.
+// from the repo root, reusing the exact Helm flags of the Makefile install target
+// (dev images from $REPO/$VERSION) so it can never drift from a manual installation.
 func helmInstallSourceK3k() {
 	GinkgoHelper()
 

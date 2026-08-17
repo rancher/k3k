@@ -346,15 +346,18 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 	policyName, found := ns.Labels[policy.PolicyNameLabelKey]
 	cluster.Status.PolicyName = policyName
 
-	if found && policyName != "" {
-		var policy v1beta1.VirtualClusterPolicy
-		if err := c.Client.Get(ctx, client.ObjectKey{Name: policyName}, &policy); err != nil {
-			return err
-		}
+	// vcp is nil when the namespace is not bound to any VirtualClusterPolicy.
+	var vcp *v1beta1.VirtualClusterPolicy
 
-		if err := c.validate(cluster, policy); err != nil {
+	if found && policyName != "" {
+		vcp = &v1beta1.VirtualClusterPolicy{}
+		if err := c.Client.Get(ctx, client.ObjectKey{Name: policyName}, vcp); err != nil {
 			return err
 		}
+	}
+
+	if err := c.validate(cluster, vcp); err != nil {
+		return err
 	}
 
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
@@ -730,7 +733,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1beta1.
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring cluster ingress")
 
-	expectedServerIngress := server.Ingress(ctx, cluster)
+	expectedServerIngress := server.Ingress(cluster)
 
 	// delete existing Ingress if Expose or IngressConfig are nil
 	if cluster.Spec.Expose == nil || cluster.Spec.Expose.Ingress == nil {
@@ -983,18 +986,31 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cl
 	return agentEnsurer.EnsureResources(ctx)
 }
 
-func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy v1beta1.VirtualClusterPolicy) error {
+// validate validates a Cluster before reconciling it. The policy is nil when the namespace
+// of the Cluster is not bound to any VirtualClusterPolicy: only the checks that depend on it
+// are skipped in that case.
+func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) error {
 	if cluster.Name == ClusterInvalidName {
 		return fmt.Errorf("%w: invalid cluster name %q", ErrClusterValidation, cluster.Name)
 	}
 
-	if cluster.Spec.Mode != policy.Spec.AllowedMode {
+	if policy != nil && cluster.Spec.Mode != policy.Spec.AllowedMode {
 		return fmt.Errorf("%w: mode %q is not allowed by the policy %q", ErrClusterValidation, cluster.Spec.Mode, policy.Name)
 	}
 
 	if cluster.Spec.CustomCAs != nil && cluster.Spec.CustomCAs.Enabled {
 		if err := c.validateCustomCACerts(cluster.Spec.CustomCAs.Sources); err != nil {
 			return fmt.Errorf("%w: %w", ErrClusterValidation, err)
+		}
+	}
+
+	// The Ingress hosts are taken from the tlsSANs, and the IP addresses are not valid.
+	// Without at least one DNS name the generated Ingress would have no rules,
+	// and the API server would reject it.
+	if cluster.Spec.Expose != nil && cluster.Spec.Expose.Ingress != nil {
+		hosts := controller.FilterDNSNames(cluster.Spec.TLSSANs)
+		if len(hosts) == 0 {
+			return fmt.Errorf("%w: expose.ingress requires at least one DNS name in spec.tlsSANs to use as the ingress host", ErrClusterValidation)
 		}
 	}
 

@@ -3,6 +3,7 @@ package controller
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"net"
 	"slices"
 	"strings"
 	"time"
@@ -43,6 +44,14 @@ func K3SVersion(cluster *v1beta1.Cluster) string {
 	}
 
 	return "latest"
+}
+
+// FilterDNSNames returns only the DNS names of the given list, dropping the IP addresses.
+// It is useful for the fields that cannot hold an IP, like the hosts of an Ingress.
+func FilterDNSNames(names []string) []string {
+	return slices.DeleteFunc(slices.Clone(names), func(name string) bool {
+		return net.ParseIP(name) != nil
+	})
 }
 
 // SafeConcatNameWithPrefix runs the SafeConcatName with extra prefix.

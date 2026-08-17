@@ -94,12 +94,16 @@ jobs:
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
-        export REPO=ttl.sh/$(uuidgen)
-        export VERSION=1h
+        export REPO=k3k.local
 
         make build
         make package
-        make push
+        make save
+
+        # Import straight into the node's containerd
+        sudo k3s ctr images import k3k-images.tar
+        sudo k3s crictl images | grep k3k
+
         make install
 
         # add k3kcli to $PATH

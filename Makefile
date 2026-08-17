@@ -3,6 +3,8 @@ REPO ?= rancher
 COVERAGE ?= false
 VERSION ?= $(shell git describe --tags --always --dirty --match="v[0-9]*")
 
+IMAGE_ARCHIVE ?= k3k-images.tar
+
 ## Dependencies
 
 GOLANGCI_LINT_VERSION := v2.12.2
@@ -59,6 +61,10 @@ push-%:
 	docker push $(REPO)/$*:$(VERSION)
 	docker push $(REPO)/$*:latest
 	docker push $(REPO)/$*:dev
+
+.PHONY: save
+save:	## Save the k3k and k3k-kubelet images to a tar archive, to import them without a registry
+	docker save -o $(IMAGE_ARCHIVE) $(REPO)/k3k:$(VERSION) $(REPO)/k3k-kubelet:$(VERSION)
 
 .PHONY: test
 test:	## Run all the tests

@@ -78,7 +78,6 @@ jobs:
 
         # Import straight into the node's containerd
         sudo k3s ctr images import k3k-images.tar
-        sudo k3s crictl images | grep k3k
 
         make install
 

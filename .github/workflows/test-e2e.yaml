@@ -109,13 +109,13 @@ jobs:
 
         # Import straight into each node's containerd
         sudo k3s ctr images import k3k-images.tar
-        sudo k3s crictl images | grep k3k
 
+        # The worker VMs have no checkout, so import there directly
         for i in 1 2; do
           IP="192.168.100.1${i}"
           scp -i ./id_rsa -o StrictHostKeyChecking=no k3k-images.tar ubuntu@${IP}:/tmp/
           ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
-            "sudo k3s ctr images import /tmp/k3k-images.tar && sudo k3s crictl images | grep k3k && rm -f /tmp/k3k-images.tar"
+            "sudo k3s ctr images import /tmp/k3k-images.tar && rm -f /tmp/k3k-images.tar"
         done
 
         make install

@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	fwclient "github.com/rancher/k3k/tests/framework/client"
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -64,7 +65,6 @@ const (
 	certificatesTestsLabel = "certificates"
 	registryTestsLabel     = "registry"
 	addonsTestsLabel       = "addons"
-	k3kUpgradeTestsLabel   = "k3k-upgrade"
 
 	registryImage               = "registry:2"
 	registryCACertSecretName    = "private-registry-ca-cert"
@@ -83,6 +83,7 @@ var (
 	restcfg   *rest.Config
 	k8s       *kubernetes.Clientset
 	k8sClient client.Client
+	fw        *fwk3k.Framework
 )
 
 var _ = BeforeSuite(func() {
@@ -106,6 +107,7 @@ func initKubernetesClient(ctx context.Context) {
 	restcfg = config.RestConfig
 	k8s = config.Clientset
 	k8sClient = config.Client
+	fw = fwk3k.New(config)
 
 	GinkgoWriter.Println("Host IP: " + hostIP)
 }

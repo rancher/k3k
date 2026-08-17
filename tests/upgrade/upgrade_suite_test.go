@@ -2,31 +2,25 @@ package upgrade_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 
-	sigsclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	fwclient "github.com/rancher/k3k/tests/framework/client"
+	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-const (
-	k3kNamespace         = "k3k-system"
-	k3kUpgradeTestsLabel = "k3k-upgrade"
-	slowTestsLabel       = "slow"
-)
+const k3kNamespace = "k3k-system"
 
 var (
-	hostIP    string
-	restcfg   *rest.Config
 	k8s       *kubernetes.Clientset
-	k8sClient sigsclient.Client
+	k8sClient ctrlruntimeclient.Client
+	fw        *fwk3k.Framework
 )
 
 func TestUpgrade(t *testing.T) {
@@ -37,16 +31,13 @@ func TestUpgrade(t *testing.T) {
 var _ = BeforeSuite(func() {
 	ctx := context.Background()
 
-	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
-
 	scheme := fwclient.NewScheme()
 	config, err := fwclient.InitFromKubeconfig(ctx, scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	hostIP = config.HostIP
-	restcfg = config.RestConfig
 	k8s = config.Clientset
 	k8sClient = config.Client
+	fw = fwk3k.New(config)
 
-	GinkgoWriter.Println("Host IP: " + hostIP)
+	GinkgoWriter.Println("Host IP: " + config.HostIP)
 })

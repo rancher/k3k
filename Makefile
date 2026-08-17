@@ -95,8 +95,8 @@ test-e2e:	## Run the e2e tests
 	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=$(FLAKE_ATTEMPTS) --label-filter="$(E2E_LABEL_FILTER)" tests/e2e
 
 .PHONY: test-upgrade
-test-upgrade:	## Run the k3k upgrade tests
-	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=$(FLAKE_ATTEMPTS) tests/upgrade
+test-upgrade:	## Run the k3k upgrade tests (uninstalls and reinstalls k3k)
+	$(GINKGO) $(GINKGO_FLAGS) --flake-attempts=1 tests/upgrade
 
 .PHONY: test-cli
 test-cli:	## Run the cli tests

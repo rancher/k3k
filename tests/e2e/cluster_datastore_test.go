@@ -95,6 +95,16 @@ var _ = When("creating a shared mode cluster with postgres datastore via drop-in
 			fwk3k.DeleteNamespaces(k8s, namespace.Name)
 		})
 
+		postgresEndpoint := fmt.Sprintf("postgres-k3k.%s.svc.cluster.local:5432", namespace.Name)
+
+		dsn := url.URL{
+			Scheme:   "postgres",
+			User:     url.UserPassword(postgresUser, postgresPassword),
+			Host:     postgresEndpoint,
+			Path:     postgresDatabase,
+			RawQuery: "sslmode=disable",
+		}
+
 		configSecretName := "datastore-config-secret"
 		configSecret := corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -102,10 +112,7 @@ var _ = When("creating a shared mode cluster with postgres datastore via drop-in
 				Namespace: namespace.Name,
 			},
 			Data: map[string][]byte{
-				"config.yaml": []byte(fmt.Sprintf(
-					"datastore-endpoint: postgres://%s:%s@postgres-k3k.%s.svc.cluster.local:%d/%s?sslmode=disable\ncluster-init: false\n",
-					postgresUser, postgresPassword, namespace.Name, postgresPort, postgresDatabase,
-				)),
+				"config.yaml": []byte(fmt.Sprintf("datastore-endpoint: %s\ncluster-init: false\n", dsn.String())),
 			},
 		}
 
@@ -243,6 +250,16 @@ var _ = When("creating a virtual mode cluster with postgres datastore via drop-i
 			fwk3k.DeleteNamespaces(k8s, namespace.Name)
 		})
 
+		postgresEndpoint := fmt.Sprintf("postgres-k3k.%s.svc.cluster.local:5432", namespace.Name)
+
+		dsn := url.URL{
+			Scheme:   "postgres",
+			User:     url.UserPassword(postgresUser, postgresPassword),
+			Host:     postgresEndpoint,
+			Path:     postgresDatabase,
+			RawQuery: "sslmode=disable",
+		}
+
 		configSecretName := "datastore-config-secret"
 		configSecret := corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -250,10 +267,7 @@ var _ = When("creating a virtual mode cluster with postgres datastore via drop-i
 				Namespace: namespace.Name,
 			},
 			Data: map[string][]byte{
-				"config.yaml": []byte(fmt.Sprintf(
-					"datastore-endpoint: postgres://%s:%s@postgres-k3k.%s.svc.cluster.local:%d/%s?sslmode=disable\ncluster-init: false\n",
-					postgresUser, postgresPassword, namespace.Name, postgresPort, postgresDatabase,
-				)),
+				"config.yaml": []byte(fmt.Sprintf("datastore-endpoint: %s\ncluster-init: false\n", dsn.String())),
 			},
 		}
 

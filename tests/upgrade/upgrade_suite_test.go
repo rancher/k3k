@@ -9,7 +9,6 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	fwclient "github.com/rancher/k3k/tests/framework/client"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,9 +17,9 @@ import (
 const k3kNamespace = "k3k-system"
 
 var (
+	hostIP    string
 	k8s       *kubernetes.Clientset
 	k8sClient ctrlruntimeclient.Client
-	fw        *fwk3k.Framework
 )
 
 func TestUpgrade(t *testing.T) {
@@ -35,9 +34,9 @@ var _ = BeforeSuite(func() {
 	config, err := fwclient.InitFromKubeconfig(ctx, scheme)
 	Expect(err).NotTo(HaveOccurred())
 
+	hostIP = config.HostIP
 	k8s = config.Clientset
 	k8sClient = config.Client
-	fw = fwk3k.New(config)
 
-	GinkgoWriter.Println("Host IP: " + config.HostIP)
+	GinkgoWriter.Println("Host IP: " + hostIP)
 })

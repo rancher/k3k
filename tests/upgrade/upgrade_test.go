@@ -20,7 +20,6 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	clustercontroller "github.com/rancher/k3k/pkg/controller/cluster"
-	fwcmd "github.com/rancher/k3k/tests/framework/cmd"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -179,7 +178,7 @@ var _ = When("k3k is upgraded from the latest released version", Ordered, Serial
 			By("Verifying the servers of cluster " + c.name() + " rolled out with the new args")
 
 			Eventually(func(g Gomega) {
-				serverPods := fw.ListServerPods(ctx, c.cluster)
+				serverPods := listServerPods(ctx, c.cluster)
 				g.Expect(serverPods).NotTo(BeEmpty())
 
 				for i := range serverPods {
@@ -225,7 +224,7 @@ var _ = When("k3k is upgraded from the latest released version", Ordered, Serial
 			g.Expect(apierrors.IsNotFound(err)).To(BeTrue(), "cluster still exists, finalizers may be stuck")
 
 			// the host resources of the cluster should be garbage collected as well
-			g.Expect(fw.ListServerPods(ctx, c.cluster)).To(BeEmpty())
+			g.Expect(listServerPods(ctx, c.cluster)).To(BeEmpty())
 		}).
 			WithTimeout(time.Minute * 3).
 			WithPolling(time.Second * 5).
@@ -242,7 +241,7 @@ func newUpgradeCluster(ctx context.Context, mode v1beta1.ClusterMode) *upgradeCl
 
 	namespace := fwk3k.CreateNamespace(k8s)
 
-	cluster := fw.NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
+	cluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
 		c.Spec.Mode = mode
 		c.Spec.Persistence.Type = v1beta1.DynamicPersistenceMode
 
@@ -252,9 +251,9 @@ func newUpgradeCluster(ctx context.Context, mode v1beta1.ClusterMode) *upgradeCl
 		}
 	})
 
-	fw.CreateCluster(ctx, cluster)
+	CreateCluster(ctx, cluster)
 
-	client, _, _ := fw.NewVirtualK8sClient(ctx, cluster)
+	client := newVirtualK8sClient(ctx, cluster)
 
 	return &upgradeCluster{cluster: cluster, client: client}
 }
@@ -281,7 +280,7 @@ func assertClusterHealthy(ctx context.Context, c *upgradeCluster) {
 		g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 
 		// 2. The server pods are Ready.
-		serverPods := fw.ListServerPods(ctx, cluster)
+		serverPods := listServerPods(ctx, cluster)
 		g.Expect(serverPods).NotTo(BeEmpty())
 
 		for i := range serverPods {
@@ -323,17 +322,17 @@ func cleanupK3kInstall() {
 	GinkgoHelper()
 
 	// 1. Force-delete CRDs first to clear out custom resources and strip finalizer locks immediately.
-	_, _, _ = fwcmd.RunCmd("kubectl", "delete", "crd", "clusters.k3k.io", "virtualclusterpolicies.k3k.io", "--ignore-not-found", "--timeout=30s")
+	_, _, _ = runCmd("kubectl", "delete", "crd", "clusters.k3k.io", "virtualclusterpolicies.k3k.io", "--ignore-not-found", "--timeout=30s")
 
 	// 2. Uninstall Helm release
-	_, _, _ = fwcmd.RunCmd("helm", "uninstall", "k3k", "-n", k3kNamespace)
+	_, _, _ = runCmd("helm", "uninstall", "k3k", "-n", k3kNamespace)
 }
 
 func helmRepoAddK3k() {
 	GinkgoHelper()
 
-	expectCmd(fwcmd.RunCmd("helm", "repo", "add", "k3k", "https://rancher.github.io/k3k", "--force-update"))
-	expectCmd(fwcmd.RunCmd("helm", "repo", "update"))
+	expectCmd(runCmd("helm", "repo", "add", "k3k", "https://rancher.github.io/k3k", "--force-update"))
+	expectCmd(runCmd("helm", "repo", "update"))
 }
 
 // helmInstallLatestReleasedK3k installs the latest released k3k chart (no pinned
@@ -341,7 +340,7 @@ func helmRepoAddK3k() {
 func helmInstallLatestReleasedK3k() {
 	GinkgoHelper()
 
-	expectCmd(fwcmd.RunCmd("helm", "upgrade", "--install", "k3k", "k3k/k3k",
+	expectCmd(runCmd("helm", "upgrade", "--install", "k3k", "k3k/k3k",
 		"--namespace", k3kNamespace, "--create-namespace",
 		"--wait", "--timeout", "5m",
 	))
@@ -353,13 +352,13 @@ func helmInstallLatestReleasedK3k() {
 func helmInstallSourceK3k() {
 	GinkgoHelper()
 
-	expectCmd(fwcmd.RunCmd("make", "-C", repoRoot, "install"))
+	expectCmd(runCmd("make", "-C", repoRoot, "install"))
 }
 
 func waitForControllerRollout() {
 	GinkgoHelper()
 
-	expectCmd(fwcmd.RunCmd("kubectl", "rollout", "status", "deployment/k3k",
+	expectCmd(runCmd("kubectl", "rollout", "status", "deployment/k3k",
 		"--namespace", k3kNamespace, "--timeout", "3m",
 	))
 }
@@ -374,7 +373,7 @@ func waitForControllerRollout() {
 func assertNoImmutableFieldErrors() {
 	GinkgoHelper()
 
-	stdout, stderr, err := fwcmd.RunCmd("kubectl", "logs", "-n", k3kNamespace, "-l", "app.kubernetes.io/name=k3k", "--tail=-1")
+	stdout, stderr, err := runCmd("kubectl", "logs", "-n", k3kNamespace, "-l", "app.kubernetes.io/name=k3k", "--tail=-1")
 	Expect(err).NotTo(HaveOccurred(), stderr)
 
 	// The StatefulSet immutable update error looks like:
@@ -384,7 +383,7 @@ func assertNoImmutableFieldErrors() {
 }
 
 func dumpK3kControllerLogs() {
-	stdout, stderr, err := fwcmd.RunCmd("kubectl", "logs", "-n", k3kNamespace, "-l", "app.kubernetes.io/name=k3k", "--tail=-1")
+	stdout, stderr, err := runCmd("kubectl", "logs", "-n", k3kNamespace, "-l", "app.kubernetes.io/name=k3k", "--tail=-1")
 	if err != nil {
 		GinkgoWriter.Println("failed to collect k3k controller logs:", err, stderr)
 		return

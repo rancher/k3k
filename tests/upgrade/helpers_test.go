@@ -1,12 +1,19 @@
-package k3k
+package upgrade_test
+
+// The cluster helpers below are a copy of the ones in tests/e2e/common_test.go,
+// and runCmd is a copy of the one in tests/cli/cli_test.go. The duplication is
+// deliberate: sharing them means moving them into tests/framework, which is a
+// refactor of the e2e and cli suites and does not belong in this change. Only
+// what this suite actually uses was copied.
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os/exec"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/utils/ptr"
@@ -23,17 +30,30 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// runCmd executes cmdName with args and returns its stdout, stderr and error.
+func runCmd(cmdName string, args ...string) (string, string, error) {
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+
+	cmd := exec.CommandContext(context.Background(), cmdName, args...)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	err := cmd.Run()
+
+	return stdout.String(), stderr.String(), err
+}
+
 // NewCluster returns a Cluster spec in the given namespace, exposed with a NodePort
 // and reachable from the host. The options are applied in order, and can override
 // any of the defaults.
-func (f *Framework) NewCluster(namespace string, opts ...func(*v1beta1.Cluster)) *v1beta1.Cluster {
+func NewCluster(namespace string, opts ...func(*v1beta1.Cluster)) *v1beta1.Cluster {
 	cluster := &v1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "cluster-",
 			Namespace:    namespace,
 		},
 		Spec: v1beta1.ClusterSpec{
-			TLSSANs: []string{f.HostIP},
+			TLSSANs: []string{hostIP},
 			Expose: &v1beta1.ExposeConfig{
 				NodePort: &v1beta1.NodePortConfig{},
 			},
@@ -51,16 +71,16 @@ func (f *Framework) NewCluster(namespace string, opts ...func(*v1beta1.Cluster))
 }
 
 // CreateCluster creates the Cluster and waits for its server and agent pods to be Ready.
-func (f *Framework) CreateCluster(ctx context.Context, cluster *v1beta1.Cluster) {
+func CreateCluster(ctx context.Context, cluster *v1beta1.Cluster) {
 	GinkgoHelper()
 
 	By(fmt.Sprintf("Creating new virtual cluster in namespace %s", cluster.Namespace))
 
-	err := f.Client.Create(ctx, cluster)
+	err := k8sClient.Create(ctx, cluster)
 	Expect(err).To(Not(HaveOccurred()))
 
 	// The servers/agents defaults come from the CRD, but they are not guaranteed to
-	// be set: an older CRD (see the upgrade tests) could be installed on the cluster.
+	// be set: this suite runs against the CRDs of an older, released k3k.
 	expectedServers := int(ptr.Deref(cluster.Spec.Servers, 1))
 	expectedAgents := int(ptr.Deref(cluster.Spec.Agents, 0))
 
@@ -71,7 +91,7 @@ func (f *Framework) CreateCluster(ctx context.Context, cluster *v1beta1.Cluster)
 
 	// check that the server Pod and the Kubelet are in Ready state
 	Eventually(func() bool {
-		podList, err := f.Clientset.CoreV1().Pods(cluster.Namespace).List(ctx, metav1.ListOptions{})
+		podList, err := k8s.CoreV1().Pods(cluster.Namespace).List(ctx, metav1.ListOptions{})
 		Expect(err).To(Not(HaveOccurred()))
 
 		// all the servers and agents needs to be in a running phase
@@ -117,9 +137,8 @@ func (f *Framework) CreateCluster(ctx context.Context, cluster *v1beta1.Cluster)
 	By("Cluster is ready")
 }
 
-// NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster,
-// with the rest.Config and the raw kubeconfig it was built from.
-func (f *Framework) NewVirtualK8sClient(ctx context.Context, cluster *v1beta1.Cluster) (*kubernetes.Clientset, *rest.Config, []byte) {
+// newVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster.
+func newVirtualK8sClient(ctx context.Context, cluster *v1beta1.Cluster) *kubernetes.Clientset {
 	GinkgoHelper()
 
 	var (
@@ -130,8 +149,8 @@ func (f *Framework) NewVirtualK8sClient(ctx context.Context, cluster *v1beta1.Cl
 	Eventually(func() error {
 		vKubeconfig := kubeconfig.New()
 		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
-		vKubeconfig.AltNames = certs.AddSANs([]string{f.HostIP, kubeletAltName})
-		config, err = vKubeconfig.Generate(ctx, f.Client, cluster, f.HostIP)
+		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
+		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP)
 
 		return err
 	}).
@@ -147,29 +166,17 @@ func (f *Framework) NewVirtualK8sClient(ctx context.Context, cluster *v1beta1.Cl
 	virtualK8sClient, err := kubernetes.NewForConfig(restcfg)
 	Expect(err).To(Not(HaveOccurred()))
 
-	return virtualK8sClient, restcfg, configData
+	return virtualK8sClient
 }
 
-// ListServerPods returns the server pods of the cluster, from the host cluster.
-func (f *Framework) ListServerPods(ctx context.Context, cluster *v1beta1.Cluster) []corev1.Pod {
+// listServerPods returns the server pods of the cluster, from the host cluster.
+func listServerPods(ctx context.Context, cluster *v1beta1.Cluster) []corev1.Pod {
 	GinkgoHelper()
 
 	labelSelector := "cluster=" + cluster.Name + ",role=server"
 
-	serverPods, err := f.Clientset.CoreV1().Pods(cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	serverPods, err := k8s.CoreV1().Pods(cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	Expect(err).To(Not(HaveOccurred()))
 
 	return serverPods.Items
-}
-
-// ListAgentPods returns the agent pods of the cluster, from the host cluster.
-func (f *Framework) ListAgentPods(ctx context.Context, cluster *v1beta1.Cluster) []corev1.Pod {
-	GinkgoHelper()
-
-	labelSelector := fmt.Sprintf("cluster=%s,type=agent,mode=%s", cluster.Name, cluster.Spec.Mode)
-
-	agentPods, err := f.Clientset.CoreV1().Pods(cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-	Expect(err).To(Not(HaveOccurred()))
-
-	return agentPods.Items
 }

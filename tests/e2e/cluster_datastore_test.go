@@ -2,6 +2,7 @@ package k3k_test
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -27,9 +28,17 @@ var _ = When("creating a shared mode cluster with postgres datastore via server 
 
 		postgresEndpoint := fmt.Sprintf("postgres-k3k.%s.svc.cluster.local:5432", namespace.Name)
 
+		dsn := url.URL{
+			Scheme:   "postgres",
+			User:     url.UserPassword(postgresUser, postgresPassword),
+			Host:     postgresEndpoint,
+			Path:     postgresDatabase,
+			RawQuery: "sslmode=disable",
+		}
+
 		cluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
 			c.Spec.ServerArgs = []string{
-				fmt.Sprintf("--datastore-endpoint=postgres://%s:%s@%s/%s?sslmode=disable", postgresUser, postgresPassword, postgresEndpoint, postgresDatabase),
+				fmt.Sprintf("--datastore-endpoint=%s", dsn.String()),
 				"--cluster-init=false",
 			}
 		})
@@ -45,7 +54,6 @@ var _ = When("creating a shared mode cluster with postgres datastore via server 
 			Client:     client,
 		}
 	})
-
 	It("creates and writes to a database for the cluster", func() {
 		Eventually(func(g Gomega) {
 			ctx := GinkgoT().Context()
@@ -60,16 +68,14 @@ var _ = When("creating a shared mode cluster with postgres datastore via server 
 			Should(Succeed())
 	})
 	It("creates server pods with no etcd finalizers", func() {
-		Eventually(func(g Gomega) {
-			ctx := GinkgoT().Context()
-
-			serverPods := listServerPods(ctx, virtualCluster)
+		Consistently(func(g Gomega) {
+			serverPods := listServerPods(GinkgoT().Context(), virtualCluster)
 			for _, s := range serverPods {
-				g.Expect(s.Finalizers).To(BeNil())
+				g.Expect(s.Finalizers).To(BeEmpty())
 			}
 		}).
-			WithTimeout(time.Minute).
-			WithPolling(time.Second).
+			WithTimeout(time.Second * 30).
+			WithPolling(time.Second * 2).
 			Should(Succeed())
 	})
 	It("can create a nginx pod", func() {
@@ -143,17 +149,14 @@ var _ = When("creating a shared mode cluster with postgres datastore via drop-in
 			Should(Succeed())
 	})
 	It("creates server pods with no etcd finalizers", func() {
-		Eventually(func(g Gomega) {
-			ctx := GinkgoT().Context()
-
-			serverPods := listServerPods(ctx, virtualCluster)
-
+		Consistently(func(g Gomega) {
+			serverPods := listServerPods(GinkgoT().Context(), virtualCluster)
 			for _, s := range serverPods {
-				g.Expect(s.Finalizers).To(BeNil())
+				g.Expect(s.Finalizers).To(BeEmpty())
 			}
 		}).
-			WithTimeout(time.Minute).
-			WithPolling(time.Second).
+			WithTimeout(time.Second * 30).
+			WithPolling(time.Second * 2).
 			Should(Succeed())
 	})
 	It("can create a nginx pod", func() {
@@ -173,9 +176,17 @@ var _ = When("creating a virtual mode cluster with postgres datastore via server
 
 		postgresEndpoint := fmt.Sprintf("postgres-k3k.%s.svc.cluster.local:5432", namespace.Name)
 
+		dsn := url.URL{
+			Scheme:   "postgres",
+			User:     url.UserPassword(postgresUser, postgresPassword),
+			Host:     postgresEndpoint,
+			Path:     postgresDatabase,
+			RawQuery: "sslmode=disable",
+		}
+
 		cluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
 			c.Spec.ServerArgs = []string{
-				fmt.Sprintf("--datastore-endpoint=postgres://%s:%s@%s/%s?sslmode=disable", postgresUser, postgresPassword, postgresEndpoint, postgresDatabase),
+				fmt.Sprintf("--datastore-endpoint=%s", dsn.String()),
 				"--cluster-init=false",
 			}
 		})
@@ -191,7 +202,6 @@ var _ = When("creating a virtual mode cluster with postgres datastore via server
 			Client:     client,
 		}
 	})
-
 	It("creates and writes to a database for the cluster", func() {
 		Eventually(func(g Gomega) {
 			ctx := GinkgoT().Context()
@@ -206,16 +216,14 @@ var _ = When("creating a virtual mode cluster with postgres datastore via server
 			Should(Succeed())
 	})
 	It("creates server pods with no etcd finalizers", func() {
-		Eventually(func(g Gomega) {
-			ctx := GinkgoT().Context()
-
-			serverPods := listServerPods(ctx, virtualCluster)
+		Consistently(func(g Gomega) {
+			serverPods := listServerPods(GinkgoT().Context(), virtualCluster)
 			for _, s := range serverPods {
-				g.Expect(s.Finalizers).To(BeNil())
+				g.Expect(s.Finalizers).To(BeEmpty())
 			}
 		}).
-			WithTimeout(time.Minute).
-			WithPolling(time.Second).
+			WithTimeout(time.Second * 30).
+			WithPolling(time.Second * 2).
 			Should(Succeed())
 	})
 	It("can create a nginx pod", func() {
@@ -290,17 +298,14 @@ var _ = When("creating a virtual mode cluster with postgres datastore via drop-i
 			Should(Succeed())
 	})
 	It("creates server pods with no etcd finalizers", func() {
-		Eventually(func(g Gomega) {
-			ctx := GinkgoT().Context()
-
-			serverPods := listServerPods(ctx, virtualCluster)
-
+		Consistently(func(g Gomega) {
+			serverPods := listServerPods(GinkgoT().Context(), virtualCluster)
 			for _, s := range serverPods {
-				g.Expect(s.Finalizers).To(BeNil())
+				g.Expect(s.Finalizers).To(BeEmpty())
 			}
 		}).
-			WithTimeout(time.Minute).
-			WithPolling(time.Second).
+			WithTimeout(time.Second * 30).
+			WithPolling(time.Second * 2).
 			Should(Succeed())
 	})
 	It("can create a nginx pod", func() {

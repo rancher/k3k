@@ -10,7 +10,6 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -21,10 +20,10 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 	var virtualCluster *VirtualCluster
 
 	BeforeEach(func() {
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
@@ -143,10 +142,10 @@ var _ = When("creating an HCP mode cluster", Label(lifecycleTestsLabel), Label(s
 	var virtualCluster *VirtualCluster
 
 	BeforeEach(func() {
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)

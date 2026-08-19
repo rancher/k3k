@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,10 +17,10 @@ var _ = When("a cluster with custom certificates is installed with individual ce
 	BeforeEach(func() {
 		ctx := context.Background()
 
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		// create custom cert secret

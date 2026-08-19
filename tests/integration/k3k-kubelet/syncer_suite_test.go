@@ -19,7 +19,7 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
-	fwclient "github.com/rancher/k3k/tests/framework/client"
+	"github.com/rancher/k3k/tests/framework"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -94,7 +94,7 @@ func NewTestEnv() *TestEnv {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "charts", "k3k", "templates", "crds")},
 		ErrorIfCRDPathMissing: true,
 		BinaryAssetsDirectory: tempDir,
-		Scheme:                fwclient.NewScheme(),
+		Scheme:                framework.NewScheme(),
 	}
 
 	cfg, err := testEnv.Start()

@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -26,7 +25,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label(syncTestsLabel),
 		virtualCluster = NewVirtualCluster()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
+			fw.DeleteNamespaces(virtualCluster.Cluster.Namespace)
 		})
 	})
 

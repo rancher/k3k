@@ -14,7 +14,6 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/policy"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -37,7 +36,7 @@ var _ = When("a cluster's status is tracked", Label(statusTestsLabel), func() {
 		}
 		Expect(k8sClient.Create(ctx, vcp)).To(Succeed())
 
-		namespace = fwk3k.CreateNamespace(k8s)
+		namespace = fw.CreateNamespace()
 
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
 		Expect(err).To(Not(HaveOccurred()))
@@ -52,7 +51,7 @@ var _ = When("a cluster's status is tracked", Label(statusTestsLabel), func() {
 		err := k8sClient.Delete(context.Background(), vcp)
 		Expect(err).To(Not(HaveOccurred()))
 
-		fwk3k.DeleteNamespaces(k8s, namespace.Name)
+		fw.DeleteNamespaces(namespace.Name)
 	})
 
 	Context("and the cluster is created with a valid configuration", func() {

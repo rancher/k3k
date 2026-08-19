@@ -28,7 +28,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	fwclient "github.com/rancher/k3k/tests/framework/client"
+	"github.com/rancher/k3k/tests/framework"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -82,6 +82,7 @@ var (
 	restcfg   *rest.Config
 	k8s       *kubernetes.Clientset
 	k8sClient client.Client
+	fw        *framework.Framework
 )
 
 var _ = BeforeSuite(func() {
@@ -97,14 +98,15 @@ var _ = BeforeSuite(func() {
 })
 
 func initKubernetesClient(ctx context.Context) {
-	scheme := fwclient.NewScheme()
-	config, err := fwclient.InitFromKubeconfig(ctx, scheme)
+	var err error
+
+	fw, err = framework.New(ctx)
 	Expect(err).NotTo(HaveOccurred())
 
-	hostIP = config.HostIP
-	restcfg = config.RestConfig
-	k8s = config.Clientset
-	k8sClient = config.Client
+	hostIP = fw.HostIP
+	restcfg = fw.RestConfig
+	k8s = fw.Clientset
+	k8sClient = fw.Client
 
 	GinkgoWriter.Println("Host IP: " + hostIP)
 }

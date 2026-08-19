@@ -10,20 +10,15 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
-	"github.com/rancher/k3k/pkg/controller/certs"
-	"github.com/rancher/k3k/pkg/controller/kubeconfig"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -45,7 +40,7 @@ func NewVirtualCluster() *VirtualCluster { // By default, create an ephemeral cl
 func NewVirtualClusterWithType(persistenceType v1beta1.PersistenceMode) *VirtualCluster {
 	GinkgoHelper()
 
-	namespace := fwk3k.CreateNamespace(k8s)
+	namespace := fw.CreateNamespace()
 
 	cluster := NewCluster(namespace.Name)
 	cluster.Spec.Persistence.Type = persistenceType
@@ -68,17 +63,17 @@ func NewVirtualClusterWithType(persistenceType v1beta1.PersistenceMode) *Virtual
 func NewVirtualClusters(n int) []*VirtualCluster {
 	GinkgoHelper()
 
-	var clusters []*VirtualCluster
+	clusters := make([]*VirtualCluster, n)
 
 	wg := sync.WaitGroup{}
 	wg.Add(n)
 
-	for range n {
+	for i := range n {
 		go func() {
 			defer wg.Done()
 			defer GinkgoRecover()
 
-			clusters = append(clusters, NewVirtualCluster())
+			clusters[i] = NewVirtualCluster()
 		}()
 	}
 
@@ -88,166 +83,38 @@ func NewVirtualClusters(n int) []*VirtualCluster {
 }
 
 func NewCluster(namespace string, opts ...func(*v1beta1.Cluster)) *v1beta1.Cluster {
-	c := &v1beta1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "cluster-",
-			Namespace:    namespace,
-		},
-		Spec: v1beta1.ClusterSpec{
-			TLSSANs: []string{hostIP},
-			Expose: &v1beta1.ExposeConfig{
-				NodePort: &v1beta1.NodePortConfig{},
-			},
-			Persistence: v1beta1.PersistenceConfig{
-				Type: v1beta1.EphemeralPersistenceMode,
-			},
-		},
-	}
-
-	for _, optFn := range opts {
-		optFn(c)
-	}
-
-	return c
+	return fw.NewCluster(namespace, opts...)
 }
 
 func CreateCluster(cluster *v1beta1.Cluster) {
 	GinkgoHelper()
 
-	By(fmt.Sprintf("Creating new virtual cluster in namespace %s", cluster.Namespace))
-
-	ctx := context.Background()
-	err := k8sClient.Create(ctx, cluster)
-	Expect(err).To(Not(HaveOccurred()))
-
-	expectedServers := int(*cluster.Spec.Servers)
-	expectedAgents := int(*cluster.Spec.Agents)
-
-	By(fmt.Sprintf("Waiting for cluster %s to be ready in namespace %s. Expected servers: %d. Expected agents: %d", cluster.Name, cluster.Namespace, expectedServers, expectedAgents))
-
-	// track the Eventually status to log for changes
-	prev := -1
-
-	// check that the server Pod and the Kubelet are in Ready state
-	Eventually(func() bool {
-		podList, err := k8s.CoreV1().Pods(cluster.Namespace).List(ctx, metav1.ListOptions{})
-		Expect(err).To(Not(HaveOccurred()))
-
-		// all the servers and agents needs to be in a running phase
-		var serversReady, agentsReady int
-
-		for _, k3sPod := range podList.Items {
-			_, cond := pod.GetPodCondition(&k3sPod.Status, corev1.PodReady)
-
-			// pod not ready
-			if cond == nil || cond.Status != corev1.ConditionTrue {
-				continue
-			}
-
-			if k3sPod.Labels["role"] == "server" {
-				serversReady++
-			}
-
-			if k3sPod.Labels["type"] == "agent" {
-				agentsReady++
-			}
-		}
-
-		if prev != (serversReady + agentsReady) {
-			GinkgoLogr.Info("Waiting for pods to be Ready",
-				"servers", serversReady, "agents", agentsReady,
-				"name", cluster.Name, "namespace", cluster.Namespace,
-				"time", time.Now().Format(time.DateTime),
-			)
-			prev = (serversReady + agentsReady)
-		}
-
-		// the server pods should equal the expected servers, but since in shared mode we also have the kubelet is fine to have more than one
-		if (serversReady != expectedServers) || (agentsReady < expectedAgents) {
-			return false
-		}
-
-		return true
-	}).
-		WithTimeout(time.Minute * 5).
-		WithPolling(time.Second * 10).
-		Should(BeTrue())
-
-	By("Cluster is ready")
+	fw.CreateCluster(context.Background(), cluster)
 }
 
 // NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
 func NewVirtualK8sClient(cluster *v1beta1.Cluster) *kubernetes.Clientset {
-	virtualK8sClient, _ := NewVirtualK8sClientAndConfig(cluster)
+	GinkgoHelper()
+
+	virtualK8sClient, _, _ := fw.NewVirtualK8sClient(context.Background(), cluster)
+
 	return virtualK8sClient
 }
 
-// NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
+// NewVirtualK8sClientAndConfig returns a Kubernetes ClientSet for the virtual cluster, and its rest.Config
 func NewVirtualK8sClientAndConfig(cluster *v1beta1.Cluster) (*kubernetes.Clientset, *rest.Config) {
 	GinkgoHelper()
 
-	var (
-		err    error
-		config *clientcmdapi.Config
-	)
-
-	ctx := context.Background()
-
-	Eventually(func() error {
-		vKubeconfig := kubeconfig.New()
-		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
-		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
-		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP)
-
-		return err
-	}).
-		WithTimeout(time.Minute * 2).
-		WithPolling(time.Second * 5).
-		Should(BeNil())
-
-	configData, err := clientcmd.Write(*config)
-	Expect(err).To(Not(HaveOccurred()))
-
-	restcfg, err := clientcmd.RESTConfigFromKubeConfig(configData)
-	Expect(err).To(Not(HaveOccurred()))
-	virtualK8sClient, err := kubernetes.NewForConfig(restcfg)
-	Expect(err).To(Not(HaveOccurred()))
+	virtualK8sClient, restcfg, _ := fw.NewVirtualK8sClient(context.Background(), cluster)
 
 	return virtualK8sClient, restcfg
 }
 
-// NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
+// NewVirtualK8sClientAndKubeconfig returns a Kubernetes ClientSet for the virtual cluster, its rest.Config and its raw kubeconfig
 func NewVirtualK8sClientAndKubeconfig(cluster *v1beta1.Cluster) (*kubernetes.Clientset, *rest.Config, []byte) {
 	GinkgoHelper()
 
-	var (
-		err    error
-		config *clientcmdapi.Config
-	)
-
-	ctx := context.Background()
-
-	Eventually(func() error {
-		vKubeconfig := kubeconfig.New()
-		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
-		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
-		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP)
-
-		return err
-	}).
-		WithTimeout(time.Minute * 2).
-		WithPolling(time.Second * 5).
-		Should(BeNil())
-
-	configData, err := clientcmd.Write(*config)
-	Expect(err).To(Not(HaveOccurred()))
-
-	restcfg, err := clientcmd.RESTConfigFromKubeConfig(configData)
-	Expect(err).To(Not(HaveOccurred()))
-	virtualK8sClient, err := kubernetes.NewForConfig(restcfg)
-	Expect(err).To(Not(HaveOccurred()))
-
-	return virtualK8sClient, restcfg, configData
+	return fw.NewVirtualK8sClient(context.Background(), cluster)
 }
 
 func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {
@@ -390,21 +257,15 @@ func restartServerPod(ctx context.Context, virtualCluster *VirtualCluster) {
 }
 
 func listServerPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
-	labelSelector := "cluster=" + virtualCluster.Cluster.Name + ",role=server"
+	GinkgoHelper()
 
-	serverPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-	Expect(err).To(Not(HaveOccurred()))
-
-	return serverPods.Items
+	return fw.ListServerPods(ctx, virtualCluster.Cluster)
 }
 
 func listAgentPods(ctx context.Context, virtualCluster *VirtualCluster) []corev1.Pod {
-	labelSelector := fmt.Sprintf("cluster=%s,type=agent,mode=%s", virtualCluster.Cluster.Name, virtualCluster.Cluster.Spec.Mode)
+	GinkgoHelper()
 
-	agentPods, err := k8s.CoreV1().Pods(virtualCluster.Cluster.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-	Expect(err).To(Not(HaveOccurred()))
-
-	return agentPods.Items
+	return fw.ListAgentPods(ctx, virtualCluster.Cluster)
 }
 
 // getEnv will get an environment variable from a pod it will return empty string if not found

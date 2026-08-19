@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/controller/cluster"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -54,7 +53,7 @@ var _ = When("a shared mode cluster is created", Ordered, Label(syncTestsLabel),
 		Expect(err).To(Not(HaveOccurred()))
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
+			fw.DeleteNamespaces(virtualCluster.Cluster.Namespace)
 
 			err = k8s.StorageV1().StorageClasses().Delete(ctx, storageClassEnabled.Name, metav1.DeleteOptions{})
 			Expect(err).To(Not(HaveOccurred()))

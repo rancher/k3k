@@ -1,4 +1,9 @@
-package client
+// Package framework provides the shared helpers used by the k3k test suites:
+// the host cluster clients, and the operations built on top of them.
+//
+// Most helpers use Ginkgo/Gomega assertions, so they must only be called from
+// within a spec, after RegisterFailHandler has been called.
+package framework
 
 import (
 	"context"
@@ -13,23 +18,26 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-// Config holds the Kubernetes client configuration and clients.
-type Config struct {
+// Framework bundles the host cluster clients needed by the test helpers.
+// Every method acts on the host cluster, or on a virtual cluster created through it.
+type Framework struct {
+	HostIP     string
 	RestConfig *rest.Config
 	Clientset  *kubernetes.Clientset
-	Client     client.Client
-	HostIP     string
+	Client     ctrlruntimeclient.Client
 }
 
-// InitFromKubeconfig initializes Kubernetes clients from the KUBECONFIG environment variable.
-// It sets up logging, reads the kubeconfig file, creates REST config and clients.
-// The scheme parameter should be created using the scheme package.
-func InitFromKubeconfig(ctx context.Context, scheme *runtime.Scheme) (*Config, error) {
-	// Setup logger
+// New initializes the host cluster clients from the KUBECONFIG environment variable.
+// It also sets up the controller-runtime logger.
+func New(ctx context.Context) (*Framework, error) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger: %w", err)
@@ -37,54 +45,65 @@ func InitFromKubeconfig(ctx context.Context, scheme *runtime.Scheme) (*Config, e
 
 	log.SetLogger(zapr.NewLogger(logger))
 
-	// Get kubeconfig path from environment
 	kubeconfigPath := os.Getenv("KUBECONFIG")
 	if kubeconfigPath == "" {
 		return nil, fmt.Errorf("KUBECONFIG environment variable is not set")
 	}
 
-	// Read kubeconfig file
 	kubeconfig, err := os.ReadFile(kubeconfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read kubeconfig from %s: %w", kubeconfigPath, err)
 	}
 
-	return InitFromBytes(ctx, kubeconfig, scheme)
+	return newFromBytes(kubeconfig)
 }
 
-// InitFromBytes initializes Kubernetes clients from kubeconfig bytes.
-// The scheme parameter should be created using the scheme package.
-func InitFromBytes(ctx context.Context, kubeconfig []byte, scheme *runtime.Scheme) (*Config, error) {
-	// Create REST config from kubeconfig
+// newFromBytes initializes the host cluster clients from kubeconfig bytes.
+func newFromBytes(kubeconfig []byte) (*Framework, error) {
 	restConfig, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create REST config: %w", err)
 	}
 
-	// Extract host IP from REST config
 	hostIP, err := getServerIP(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get server IP: %w", err)
 	}
 
-	// Create Kubernetes clientset
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kubernetes clientset: %w", err)
 	}
 
-	// Create controller-runtime client
-	runtimeClient, err := client.New(restConfig, client.Options{Scheme: scheme})
+	runtimeClient, err := ctrlruntimeclient.New(restConfig, ctrlruntimeclient.Options{Scheme: NewScheme()})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create controller-runtime client: %w", err)
 	}
 
-	return &Config{
+	return &Framework{
 		RestConfig: restConfig,
 		Clientset:  clientset,
 		Client:     runtimeClient,
 		HostIP:     hostIP,
 	}, nil
+}
+
+// NewScheme creates a new Kubernetes runtime scheme with core APIs and k3k CRDs.
+// This is suitable for most k3k test scenarios including integration and E2E tests.
+func NewScheme() *runtime.Scheme {
+	scheme := runtime.NewScheme()
+
+	// Add core Kubernetes scheme (includes most common types)
+	if err := clientgoscheme.AddToScheme(scheme); err != nil {
+		panic(err)
+	}
+
+	// Add k3k CRDs
+	if err := v1beta1.AddToScheme(scheme); err != nil {
+		panic(err)
+	}
+
+	return scheme
 }
 
 // getServerIP extracts the server IP by parsing the hostname from the REST config host.

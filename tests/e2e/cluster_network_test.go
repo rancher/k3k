@@ -9,7 +9,6 @@ import (
 
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/policy"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -28,7 +27,7 @@ var _ = When("two virtual clusters are installed", Label(networkingTestsLabel), 
 	})
 
 	AfterEach(func() {
-		fwk3k.DeleteNamespaces(k8s, cluster1.Cluster.Namespace, cluster2.Cluster.Namespace)
+		fw.DeleteNamespaces(cluster1.Cluster.Namespace, cluster2.Cluster.Namespace)
 	})
 
 	It("can create pods in each of them that are isolated", func() {

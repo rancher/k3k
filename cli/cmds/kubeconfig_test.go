@@ -3,6 +3,8 @@ package cmds
 import (
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,6 +24,7 @@ func Test_generate_clusterKey(t *testing.T) {
 		flagName      string
 		args          []string
 		wantErr       string
+		wantWarn      string
 	}{
 		{
 			name:    "bare name argument defaults to k3k-<name>",
@@ -49,18 +52,21 @@ func Test_generate_clusterKey(t *testing.T) {
 			name:     "deprecated name flag is still supported",
 			flagName: "mycluster",
 			wantErr:  `cluster "mycluster" not found in namespace "k3k-mycluster"`,
+			wantWarn: "the --name flag is deprecated and will be removed in a future release, use the NAME argument instead",
 		},
 		{
 			name:          "deprecated name flag respects the namespace flag",
 			flagNamespace: "myns",
 			flagName:      "mycluster",
 			wantErr:       `cluster "mycluster" not found in namespace "myns"`,
+			wantWarn:      "the --name flag is deprecated and will be removed in a future release, use the NAME argument instead",
 		},
 		{
 			name:     "the argument wins over the deprecated name flag",
 			flagName: "ignored",
 			args:     []string{"myns/mycluster"},
 			wantErr:  `cluster "mycluster" not found in namespace "myns"`,
+			wantWarn: "the --name flag is deprecated and will be removed in a future release, ignoring it in favor of the 'myns/mycluster' argument",
 		},
 		{
 			name:    "no cluster name at all errors",
@@ -73,6 +79,9 @@ func Test_generate_clusterKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			logs := test.NewGlobal()
+			defer logs.Reset()
+
 			appCtx := &AppContext{
 				Client:    fake.NewClientBuilder().WithScheme(scheme).Build(),
 				namespace: tt.flagNamespace,
@@ -82,6 +91,21 @@ func Test_generate_clusterKey(t *testing.T) {
 			err := generate(appCtx, cfg)(&cobra.Command{}, tt.args)
 
 			assert.EqualError(t, err, tt.wantErr)
+
+			var warnings []string
+
+			for _, entry := range logs.AllEntries() {
+				if entry.Level == logrus.WarnLevel {
+					warnings = append(warnings, entry.Message)
+				}
+			}
+
+			if tt.wantWarn == "" {
+				assert.Empty(t, warnings)
+				return
+			}
+
+			assert.Equal(t, []string{tt.wantWarn}, warnings)
 		})
 	}
 }

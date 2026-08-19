@@ -70,7 +70,7 @@ func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
 func generateKubeconfigFlags(cmd *cobra.Command, cfg *GenerateKubeconfigConfig) {
 	cmd.Flags().StringVar(&cfg.name, "name", "", "cluster name")
 
-	if err := cmd.Flags().MarkDeprecated("name", "use the NAME argument instead"); err != nil {
+	if err := cmd.Flags().MarkDeprecated("name", "it will be removed in a future release, use the NAME argument instead"); err != nil {
 		logrus.Fatal(err)
 	}
 
@@ -89,18 +89,21 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 
 		name, namespace := cfg.name, appCtx.Namespace(cfg.name)
 
-		if len(args) == 1 {
+		switch {
+		case len(args) == 1:
 			if cfg.name != "" {
-				logrus.Warnf("ignoring the deprecated --name flag '%s' in favor of the '%s' argument", cfg.name, args[0])
+				logrus.Warnf("the --name flag is deprecated and will be removed in a future release, ignoring it in favor of the '%s' argument", args[0])
 			}
 
 			var err error
 			if namespace, name, err = resolveClusterArg(appCtx, args[0]); err != nil {
 				return err
 			}
-		}
 
-		if name == "" {
+		case name != "":
+			logrus.Warn("the --name flag is deprecated and will be removed in a future release, use the NAME argument instead")
+
+		default:
 			return errors.New("expected exactly one cluster name")
 		}
 

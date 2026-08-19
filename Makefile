@@ -143,12 +143,17 @@ endif
 lint-yaml:	## Lint the GitHub Actions YAML files
 	$(YAMLLINT) .github/
 
+.PHONY: check-gomod
+check-gomod:	## Check that the root and pkg/apis go.mod agree on common dependency versions
+	go run scripts/gomodcheck.go go.mod pkg/apis/go.mod
+
 .PHONY: validate
 validate: generate docs fmt ## Validate the project checking for any dependency or doc mismatch
 	$(GINKGO) unfocus
 	go mod tidy
 	go mod verify
-	git status --porcelain 
+	$(MAKE) check-gomod
+	git status --porcelain
 	git --no-pager diff --exit-code
 
 .PHONY: install

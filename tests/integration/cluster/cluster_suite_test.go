@@ -18,7 +18,7 @@ import (
 
 	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
-	fwclient "github.com/rancher/k3k/tests/framework/client"
+	"github.com/rancher/k3k/tests/framework"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -54,7 +54,7 @@ var _ = BeforeSuite(func() {
 	k8s, err = kubernetes.NewForConfig(cfg)
 	Expect(err).NotTo(HaveOccurred())
 
-	scheme := fwclient.NewScheme()
+	scheme := framework.NewScheme()
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 

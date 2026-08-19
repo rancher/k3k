@@ -1,11 +1,9 @@
 package cli_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -18,30 +16,18 @@ import (
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/policy"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
+	"github.com/rancher/k3k/tests/framework"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 func K3kcli(args ...string) (string, string, error) {
-	return runCmd("k3kcli", args...)
+	return framework.RunCmd("k3kcli", args...)
 }
 
 func Kubectl(args ...string) (string, string, error) {
-	return runCmd("kubectl", args...)
-}
-
-func runCmd(cmdName string, args ...string) (string, string, error) {
-	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-
-	cmd := exec.CommandContext(context.Background(), cmdName, args...)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-
-	err := cmd.Run()
-
-	return stdout.String(), stderr.String(), err
+	return framework.RunCmd("kubectl", args...)
 }
 
 func checkCluster(path string) {
@@ -81,11 +67,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, namespace.Name)
+				fw.DeleteNamespaces(namespace.Name)
 			})
 
 			By("Creating the cluster")
@@ -139,11 +125,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+				fw.DeleteNamespaces(clusterNamespace)
 			})
 
 			By("Creating the cluster")
@@ -160,11 +146,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+				fw.DeleteNamespaces(clusterNamespace)
 			})
 
 			_, stderr, err = K3kcli("cluster", "create",
@@ -240,11 +226,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				err    error
 			)
 
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			namespaceName := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, namespaceName)
+				fw.DeleteNamespaces(namespaceName)
 			})
 
 			By("Creating a policy and binding to a namespace")
@@ -310,11 +296,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+				fw.DeleteNamespaces(clusterNamespace)
 			})
 
 			By("Creating the cluster")
@@ -347,11 +333,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+				fw.DeleteNamespaces(clusterNamespace)
 			})
 
 			By("Creating the cluster")
@@ -383,11 +369,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+				fw.DeleteNamespaces(clusterNamespace)
 			})
 
 			By("Creating the cluster")
@@ -431,11 +417,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+				fw.DeleteNamespaces(clusterNamespace)
 			})
 
 			By("Creating the cluster")
@@ -468,11 +454,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+				fw.DeleteNamespaces(clusterNamespace)
 			})
 
 			By("Creating the cluster")
@@ -507,11 +493,11 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 			)
 
 			clusterName := "cluster-" + rand.String(5)
-			namespace := fwk3k.CreateNamespace(k8s)
+			namespace := fw.CreateNamespace()
 			clusterNamespace := namespace.Name
 
 			DeferCleanup(func() {
-				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+				fw.DeleteNamespaces(clusterNamespace)
 			})
 
 			cwd, err := os.Getwd()

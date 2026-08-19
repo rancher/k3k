@@ -1,4 +1,4 @@
-package k3k
+package framework
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"os"
 	"sync"
 
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -17,9 +16,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// CreateNamespace creates a new namespace with a generated name and the "e2e: true" label.
-// The namespace is created using the provided Kubernetes clientset.
-func CreateNamespace(clientset kubernetes.Interface) *corev1.Namespace {
+// CreateNamespace creates a new namespace on the host cluster, with a generated
+// name and the "e2e: true" label.
+func (f *Framework) CreateNamespace() *corev1.Namespace {
 	GinkgoHelper()
 
 	namespace := &corev1.Namespace{
@@ -31,7 +30,7 @@ func CreateNamespace(clientset kubernetes.Interface) *corev1.Namespace {
 		},
 	}
 
-	namespace, err := clientset.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
+	namespace, err := f.Clientset.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
 	Expect(err).To(Not(HaveOccurred()))
 
 	return namespace
@@ -40,7 +39,7 @@ func CreateNamespace(clientset kubernetes.Interface) *corev1.Namespace {
 // DeleteNamespaces deletes the specified namespaces in parallel.
 // If the KEEP_NAMESPACES environment variable is set, namespaces are preserved instead.
 // This is useful for debugging test failures.
-func DeleteNamespaces(clientset kubernetes.Interface, names ...string) {
+func (f *Framework) DeleteNamespaces(names ...string) {
 	GinkgoHelper()
 
 	if _, found := os.LookupEnv("KEEP_NAMESPACES"); found {
@@ -58,7 +57,7 @@ func DeleteNamespaces(clientset kubernetes.Interface, names ...string) {
 
 			By(fmt.Sprintf("Deleting namespace %s", name))
 
-			err := clientset.CoreV1().Namespaces().Delete(context.Background(), name, metav1.DeleteOptions{
+			err := f.Clientset.CoreV1().Namespaces().Delete(context.Background(), name, metav1.DeleteOptions{
 				GracePeriodSeconds: ptr.To[int64](0),
 			})
 			Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))

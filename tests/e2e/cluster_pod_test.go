@@ -16,7 +16,6 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/controller"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -33,7 +32,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 		translator = translate.NewHostTranslator(virtualCluster.Cluster)
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
+			fw.DeleteNamespaces(virtualCluster.Cluster.Namespace)
 		})
 	})
 

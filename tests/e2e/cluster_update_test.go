@@ -13,7 +13,6 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
-	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -25,10 +24,10 @@ var _ = When("a shared mode cluster update its envs", Label(updateTestsLabel), L
 	ctx := context.Background()
 
 	BeforeEach(func() {
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -181,10 +180,10 @@ var _ = When("a shared mode cluster update its server args", Label(updateTestsLa
 	ctx := context.Background()
 
 	BeforeEach(func() {
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -247,10 +246,10 @@ var _ = When("a virtual mode cluster update its envs", Label(updateTestsLabel), 
 	ctx := context.Background()
 
 	BeforeEach(func() {
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -400,10 +399,10 @@ var _ = When("a virtual mode cluster update its server args", Label(updateTestsL
 	ctx := context.Background()
 
 	BeforeEach(func() {
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -471,10 +470,10 @@ var _ = When("a shared mode cluster update its version", Label(updateTestsLabel)
 
 	BeforeEach(func() {
 		ctx := context.Background()
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -505,7 +504,7 @@ var _ = When("a shared mode cluster update its version", Label(updateTestsLabel)
 		nginxPod, _ = virtualCluster.NewNginxPod("")
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
+			fw.DeleteNamespaces(virtualCluster.Cluster.Namespace)
 		})
 	})
 
@@ -560,10 +559,10 @@ var _ = When("a virtual mode cluster update its version", Label(updateTestsLabel
 
 	BeforeEach(func() {
 		ctx := context.Background()
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -664,10 +663,10 @@ var _ = When("a shared mode cluster scales up servers", Label(updateTestsLabel),
 
 	BeforeEach(func() {
 		ctx := context.Background()
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -752,10 +751,10 @@ var _ = When("a shared mode cluster scales down servers", Label(updateTestsLabel
 
 	BeforeEach(func() {
 		ctx := context.Background()
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -842,10 +841,10 @@ var _ = When("a virtual mode cluster scales up servers", Label(updateTestsLabel)
 
 	BeforeEach(func() {
 		ctx := context.Background()
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -930,10 +929,10 @@ var _ = When("a virtual mode cluster scales down servers", Label(updateTestsLabe
 
 	BeforeEach(func() {
 		ctx := context.Background()
-		namespace := fwk3k.CreateNamespace(k8s)
+		namespace := fw.CreateNamespace()
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, namespace.Name)
+			fw.DeleteNamespaces(namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)

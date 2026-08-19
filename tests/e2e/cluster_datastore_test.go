@@ -38,7 +38,7 @@ var _ = When("creating a shared mode cluster with postgres datastore via server 
 
 		cluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
 			c.Spec.ServerArgs = []string{
-				fmt.Sprintf("--datastore-endpoint=%s", dsn.String()),
+				fmt.Sprintf("--datastore-endpoint=%q", dsn.String()),
 				"--cluster-init=false",
 			}
 		})
@@ -112,7 +112,7 @@ var _ = When("creating a shared mode cluster with postgres datastore via drop-in
 				Namespace: namespace.Name,
 			},
 			Data: map[string][]byte{
-				"config.yaml": []byte(fmt.Sprintf("datastore-endpoint: %s\ncluster-init: false\n", dsn.String())),
+				"config.yaml": []byte(fmt.Sprintf("datastore-endpoint: %q\ncluster-init: false\n", dsn.String())),
 			},
 		}
 
@@ -193,7 +193,7 @@ var _ = When("creating a virtual mode cluster with postgres datastore via server
 
 		cluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
 			c.Spec.ServerArgs = []string{
-				fmt.Sprintf("--datastore-endpoint=%s", dsn.String()),
+				fmt.Sprintf("--datastore-endpoint=%q", dsn.String()),
 				"--cluster-init=false",
 			}
 		})
@@ -267,7 +267,7 @@ var _ = When("creating a virtual mode cluster with postgres datastore via drop-i
 				Namespace: namespace.Name,
 			},
 			Data: map[string][]byte{
-				"config.yaml": []byte(fmt.Sprintf("datastore-endpoint: %s\ncluster-init: false\n", dsn.String())),
+				"config.yaml": []byte(fmt.Sprintf("datastore-endpoint: %q\ncluster-init: false\n", dsn.String())),
 			},
 		}
 

@@ -11,3 +11,4 @@ __debug*
 cover.out
 covcounters.**
 covmeta.**
+.tool-versions

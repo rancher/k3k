@@ -144,7 +144,7 @@ EOF
 and use the `k3kcli` to retrieve the kubeconfig:
 
 ```bash
-k3kcli kubeconfig generate --namespace k3k-mycluster --name mycluster 
+k3kcli kubeconfig generate mycluster
 ```
 
 

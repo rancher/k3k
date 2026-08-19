@@ -1,6 +1,8 @@
 package cmds
 
 import (
+	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -49,11 +51,14 @@ func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
 	cfg := &GenerateKubeconfigConfig{}
 
 	cmd := &cobra.Command{
-		Use:   "generate",
-		Short: "Generate kubeconfig for clusters.",
-		RunE:  generate(appCtx, cfg),
-		Args:  cobra.NoArgs,
+		Use:     "generate",
+		Short:   "Generate kubeconfig for clusters.",
+		Example: "k3kcli kubeconfig generate [command options] NAME",
+		RunE:    generate(appCtx, cfg),
+		Args:    cobra.MaximumNArgs(1),
 	}
+
+	cmd.ValidArgsFunction = completeClusterNames
 
 	CobraFlagNamespace(appCtx, cmd, completeClusterNamespaces)
 
@@ -64,6 +69,11 @@ func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
 
 func generateKubeconfigFlags(cmd *cobra.Command, cfg *GenerateKubeconfigConfig) {
 	cmd.Flags().StringVar(&cfg.name, "name", "", "cluster name")
+
+	if err := cmd.Flags().MarkDeprecated("name", "it will be removed in a future release, use the NAME argument instead"); err != nil {
+		logrus.Fatal(err)
+	}
+
 	cmd.Flags().StringVar(&cfg.configName, "config-name", "", "the name of the generated kubeconfig file")
 	cmd.Flags().StringVar(&cfg.cn, "cn", controller.AdminCommonName, "Common name (CN) of the generated certificates for the kubeconfig")
 	cmd.Flags().StringSliceVar(&cfg.org, "org", nil, "Organization name (ORG) of the generated certificates for the kubeconfig")
@@ -77,14 +87,38 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 		ctx := cmd.Context()
 		client := appCtx.Client
 
+		name, namespace := cfg.name, appCtx.Namespace(cfg.name)
+
+		switch {
+		case len(args) == 1:
+			if cfg.name != "" {
+				logrus.Warnf("the --name flag is deprecated and will be removed in a future release, ignoring it in favor of the '%s' argument", args[0])
+			}
+
+			var err error
+			if namespace, name, err = resolveClusterArg(appCtx, args[0]); err != nil {
+				return err
+			}
+
+		case name != "":
+			logrus.Warn("the --name flag is deprecated and will be removed in a future release, use the NAME argument instead")
+
+		default:
+			return errors.New("expected exactly one cluster name")
+		}
+
 		clusterKey := types.NamespacedName{
-			Name:      cfg.name,
-			Namespace: appCtx.Namespace(cfg.name),
+			Name:      name,
+			Namespace: namespace,
 		}
 
 		var cluster v1beta1.Cluster
 
 		if err := client.Get(ctx, clusterKey, &cluster); err != nil {
+			if apierrors.IsNotFound(err) {
+				return fmt.Errorf("cluster %q not found in namespace %q", name, namespace)
+			}
+
 			return err
 		}
 

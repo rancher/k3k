@@ -294,8 +294,8 @@ Once the virtual cluster is running, you can connect to it using the CLI:
 ### CLI Method
 
 ```sh
-k3kcli kubeconfig generate --namespace k3k-mycluster --name mycluster 
-export KUBECONFIG=$PWD/mycluster-kubeconfig.yaml
+k3kcli kubeconfig generate mycluster
+export KUBECONFIG=$PWD/k3k-mycluster-mycluster-kubeconfig.yaml
 kubectl get nodes
 ```
 

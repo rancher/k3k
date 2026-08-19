@@ -177,7 +177,7 @@ kubectl get po -n k3k-mycluster
 Last thing to do is to get the kubeconfig to connect to the virtual cluster we've just created:
 
 ```bash
-k3kcli kubeconfig generate --name mycluster --namespace k3k-mycluster --kubeconfig-server localhost:30001
+k3kcli kubeconfig generate mycluster --kubeconfig-server localhost:30001
 ```
 
 

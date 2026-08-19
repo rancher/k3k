@@ -37,7 +37,7 @@ jobs:
         - name: sync
           label-filter: "pod || app || sync || policy || status"
         - name: features
-          label-filter: "networking || certificates || registry || addons"
+          label-filter: "networking || certificates || registry || addons || datastore"
 
     name: tests-e2e (${{ matrix.name }})
 

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	fwclient "github.com/rancher/k3k/tests/framework/client"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -64,12 +66,19 @@ const (
 	certificatesTestsLabel = "certificates"
 	registryTestsLabel     = "registry"
 	addonsTestsLabel       = "addons"
+	datastoreTestsLabel    = "datastore"
 
 	registryImage               = "registry:2"
 	registryCACertSecretName    = "private-registry-ca-cert"
 	registryCertSecretName      = "private-registry-cert"
 	registryConfigSecretName    = "private-registry-config"
 	k3sRegistryConfigSecretName = "k3s-registry-config"
+
+	postgresImage    = "postgres:17-alpine"
+	postgresUser     = "postgres"
+	postgresPassword = "passw0rd"
+	postgresDatabase = "k3k"
+	postgresPort     = 5432
 )
 
 func TestTests(t *testing.T) {
@@ -358,6 +367,30 @@ func podExec(ctx context.Context, clientset *kubernetes.Clientset, config *rest.
 	return stderr.Bytes(), nil
 }
 
+func queryPostgres(ctx context.Context, namespace, query string) (string, error) {
+	podList, err := k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app=postgres-k3k",
+	})
+	if err != nil {
+		return "", err
+	}
+
+	if len(podList.Items) != 1 {
+		return "", fmt.Errorf("expected 1 postgres pod in namespace %s, found %d", namespace, len(podList.Items))
+	}
+
+	command := []string{"psql", "-U", postgresUser, "-d", postgresDatabase, "-tAc", query}
+
+	var stdout bytes.Buffer
+
+	stderr, err := podExec(ctx, k8s, restcfg, namespace, podList.Items[0].Name, command, nil, &stdout)
+	if err != nil {
+		return "", fmt.Errorf("error running query %q: %v: %s", query, err, stderr)
+	}
+
+	return strings.TrimSpace(stdout.String()), nil
+}
+
 func caCertSecret(name, namespace string, crt, key []byte) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -597,4 +630,85 @@ func buildRegistryConfigSecret(tlsMap map[string]string, namespace, name string,
 	}
 
 	return secret, nil
+}
+
+func deployPostgresInCluster(cluster *v1beta1.Cluster) {
+	ctx := context.Background()
+
+	labels := map[string]string{"app": "postgres-k3k"}
+
+	dep := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "postgres-k3k", Namespace: cluster.Namespace},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: new(int32(1)),
+			Selector: &metav1.LabelSelector{MatchLabels: labels},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "postgres",
+						Image: postgresImage,
+						Env: []corev1.EnvVar{
+							{Name: "POSTGRES_USER", Value: postgresUser},
+							{Name: "POSTGRES_PASSWORD", Value: postgresPassword},
+							{Name: "POSTGRES_DB", Value: postgresDatabase},
+						},
+						ReadinessProbe: &corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								Exec: &corev1.ExecAction{
+									Command: []string{"pg_isready", "-U", postgresUser, "-d", postgresDatabase},
+								},
+							},
+							PeriodSeconds: 2,
+						},
+					}},
+				},
+			},
+		},
+	}
+	err := k8sClient.Create(ctx, dep)
+	Expect(err).To(Not(HaveOccurred()))
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "postgres-k3k", Namespace: cluster.Namespace},
+		Spec: corev1.ServiceSpec{
+			Selector: labels,
+			Ports:    []corev1.ServicePort{{Port: postgresPort, TargetPort: intstr.FromInt(postgresPort)}},
+		},
+	}
+
+	err = k8sClient.Create(ctx, svc)
+	Expect(err).To(Not(HaveOccurred()))
+
+	Eventually(func() bool {
+		podList, err := k8s.CoreV1().Pods(cluster.Namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: "app=postgres-k3k",
+		})
+		Expect(err).To(Not(HaveOccurred()))
+
+		if len(podList.Items) != 1 {
+			return false
+		}
+
+		postgresPod := podList.Items[0]
+
+		_, cond := pod.GetPodCondition(&postgresPod.Status, corev1.PodReady)
+
+		// pod not ready
+		if cond == nil || cond.Status != corev1.ConditionTrue {
+			GinkgoLogr.Info("Waiting for postgres pod to be Ready",
+				"name", postgresPod.Name, "namespace", postgresPod.Namespace,
+				"time", time.Now().Format(time.DateTime),
+			)
+
+			return false
+		}
+
+		return true
+	}).
+		WithTimeout(time.Minute * 5).
+		WithPolling(time.Second * 10).
+		Should(BeTrue())
+
+	By("Postgres is ready")
 }

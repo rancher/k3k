@@ -194,6 +194,12 @@ Generate kubeconfig for clusters.
 k3kcli kubeconfig generate [flags]
 ----
 
+=== Examples
+
+----
+k3kcli kubeconfig generate [command options] NAME
+----
+
 === Options
 
 ----
@@ -203,7 +209,6 @@ k3kcli kubeconfig generate [flags]
       --expiration-days int        Expiration date of the certificates used for the kubeconfig (default 365)
   -h, --help                       help for generate
       --kubeconfig-server string   override the kubeconfig server host
-      --name string                cluster name
   -n, --namespace string           namespace of the k3k cluster
       --org strings                Organization name (ORG) of the generated certificates for the kubeconfig
 ----

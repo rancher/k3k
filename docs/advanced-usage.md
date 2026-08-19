@@ -151,7 +151,7 @@ Add `my-cluster.example.com` to `spec.tlsSANs` so the API server certificate cov
 the kubeconfig with the matching endpoint:
 
 ```bash
-k3kcli kubeconfig generate --namespace my-namespace --name my-virtual-cluster \
+k3kcli kubeconfig generate my-namespace/my-virtual-cluster \
   --kubeconfig-server https://my-cluster.example.com
 ```
 

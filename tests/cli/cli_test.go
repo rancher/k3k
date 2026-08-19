@@ -535,7 +535,7 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 
 			By("Generating the kubeconfig")
 
-			_, stderr, err = K3kcli("kubeconfig", "generate", "--namespace", clusterNamespace, "--name", clusterName)
+			_, stderr, err = K3kcli("kubeconfig", "generate", clusterNamespace+"/"+clusterName)
 			Expect(err).To(Not(HaveOccurred()), string(stderr))
 			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 

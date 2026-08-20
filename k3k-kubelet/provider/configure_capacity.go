@@ -73,6 +73,15 @@ func startNodeCapacityUpdater(ctx context.Context, logger logr.Logger, hostClien
 // updateNodeCapacity will update the virtual node capacity (and the allocatable field) with the sum of all the resource in the host nodes.
 // If the nodeLabels are specified only the matching nodes will be considered.
 func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient client.Client, virtualClient client.Client, virtualCluster v1beta1.Cluster, virtualNodeName string) {
+	var currentCluster v1beta1.Cluster
+	if err := hostClient.Get(ctx, types.NamespacedName{
+		Name:      virtualCluster.Name,
+		Namespace: virtualCluster.Namespace,
+	}, &currentCluster); err != nil {
+		logger.Error(err, "error getting cluster for updating node status")
+		return
+	}
+
 	// by default we get the resources of the same Node where the kubelet is running
 	var node corev1.Node
 	if err := hostClient.Get(ctx, types.NamespacedName{Name: virtualNodeName}, &node); err != nil {
@@ -86,7 +95,7 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 	// If so we will use the minimum resources
 
 	var quotas corev1.ResourceQuotaList
-	if err := hostClient.List(ctx, &quotas, &client.ListOptions{Namespace: virtualCluster.Namespace}); err != nil {
+	if err := hostClient.List(ctx, &quotas, &client.ListOptions{Namespace: currentCluster.Namespace}); err != nil {
 		logger.Error(err, "error getting namespace for updating node capacity")
 		return
 	}
@@ -140,6 +149,11 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 
 	virtualNode.Status.Capacity = allocatable
 	virtualNode.Status.Allocatable = allocatable
+	if currentCluster.Spec.Version != "" {
+		virtualNode.Status.NodeInfo.KubeletVersion = currentCluster.Spec.Version
+	} else if currentCluster.Status.HostVersion != "" {
+		virtualNode.Status.NodeInfo.KubeletVersion = currentCluster.Status.HostVersion
+	}
 
 	if err := virtualClient.Status().Update(ctx, &virtualNode); err != nil {
 		logger.Error(err, "error updating node capacity")

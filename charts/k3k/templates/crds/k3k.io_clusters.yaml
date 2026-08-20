@@ -1251,6 +1251,11 @@ spec:
                           If 0 or negative, the port will not be exposed.
                         format: int32
                         type: integer
+                      loadBalancerClass:
+                        description: |-
+                          LoadBalancerClass specifies the load balancer implementation to use.
+                          If not specified, the cluster's default load balancer implementation is used.
+                        type: string
                       serverPort:
                         description: |-
                           ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.

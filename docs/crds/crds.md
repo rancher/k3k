@@ -338,6 +338,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
+| `loadBalancerClass` _string_ | LoadBalancerClass specifies the load balancer implementation to use.<br />If not specified, the cluster's default load balancer implementation is used. |  |  |
 | `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />If not specified, the default https 443 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
 | `etcdPort` _integer_ | ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
 

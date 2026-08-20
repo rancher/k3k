@@ -20,6 +20,10 @@ const (
 	// AgentNameLabel is the key for the label that contains the name of the k3k-kubelet agent
 	// (the host node it runs on) that synced this resource
 	AgentNameLabel = MetadataPrefix + "agentName"
+	// NamespaceNameLabel is the key for the label that contains the original namespace of this
+	// resource in the virtual cluster. It carries the same value as ResourceNamespaceAnnotation,
+	// but as a label so that label selectors (e.g. of a synced PodDisruptionBudget) can match on it.
+	NamespaceNameLabel = MetadataPrefix + "namespaceName"
 	// ResourceNameAnnotation is the key for the annotation that contains the original name of this
 	// resource in the virtual cluster
 	ResourceNameAnnotation = MetadataPrefix + "name"

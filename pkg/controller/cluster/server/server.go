@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
@@ -383,8 +384,9 @@ func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error
 
 	selector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			"cluster": s.cluster.Name,
-			"role":    "server",
+			"cluster":                  s.cluster.Name,
+			translate.ClusterNameLabel: s.cluster.Name,
+			"role":                     "server",
 		},
 	}
 

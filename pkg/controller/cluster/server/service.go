@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 )
@@ -28,8 +29,9 @@ func Service(cluster *v1beta1.Cluster) *corev1.Service {
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{
-				"cluster": cluster.Name,
-				"role":    "server",
+				"cluster":                  cluster.Name,
+				translate.ClusterNameLabel: cluster.Name,
+				"role":                     "server",
 			},
 		},
 	}
@@ -147,8 +149,9 @@ func (s *Server) StatefulServerService() *corev1.Service {
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: corev1.ClusterIPNone,
 			Selector: map[string]string{
-				"cluster": s.cluster.Name,
-				"role":    "server",
+				"cluster":                  s.cluster.Name,
+				translate.ClusterNameLabel: s.cluster.Name,
+				"role":                     "server",
 			},
 			Ports: []corev1.ServicePort{
 				{

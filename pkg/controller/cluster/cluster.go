@@ -1002,6 +1002,8 @@ func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy *v1beta1.V
 		if err := c.validateCustomCACerts(cluster.Spec.CustomCAs.Sources); err != nil {
 			return fmt.Errorf("%w: %w", ErrClusterValidation, err)
 		}
+	if cluster.Spec.Persistence.StorageRequestSize != nil && cluster.Spec.Persistence.StorageRequestSize.Sign() <= 0 {
+		return fmt.Errorf("%w: storageRequestSize must be greater than zero", ErrClusterValidation)
 	}
 
 	// The Ingress hosts are taken from the tlsSANs, and the IP addresses are not valid.

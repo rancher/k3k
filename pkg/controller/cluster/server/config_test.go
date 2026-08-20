@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	"github.com/rancher/k3k/pkg/controller"
 )
 
 const (
@@ -28,6 +29,15 @@ var defaultTLSSANs = []string{
 	testServiceIP,
 	ServiceName(testClusterName),
 	fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace),
+}
+
+func TestServerLabels(t *testing.T) {
+	assert.Equal(t, map[string]string{
+		"cluster":                   "test-cluster",
+		"role":                      "server",
+		"mode":                      "virtual",
+		controller.ClusterNameLabel: "test-cluster",
+	}, serverLabels("test-cluster", "virtual"))
 }
 
 func Test_buildServerConfig(t *testing.T) {

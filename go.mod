@@ -1,6 +1,6 @@
 module github.com/rancher/k3k
 
-go 1.26
+go 1.26.6
 
 require (
 	github.com/blang/semver/v4 v4.0.0

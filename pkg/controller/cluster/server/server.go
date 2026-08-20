@@ -34,7 +34,7 @@ const (
 	k3sCNIDir        = "/var/lib/cni"
 	k3sKubeletDir    = "/var/lib/kubelet"
 	k3sDataDir       = "/var/lib/rancher/k3s"
-	k3sETCDDataDir   = "/var/lib/rancher/k3s/server/db/etcd"
+	k3sEtcdDataDir   = "/var/lib/rancher/k3s/server/db/etcd"
 	k3sManifestDir   = "/var/lib/rancher/k3s/server/manifests"
 	k3sTLSDir        = "/var/lib/rancher/k3s/server/tls"
 	k3sLogDir        = "/var/log"
@@ -409,7 +409,7 @@ func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
-			ServiceName: headlessServiceName(s.cluster.Name),
+			ServiceName: HeadlessServiceName(s.cluster.Name),
 			Selector:    &selector,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -463,13 +463,13 @@ func (s *Server) setupStartCommand() (string, error) {
 		runtimeClass = *s.cluster.Spec.RuntimeClassName
 	}
 
-	tmplCmd, err := template.New("").Parse(tmpl)
+	tmplCmd, err := template.New("").Option("missingkey=error").Parse(tmpl)
 	if err != nil {
 		return "", err
 	}
 
 	if err := tmplCmd.Execute(&output, map[string]string{
-		"ETCD_DIR":      k3sETCDDataDir,
+		"ETCD_DIR":      k3sEtcdDataDir,
 		"INIT_CONFIG":   filepath.Join(k3sInitConfigDir, "config.yaml"),
 		"SERVER_CONFIG": filepath.Join(k3sConfigDir, "config.yaml"),
 		"CLUSTER_MODE":  mode,
@@ -493,8 +493,8 @@ func (s *Server) buildCABundleVolumes(ctx context.Context) ([]corev1.Volume, []c
 		"server-ca":         customCerts.ServerCA.SecretName,
 		"client-ca":         customCerts.ClientCA.SecretName,
 		"request-header-ca": customCerts.RequestHeaderCA.SecretName,
-		"etcd-peer-ca":      customCerts.ETCDPeerCA.SecretName,
-		"etcd-server-ca":    customCerts.ETCDServerCA.SecretName,
+		"etcd-peer-ca":      customCerts.EtcdPeerCA.SecretName,
+		"etcd-server-ca":    customCerts.EtcdServerCA.SecretName,
 		"service":           customCerts.ServiceAccountToken.SecretName,
 	}
 

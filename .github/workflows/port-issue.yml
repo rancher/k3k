@@ -1,0 +1,120 @@
+name: Port issue
+run-name: "Port issue ${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
+
+on:
+  issue_comment:
+    types:
+      - created
+
+# PORT_ISSUE_TOKEN must be configured as a repository secret.
+# It requires a personal access token with read:org and repo scopes
+# so that org membership can be checked and issues can be created.
+
+permissions: {}
+
+jobs:
+  port-issue:
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.comment.body, '/backport') || startsWith(github.event.comment.body, '/forwardport')
+    steps:
+      - name: Check org membership
+        id: membership
+        env:
+          GITHUB_TOKEN: ${{ secrets.PORT_ISSUE_TOKEN }}
+        run: |
+          set -o pipefail
+          response="$(gh api -i "orgs/${GITHUB_REPOSITORY_OWNER}/members/${GITHUB_ACTOR}" 2>&1)" || status=$?
+
+          if [ -n "${status:-}" ]; then
+              echo "Failed to check whether ${GITHUB_ACTOR} is a member of ${GITHUB_REPOSITORY_OWNER}" >> "$GITHUB_STEP_SUMMARY"
+              echo "$response" >> "$GITHUB_STEP_SUMMARY"
+              exit "$status"
+          fi
+
+          http_status="$(printf '%s\n' "$response" | awk 'toupper($1) ~ /^HTTP\/[0-9.]+$/ {code=$2} END {print code}')"
+
+          if [ "$http_status" = "204" ]; then
+              echo "${GITHUB_ACTOR} is a member"
+              echo "is_member=true" >> "$GITHUB_OUTPUT"
+          elif [ "$http_status" = "404" ]; then
+              echo "${GITHUB_ACTOR} is not a member of ${GITHUB_REPOSITORY_OWNER}" >> "$GITHUB_STEP_SUMMARY"
+              echo "is_member=false" >> "$GITHUB_OUTPUT"
+          else
+              echo "Unexpected response while checking whether ${GITHUB_ACTOR} is a member of ${GITHUB_REPOSITORY_OWNER} (HTTP ${http_status:-unknown})" >> "$GITHUB_STEP_SUMMARY"
+              echo "$response" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+          fi
+      - name: Check milestone
+        if: steps.membership.outputs.is_member == 'true'
+        id: milestone
+        env:
+          GITHUB_TOKEN: ${{ secrets.PORT_ISSUE_TOKEN }}
+          ORIGINAL_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          BODY_MILESTONE=$(echo "${COMMENT_BODY}" | awk '{ print $2 }')
+          # Sanitize input
+          MILESTONE=${BODY_MILESTONE//[^a-zA-Z0-9\-\.]/}
+          if gh api repos/${GITHUB_REPOSITORY}/milestones --paginate | jq -e --arg MILESTONE "$MILESTONE" '.[] | select(.title == $MILESTONE)' > /dev/null; then
+              echo "Milestone exists"
+              echo "milestone_exists=true" >> $GITHUB_OUTPUT
+          else
+              echo "Milestone ${MILESTONE} does not exist" >> $GITHUB_STEP_SUMMARY
+              gh issue comment -R ${GITHUB_REPOSITORY} ${ORIGINAL_ISSUE_NUMBER} --body "Not creating port issue, milestone ${MILESTONE} does not exist or is not an open milestone"
+              echo "milestone_exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Port issue
+        if: |
+          steps.membership.outputs.is_member == 'true' &&
+          steps.milestone.outputs.milestone_exists == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PORT_ISSUE_TOKEN }}
+          ORIGINAL_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          declare -a additional_cmd
+          BODY=$(mktemp)
+          ORIGINAL_ISSUE=$(gh issue view -R ${GITHUB_REPOSITORY} ${ORIGINAL_ISSUE_NUMBER} --json title,body,assignees)
+          ORIGINAL_TITLE=$(echo "${ORIGINAL_ISSUE}" | jq -r .title)
+          TYPE=$(echo "${COMMENT_BODY}" | awk '{ print $1 }' | sed -e 's_/__')
+          MILESTONE=$(echo "${COMMENT_BODY}" | awk '{ print $2 }')
+          # Title format: [<milestone>] <original_title>
+          NEW_TITLE="[${MILESTONE}] ${ORIGINAL_TITLE}"
+          ORIGINAL_LABELS=$(gh issue view -R ${GITHUB_REPOSITORY} ${ORIGINAL_ISSUE_NUMBER} --json labels --jq '.labels[].name' | grep -v '^\[zube\]:' | paste -sd "," -)
+          if [ -n "$ORIGINAL_LABELS" ]; then
+              additional_cmd+=("--label")
+              additional_cmd+=("${ORIGINAL_LABELS}")
+          fi
+          ASSIGNEES=$(echo "${ORIGINAL_ISSUE}" | jq -r .assignees[].login)
+          if [ -n "$ASSIGNEES" ]; then
+              echo "Checking if assignee is member before assigning"
+              # Fetch organization members once to reduce API calls
+              ORG_MEMBERS=$(gh api orgs/${GITHUB_REPOSITORY_OWNER}/members --paginate | jq -r '.[].login')
+              DELIMITER=""
+              NEW_ASSIGNEES=""
+              for ASSIGNEE in $ASSIGNEES; do
+                  # Exclude Copilot assignees: matches 'copilot' and variants like 'copilot-swe-agent'
+                  if [[ "${ASSIGNEE,,}" =~ ^copilot(-.+)?$ ]]; then
+                      echo "Skipping Copilot assignee: ${ASSIGNEE}"
+                      continue
+                  fi
+                  if echo "$ORG_MEMBERS" | grep -Fqx "$ASSIGNEE"; then
+                      echo "${ASSIGNEE} is a member, adding to assignees"
+                      NEW_ASSIGNEES="${NEW_ASSIGNEES}${DELIMITER}${ASSIGNEE}"
+                      DELIMITER=","
+                  fi
+              done
+              if [ -n "$NEW_ASSIGNEES" ]; then
+                  echo "Assignees for new issue: ${NEW_ASSIGNEES}"
+                  additional_cmd+=("--assignee")
+                  additional_cmd+=("${NEW_ASSIGNEES}")
+              fi
+          fi
+          if [ -n "$MILESTONE" ]; then
+              # Body: "<Type> of #<N>" followed by blank line and original body
+              CAPITALIZED_TYPE="$(echo "${TYPE}" | awk '{ print toupper(substr($0,1,1)) tolower(substr($0,2)) }')"
+              echo -e "${CAPITALIZED_TYPE} of #${ORIGINAL_ISSUE_NUMBER}\n" > $BODY
+              echo "${ORIGINAL_ISSUE}" | jq -r '.body[0:65536]' >> $BODY
+              NEW_ISSUE=$(gh issue create -R "${GITHUB_REPOSITORY}" --title "${NEW_TITLE}" --body-file "${BODY}" -m "${MILESTONE}" "${additional_cmd[@]}")
+              echo "Port issue created: ${NEW_ISSUE}" >> $GITHUB_STEP_SUMMARY
+          fi

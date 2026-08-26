@@ -8,7 +8,7 @@ IMAGE_ARCHIVE ?= k3k-images.tar
 ## Dependencies
 
 GOLANGCI_LINT_VERSION := v2.12.2
-GINKGO_VERSION ?= v2.32.0
+GINKGO_VERSION ?= v2.32.1
 GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
 ENVTEST_K8S_VERSION := 1.31.0
@@ -106,14 +106,18 @@ generate:	## Generate the CRDs specs
 docs: docs-crds docs-cli	## Build the CRDs and CLI docs
 
 .PHONY: docs-crds
+# the default max-depth (10) is not enough to resolve the types nested under Affinity,
+# and crd-ref-docs logs "reaching max recursion depth" warnings
 docs-crds:	## Build the CRDs docs
 	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml \
 		--renderer=markdown \
+		--max-depth=12 \
 		--source-path=./pkg/apis/k3k.io/v1beta1 \
 		--output-path=./docs/crds/crds.md
 
 	$(CRD_REF_DOCS) --config=./docs/crds/config.yaml \
 		--renderer=asciidoctor \
+		--max-depth=12 \
 		--templates-dir=./docs/crds/templates/asciidoctor \
 		--source-path=./pkg/apis/k3k.io/v1beta1 \
 		--output-path=./docs/crds/crds.adoc

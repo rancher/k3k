@@ -1,0 +1,124 @@
+questions:
+# Container Images
+- variable: global.imageRegistry
+  default: ""
+  description: "Global override for the container image registry used by all K3k images. Leave empty to use the registry defined on each image."
+  type: string
+  label: Image Registry
+  group: "Container Images"
+- variable: controller.image.repository
+  default: "rancher/k3k"
+  description: "Image repository for the K3k controller."
+  type: string
+  label: Controller Image Repository
+  group: "Container Images"
+- variable: controller.image.tag
+  default: ""
+  description: "Image tag for the K3k controller. Defaults to the chart appVersion when left empty."
+  type: string
+  label: Controller Image Tag
+  group: "Container Images"
+- variable: controller.image.pullPolicy
+  default: ""
+  description: "Image pull policy for the K3k controller. Leave empty to use the Kubernetes default."
+  type: enum
+  label: Controller Image Pull Policy
+  group: "Container Images"
+  options:
+    - ""
+    - "Always"
+    - "IfNotPresent"
+    - "Never"
+- variable: server.image.repository
+  default: "rancher/k3s"
+  description: "Image repository for the K3s server used by K3k clusters."
+  type: string
+  label: K3s Server Image Repository
+  group: "Container Images"
+- variable: server.image.pullPolicy
+  default: ""
+  description: "Image pull policy for the K3s server. Leave empty to use the Kubernetes default."
+  type: enum
+  label: K3s Server Image Pull Policy
+  group: "Container Images"
+  options:
+    - ""
+    - "Always"
+    - "IfNotPresent"
+    - "Never"
+- variable: agent.shared.image.repository
+  default: "rancher/k3k-kubelet"
+  description: "Image repository for the K3k agent (kubelet) used in shared mode."
+  type: string
+  label: Shared Agent Image Repository
+  group: "Container Images"
+- variable: agent.shared.image.tag
+  default: ""
+  description: "Image tag for the shared mode agent. Defaults to the chart appVersion when left empty."
+  type: string
+  label: Shared Agent Image Tag
+  group: "Container Images"
+- variable: agent.shared.image.pullPolicy
+  default: ""
+  description: "Image pull policy for the shared mode agent. Leave empty to use the Kubernetes default."
+  type: enum
+  label: Shared Agent Image Pull Policy
+  group: "Container Images"
+  options:
+    - ""
+    - "Always"
+    - "IfNotPresent"
+    - "Never"
+- variable: agent.virtual.image.repository
+  default: "rancher/k3s"
+  description: "Image repository for the K3s agent used in virtual mode."
+  type: string
+  label: Virtual Agent Image Repository
+  group: "Container Images"
+- variable: agent.virtual.image.pullPolicy
+  default: ""
+  description: "Image pull policy for the virtual mode agent. Leave empty to use the Kubernetes default."
+  type: enum
+  label: Virtual Agent Image Pull Policy
+  group: "Container Images"
+  options:
+    - ""
+    - "Always"
+    - "IfNotPresent"
+    - "Never"
+# General Settings
+- variable: controller.replicas
+  default: 1
+  description: "Number of replicas for the K3k controller deployment."
+  type: int
+  label: Controller Replicas
+  group: "General Settings"
+  min: 1
+- variable: host.clusterCIDR
+  default: ""
+  description: "clusterCIDR added to the default NetworkPolicy. When left empty, the controller collects the PodCIDRs of all nodes on the host cluster."
+  type: string
+  label: Host Cluster CIDR
+  group: "General Settings"
+# Agent Configuration
+- variable: agent.shared.kubeletPortRange
+  default: "50000-51000"
+  description: "Port range used for the k3k-kubelet API when mirrorHostNodes is enabled (shared mode)."
+  type: string
+  label: Shared Agent Kubelet Port Range
+  group: "Agent Configuration"
+# Service Account
+- variable: serviceAccount.create
+  default: true
+  description: "Specifies whether a service account should be created for the K3k controller."
+  type: boolean
+  label: Create Service Account
+  group: "Service Account"
+  show_subquestion_if: true
+  subquestions:
+  - variable: serviceAccount.name
+    default: ""
+    description: "Name of the service account to use. When empty and creation is enabled, a name is generated from the fullname template."
+    type: string
+    label: Service Account Name
+    group: "Service Account"

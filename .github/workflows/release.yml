@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-    - "v*"
+    - "v1.1.*-rc*"
   workflow_dispatch:
     inputs:
       commit:

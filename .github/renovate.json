@@ -5,7 +5,7 @@
   ],
   "baseBranchPatterns": [
     "main",
-    "release/v1.0",
+    "release/v1.2",
     "release/v1.1"
   ],
   "prHourlyLimit": 2

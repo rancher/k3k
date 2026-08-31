@@ -1,0 +1,112 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+    helm.sh/resource-policy: keep
+  name: etcdsnapshots.k3k.io
+spec:
+  group: k3k.io
+  names:
+    kind: EtcdSnapshot
+    listKind: EtcdSnapshotList
+    plural: etcdsnapshots
+    singular: etcdsnapshot
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.filename
+      name: File Name
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: EtcdSnapshotSpec defines the desired state of an EtcdSnapshot.
+            properties:
+              clusterRef:
+                description: |-
+                  ClusterRef is a reference to the cluster where the snapshot will be taken.
+                  This field is immutable.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: clusterRef is immutable
+                  rule: self == oldSelf
+              compress:
+                default: false
+                description: Compress specifies if the snapshot should be compressed
+                type: boolean
+                x-kubernetes-validations:
+                - message: compress is immutable
+                  rule: self == oldSelf
+              s3ConfigSecretRef:
+                description: |-
+                  S3ConfigSecretRef defines the S3 configuration secret that contains all
+                  S3 configuration. The configuration items are expected to match the following:
+                  https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
+
+                  This field is immutable to avoid inconsistencies after snapshot creation.
+
+                  Setting this will also cause k3s to create a local etcd snapshot on disk and then upload
+                  it to S3. When the request is deleted, both the on-disk and S3 files will be deleted.
+                properties:
+                  name:
+                    description: name is unique within a namespace to reference a secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret name must be unique.
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: s3ConfigSecretRef is immutable
+                  rule: self == oldSelf
+            required:
+            - clusterRef
+            type: object
+          status:
+            description: EtcdSnapshotStatus reflects the observed state of an EtcdSnapshot.
+            properties:
+              filename:
+                description: |-
+                  Filename is the name of the snapshot file created in
+                  the virtual cluster
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

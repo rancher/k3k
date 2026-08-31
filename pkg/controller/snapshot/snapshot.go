@@ -175,7 +175,8 @@ func (r *Reconciler) backpopulateSnapshotStatus(ctx context.Context, snapshotNam
 		return err
 	}
 
-	for _, file := range snapshotFileList.Items {
+	for i := range snapshotFileList.Items {
+		file := snapshotFileList.Items[i]
 		if file.Spec.SnapshotName == snapshotName {
 			if s3Config != nil {
 				// if s3Config is populated then we intend to backpopulate s3 snapshot
@@ -186,6 +187,8 @@ func (r *Reconciler) backpopulateSnapshotStatus(ctx context.Context, snapshotNam
 			}
 
 			snapshotFile = &file
+
+			break
 		}
 	}
 

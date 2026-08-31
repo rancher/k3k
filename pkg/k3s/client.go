@@ -1,6 +1,7 @@
 package k3s
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -77,10 +78,22 @@ func New(config ClientConfig) *Client {
 	}
 }
 
-func do[T any](c *Client, endpoint, user, method string) (T, error) {
-	var response T
+func do[T any](c *Client, endpoint, user, method string, body any) (T, error) {
+	var (
+		response T
+		reader   io.Reader
+	)
 
-	respBody, err := c.do(endpoint, user, method)
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return response, err
+		}
+
+		reader = bytes.NewReader(b)
+	}
+
+	respBody, err := c.do(endpoint, user, method, reader)
 	if err != nil {
 		return response, err
 	}
@@ -93,10 +106,10 @@ func do[T any](c *Client, endpoint, user, method string) (T, error) {
 	return response, nil
 }
 
-func (c *Client) do(endpoint, user, method string) ([]byte, error) {
+func (c *Client) do(endpoint, user, method string, reader io.Reader) ([]byte, error) {
 	url := "https://" + c.config.ServerIP + endpoint
 
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest(method, url, reader)
 	if err != nil {
 		return nil, err
 	}

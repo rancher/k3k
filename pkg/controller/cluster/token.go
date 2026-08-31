@@ -111,11 +111,14 @@ func TokenSecretObj(token, name, namespace string) corev1.Secret {
 	}
 }
 
+// TokenSecretName returns the name of the secret that holds the token of the given cluster.
 func TokenSecretName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "token")
 }
 
-func getClusterToken(ctx context.Context, client client.Client, cluster *v1beta1.Cluster) (string, error) {
+// GetClusterToken returns the token of the given cluster, reading it from the
+// referenced token secret if one is set, or from the generated token secret otherwise.
+func GetClusterToken(ctx context.Context, client client.Client, cluster *v1beta1.Cluster) (string, error) {
 	tokenSecretName := TokenSecretName(cluster.Name)
 	if cluster.Spec.TokenSecretRef != nil && cluster.Spec.TokenSecretRef.Name != "" {
 		tokenSecretName = cluster.Spec.TokenSecretRef.Name

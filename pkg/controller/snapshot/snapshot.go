@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,6 +19,7 @@ import (
 
 	k3sv1 "github.com/k3s-io/api/k3s.cattle.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 
@@ -31,11 +34,14 @@ const (
 	snapshotController    = "k3k-snapshot-controller"
 	snapshotFinalizerName = "snapshot.k3k.io/finalizer"
 
-	// FailedCreateSnapshotReason is added in an event when a snapshot is failed to be created.
+	// Condition Types
+	ConditionReady = "Ready"
+
+	// FailedCreateSnapshotReason is added in an event or condition when a snapshot is failed to be created.
 	FailedCreateSnapshotReason = "FailedCreate"
-	// SuccessfulCreateSnapshotReason is added in an event when a snapshot is successfully created.
+	// SuccessfulCreateSnapshotReason is added in an event or condition when a snapshot is successfully created.
 	SuccessfulCreateSnapshotReason = "SuccessfulCreate"
-	// FailedDeleteSnapshotReason is added in an event when a snapshot is failed to be deleted.
+	// FailedDeleteSnapshotReason is added in an event or condition when a snapshot is failed to be deleted.
 	FailedDeleteSnapshotReason = "FailedDelete"
 	// SuccessfulDeleteSnapshotReason is added in an event when a snapshot is successfully deleted.
 	SuccessfulDeleteSnapshotReason = "SuccessfulDelete"
@@ -75,7 +81,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// handle snapshot deletion
 	if !snapshot.DeletionTimestamp.IsZero() {
 		if err := r.finalizeSnapshot(ctx, &snapshot); err != nil {
+			if err := r.updateSnapshotStatus(ctx, &snapshot, metav1.ConditionFalse, FailedDeleteSnapshotReason, err.Error()); err != nil {
+				return reconcile.Result{}, err
+			}
+
 			r.Eventf(&snapshot, nil, corev1.EventTypeWarning, FailedDeleteSnapshotReason, snapshotReconcilingAction, err.Error())
+
 			return reconcile.Result{}, err
 		}
 
@@ -90,6 +101,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.reconcileSnapshot(ctx, &snapshot); err != nil {
+		if err := r.updateSnapshotStatus(ctx, &snapshot, metav1.ConditionFalse, FailedCreateSnapshotReason, err.Error()); err != nil {
+			return reconcile.Result{}, err
+		}
+
 		if errors.Is(err, errClusterNotReady) {
 			log.V(1).Info("Cluster not ready, requeueing")
 			return reconcile.Result{RequeueAfter: time.Second * 10}, nil
@@ -102,6 +117,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// only emit event when the file is actually created and populated to the status
 	if snapshot.Status.Filename != "" {
+		if err := r.updateSnapshotStatus(ctx, &snapshot, metav1.ConditionTrue, SuccessfulCreateSnapshotReason, "Snapshot was created"); err != nil {
+			return reconcile.Result{}, err
+		}
+
 		r.Eventf(&snapshot, nil, corev1.EventTypeNormal, SuccessfulCreateSnapshotReason, snapshotReconcilingAction, "Snapshot was created")
 	}
 
@@ -267,6 +286,26 @@ func (r *Reconciler) deleteSnapshot(ctx context.Context, snapshot *v1beta1.EtcdS
 	// do not return error if snapshot is not found in the virtual cluster
 	if err != nil && !errors.Is(err, k3s.ErrSnapshotNotFound) {
 		return err
+	}
+
+	return nil
+}
+
+func (r *Reconciler) updateSnapshotStatus(ctx context.Context, snapshot *v1beta1.EtcdSnapshot, status metav1.ConditionStatus, reason, msg string) error {
+	log := log.FromContext(ctx)
+
+	orig := snapshot.DeepCopy()
+	meta.SetStatusCondition(&snapshot.Status.Conditions, metav1.Condition{
+		Type:    ConditionReady,
+		Status:  status,
+		Reason:  reason,
+		Message: msg,
+	})
+
+	if !equality.Semantic.DeepEqual(orig.Status, snapshot.Status) {
+		log.Info("Updating Snapshot status")
+
+		return r.Client.Status().Update(ctx, snapshot)
 	}
 
 	return nil

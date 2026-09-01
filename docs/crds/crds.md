@@ -343,6 +343,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `filename` _string_ | Filename is the name of the snapshot file created in<br />the virtual cluster |  |  |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the snapshot. |  |  |
 
 
 #### ExposeConfig

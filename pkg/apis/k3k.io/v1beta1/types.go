@@ -950,6 +950,11 @@ type EtcdSnapshotStatus struct {
 	//
 	// +optional
 	Filename string `json:"filename,omitempty"`
+
+	// Conditions are the individual conditions for the snapshot.
+	//
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

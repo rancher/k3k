@@ -134,7 +134,7 @@ func (c *Client) do(endpoint, user, method string, reader io.Reader) ([]byte, er
 		return nil, err
 	}
 
-	if resp.StatusCode >= http.StatusBadRequest {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
 		return nil, fmt.Errorf("failed executing '%s' request to k3s server: %w", endpoint, statusError(resp))
 	}
 
@@ -149,17 +149,12 @@ func (c *Client) do(endpoint, user, method string, reader io.Reader) ([]byte, er
 func statusError(resp *http.Response) error {
 	var status metav1.Status
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(body, &status); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
 		return fmt.Errorf("failed to unmarshal response body for failed request: %w", err)
 	}
 
 	if status.Status != metav1.StatusFailure {
-		return fmt.Errorf("error status did not match failed request status")
+		return fmt.Errorf("error status did not match failed request status: %s: %s", status.Status, status.Message)
 	}
 
 	return &apierrors.StatusError{ErrStatus: status}

@@ -160,7 +160,6 @@ func statusError(resp *http.Response) error {
 
 	if status.Status != metav1.StatusFailure {
 		return fmt.Errorf("error status did not match failed request status")
-
 	}
 
 	return &apierrors.StatusError{ErrStatus: status}

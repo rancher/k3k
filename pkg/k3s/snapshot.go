@@ -63,7 +63,7 @@ const (
 	snapshotOperationDelete snapshotOperation = "delete"
 )
 
-func (c *Client) SaveSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
+func (c *Client) SaveSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) (*SnapshotResponse, error) {
 	req := snapshotRequest{
 		Operation: snapshotOperationSave,
 		Name:      []string{snapshot.Name},
@@ -71,7 +71,7 @@ func (c *Client) SaveSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) 
 		S3:        s3Config,
 	}
 
-	snapshotResult, err := do[*SnapshotResult](c, etcdSnapshotEndpoint, "server", http.MethodPost, req)
+	snapshotResult, err := do[*SnapshotResponse](c, etcdSnapshotEndpoint, "server", http.MethodPost, req)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSaveSnapshot, err)
 	}
@@ -93,14 +93,14 @@ func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, e
 	return snapshotFileList, nil
 }
 
-func (c *Client) DeleteSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) (*SnapshotResult, error) {
+func (c *Client) DeleteSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) (*SnapshotResponse, error) {
 	req := snapshotRequest{
 		Operation: snapshotOperationDelete,
 		Name:      []string{snapshot.Status.Filename},
 		S3:        s3Config,
 	}
 
-	snapshotResult, err := do[*SnapshotResult](c, etcdSnapshotEndpoint, "server", http.MethodPost, req)
+	snapshotResult, err := do[*SnapshotResponse](c, etcdSnapshotEndpoint, "server", http.MethodPost, req)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrDeleteSnapshot, err)
 	}
@@ -119,7 +119,7 @@ type snapshotRequest struct {
 	S3        *EtcdS3           `json:"s3,omitempty"`
 }
 
-type SnapshotResult struct {
+type SnapshotResponse struct {
 	Created []string `json:"created,omitempty"`
 	Deleted []string `json:"deleted,omitempty"`
 }

@@ -11,6 +11,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ClientConfig struct {
@@ -132,7 +135,7 @@ func (c *Client) do(endpoint, user, method string, reader io.Reader) ([]byte, er
 	}
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("failed executing '%s' request to k3s server: status code: %s", endpoint, resp.Status)
+		return nil, fmt.Errorf("failed executing '%s' request to k3s server: %w", endpoint, statusError(resp))
 	}
 
 	defer func() {
@@ -140,4 +143,25 @@ func (c *Client) do(endpoint, user, method string, reader io.Reader) ([]byte, er
 	}()
 
 	return io.ReadAll(resp.Body)
+}
+
+// statusError return back the error from failed requests
+func statusError(resp *http.Response) error {
+	var status metav1.Status
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(body, &status); err != nil {
+		return fmt.Errorf("failed to unmarshal response body for failed request: %w", err)
+	}
+
+	if status.Status != metav1.StatusFailure {
+		return fmt.Errorf("error status did not match failed request status")
+
+	}
+
+	return &apierrors.StatusError{ErrStatus: status}
 }

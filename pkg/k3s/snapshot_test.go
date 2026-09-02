@@ -39,7 +39,7 @@ func Test_SaveSnapshot(t *testing.T) {
 		},
 	}
 
-	tests := []testCase[*SnapshotResult]{
+	tests := []testCase[*SnapshotResponse]{
 		{
 			name:            "server not ready",
 			snapshot:        snapshot,
@@ -52,7 +52,7 @@ func Test_SaveSnapshot(t *testing.T) {
 			isServerRunning: true,
 			serverStatus:    http.StatusOK,
 			serverResponse:  `{"created":["on-demand-test-snapshot"]}`,
-			expectedResult:  &SnapshotResult{Created: []string{"on-demand-test-snapshot"}},
+			expectedResult:  &SnapshotResponse{Created: []string{"on-demand-test-snapshot"}},
 		},
 		{
 			name:            "snapshot saved to s3",
@@ -61,7 +61,7 @@ func Test_SaveSnapshot(t *testing.T) {
 			isServerRunning: true,
 			serverStatus:    http.StatusOK,
 			serverResponse:  `{"created":["on-demand-test-snapshot"]}`,
-			expectedResult:  &SnapshotResult{Created: []string{"on-demand-test-snapshot"}},
+			expectedResult:  &SnapshotResponse{Created: []string{"on-demand-test-snapshot"}},
 		},
 		{
 			name:            "server error",
@@ -82,7 +82,7 @@ func Test_SaveSnapshot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.run(t, snapshotOperationSave, func(c *Client) (*SnapshotResult, error) {
+			tt.run(t, snapshotOperationSave, func(c *Client) (*SnapshotResponse, error) {
 				return c.SaveSnapshot(tt.snapshot, tt.s3Config)
 			})
 		})
@@ -103,7 +103,7 @@ func Test_DeleteSnapshot(t *testing.T) {
 		},
 	}
 
-	tests := []testCase[*SnapshotResult]{
+	tests := []testCase[*SnapshotResponse]{
 		{
 			name:            "server not ready",
 			snapshot:        snapshot,
@@ -116,7 +116,7 @@ func Test_DeleteSnapshot(t *testing.T) {
 			isServerRunning: true,
 			serverStatus:    http.StatusOK,
 			serverResponse:  `{"deleted":["on-demand-test-snapshot"]}`,
-			expectedResult:  &SnapshotResult{Deleted: []string{"on-demand-test-snapshot"}},
+			expectedResult:  &SnapshotResponse{Deleted: []string{"on-demand-test-snapshot"}},
 		},
 		{
 			name:            "snapshot deleted from s3",
@@ -125,7 +125,7 @@ func Test_DeleteSnapshot(t *testing.T) {
 			isServerRunning: true,
 			serverStatus:    http.StatusOK,
 			serverResponse:  `{"deleted":["on-demand-test-snapshot"]}`,
-			expectedResult:  &SnapshotResult{Deleted: []string{"on-demand-test-snapshot"}},
+			expectedResult:  &SnapshotResponse{Deleted: []string{"on-demand-test-snapshot"}},
 		},
 		{
 			name:            "snapshot not found",
@@ -154,7 +154,7 @@ func Test_DeleteSnapshot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.run(t, snapshotOperationDelete, func(c *Client) (*SnapshotResult, error) {
+			tt.run(t, snapshotOperationDelete, func(c *Client) (*SnapshotResponse, error) {
 				return c.DeleteSnapshot(tt.snapshot, tt.s3Config)
 			})
 		})

@@ -10,7 +10,7 @@ require (
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/go-cmp v0.7.0
 	github.com/onsi/ginkgo/v2 v2.32.1
-	github.com/onsi/gomega v1.42.1
+	github.com/onsi/gomega v1.43.0
 	github.com/rancher/dynamiclistener v1.27.5
 	github.com/rancher/k3k/pkg/apis v0.0.0-00010101000000-000000000000
 	github.com/sirupsen/logrus v1.9.4

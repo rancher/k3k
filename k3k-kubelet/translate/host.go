@@ -13,10 +13,10 @@ import (
 
 const (
 	// MetadataPrefix is the common prefix for all k3k-managed labels and annotations.
-	MetadataPrefix = "k3k.io/"
+	MetadataPrefix = controller.MetadataPrefix
 	// ClusterNameLabel is the key for the label that contains the name of the virtual cluster
 	// this resource was made in
-	ClusterNameLabel = MetadataPrefix + "clusterName"
+	ClusterNameLabel = controller.ClusterNameLabel
 	// AgentNameLabel is the key for the label that contains the name of the k3k-kubelet agent
 	// (the host node it runs on) that synced this resource
 	AgentNameLabel = MetadataPrefix + "agentName"

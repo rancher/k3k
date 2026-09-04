@@ -2,7 +2,9 @@ package syncer
 
 import (
 	"context"
+	"time"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -109,7 +111,11 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: syncedService.Name, Namespace: r.ClusterNamespace}, &hostService); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating the service for the first time on the host cluster")
-			return reconcile.Result{}, r.HostClient.Create(ctx, syncedService)
+			if err := r.HostClient.Create(ctx, syncedService); err != nil {
+				return reconcile.Result{}, err
+			}
+			// requeue to pick up host-assigned status (e.g. LoadBalancer ingress)
+			return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
 		}
 
 		return reconcile.Result{}, err
@@ -117,7 +123,46 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	log.Info("updating service on the host cluster")
 
-	return reconcile.Result{}, r.HostClient.Update(ctx, syncedService)
+	// The host apiserver owns IP-family allocation: the host service may have been
+	// expanded to dual-stack while the virtual service is single-stack. Re-submitting
+	// the virtual family fields is rejected ("must be 'SingleStack' to release the
+	// secondary cluster IP"), so preserve the host-allocated values on update.
+	syncedService.Spec.ClusterIP = hostService.Spec.ClusterIP
+	syncedService.Spec.ClusterIPs = hostService.Spec.ClusterIPs
+	syncedService.Spec.IPFamilies = hostService.Spec.IPFamilies
+	syncedService.Spec.IPFamilyPolicy = hostService.Spec.IPFamilyPolicy
+	syncedService.Spec.HealthCheckNodePort = hostService.Spec.HealthCheckNodePort
+
+	if err := r.HostClient.Update(ctx, syncedService); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	return r.syncStatus(ctx, &virtService, &hostService)
+}
+
+// syncStatus copies the host service's LoadBalancer status back to the virtual
+// service so in-cluster consumers (e.g. external-dns) see the assigned ingress.
+// The controller only watches virtual services, so as long as the ingress is
+// empty it requeues to poll the host side.
+func (r *ServiceReconciler) syncStatus(ctx context.Context, virtService, hostService *corev1.Service) (reconcile.Result, error) {
+	if virtService.Spec.Type != corev1.ServiceTypeLoadBalancer {
+		return reconcile.Result{}, nil
+	}
+
+	if !equality.Semantic.DeepEqual(virtService.Status.LoadBalancer, hostService.Status.LoadBalancer) {
+		orig := virtService.DeepCopy()
+		virtService.Status.LoadBalancer = hostService.Status.LoadBalancer
+
+		if err := r.VirtualClient.Status().Patch(ctx, virtService, ctrlruntimeclient.MergeFrom(orig)); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	if len(hostService.Status.LoadBalancer.Ingress) == 0 {
+		return reconcile.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+
+	return reconcile.Result{}, nil
 }
 
 func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) bool {

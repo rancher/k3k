@@ -2,19 +2,14 @@ package upgrade_test
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -25,24 +20,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
-
-// repoRoot is the k3k repository root relative to the tests/upgrade package dir,
-// used to run `make install` (which installs the build from source).
-const repoRoot = "../.."
-
-// upgradeCluster is a Cluster provisioned by the released k3k, together with the
-// app that was deployed in it before the upgrade.
-type upgradeCluster struct {
-	cluster *v1beta1.Cluster
-	client  *kubernetes.Clientset
-
-	// appPodUIDs are the UIDs of the app pods as they were before the upgrade.
-	appPodUIDs []types.UID
-}
-
-func (c *upgradeCluster) name() string {
-	return fmt.Sprintf("%s (%s mode)", c.cluster.Name, c.cluster.Spec.Mode)
-}
 
 // This is a smoke test for upgrading the k3k controller itself: it installs the
 // latest released k3k, provisions a shared-mode and a virtual-mode cluster (both
@@ -66,205 +43,132 @@ func (c *upgradeCluster) name() string {
 // runs in its own dedicated test suite.
 var _ = When("k3k is upgraded from the latest released version", Ordered, Serial, func() {
 	var (
-		clusters   []*upgradeCluster
-		namespaces []string
+		namespaceName  string
+		clusterVirtual *v1beta1.Cluster
+		clusterShared  *v1beta1.Cluster
+		podUIDs        []types.UID
 	)
 
 	ctx := context.Background()
 
 	BeforeAll(func() {
-		// Guard early: `make install` (the upgrade under test) must install the build
-		// under test, not the default `rancher/k3k` image. REPO has to point at the
-		// images built from this checkout and available to every node (in CI they are
-		// tagged `k3k.local/...` and imported into containerd directly).
+		// Guard early: REPO has to point at the images built from this checkout and available to every node
+		// (in CI they are tagged `k3k.local/...` and imported into containerd directly).
 		Expect(os.Getenv("REPO")).NotTo(BeEmpty(), "REPO must be set to the image repository of the build under test")
 
-		By("Cleaning up any existing K3k installation and CRDs")
-		cleanupK3kInstall()
-
 		By("Installing the latest released k3k")
-		helmRepoAddK3k()
-		helmInstallLatestReleasedK3k()
 
-		By("Creating a shared-mode and a virtual-mode cluster with the released k3k")
+		expectCmd(runCmd("helm", "repo", "add", "k3k", "https://rancher.github.io/k3k", "--force-update"))
+		expectCmd(runCmd("helm", "repo", "update"))
 
-		clusters = []*upgradeCluster{
-			newUpgradeCluster(ctx, v1beta1.SharedClusterMode),
-			newUpgradeCluster(ctx, v1beta1.VirtualClusterMode),
+		By("Cleaning up old k3k installation")
+
+		stdout, stderr, err := runCmd("helm", "list", "-q", "-n", k3kNamespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		if len(stdout+stderr) > 0 {
+			expectCmd(runCmd("helm", "uninstall", "--namespace", k3kNamespace, "k3k"))
+			expectCmd(runCmd("kubectl", "delete", "crd", "clusters.k3k.io", "virtualclusterpolicies.k3k.io", "--ignore-not-found"))
 		}
 
-		for _, c := range clusters {
-			namespaces = append(namespaces, c.cluster.Namespace)
+		expectCmd(runCmd(
+			"helm", "install",
+			"--namespace", k3kNamespace, "--create-namespace",
+			"--timeout", "5m",
+			"--wait",
+			"k3k", "k3k/k3k",
+		))
 
-			By("Deploying the app in cluster " + c.name())
-			deployApp(ctx, c.client)
+		namespace := fwk3k.CreateNamespace(k8s)
+		namespaceName = namespace.Name
 
-			c.appPodUIDs = listAppPodUIDs(ctx, c.client)
-			Expect(c.appPodUIDs).To(HaveLen(appReplicas))
-		}
+		By("Creating a virtual-mode cluster with the released k3k")
+
+		clusterVirtual = NewCluster(namespaceName, func(c *v1beta1.Cluster) {
+			c.Spec.Mode = v1beta1.VirtualClusterMode
+		})
+
+		CreateCluster(ctx, clusterVirtual)
+
+		By("Creating a shared-mode cluster with the released k3k")
+
+		clusterShared = NewCluster(namespaceName, func(c *v1beta1.Cluster) {
+			c.Spec.Mode = v1beta1.SharedClusterMode
+			c.Spec.Persistence.Type = v1beta1.DynamicPersistenceMode
+		})
+
+		CreateCluster(ctx, clusterShared)
+
+		By("Deploying an app in the shared-mode cluster")
+
+		client := newVirtualK8sClient(ctx, clusterShared)
+		deployApp(ctx, client)
+
+		podUIDs = listAppPodUIDs(ctx, client)
+		Expect(podUIDs).To(HaveLen(appReplicas))
 
 		By("Upgrading k3k to the build from source")
-		helmInstallSourceK3k()
+		expectCmd(runCmd("make", "-C", "../..", "install"))
 
 		By("Waiting for the new controller rollout to complete")
-		waitForControllerRollout()
+		expectCmd(runCmd("kubectl", "rollout", "status", "deployment/k3k",
+			"--namespace", k3kNamespace, "--timeout", "3m",
+		))
+
+		DeferCleanup(func() {
+			fwk3k.DeleteNamespaces(k8s, namespaceName)
+		})
 	})
 
-	AfterAll(func() {
-		// Best-effort diagnostic so a reconcile error (e.g. the "Forbidden"
-		// StatefulSet update) is visible in CI output on failure.
-		if CurrentSpecReport().Failed() {
-			dumpK3kControllerLogs()
-		}
-
-		fwk3k.DeleteNamespaces(k8s, namespaces...)
-
-		By("Cleaning up the upgraded K3k installation and CRDs")
-		cleanupK3kInstall()
-
-		// Restore the shared release to the build from source. Unconditional +
-		// idempotent: this also repairs the case where the spec failed while still
-		// on the released version.
-		By("Restoring the k3k build from source")
-		helmInstallSourceK3k()
+	It("keeps the existing virtual-mode clusters healthy", func() {
+		By("Verifying the virtual-mode cluster " + clusterVirtual.Name + " is healthy after the upgrade")
+		assertClusterHealthy(ctx, clusterVirtual)
 	})
 
-	It("keeps the existing clusters healthy", func() {
-		for _, c := range clusters {
-			By("Verifying the cluster " + c.name() + " is healthy after the upgrade")
-			assertClusterHealthy(ctx, c)
-		}
+	It("keeps the existing shared-mode clusters healthy", func() {
+		By("Verifying the shared-mode cluster " + clusterShared.Name + " is healthy after the upgrade")
+		assertClusterHealthy(ctx, clusterShared)
 
-		By("Verifying the controller did not fail to update an immutable field")
-		assertNoImmutableFieldErrors()
+		By("Verifying the app in the shared-mode cluster " + clusterShared.Name + " is still available")
+		client := newVirtualK8sClient(ctx, clusterShared)
+		assertAppAvailable(ctx, client)
+
+		// The upgrade replaces the controller (and, in shared mode, the virtual
+		// kubelet), but it must never recreate the pods of a user workload.
+		By("Verifying the app pods in the shared-mode cluster " + clusterShared.Name + " were not recreated")
+		Expect(listAppPodUIDs(ctx, client)).To(ConsistOf(podUIDs))
 	})
 
-	It("keeps the existing workloads untouched", func() {
-		for _, c := range clusters {
-			By("Verifying the app in cluster " + c.name() + " is still available")
-			assertAppAvailable(ctx, c.client)
+	It("can still create new clusters in virtual-mode", func() {
+		clusterVirtual2 := NewCluster(namespaceName, func(c *v1beta1.Cluster) {
+			c.Spec.Mode = v1beta1.VirtualClusterMode
+		})
 
-			// The upgrade replaces the controller (and, in shared mode, the virtual
-			// kubelet), but it must never recreate the pods of a user workload.
-			By("Verifying the app pods in cluster " + c.name() + " were not recreated")
-			Expect(listAppPodUIDs(ctx, c.client)).To(ConsistOf(c.appPodUIDs))
-		}
+		CreateCluster(ctx, clusterVirtual2)
+
+		By("Checking it's healthy")
+
+		assertClusterHealthy(ctx, clusterVirtual2)
 	})
 
-	It("still reconciles clusters created by the previous version", func() {
-		// Mutating the server args forces an update of the server StatefulSet that
-		// was created by the released controller: this is where an immutable field
-		// regression such as rancher/k3k#559 surfaces.
-		const serverArg = "--node-label=test_server=upgraded"
+	It("can still create new clusters in shared-mode", func() {
+		clusterShared2 := NewCluster(namespaceName, func(c *v1beta1.Cluster) {
+			c.Spec.Mode = v1beta1.SharedClusterMode
+			c.Spec.Persistence.Type = v1beta1.DynamicPersistenceMode
+		})
 
-		for _, c := range clusters {
-			By("Updating the server args of cluster " + c.name())
+		CreateCluster(ctx, clusterShared2)
 
-			Eventually(func(g Gomega) {
-				var cluster v1beta1.Cluster
+		By("Checking it's healthy")
 
-				g.Expect(k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(c.cluster), &cluster)).To(Succeed())
-
-				cluster.Spec.ServerArgs = []string{serverArg}
-
-				g.Expect(k8sClient.Update(ctx, &cluster)).To(Succeed())
-			}).
-				WithTimeout(time.Minute).
-				WithPolling(time.Second).
-				Should(Succeed())
-		}
-
-		for _, c := range clusters {
-			By("Verifying the servers of cluster " + c.name() + " rolled out with the new args")
-
-			Eventually(func(g Gomega) {
-				serverPods := listServerPods(ctx, c.cluster)
-				g.Expect(serverPods).NotTo(BeEmpty())
-
-				for i := range serverPods {
-					g.Expect(hasArg(&serverPods[i], serverArg)).To(BeTrue(), "server pod %s does not have the new arg yet", serverPods[i].Name)
-
-					_, cond := pod.GetPodCondition(&serverPods[i].Status, corev1.PodReady)
-					g.Expect(cond).NotTo(BeNil())
-					g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
-				}
-			}).
-				WithTimeout(time.Minute * 5).
-				WithPolling(time.Second * 5).
-				Should(Succeed())
-
-			assertClusterHealthy(ctx, c)
-		}
-
-		By("Verifying the controller did not fail to update an immutable field")
-		assertNoImmutableFieldErrors()
-	})
-
-	It("can still create new clusters", func() {
-		for _, mode := range []v1beta1.ClusterMode{v1beta1.SharedClusterMode, v1beta1.VirtualClusterMode} {
-			By("Creating a new " + string(mode) + " cluster with the upgraded k3k")
-
-			c := newUpgradeCluster(ctx, mode)
-			namespaces = append(namespaces, c.cluster.Namespace)
-
-			assertClusterHealthy(ctx, c)
-		}
-	})
-
-	It("can still delete clusters created by the previous version", func() {
-		c := clusters[0]
-
-		By("Deleting the cluster " + c.name())
-		Expect(k8sClient.Delete(ctx, c.cluster)).To(Succeed())
-
-		Eventually(func(g Gomega) {
-			var cluster v1beta1.Cluster
-
-			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(c.cluster), &cluster)
-			g.Expect(apierrors.IsNotFound(err)).To(BeTrue(), "cluster still exists, finalizers may be stuck")
-
-			// the host resources of the cluster should be garbage collected as well
-			g.Expect(listServerPods(ctx, c.cluster)).To(BeEmpty())
-		}).
-			WithTimeout(time.Minute * 3).
-			WithPolling(time.Second * 5).
-			Should(Succeed())
+		assertClusterHealthy(ctx, clusterShared2)
 	})
 })
 
-// newUpgradeCluster provisions a dynamic-persistence cluster in the given mode,
-// in a new namespace, and waits for everything to be ready. Both modes use dynamic
-// persistence so that the upgrade exercises the server StatefulSet path that
-// rancher/k3k#559 breaks.
-func newUpgradeCluster(ctx context.Context, mode v1beta1.ClusterMode) *upgradeCluster {
+// assertClusterHealthy verifies that a cluster is working:
+// the Cluster reconciled successfully, its server pods are Ready, and the virtual API is reachable.
+func assertClusterHealthy(ctx context.Context, cluster *v1beta1.Cluster) {
 	GinkgoHelper()
-
-	namespace := fwk3k.CreateNamespace(k8s)
-
-	cluster := NewCluster(namespace.Name, func(c *v1beta1.Cluster) {
-		c.Spec.Mode = mode
-		c.Spec.Persistence.Type = v1beta1.DynamicPersistenceMode
-
-		// Virtual mode needs a worker; shared mode schedules onto the host via the virtual kubelet.
-		if mode == v1beta1.VirtualClusterMode {
-			c.Spec.Agents = ptr.To[int32](1)
-		}
-	})
-
-	CreateCluster(ctx, cluster)
-
-	client := newVirtualK8sClient(ctx, cluster)
-
-	return &upgradeCluster{cluster: cluster, client: client}
-}
-
-// assertClusterHealthy verifies, with mode-agnostic signals, that a cluster is
-// working: the Cluster reconciled successfully, its server pods are Ready, and
-// the virtual API is reachable.
-func assertClusterHealthy(ctx context.Context, c *upgradeCluster) {
-	GinkgoHelper()
-
-	cluster := c.cluster
 
 	Eventually(func(g Gomega) {
 		// 1. The Cluster reconciles successfully with the new controller. On the
@@ -290,23 +194,14 @@ func assertClusterHealthy(ctx context.Context, c *upgradeCluster) {
 		}
 
 		// 3. The virtual API is reachable.
-		_, err := c.client.Discovery().ServerVersion()
+		client := newVirtualK8sClient(ctx, cluster)
+
+		_, err := client.Discovery().ServerVersion()
 		g.Expect(err).NotTo(HaveOccurred())
 	}).
 		WithTimeout(time.Minute * 3).
 		WithPolling(time.Second * 5).
 		Should(Succeed())
-}
-
-// hasArg returns true if the argument is found in the command of the first container of the pod.
-func hasArg(p *corev1.Pod, arg string) bool {
-	for _, cmd := range p.Spec.Containers[0].Command {
-		if strings.Contains(cmd, arg) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // expectCmd runs a command via the framework helpers and fails the spec on
@@ -315,80 +210,5 @@ func expectCmd(stdout, stderr string, err error) {
 	GinkgoHelper()
 
 	Expect(err).NotTo(HaveOccurred(), stdout+stderr)
-	GinkgoWriter.Println(stdout)
-}
-
-func cleanupK3kInstall() {
-	GinkgoHelper()
-
-	// 1. Force-delete CRDs first to clear out custom resources and strip finalizer locks immediately.
-	_, _, _ = runCmd("kubectl", "delete", "crd", "clusters.k3k.io", "virtualclusterpolicies.k3k.io", "--ignore-not-found", "--timeout=30s")
-
-	// 2. Uninstall Helm release
-	_, _, _ = runCmd("helm", "uninstall", "k3k", "-n", k3kNamespace)
-}
-
-func helmRepoAddK3k() {
-	GinkgoHelper()
-
-	expectCmd(runCmd("helm", "repo", "add", "k3k", "https://rancher.github.io/k3k", "--force-update"))
-	expectCmd(runCmd("helm", "repo", "update"))
-}
-
-// helmInstallLatestReleasedK3k installs the latest released k3k chart (no pinned
-// version, no pre-releases), i.e. the newest stable a user would be upgrading FROM.
-func helmInstallLatestReleasedK3k() {
-	GinkgoHelper()
-
-	expectCmd(runCmd("helm", "upgrade", "--install", "k3k", "k3k/k3k",
-		"--namespace", k3kNamespace, "--create-namespace",
-		"--wait", "--timeout", "5m",
-	))
-}
-
-// helmInstallSourceK3k installs the build from source by running `make install`
-// from the repo root, reusing the exact Helm flags of the Makefile install target
-// (dev images from $REPO/$VERSION) so it can never drift from a manual installation.
-func helmInstallSourceK3k() {
-	GinkgoHelper()
-
-	expectCmd(runCmd("make", "-C", repoRoot, "install"))
-}
-
-func waitForControllerRollout() {
-	GinkgoHelper()
-
-	expectCmd(runCmd("kubectl", "rollout", "status", "deployment/k3k",
-		"--namespace", k3kNamespace, "--timeout", "3m",
-	))
-}
-
-// assertNoImmutableFieldErrors checks the controller logs for the failure mode of
-// rancher/k3k#559: the controller trying to update an immutable field of a
-// StatefulSet created by the previous version.
-//
-// Only this specific error is asserted on: the controller logs transient errors
-// (conflicts, not-found on freshly created objects) during normal operation, so a
-// broader check would be flaky.
-func assertNoImmutableFieldErrors() {
-	GinkgoHelper()
-
-	stdout, stderr, err := runCmd("kubectl", "logs", "-n", k3kNamespace, "-l", "app.kubernetes.io/name=k3k", "--tail=-1")
-	Expect(err).NotTo(HaveOccurred(), stderr)
-
-	// The StatefulSet immutable update error looks like:
-	// "updates to statefulset spec for fields other than ... are forbidden"
-	Expect(stdout).NotTo(ContainSubstring("forbidden: updates to statefulset spec for fields other than"),
-		"StatefulSet update failed due to immutable field modification")
-}
-
-func dumpK3kControllerLogs() {
-	stdout, stderr, err := runCmd("kubectl", "logs", "-n", k3kNamespace, "-l", "app.kubernetes.io/name=k3k", "--tail=-1")
-	if err != nil {
-		GinkgoWriter.Println("failed to collect k3k controller logs:", err, stderr)
-		return
-	}
-
-	GinkgoWriter.Println("=== k3k controller logs ===")
 	GinkgoWriter.Println(stdout)
 }

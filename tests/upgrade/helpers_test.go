@@ -98,6 +98,10 @@ func CreateCluster(ctx context.Context, cluster *v1beta1.Cluster) {
 		var serversReady, agentsReady int
 
 		for _, k3sPod := range podList.Items {
+			if k3sPod.Labels["cluster"] != cluster.Name {
+				continue
+			}
+
 			_, cond := pod.GetPodCondition(&k3sPod.Status, corev1.PodReady)
 
 			// pod not ready

@@ -1,12 +1,25 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "github>rancher/renovate-config#release"
-  ],
   "baseBranchPatterns": [
-    "main",
+    "$default",
     "release/v1.2",
     "release/v1.1"
   ],
-  "prHourlyLimit": 2
+  "prHourlyLimit": 2,
+  "packageRules": [
+    {
+      "matchBaseBranches": ["$default"],
+      "extends": ["github>rancher/renovate-config//rancher-main#release"]
+    },
+    {
+      "description": "Apply Rancher 2.15 update constraints (Kubernetes 1.36)",
+      "matchBaseBranches": ["release/v1.2"],
+      "extends": ["github>rancher/renovate-config//rancher-2.15#release"]
+    },
+    {
+      "description": "Apply Rancher 2.14 update constraints (Kubernetes 1.35)",
+      "matchBaseBranches": ["release/v1.1"],
+      "extends": ["github>rancher/renovate-config//rancher-2.14#release"]
+    }
+  ]
 }

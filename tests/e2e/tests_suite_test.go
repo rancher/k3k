@@ -67,6 +67,7 @@ const (
 	registryTestsLabel     = "registry"
 	addonsTestsLabel       = "addons"
 	datastoreTestsLabel    = "datastore"
+	snapshotTestsLabel     = "snapshot"
 
 	registryImage               = "registry:2"
 	registryCACertSecretName    = "private-registry-ca-cert"
@@ -79,6 +80,14 @@ const (
 	postgresPassword = "passw0rd"
 	postgresDatabase = "k3k"
 	postgresPort     = 5432
+
+	s3MockImage        = "adobe/s3mock:4.7.0"
+	s3MockPort         = 9090
+	s3MockBucket       = "k3k-snapshots"
+	s3MockFolder       = "snapshots"
+	s3MockAccessKey    = "s3mock"
+	s3MockSecretKey    = "s3mocksecret"
+	s3ConfigSecretName = "s3-config"
 )
 
 func TestTests(t *testing.T) {
@@ -632,40 +641,79 @@ func buildRegistryConfigSecret(tlsMap map[string]string, namespace, name string,
 	return secret, nil
 }
 
+func deployS3MockInCluster(namespace string) {
+	GinkgoHelper()
+
+	ctx := context.Background()
+
+	By("Deploying the S3 mock in namespace " + namespace)
+
+	labels := map[string]string{"app": "s3-mock"}
+	dep := newDeployment("s3-mock", namespace, s3MockImage, labels)
+	dep.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
+		{Name: "initialBuckets", Value: s3MockBucket},
+		{Name: "JDK_JAVA_OPTIONS", Value: "-Xmx256m"},
+	}
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		PeriodSeconds:       5,
+		InitialDelaySeconds: 5,
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/",
+				Port: intstr.FromInt(s3MockPort),
+			},
+		},
+	}
+
+	err := k8sClient.Create(ctx, dep)
+	Expect(err).To(Not(HaveOccurred()))
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "s3-mock", Namespace: namespace},
+		Spec: corev1.ServiceSpec{
+			Selector: labels,
+			Ports:    []corev1.ServicePort{{Port: s3MockPort, TargetPort: intstr.FromInt(s3MockPort)}},
+		},
+	}
+
+	err = k8sClient.Create(ctx, svc)
+	Expect(err).To(Not(HaveOccurred()))
+
+	Eventually(func(g Gomega) {
+		podList, err := k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: "app=s3-mock"})
+		g.Expect(err).To(Not(HaveOccurred()))
+		g.Expect(podList.Items).To(HaveLen(1))
+
+		_, cond := pod.GetPodCondition(&podList.Items[0].Status, corev1.PodReady)
+		g.Expect(cond).NotTo(BeNil())
+		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+	}).
+		WithTimeout(time.Minute * 3).
+		WithPolling(time.Second * 5).
+		Should(Succeed())
+
+	By("S3 mock is ready")
+}
+
 func deployPostgresInCluster(cluster *v1beta1.Cluster) {
 	ctx := context.Background()
 
 	labels := map[string]string{"app": "postgres-k3k"}
-
-	dep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "postgres-k3k", Namespace: cluster.Namespace},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: new(int32(1)),
-			Selector: &metav1.LabelSelector{MatchLabels: labels},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: labels},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Name:  "postgres",
-						Image: postgresImage,
-						Env: []corev1.EnvVar{
-							{Name: "POSTGRES_USER", Value: postgresUser},
-							{Name: "POSTGRES_PASSWORD", Value: postgresPassword},
-							{Name: "POSTGRES_DB", Value: postgresDatabase},
-						},
-						ReadinessProbe: &corev1.Probe{
-							ProbeHandler: corev1.ProbeHandler{
-								Exec: &corev1.ExecAction{
-									Command: []string{"pg_isready", "-U", postgresUser, "-d", postgresDatabase},
-								},
-							},
-							PeriodSeconds: 2,
-						},
-					}},
-				},
+	dep := newDeployment("postgres-k3k", cluster.Namespace, postgresImage, labels)
+	dep.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
+		{Name: "POSTGRES_USER", Value: postgresUser},
+		{Name: "POSTGRES_PASSWORD", Value: postgresPassword},
+		{Name: "POSTGRES_DB", Value: postgresDatabase},
+	}
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		PeriodSeconds: 2,
+		ProbeHandler: corev1.ProbeHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"pg_isready", "-U", postgresUser, "-d", postgresDatabase},
 			},
 		},
 	}
+
 	err := k8sClient.Create(ctx, dep)
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -711,4 +759,23 @@ func deployPostgresInCluster(cluster *v1beta1.Cluster) {
 		Should(BeTrue())
 
 	By("Postgres is ready")
+}
+
+func newDeployment(name, namespace, image string, labels map[string]string) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: new(int32(1)),
+			Selector: &metav1.LabelSelector{MatchLabels: labels},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  name,
+						Image: image,
+					}},
+				},
+			},
+		},
+	}
 }

@@ -1,6 +1,7 @@
 package k3s
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ClientConfig struct {
@@ -77,10 +81,22 @@ func New(config ClientConfig) *Client {
 	}
 }
 
-func do[T any](c *Client, endpoint, user, method string) (T, error) {
-	var response T
+func do[T any](c *Client, endpoint, user, method string, body any) (T, error) {
+	var (
+		response T
+		reader   io.Reader
+	)
 
-	respBody, err := c.do(endpoint, user, method)
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return response, err
+		}
+
+		reader = bytes.NewReader(b)
+	}
+
+	respBody, err := c.do(endpoint, user, method, reader)
 	if err != nil {
 		return response, err
 	}
@@ -93,10 +109,10 @@ func do[T any](c *Client, endpoint, user, method string) (T, error) {
 	return response, nil
 }
 
-func (c *Client) do(endpoint, user, method string) ([]byte, error) {
+func (c *Client) do(endpoint, user, method string, reader io.Reader) ([]byte, error) {
 	url := "https://" + c.config.ServerIP + endpoint
 
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest(method, url, reader)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +134,8 @@ func (c *Client) do(endpoint, user, method string) ([]byte, error) {
 		return nil, err
 	}
 
-	if resp.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("failed executing '%s' request to k3s server: status code: %s", endpoint, resp.Status)
+	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("failed executing '%s' request to k3s server: %w", endpoint, statusError(resp))
 	}
 
 	defer func() {
@@ -127,4 +143,19 @@ func (c *Client) do(endpoint, user, method string) ([]byte, error) {
 	}()
 
 	return io.ReadAll(resp.Body)
+}
+
+// statusError return back the error from failed requests
+func statusError(resp *http.Response) error {
+	var status metav1.Status
+
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return fmt.Errorf("failed to unmarshal response body for failed request: %w", err)
+	}
+
+	if status.Status != metav1.StatusFailure {
+		return fmt.Errorf("error status did not match failed request status: %s: %s", status.Status, status.Message)
+	}
+
+	return &apierrors.StatusError{ErrStatus: status}
 }

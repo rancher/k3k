@@ -10,6 +10,8 @@
 ### Resource Types
 - [Cluster](#cluster)
 - [ClusterList](#clusterlist)
+- [EtcdSnapshot](#etcdsnapshot)
+- [EtcdSnapshotList](#etcdsnapshotlist)
 - [VirtualClusterPolicy](#virtualclusterpolicy)
 - [VirtualClusterPolicyList](#virtualclusterpolicylist)
 
@@ -249,8 +251,8 @@ _Appears in:_
 | `serverCA` _[CredentialSource](#credentialsource)_ | ServerCA specifies the server-ca cert/key pair. |  |  |
 | `clientCA` _[CredentialSource](#credentialsource)_ | ClientCA specifies the client-ca cert/key pair. |  |  |
 | `requestHeaderCA` _[CredentialSource](#credentialsource)_ | RequestHeaderCA specifies the request-header-ca cert/key pair. |  |  |
-| `etcdServerCA` _[CredentialSource](#credentialsource)_ | ETCDServerCA specifies the etcd-server-ca cert/key pair. |  |  |
-| `etcdPeerCA` _[CredentialSource](#credentialsource)_ | ETCDPeerCA specifies the etcd-peer-ca cert/key pair. |  |  |
+| `etcdServerCA` _[CredentialSource](#credentialsource)_ | EtcdServerCA specifies the etcd-server-ca cert/key pair. |  |  |
+| `etcdPeerCA` _[CredentialSource](#credentialsource)_ | EtcdPeerCA specifies the etcd-peer-ca cert/key pair. |  |  |
 | `serviceAccountToken` _[CredentialSource](#credentialsource)_ | ServiceAccountToken specifies the service-account-token key. |  |  |
 
 
@@ -269,6 +271,79 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled toggles this feature on or off. | true |  |
 | `sources` _[CredentialSources](#credentialsources)_ | Sources defines the sources for all required custom CA certificates. |  |  |
+
+
+#### EtcdSnapshot
+
+
+
+
+
+
+
+_Appears in:_
+- [EtcdSnapshotList](#etcdsnapshotlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
+| `kind` _string_ | `EtcdSnapshot` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[EtcdSnapshotSpec](#etcdsnapshotspec)_ |  |  |  |
+| `status` _[EtcdSnapshotStatus](#etcdsnapshotstatus)_ |  |  |  |
+
+
+#### EtcdSnapshotList
+
+
+
+EtcdSnapshotList is a list of EtcdSnapshot resources.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
+| `kind` _string_ | `EtcdSnapshotList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[EtcdSnapshot](#etcdsnapshot) array_ |  |  |  |
+
+
+#### EtcdSnapshotSpec
+
+
+
+EtcdSnapshotSpec defines the desired state of an EtcdSnapshot.
+
+
+
+_Appears in:_
+- [EtcdSnapshot](#etcdsnapshot)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `clusterRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | ClusterRef is a reference to the cluster where the snapshot will be taken.<br />This field is immutable. |  |  |
+| `s3ConfigSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | S3ConfigSecretRef defines the S3 configuration secret that contains all<br />S3 configuration. The configuration items are expected to match the following:<br />https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support<br />This field is immutable to avoid inconsistencies after snapshot creation.<br />Setting this will also cause k3s to create a local etcd snapshot on disk and then upload<br />it to S3. When the request is deleted, both the on-disk and S3 files will be deleted. |  |  |
+| `compress` _boolean_ | Compress specifies if the snapshot should be compressed | false |  |
+
+
+#### EtcdSnapshotStatus
+
+
+
+EtcdSnapshotStatus reflects the observed state of an EtcdSnapshot.
+
+
+
+_Appears in:_
+- [EtcdSnapshot](#etcdsnapshot)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `filename` _string_ | Filename is the name of the snapshot file created in<br />the virtual cluster |  |  |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the snapshot. |  |  |
 
 
 #### ExposeConfig
@@ -339,7 +414,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />If not specified, the default https 443 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
-| `etcdPort` _integer_ | ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
+| `etcdPort` _integer_ | EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
 
 
 #### NodePortConfig
@@ -356,7 +431,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `serverPort` _integer_ | ServerPort is the port on each node on which the K3s server is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
-| `etcdPort` _integer_ | ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
+| `etcdPort` _integer_ | EtcdPort is the port on each node on which the Etcd service is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
 
 
 #### PersistenceConfig

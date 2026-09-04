@@ -531,12 +531,12 @@ type LoadBalancerConfig struct {
 	// +optional
 	ServerPort *int32 `json:"serverPort,omitempty"`
 
-	// ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.
+	// EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.
 	// If not specified, the default etcd 2379 port will be allocated.
 	// If 0 or negative, the port will not be exposed.
 	//
 	// +optional
-	ETCDPort *int32 `json:"etcdPort,omitempty"`
+	EtcdPort *int32 `json:"etcdPort,omitempty"`
 }
 
 // NodePortConfig specifies options for exposing the API server through NodePort.
@@ -548,12 +548,12 @@ type NodePortConfig struct {
 	// +optional
 	ServerPort *int32 `json:"serverPort,omitempty"`
 
-	// ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
+	// EtcdPort is the port on each node on which the Etcd service is exposed when type is NodePort.
 	// If not specified, a random port between 30000-32767 will be allocated.
 	// If out of range, the port will not be exposed.
 	//
 	// +optional
-	ETCDPort *int32 `json:"etcdPort,omitempty"`
+	EtcdPort *int32 `json:"etcdPort,omitempty"`
 }
 
 // CustomCAs specifies the cert/key pairs for custom CA certificates.
@@ -579,11 +579,11 @@ type CredentialSources struct {
 	// RequestHeaderCA specifies the request-header-ca cert/key pair.
 	RequestHeaderCA CredentialSource `json:"requestHeaderCA"`
 
-	// ETCDServerCA specifies the etcd-server-ca cert/key pair.
-	ETCDServerCA CredentialSource `json:"etcdServerCA"`
+	// EtcdServerCA specifies the etcd-server-ca cert/key pair.
+	EtcdServerCA CredentialSource `json:"etcdServerCA"`
 
-	// ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
-	ETCDPeerCA CredentialSource `json:"etcdPeerCA"`
+	// EtcdPeerCA specifies the etcd-peer-ca cert/key pair.
+	EtcdPeerCA CredentialSource `json:"etcdPeerCA"`
 
 	// ServiceAccountToken specifies the service-account-token key.
 	ServiceAccountToken CredentialSource `json:"serviceAccountToken"`
@@ -895,4 +895,75 @@ type VirtualClusterPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 
 	Items []VirtualClusterPolicy `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:JSONPath=".status.filename",name="File Name",type="string"
+
+type EtcdSnapshot struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+
+	// +required
+	Spec EtcdSnapshotSpec `json:"spec"`
+
+	// +optional
+	Status EtcdSnapshotStatus `json:"status,omitzero"`
+}
+
+// EtcdSnapshotSpec defines the desired state of an EtcdSnapshot.
+type EtcdSnapshotSpec struct {
+	// ClusterRef is a reference to the cluster where the snapshot will be taken.
+	// This field is immutable.
+	//
+	// +kubebuilder:validation:XValidation:message="clusterRef is immutable",rule="self == oldSelf"
+	// +required
+	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
+
+	// S3ConfigSecretRef defines the S3 configuration secret that contains all
+	// S3 configuration. The configuration items are expected to match the following:
+	// https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support
+	//
+	// This field is immutable to avoid inconsistencies after snapshot creation.
+	//
+	// Setting this will also cause k3s to create a local etcd snapshot on disk and then upload
+	// it to S3. When the request is deleted, both the on-disk and S3 files will be deleted.
+	//
+	// +kubebuilder:validation:XValidation:message="s3ConfigSecretRef is immutable",rule="self == oldSelf"
+	// +optional
+	S3ConfigSecretRef *corev1.SecretReference `json:"s3ConfigSecretRef,omitempty"`
+
+	// Compress specifies if the snapshot should be compressed
+	//
+	// +kubebuilder:validation:XValidation:message="compress is immutable",rule="self == oldSelf"
+	// +kubebuilder:default=false
+	// +optional
+	Compress bool `json:"compress"`
+}
+
+// EtcdSnapshotStatus reflects the observed state of an EtcdSnapshot.
+type EtcdSnapshotStatus struct {
+	// Filename is the name of the snapshot file created in
+	// the virtual cluster
+	//
+	// +optional
+	Filename string `json:"filename,omitempty"`
+
+	// Conditions are the individual conditions for the snapshot.
+	//
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+
+// EtcdSnapshotList is a list of EtcdSnapshot resources.
+type EtcdSnapshotList struct {
+	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `json:",inline"`
+
+	Items []EtcdSnapshot `json:"items"`
 }

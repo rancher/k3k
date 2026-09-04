@@ -1148,7 +1148,7 @@ spec:
                         - secretName
                         type: object
                       etcdPeerCA:
-                        description: ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
+                        description: EtcdPeerCA specifies the etcd-peer-ca cert/key pair.
                         properties:
                           secretName:
                             description: |-
@@ -1160,7 +1160,7 @@ spec:
                         - secretName
                         type: object
                       etcdServerCA:
-                        description: ETCDServerCA specifies the etcd-server-ca cert/key pair.
+                        description: EtcdServerCA specifies the etcd-server-ca cert/key pair.
                         properties:
                           secretName:
                             description: |-
@@ -1246,7 +1246,7 @@ spec:
                     properties:
                       etcdPort:
                         description: |-
-                          ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.
+                          EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.
                           If not specified, the default etcd 2379 port will be allocated.
                           If 0 or negative, the port will not be exposed.
                         format: int32
@@ -1264,7 +1264,7 @@ spec:
                     properties:
                       etcdPort:
                         description: |-
-                          ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
+                          EtcdPort is the port on each node on which the Etcd service is exposed when type is NodePort.
                           If not specified, a random port between 30000-32767 will be allocated.
                           If out of range, the port will not be exposed.
                         format: int32

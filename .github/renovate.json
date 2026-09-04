@@ -3,10 +3,66 @@
   "extends": [
     "github>rancher/renovate-config#release"
   ],
-  "baseBranchPatterns": [
+  "baseBranches": [
     "main",
     "release/v1.2",
     "release/v1.1"
   ],
-  "prHourlyLimit": 2
+  "prHourlyLimit": 2,
+  "packageRules": [
+    {
+      "description": "[v1.2] Cap Kubernetes staging sub-modules (0.x scheme)",
+      "matchBaseBranches": ["release/v1.2"],
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["k8s.io/"],
+      "excludePackageNames": ["k8s.io/kubernetes"],
+      "allowedVersions": "<0.37.0"
+    },
+    {
+      "description": "[v1.2] Cap k8s.io/kubernetes main module (1.x scheme)",
+      "matchBaseBranches": ["release/v1.2"],
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["k8s.io/kubernetes"],
+      "allowedVersions": "<1.37.0"
+    },
+    {
+      "description": "[v1.1] Cap Kubernetes staging sub-modules (0.x scheme)",
+      "matchBaseBranches": ["release/v1.1"],
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["k8s.io/"],
+      "excludePackageNames": ["k8s.io/kubernetes"],
+      "allowedVersions": "<0.36.0"
+    },
+    {
+      "description": "[v1.1] Cap k8s.io/kubernetes main module (1.x scheme)",
+      "matchBaseBranches": ["release/v1.1"],
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["k8s.io/kubernetes"],
+      "allowedVersions": "<1.36.0"
+    },
+    {
+      "description": "Do not bump the Go minor/major version on release branches",
+      "matchDepNames": ["go"],
+      "matchUpdateTypes": ["major", "minor"],
+      "matchBaseBranches": ["/^release\\//"],
+      "enabled": false
+    },
+    {
+      "description": "Do not update the rancher/renovate-config digest on release branches - only main's renovate.json is ever used, so keeping release branch copies in sync is unnecessary",
+      "matchDepNames": ["rancher/renovate-config"],
+      "matchBaseBranches": ["/^release\\//"],
+      "enabled": false
+    },
+    {
+      "description": "Group all GitHub Actions updates into a single PR per branch",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "Group golang.org/x/* packages into a single PR per branch",
+      "matchPackagePrefixes": ["golang.org/x/"],
+      "groupName": "golang.org/x packages"
+    }
+  ]
 }

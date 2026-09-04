@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -71,21 +72,42 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 		NodeName: controller.SafeConcatName(cfg.ClusterName, "server-0"),
 	})
 
+	tlsCrt, err := requestServingCert(client.GetServingKubeletCrt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{*tlsCrt},
+	}, nil
+}
+
+// requestServingCert retries the serving-cert request while the server is not
+// ready, tolerating wrapped errors (errors.Is instead of ==).
+func requestServingCert(getCrt func() (*tls.Certificate, error)) (*tls.Certificate, error) {
 	var tlsCrt *tls.Certificate
 
 	if err := retry.OnError(controller.Backoff, func(err error) bool {
-		return err == k3s.ErrServerNotReady
+		return errors.Is(err, k3s.ErrServerNotReady)
 	}, func() error {
 		var err error
 
-		tlsCrt, err = client.GetServingKubeletCrt()
+		tlsCrt, err = getCrt()
 
 		return err
 	}); err != nil {
 		return nil, fmt.Errorf("unable to request serving kubelet certificate: %w", err)
 	}
 
-	return &tls.Config{
-		Certificates: []tls.Certificate{*tlsCrt},
-	}, nil
+	// retry.OnError can return nil without a certificate: when fn fails with
+	// an error that satisfies wait.Interrupted (e.g. a wrapped
+	// context.DeadlineExceeded from the HTTP client) before any retriable
+	// error was recorded, it swallows the error entirely. Guard the
+	// dereference so a network timeout surfaces as an error instead of a
+	// panic.
+	if tlsCrt == nil {
+		return nil, fmt.Errorf("unable to request serving kubelet certificate: no certificate returned")
+	}
+
+	return tlsCrt, nil
 }

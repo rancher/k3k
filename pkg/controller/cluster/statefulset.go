@@ -22,6 +22,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -93,6 +94,21 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 		return reconcile.Result{}, err
 	}
 
+	// Pods already being deleted are processed FIRST: the server-config
+	// fetch below needs the cluster's live bootstrap endpoint, which is
+	// exactly what a fully-down cluster lacks. Gating finalizer removal
+	// on it deadlocks recovery (finalizer never removed -> StatefulSet
+	// never recreates pods -> the cluster can never come back).
+	for i := range podList.Items {
+		if podList.Items[i].DeletionTimestamp.IsZero() {
+			continue
+		}
+
+		if err := p.handleServerPod(ctx, cluster, &podList.Items[i]); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	if len(podList.Items) == 1 {
 		serverPod := podList.Items[0]
 		if !serverPod.DeletionTimestamp.IsZero() {
@@ -155,6 +171,28 @@ func (p *StatefulSetReconciler) handleServerPod(ctx context.Context, cluster v1b
 	if cluster.Name == "" {
 		if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
 			log.V(1).Info("Cluster was deleted. Deleting Server Pod removing finalizer", "pod", pod.Name, "namespace", pod.Namespace)
+
+			if err := p.Client.Update(ctx, pod); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	// Member removal needs a live quorum. When NO server of this cluster
+	// is ready, there is no quorum to serve the removal — and none is
+	// needed: the members restart together with their PVCs intact, so no
+	// bookkeeping is missing. Blocking here kept whole clusters dead
+	// (ivx observation: 9 pods of 3 vcs stuck Unknown for 8 days).
+	anyReady, err := p.anyServerPodReady(ctx, pod)
+	if err != nil {
+		return err
+	}
+
+	if !anyReady {
+		if controllerutil.RemoveFinalizer(pod, etcdPodFinalizerName) {
+			log.Info("no ready server for this cluster; skipping etcd member removal and removing finalizer", "pod", pod.Name, "namespace", pod.Namespace)
 
 			if err := p.Client.Update(ctx, pod); err != nil {
 				return err
@@ -301,6 +339,39 @@ func (p *StatefulSetReconciler) handleDeletion(ctx context.Context, sts *appsv1.
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// anyServerPodReady reports whether any non-deleting server pod of the same
+// cluster as the given pod is Ready.
+func (p *StatefulSetReconciler) anyServerPodReady(ctx context.Context, pod *corev1.Pod) (bool, error) {
+	var podList corev1.PodList
+
+	listOpts := &ctrlruntimeclient.ListOptions{
+		Namespace: pod.Namespace,
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			"cluster": pod.Labels["cluster"],
+			"role":    "server",
+		}),
+	}
+
+	if err := p.Client.List(ctx, &podList, listOpts); err != nil {
+		return false, err
+	}
+
+	for i := range podList.Items {
+		other := &podList.Items[i]
+		if !other.DeletionTimestamp.IsZero() {
+			continue
+		}
+
+		for _, cond := range other.Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }
 
 func (p *StatefulSetReconciler) listPods(ctx context.Context, sts *appsv1.StatefulSet) (*corev1.PodList, error) {

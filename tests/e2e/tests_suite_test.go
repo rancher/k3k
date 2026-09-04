@@ -67,6 +67,7 @@ const (
 	registryTestsLabel     = "registry"
 	addonsTestsLabel       = "addons"
 	datastoreTestsLabel    = "datastore"
+	k3kUpgradeTestsLabel   = "k3k-upgrade"
 
 	registryImage               = "registry:2"
 	registryCACertSecretName    = "private-registry-ca-cert"

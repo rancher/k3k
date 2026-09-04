@@ -10,7 +10,6 @@ import (
 	"text/template"
 
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -223,14 +222,24 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		)
 	}
 
-	// Adding readiness probes to statefulset
+	// Adding readiness probes to statefulset.
+	// /readyz includes the apiserver's etcd health checks; a bare TCP
+	// check stays green while raft has no quorum (the listener accepts
+	// connections and every handler times out), so ordered StatefulSet
+	// rolls proceeded into a quorum-less cluster. k3s runs the apiserver
+	// with anonymous-auth=false (an HTTP probe gets 401), so the check
+	// goes through k3s' own admin credentials via an exec probe.
 	podSpec.Containers[0].ReadinessProbe = &corev1.Probe{
 		InitialDelaySeconds: 60,
 		FailureThreshold:    5,
 		TimeoutSeconds:      10,
 		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(6443),
+			Exec: &corev1.ExecAction{
+				Command: []string{
+					"/bin/sh",
+					"-c",
+					"kubectl get --raw=/readyz",
+				},
 			},
 		},
 	}

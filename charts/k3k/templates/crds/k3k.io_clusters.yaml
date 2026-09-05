@@ -3044,6 +3044,25 @@ spec:
                     required:
                     - enabled
                     type: object
+                  podDisruptionBudgets:
+                    default:
+                      enabled: false
+                    description: PodDisruptionBudgets resources sync configuration.
+                    properties:
+                      enabled:
+                        default: false
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    required:
+                    - enabled
+                    type: object
                   priorityClasses:
                     default:
                       enabled: false
@@ -5543,6 +5562,25 @@ spec:
                         properties:
                           enabled:
                             default: true
+                            description: Enabled is an on/off switch for syncing resources.
+                            type: boolean
+                          selector:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Selector specifies set of labels of the resources that will be synced, if empty
+                              then all resources of the given type will be synced.
+                            type: object
+                        required:
+                        - enabled
+                        type: object
+                      podDisruptionBudgets:
+                        default:
+                          enabled: false
+                        description: PodDisruptionBudgets resources sync configuration.
+                        properties:
+                          enabled:
+                            default: false
                             description: Enabled is an on/off switch for syncing resources.
                             type: boolean
                           selector:

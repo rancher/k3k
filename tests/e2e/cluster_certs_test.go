@@ -74,10 +74,10 @@ var _ = When("a cluster with custom certificates is installed with individual ce
 				ClientCA: v1beta1.CredentialSource{
 					SecretName: "client-ca",
 				},
-				ETCDServerCA: v1beta1.CredentialSource{
+				EtcdServerCA: v1beta1.CredentialSource{
 					SecretName: "etcd-server-ca",
 				},
-				ETCDPeerCA: v1beta1.CredentialSource{
+				EtcdPeerCA: v1beta1.CredentialSource{
 					SecretName: "etcd-peer-ca",
 				},
 				RequestHeaderCA: v1beta1.CredentialSource{

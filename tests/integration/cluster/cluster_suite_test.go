@@ -9,7 +9,6 @@ import (
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
@@ -76,7 +75,7 @@ var _ = BeforeSuite(func() {
 		K3SServerImage:    "rancher/k3s",
 		VirtualAgentImage: "rancher/k3s",
 	}
-	err = cluster.Add(ctx, mgr, clusterConfig, 50, portAllocator, &record.FakeRecorder{})
+	err = cluster.Add(ctx, mgr, clusterConfig, 50, portAllocator)
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {

@@ -8,12 +8,14 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +25,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/certs"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
+	fwclient "github.com/rancher/k3k/tests/framework/client"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -33,6 +36,7 @@ type VirtualCluster struct {
 	Cluster    *v1beta1.Cluster
 	RestConfig *rest.Config
 	Client     *kubernetes.Clientset
+	CtrlClient client.Client
 	Kubeconfig []byte
 }
 
@@ -45,10 +49,18 @@ func NewVirtualCluster() *VirtualCluster { // By default, create an ephemeral cl
 func NewVirtualClusterWithType(persistenceType v1beta1.PersistenceMode) *VirtualCluster {
 	GinkgoHelper()
 
+	return NewVirtualClusterWithOpts(func(c *v1beta1.Cluster) {
+		c.Spec.Persistence.Type = persistenceType
+	})
+}
+
+// NewVirtualClusterWithOpts creates a Virtual Cluster in a new namespace, applying the given options to its spec
+func NewVirtualClusterWithOpts(opts ...func(*v1beta1.Cluster)) *VirtualCluster {
+	GinkgoHelper()
+
 	namespace := fwk3k.CreateNamespace(k8s)
 
-	cluster := NewCluster(namespace.Name)
-	cluster.Spec.Persistence.Type = persistenceType
+	cluster := NewCluster(namespace.Name, opts...)
 
 	CreateCluster(cluster)
 
@@ -180,6 +192,20 @@ func CreateCluster(cluster *v1beta1.Cluster) {
 func NewVirtualK8sClient(cluster *v1beta1.Cluster) *kubernetes.Clientset {
 	virtualK8sClient, _ := NewVirtualK8sClientAndConfig(cluster)
 	return virtualK8sClient
+}
+
+// NewVirtualCtrlClient returns a controller runtime Kubernetes client for the virtual cluster
+func NewVirtualCtrlClient(restCfg *rest.Config, scheme *runtime.Scheme) client.Client {
+	GinkgoHelper()
+
+	if scheme == nil {
+		scheme = fwclient.NewScheme()
+	}
+
+	ctrlClient, err := client.New(restCfg, client.Options{Scheme: scheme})
+	Expect(err).To(Not(HaveOccurred()))
+
+	return ctrlClient
 }
 
 // NewVirtualK8sClient returns a Kubernetes ClientSet for the virtual cluster
@@ -429,4 +455,47 @@ func isArgFound(pod *corev1.Pod, arg string) bool {
 	}
 
 	return false
+}
+
+func newS3ConfigSecret(name, namespace, endpoint string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			"etcd-s3-endpoint":           endpoint,
+			"etcd-s3-access-key":         s3MockAccessKey,
+			"etcd-s3-secret-key":         s3MockSecretKey,
+			"etcd-s3-bucket":             s3MockBucket,
+			"etcd-s3-folder":             s3MockFolder,
+			"etcd-s3-region":             "us-east-1",
+			"etcd-s3-bucket-lookup-type": "path",
+			"etcd-s3-insecure":           "true",
+			"etcd-s3-skip-ssl-verify":    "true",
+		},
+	}
+}
+
+func newSnapshot(name, namespace, s3ConfigSecretName string) *v1beta1.EtcdSnapshot {
+	s := &v1beta1.EtcdSnapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "snapshot-",
+			Namespace:    namespace,
+		},
+		Spec: v1beta1.EtcdSnapshotSpec{
+			ClusterRef: corev1.LocalObjectReference{
+				Name: name,
+			},
+		},
+	}
+
+	if s3ConfigSecretName != "" {
+		s.Spec.S3ConfigSecretRef = &corev1.SecretReference{
+			Name:      s3ConfigSecretName,
+			Namespace: namespace,
+		}
+	}
+
+	return s
 }

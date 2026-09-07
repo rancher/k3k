@@ -42,13 +42,13 @@ type K3SConfig struct {
 
 func (c *Client) GetServerConfig() (*K3SConfig, error) {
 	endpoint := "/v1-k3s/config"
-	return do[*K3SConfig](c, endpoint, "node", http.MethodGet)
+	return do[*K3SConfig](c, endpoint, "node", http.MethodGet, nil)
 }
 
 func (c *Client) GetServerBootstrap() (*BootstrapData, error) {
 	endpoint := "/v1-k3s/server-bootstrap"
 
-	bootstrap, err := do[*BootstrapData](c, endpoint, "server", http.MethodGet)
+	bootstrap, err := do[*BootstrapData](c, endpoint, "server", http.MethodGet, nil)
 	if err != nil {
 		return nil, err
 	}

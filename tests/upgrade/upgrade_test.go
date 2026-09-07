@@ -21,31 +21,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// This is a smoke test for upgrading the k3k controller itself: it installs the
-// latest released k3k, provisions a shared-mode and a virtual-mode cluster (both
-// with dynamic persistence) running an nginx app, then upgrades k3k to the build
-// from source and verifies that the clusters, and the workloads inside them, are
-// unaffected, and that the new controller can still reconcile, create and delete
-// clusters.
-//
-// It is deliberately mode-agnostic and does not assert on any single controller
-// implementation detail: the signal is the reconciled Cluster status, the server
-// pods, the reachability of the virtual API and the surviving workloads.
-// This catches rancher/k3k#559 (the immutable server StatefulSet field renamed
-// by PR #869 breaks reconciliation of dynamic-persistence clusters on upgrade)
-// as well as any other upgrade regression.
-//
-// HCP mode is intentionally not covered: it was added after the latest stable
-// release, so it cannot be provisioned by the version we upgrade from. It should
-// be added here as soon as a stable release ships it.
-//
-// The spec mutates the shared k3k release in k3k-system, so it is Serial and
-// runs in its own dedicated test suite.
 var _ = When("k3k is upgraded from the latest released version", Ordered, Serial, func() {
 	var (
 		namespaceName  string
 		clusterVirtual *v1beta1.Cluster
 		clusterShared  *v1beta1.Cluster
+		clusterHCP     *v1beta1.Cluster
 		podUIDs        []types.UID
 	)
 
@@ -99,6 +80,14 @@ var _ = When("k3k is upgraded from the latest released version", Ordered, Serial
 
 		CreateCluster(ctx, clusterShared)
 
+		By("Creating a hcp-mode cluster with the released k3k")
+
+		clusterHCP = NewCluster(namespaceName, func(c *v1beta1.Cluster) {
+			c.Spec.Mode = v1beta1.HCPClusterMode
+		})
+
+		CreateCluster(ctx, clusterHCP)
+
 		By("Deploying an app in the shared-mode cluster")
 
 		client := newVirtualK8sClient(ctx, clusterShared)
@@ -139,6 +128,11 @@ var _ = When("k3k is upgraded from the latest released version", Ordered, Serial
 		Expect(listAppPodUIDs(ctx, client)).To(ConsistOf(podUIDs))
 	})
 
+	It("keeps the existing hcp-mode clusters healthy", func() {
+		By("Verifying the hcp-mode cluster " + clusterHCP.Name + " is healthy after the upgrade")
+		assertClusterHealthy(ctx, clusterHCP)
+	})
+
 	It("can still create new clusters in virtual-mode", func() {
 		clusterVirtual2 := NewCluster(namespaceName, func(c *v1beta1.Cluster) {
 			c.Spec.Mode = v1beta1.VirtualClusterMode
@@ -162,6 +156,18 @@ var _ = When("k3k is upgraded from the latest released version", Ordered, Serial
 		By("Checking it's healthy")
 
 		assertClusterHealthy(ctx, clusterShared2)
+	})
+
+	It("can still create new clusters in hcp-mode", func() {
+		clusterHCP2 := NewCluster(namespaceName, func(c *v1beta1.Cluster) {
+			c.Spec.Mode = v1beta1.HCPClusterMode
+		})
+
+		CreateCluster(ctx, clusterHCP2)
+
+		By("Checking it's healthy")
+
+		assertClusterHealthy(ctx, clusterHCP2)
 	})
 })
 

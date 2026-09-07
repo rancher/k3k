@@ -9,17 +9,17 @@
   "packageRules": [
     {
       "matchBaseBranches": ["$default"],
-      "extends": ["github>rancher/renovate-config//rancher-main#release"]
+      "extends": ["github>rancher/renovate-config//rancher-main#main"]
     },
     {
       "description": "Apply Rancher 2.15 update constraints (Kubernetes 1.36)",
       "matchBaseBranches": ["release/v1.2"],
-      "extends": ["github>rancher/renovate-config//rancher-2.15#release"]
+      "extends": ["github>rancher/renovate-config//rancher-2.15#main"]
     },
     {
       "description": "Apply Rancher 2.14 update constraints (Kubernetes 1.35)",
       "matchBaseBranches": ["release/v1.1"],
-      "extends": ["github>rancher/renovate-config//rancher-2.14#release"]
+      "extends": ["github>rancher/renovate-config//rancher-2.14#main"]
     }
   ]
 }

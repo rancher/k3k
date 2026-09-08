@@ -1,4 +1,4 @@
-name: Tests E2E
+name: Tests Upgrade
 
 on:
   push:
@@ -17,29 +17,10 @@ env:
   KUBERNETES_VERSION: v1.36.2
 
 jobs:
-  tests-e2e:
+  # Checks that a k3k installation can be upgraded from the latest released version to the build from source,
+  # without breaking the clusters (and the workloads running in them) that were provisioned by the released version.
+  tests-upgrade:
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-        - name: update-config
-          label-filter: "update && config"
-        - name: update-version
-          label-filter: "update && upgrade"
-        - name: update-scaling
-          label-filter: "update && scaling"
-        - name: lifecycle
-          label-filter: "lifecycle || kubelet"
-        - name: persistence
-          label-filter: "persistence"
-        - name: sync
-          label-filter: "pod || app || sync || policy || status"
-        - name: features
-          label-filter: "networking || certificates || registry || addons || datastore"
-
-    name: tests-e2e (${{ matrix.name }})
 
     steps:
     - name: Checkout code
@@ -53,14 +34,10 @@ jobs:
         go-version-file: go.mod
 
     - name: Install Ginkgo
-      run: go install github.com/onsi/ginkgo/v2/ginkgo@f2d0f65b6d1e99c58d1f9a31b41c53a2754a6c2c # v2.32.1
+      run: go install github.com/onsi/ginkgo/v2/ginkgo@9ff1646a26f77a4c0d33ddba3e6368c42c0e8842 # v2.32.0
 
     - name: Setup environment
       run: |
-        mkdir ${{ github.workspace }}/covdata
-
-        echo "COVERAGE=true" >> $GITHUB_ENV
-        echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
         echo "REPO=k3k.local" >> $GITHUB_ENV
         echo "K3S_HOST_VERSION=${{ env.KUBERNETES_VERSION }}+k3s1" >> $GITHUB_ENV
 
@@ -99,6 +76,8 @@ jobs:
           done
         '
 
+    # No `make install` here: the upgrade tests install the released k3k
+    # themselves, and later run `make install` to upgrade to these images.
     - name: Build and package and import dev images
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -118,29 +97,10 @@ jobs:
             "sudo k3s ctr images import /tmp/k3k-images.tar && rm -f /tmp/k3k-images.tar"
         done
 
-        make install
-
-    - name: Run e2e tests
+    - name: Run upgrade tests
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      run: make E2E_LABEL_FILTER="${{ matrix.label-filter }}" test-e2e
-
-    - name: Convert coverage data
-      run: go tool covdata textfmt -i=${GOCOVERDIR} -o ${GOCOVERDIR}/cover.out
-
-    - name: Upload coverage reports to Codecov (controller)
-      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ${GOCOVERDIR}/cover.out
-        flags: controller
-
-    - name: Upload coverage reports to Codecov (e2e)
-      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./cover.out
-        flags: e2e
+      run: make test-upgrade
 
     - name: Export logs
       if: always()
@@ -160,19 +120,19 @@ jobs:
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       if: always()
       with:
-        name: e2e-${{ matrix.name }}-k3s-logs
+        name: upgrade-k3s-logs
         path: /tmp/k3s.log
 
     - name: Archive k3k logs
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       if: always()
       with:
-        name: e2e-${{ matrix.name }}-k3k-logs
+        name: upgrade-k3k-logs
         path: /tmp/k3k.log
 
     - name: Archive worker VM logs
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       if: always()
       with:
-        name: e2e-${{ matrix.name }}-worker-logs
+        name: upgrade-worker-logs
         path: /tmp/worker-*.log

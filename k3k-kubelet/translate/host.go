@@ -1,3 +1,5 @@
+// Package translate maps names between a virtual cluster and the host cluster its
+// resources actually live in.
 package translate
 
 import (
@@ -32,6 +34,8 @@ const (
 	MetadataNamespaceField = "metadata.namespace"
 )
 
+// ToHostTranslator rewrites virtual cluster objects so they can be created in the host
+// cluster, and back again.
 type ToHostTranslator struct {
 	// ClusterName is the name of the virtual cluster whose resources we are
 	// translating to a host cluster
@@ -41,6 +45,7 @@ type ToHostTranslator struct {
 	ClusterNamespace string
 }
 
+// NewHostTranslator returns a ToHostTranslator for the given virtual cluster.
 func NewHostTranslator(cluster *v1beta1.Cluster) *ToHostTranslator {
 	return &ToHostTranslator{
 		ClusterName:      cluster.Name,
@@ -48,7 +53,7 @@ func NewHostTranslator(cluster *v1beta1.Cluster) *ToHostTranslator {
 	}
 }
 
-// Translate translates a virtual cluster object to a host cluster object. This should only be used for
+// TranslateTo translates a virtual cluster object to a host cluster object. This should only be used for
 // static resources such as configmaps/secrets, and not for things like pods (which can reference other
 // objects). Note that this won't set host-cluster values (like resource version) so when updating you
 // may need to fetch the existing value and do some combination before using this.
@@ -85,6 +90,8 @@ func (t *ToHostTranslator) TranslateTo(obj client.Object) {
 	obj.SetFinalizers(nil)
 }
 
+// TranslateFrom reverses TranslateTo, restoring the original name and namespace an
+// object had in the virtual cluster.
 func (t *ToHostTranslator) TranslateFrom(obj client.Object) {
 	// owning objects may be in the virtual cluster, but may not be in the host cluster
 	obj.SetOwnerReferences(nil)
@@ -117,7 +124,7 @@ func (t *ToHostTranslator) TranslateName(namespace string, name string) string {
 	var names []string
 
 	// some resources are not namespaced (i.e. priorityclasses)
-	/// for these resources we skip the namespace to avoid having a name like: prioritclass--cluster-123
+	// for these resources we skip the namespace to avoid having a name like: prioritclass--cluster-123
 	if namespace == "" {
 		names = []string{name, t.ClusterName}
 	} else {

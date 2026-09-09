@@ -1,3 +1,4 @@
+// Package main is the entrypoint of k3kcli, the k3k command line client.
 package main
 
 import (

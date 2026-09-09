@@ -41,11 +41,7 @@ func (p *Provider) transformTokens(ctx context.Context, virtualPod, hostPod *cor
 	}
 
 	// transform kube-api-access token for all containers in virtualPod
-	if err := p.transformKubeAccessToken(ctx, virtualPod, hostPod); err != nil {
-		return err
-	}
-
-	return nil
+	return p.transformKubeAccessToken(ctx, virtualPod, hostPod)
 }
 
 func (p *Provider) transformKubeAccessToken(ctx context.Context, virtualPod, hostPod *corev1.Pod) error {
@@ -58,7 +54,7 @@ func (p *Provider) transformKubeAccessToken(ctx context.Context, virtualPod, hos
 	virtualSecretName := k3kcontroller.SafeConcatNameWithPrefix(virtualPod.Spec.ServiceAccountName, "token")
 
 	virtualSecret := virtualSecret(virtualSecretName, virtualPod.Namespace, virtualPod.Spec.ServiceAccountName)
-	if err := p.Virtual.Client.Create(ctx, virtualSecret); err != nil {
+	if err := p.virtual.Client.Create(ctx, virtualSecret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -69,7 +65,7 @@ func (p *Provider) transformKubeAccessToken(ctx context.Context, virtualPod, hos
 		Name:      virtualSecret.Name,
 		Namespace: virtualSecret.Namespace,
 	}
-	if err := p.Virtual.Client.Get(ctx, virtualSecretKey, virtualSecret); err != nil {
+	if err := p.virtual.Client.Get(ctx, virtualSecretKey, virtualSecret); err != nil {
 		return err
 	}
 	// To avoid race conditions we need to check if the secret's data has been populated
@@ -155,7 +151,7 @@ func (p *Provider) requestTokenSecret(ctx context.Context, token *corev1.Service
 		},
 	}
 
-	tokenResp, err := p.Virtual.CoreClient.ServiceAccounts(namespace).CreateToken(ctx, serviceAccountName, tokenRequest, metav1.CreateOptions{})
+	tokenResp, err := p.virtual.CoreClient.ServiceAccounts(namespace).CreateToken(ctx, serviceAccountName, tokenRequest, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -197,10 +193,10 @@ func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, projec
 	hostSecret.Type = ""
 	hostSecret.Annotations = make(map[string]string)
 
-	p.Translator.TranslateTo(hostSecret)
+	p.translator.TranslateTo(hostSecret)
 
 	data := hostSecret.Data
-	if _, err := controllerutil.CreateOrUpdate(ctx, p.Host.Client, hostSecret, func() error {
+	if _, err := controllerutil.CreateOrUpdate(ctx, p.host.Client, hostSecret, func() error {
 		hostSecret.Data = data
 		return nil
 	}); err != nil {

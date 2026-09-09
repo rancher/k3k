@@ -20,6 +20,8 @@ const (
 	podController = "k3k-pod-controller"
 )
 
+// PodReconciler propagates deletions of host cluster Pods to their counterparts inside
+// the virtual cluster.
 type PodReconciler struct {
 	Client ctrlruntimeclient.Client
 	Scheme *runtime.Scheme
@@ -41,6 +43,8 @@ func AddPodController(ctx context.Context, mgr manager.Manager, maxConcurrentRec
 		Complete(&reconciler)
 }
 
+// Reconcile deletes the virtual cluster Pod backing a host Pod once that host Pod has
+// been marked for deletion.
 func (r *PodReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Reconciling Pod")

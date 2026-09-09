@@ -1,11 +1,10 @@
-package syncer_test
+package k3kkubelet_test
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -88,7 +87,7 @@ var IngressTests = func() {
 								Paths: []networkingv1.HTTPIngressPath{
 									{
 										Path:     "/",
-										PathType: ptr.To(networkingv1.PathTypePrefix),
+										PathType: new(networkingv1.PathTypePrefix),
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{
 												Name: "test-service",
@@ -154,7 +153,7 @@ var IngressTests = func() {
 								Paths: []networkingv1.HTTPIngressPath{
 									{
 										Path:     "/",
-										PathType: ptr.To(networkingv1.PathTypePrefix),
+										PathType: new(networkingv1.PathTypePrefix),
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{
 												Name: "test-service",
@@ -240,7 +239,7 @@ var IngressTests = func() {
 								Paths: []networkingv1.HTTPIngressPath{
 									{
 										Path:     "/",
-										PathType: ptr.To(networkingv1.PathTypePrefix),
+										PathType: new(networkingv1.PathTypePrefix),
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{
 												Name: "test-service",
@@ -331,7 +330,7 @@ var IngressTests = func() {
 								Paths: []networkingv1.HTTPIngressPath{
 									{
 										Path:     "/",
-										PathType: ptr.To(networkingv1.PathTypePrefix),
+										PathType: new(networkingv1.PathTypePrefix),
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{
 												Name: "test-service",
@@ -427,7 +426,7 @@ var IngressTests = func() {
 								Paths: []networkingv1.HTTPIngressPath{
 									{
 										Path:     "/",
-										PathType: ptr.To(networkingv1.PathTypePrefix),
+										PathType: new(networkingv1.PathTypePrefix),
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{
 												Name: "test-service",
@@ -509,7 +508,7 @@ var IngressTests = func() {
 								Paths: []networkingv1.HTTPIngressPath{
 									{
 										Path:     "/",
-										PathType: ptr.To(networkingv1.PathTypePrefix),
+										PathType: new(networkingv1.PathTypePrefix),
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{
 												Name: "test-service",

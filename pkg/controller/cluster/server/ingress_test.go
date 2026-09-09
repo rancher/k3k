@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/ptr"
 
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,7 +103,7 @@ func TestIngress(t *testing.T) {
 					i.Annotations = map[string]string{
 						"nginx.ingress.kubernetes.io/ssl-passthrough": "true",
 					}
-					i.Spec.IngressClassName = ptr.To("nginx")
+					i.Spec.IngressClassName = new("nginx")
 					i.Spec.Rules = []networkingv1.IngressRule{testIngressRule("my-cluster.example.com")}
 				},
 			},
@@ -146,7 +145,7 @@ func testIngressRule(host string) networkingv1.IngressRule {
 				Paths: []networkingv1.HTTPIngressPath{
 					{
 						Path:     "/",
-						PathType: ptr.To(networkingv1.PathTypePrefix),
+						PathType: new(networkingv1.PathTypePrefix),
 						Backend: networkingv1.IngressBackend{
 							Service: &networkingv1.IngressServiceBackend{
 								Name: "k3k-test-cluster-service",

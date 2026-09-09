@@ -1,3 +1,5 @@
+// Package main runs the k3k virtual kubelet, which registers a node in a virtual
+// cluster and runs that cluster's pods on the host cluster.
 package main
 
 import (
@@ -15,7 +17,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/rancher/k3k/pkg/log"
+	"github.com/rancher/k3k/pkg/logging"
 )
 
 var (
@@ -35,7 +37,7 @@ func main() {
 				return err
 			}
 
-			logger = zapr.NewLogger(log.New(debug, logFormat))
+			logger = zapr.NewLogger(logging.New(debug, logFormat))
 			ctrl.SetLogger(logger)
 
 			return nil
@@ -112,9 +114,9 @@ func InitializeConfig(cmd *cobra.Command) error {
 		var notFoundErr viper.ConfigFileNotFoundError
 		if errors.As(err, &notFoundErr) || errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("no config file found: %w", err)
-		} else {
-			return fmt.Errorf("failed to read config file: %w", err)
 		}
+
+		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	// Unmarshal all configuration into the global cfg struct.

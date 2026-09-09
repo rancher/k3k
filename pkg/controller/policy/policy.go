@@ -1,3 +1,5 @@
+// Package policy reconciles VirtualClusterPolicy objects, applying their quotas,
+// limits and network isolation to the namespaces they are bound to.
 package policy
 
 import (
@@ -27,13 +29,18 @@ import (
 )
 
 const (
-	PolicyNameLabelKey          = "policy.k3k.io/policy-name"
-	ManagedByLabelKey           = "app.kubernetes.io/managed-by"
+	// PolicyNameLabelKey is the label naming the policy a namespace is bound to.
+	PolicyNameLabelKey = "policy.k3k.io/policy-name"
+	// ManagedByLabelKey is the standard label recording what manages a resource.
+	ManagedByLabelKey = "app.kubernetes.io/managed-by"
+	// VirtualPolicyControllerName is the name of the policy controller.
 	VirtualPolicyControllerName = "k3k-policy-controller"
 
 	policyFinalizerName = "policy.k3k.io/finalizer"
 )
 
+// VirtualClusterPolicyReconciler applies a VirtualClusterPolicy to the namespaces bound
+// to it.
 type VirtualClusterPolicyReconciler struct {
 	Client      client.Client
 	Scheme      *runtime.Scheme
@@ -250,6 +257,8 @@ func clusterEventHandler(r *VirtualClusterPolicyReconciler) handler.Funcs {
 	}
 }
 
+// Reconcile applies the policy to its bound namespaces, or finalizes it when the policy
+// is being deleted.
 func (c *VirtualClusterPolicyReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Reconciling VirtualClusterPolicy")
@@ -307,11 +316,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileVirtualClusterPolicy(ctx conte
 		return err
 	}
 
-	if err := c.cleanupNamespaces(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return c.cleanupNamespaces(ctx)
 }
 
 func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context.Context, policy *v1beta1.VirtualClusterPolicy) error {

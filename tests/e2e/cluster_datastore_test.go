@@ -1,4 +1,4 @@
-package k3k_test
+package e2e_test
 
 import (
 	"fmt"
@@ -112,7 +112,7 @@ var _ = When("creating a shared mode cluster with postgres datastore via drop-in
 				Namespace: namespace.Name,
 			},
 			Data: map[string][]byte{
-				"config.yaml": []byte(fmt.Sprintf("datastore-endpoint: %q\ncluster-init: false\n", dsn.String())),
+				"config.yaml": fmt.Appendf(nil, "datastore-endpoint: %q\ncluster-init: false\n", dsn.String()),
 			},
 		}
 
@@ -267,7 +267,7 @@ var _ = When("creating a virtual mode cluster with postgres datastore via drop-i
 				Namespace: namespace.Name,
 			},
 			Data: map[string][]byte{
-				"config.yaml": []byte(fmt.Sprintf("datastore-endpoint: %q\ncluster-init: false\n", dsn.String())),
+				"config.yaml": fmt.Append([]byte("datastore-endpoint: %q\ncluster-init: false\n"), dsn.String()),
 			},
 		}
 

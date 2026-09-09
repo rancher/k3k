@@ -224,7 +224,7 @@ func TestEventSyncerReconcile(t *testing.T) {
 
 			syncer := &EventSyncer{
 				virtEventRecorder: recorder,
-				SyncerContext: &SyncerContext{
+				Context: &Context{
 					HostClient:    hostFakeClient,
 					VirtualClient: virtualFakeClient,
 					Translator: translate.ToHostTranslator{
@@ -254,8 +254,10 @@ func TestEventSyncerReconcile(t *testing.T) {
 				assert.Equal(t, tt.wantEvent.EventType, got.EventType)
 				assert.Equal(t, tt.wantEvent.Reason, got.Reason)
 				assert.Equal(t, tt.wantEvent.Message, got.Message)
-				wantObj := tt.wantEvent.Object.(*corev1.Pod)
-				gotObj := got.Object.(*corev1.Pod)
+				wantObj, ok := tt.wantEvent.Object.(*corev1.Pod)
+				assert.Equal(t, ok, true)
+				gotObj, ok := got.Object.(*corev1.Pod)
+				assert.Equal(t, ok, true)
 				assert.Equal(t, wantObj.GetName(), gotObj.GetName())
 				assert.Equal(t, wantObj.GetNamespace(), gotObj.GetNamespace())
 				assert.Equal(t, wantObj.GetUID(), gotObj.GetUID())
@@ -276,7 +278,7 @@ func TestEventSyncerReconcileNotFound(t *testing.T) {
 
 	syncer := &EventSyncer{
 		virtEventRecorder: recorder,
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			HostClient:    fakeClient,
 			VirtualClient: fakeClient,
 			Translator: translate.ToHostTranslator{

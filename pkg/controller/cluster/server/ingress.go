@@ -1,8 +1,6 @@
 package server
 
 import (
-	"k8s.io/utils/ptr"
-
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -16,10 +14,12 @@ const (
 	etcdPort      int32 = 2379
 )
 
+// IngressName returns the name of the Ingress of the given cluster.
 func IngressName(clusterName string) string {
 	return controller.SafeConcatNameWithPrefix(clusterName, "ingress")
 }
 
+// Ingress returns the Ingress exposing a cluster's server and etcd ports.
 func Ingress(cluster *v1beta1.Cluster) networkingv1.Ingress {
 	ingress := networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
@@ -39,7 +39,7 @@ func Ingress(cluster *v1beta1.Cluster) networkingv1.Ingress {
 		ingressConfig := cluster.Spec.Expose.Ingress
 
 		if ingressConfig.IngressClassName != "" {
-			ingress.Spec.IngressClassName = ptr.To(ingressConfig.IngressClassName)
+			ingress.Spec.IngressClassName = new(ingressConfig.IngressClassName)
 		}
 
 		if ingressConfig.Annotations != nil {
@@ -59,7 +59,7 @@ func ingressRules(cluster *v1beta1.Cluster) []networkingv1.IngressRule {
 
 	path := networkingv1.HTTPIngressPath{
 		Path:     "/",
-		PathType: ptr.To(networkingv1.PathTypePrefix),
+		PathType: new(networkingv1.PathTypePrefix),
 		Backend: networkingv1.IngressBackend{
 			Service: &networkingv1.IngressServiceBackend{
 				Name: ServiceName(cluster.Name),

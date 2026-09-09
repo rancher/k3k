@@ -6,6 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -20,11 +21,12 @@ const (
 	serviceController = "k3k-service-controller"
 )
 
+// ServiceReconciler reconciles Services on the host cluster.
 type ServiceReconciler struct {
 	HostClient ctrlruntimeclient.Client
 }
 
-// Add adds a new controller to the manager
+// AddServiceController registers the Service controller with the manager.
 func AddServiceController(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) error {
 	reconciler := ServiceReconciler{
 		HostClient: mgr.GetClient(),
@@ -34,9 +36,11 @@ func AddServiceController(ctx context.Context, mgr manager.Manager, maxConcurren
 		Named(serviceController).
 		For(&corev1.Service{}).
 		WithEventFilter(newClusterPredicate()).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(&reconciler)
 }
 
+// Reconcile keeps the host Service in sync with the cluster it belongs to.
 func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Reconciling Service")

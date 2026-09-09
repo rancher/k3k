@@ -24,11 +24,13 @@ const (
 	configMapFinalizerName  = "configmap.k3k.io/finalizer"
 )
 
+// ConfigMapSyncer syncs the ConfigMaps of the virtual cluster to the host cluster.
 type ConfigMapSyncer struct {
-	// SyncerContext contains all client information for host and virtual cluster
-	*SyncerContext
+	// Context contains all client information for host and virtual cluster
+	*Context
 }
 
+// Name returns the name of the controller.
 func (c *ConfigMapSyncer) Name() string {
 	return configMapControllerName
 }
@@ -36,7 +38,7 @@ func (c *ConfigMapSyncer) Name() string {
 // AddConfigMapSyncer adds configmap syncer controller to the manager of the virtual cluster
 func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	reconciler := ConfigMapSyncer{
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			VirtualClient: virtMgr.GetClient(),
 			HostClient:    hostMgr.GetClient(),
 			Translator: translate.ToHostTranslator{

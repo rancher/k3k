@@ -18,7 +18,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-// ServerURL generates the API server URL for the kubeconfig based on the service configuration.
+// URL generates the API server URL for the kubeconfig based on the service configuration.
 //
 // It handles internal vs external access patterns:
 //   - Internal access (hostServerIP == service.ClusterIP): uses the ClusterIP for direct pod-to-pod communication
@@ -33,7 +33,7 @@ import (
 // The hostServerIP parameter determines the access pattern:
 //   - Controller reconciliation: passes service.Spec.ClusterIP → internal access
 //   - CLI kubeconfig export: passes the external host → external access
-func ServerURL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostServerIP string) (*url.URL, error) {
+func URL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostServerIP string) (*url.URL, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	key := types.NamespacedName{

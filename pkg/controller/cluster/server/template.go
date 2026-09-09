@@ -1,6 +1,7 @@
 package server
 
-var StartupCommand string = `
+// StartupCommand is the template string for the startup command for k3k servers in different modes
+var StartupCommand = `
 info()
 {
     echo "[INFO] [$(date +"%c")]" "$@"

@@ -1,4 +1,4 @@
-package syncer_test
+package k3kkubelet_test
 
 import (
 	"context"

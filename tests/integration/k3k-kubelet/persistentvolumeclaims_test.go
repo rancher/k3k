@@ -1,4 +1,4 @@
-package syncer_test
+package k3kkubelet_test
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -67,7 +66,7 @@ var PVCTests = func() {
 				},
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
-				StorageClassName: ptr.To("test-sc"),
+				StorageClassName: new("test-sc"),
 				AccessModes: []corev1.PersistentVolumeAccessMode{
 					corev1.ReadOnlyMany,
 				},

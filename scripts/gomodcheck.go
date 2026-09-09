@@ -13,7 +13,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 
 	"golang.org/x/mod/modfile"
 )
@@ -53,7 +53,7 @@ func main() {
 		}
 	}
 
-	sort.Strings(mismatched)
+	slices.Sort(mismatched)
 
 	if len(mismatched) == 0 {
 		fmt.Printf("all %d common modules match\n", len(common))

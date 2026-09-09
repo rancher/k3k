@@ -1,3 +1,6 @@
+// Package main runs the k3k controller, which reconciles the Cluster,
+// VirtualClusterPolicy and EtcdSnapshot resources into virtual clusters.
+//
 //go:generate ./scripts/generate
 package main
 
@@ -28,7 +31,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	"github.com/rancher/k3k/pkg/controller/policy"
 	"github.com/rancher/k3k/pkg/controller/snapshot"
-	"github.com/rancher/k3k/pkg/log"
+	"github.com/rancher/k3k/pkg/logging"
 )
 
 var (
@@ -58,7 +61,7 @@ func main() {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			cmds.InitializeConfig(cmd)
 
-			logger = zapr.NewLogger(log.New(debug, logFormat))
+			logger = zapr.NewLogger(logging.New(debug, logFormat))
 		},
 		RunE: run,
 	}

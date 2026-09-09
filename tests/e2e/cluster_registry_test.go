@@ -1,4 +1,4 @@
-package k3k_test
+package e2e_test
 
 import (
 	"context"
@@ -110,13 +110,13 @@ var _ = When("a cluster with private registry configuration is used", Label(regi
 		Expect(registriesConfig).To(Equal(registriesConfigTestFile))
 
 		// check ca.crt
-		CACrtPath := "/etc/rancher/k3s/tls/ca.crt"
-		CACrt, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, CACrtPath)
+		caCrtPath := "/etc/rancher/k3s/tls/ca.crt"
+		caCrt, err := readFileWithinPod(ctx, k8s, restcfg, serverPod.Name, serverPod.Namespace, caCrtPath)
 		Expect(err).To(Not(HaveOccurred()))
 
-		CACrtTestFile, err := os.ReadFile("testdata/registry/certs/ca.crt")
+		caCrtTestFile, err := os.ReadFile("testdata/registry/certs/ca.crt")
 		Expect(err).To(Not(HaveOccurred()))
-		Expect(CACrt).To(Equal(CACrtTestFile))
+		Expect(caCrt).To(Equal(caCrtTestFile))
 	})
 	It("will only pull images from mirrored docker.io registry", func() {
 		ctx := context.Background()

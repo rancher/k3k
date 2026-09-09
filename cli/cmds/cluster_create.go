@@ -32,6 +32,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
 )
 
+// CreateConfig holds the flags of the "cluster create" command.
 type CreateConfig struct {
 	token                string
 	clusterCIDR          string
@@ -57,6 +58,7 @@ type CreateConfig struct {
 	timeout              time.Duration
 }
 
+// NewClusterCreateCmd returns the "cluster create" command.
 func NewClusterCreateCmd(appCtx *AppContext) *cobra.Command {
 	createConfig := &CreateConfig{}
 
@@ -199,7 +201,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return err
 		}
 
-		serverURL, err := server.ServerURL(ctx, client, cluster, host)
+		serverURL, err := server.URL(ctx, client, cluster, host)
 		if err != nil {
 			return err
 		}
@@ -244,7 +246,7 @@ func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster,
 			return nil, err
 		}
 
-		storageRequestSize = ptr.To(parsed)
+		storageRequestSize = new(parsed)
 	}
 
 	cluster := &v1beta1.Cluster{
@@ -259,8 +261,8 @@ func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster,
 			APIVersion: "k3k.io/v1beta1",
 		},
 		Spec: v1beta1.ClusterSpec{
-			Servers:     ptr.To(int32(config.servers)),
-			Agents:      ptr.To(int32(config.agents)),
+			Servers:     new(int32(config.servers)),
+			Agents:      new(int32(config.agents)),
 			ClusterCIDR: config.clusterCIDR,
 			ServiceCIDR: config.serviceCIDR,
 			ServerArgs:  config.serverArgs,
@@ -271,7 +273,7 @@ func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster,
 			Mode:        v1beta1.ClusterMode(config.mode),
 			Persistence: v1beta1.PersistenceConfig{
 				Type:               v1beta1.PersistenceMode(config.persistenceType),
-				StorageClassName:   ptr.To(config.storageClassName),
+				StorageClassName:   new(config.storageClassName),
 				StorageRequestSize: storageRequestSize,
 			},
 			MirrorHostNodes: config.mirrorHostNodes,
@@ -377,6 +379,8 @@ func waitForClusterReady(ctx context.Context, k8sClient client.Client, cluster *
 	})
 }
 
+// CreateCustomCertsSecrets creates the Secrets holding the custom CA certificates read
+// from customCertsPath.
 func CreateCustomCertsSecrets(ctx context.Context, name, namespace, customCertsPath string, k8sclient client.Client) error {
 	customCAsMap := map[string]string{
 		"etcd-peer-ca":          "/etcd/peer-ca",
@@ -473,6 +477,12 @@ const clusterDetailsTemplate = `Cluster details:
   Annotations: {{ range $key, $value := .Annotations }}
     {{$key}}: {{$value}}{{ end }}{{ end }}`
 
+type persistenceConfig struct {
+	Type               v1beta1.PersistenceMode
+	StorageClassName   string
+	StorageRequestSize string
+}
+
 func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 	type templateData struct {
 		Mode        v1beta1.ClusterMode
@@ -480,11 +490,7 @@ func getClusterDetails(cluster *v1beta1.Cluster) (string, error) {
 		Agents      int32
 		Version     string
 		HostVersion string
-		Persistence struct {
-			Type               v1beta1.PersistenceMode
-			StorageClassName   string
-			StorageRequestSize string
-		}
+		Persistence persistenceConfig
 		Labels      map[string]string
 		Annotations map[string]string
 	}

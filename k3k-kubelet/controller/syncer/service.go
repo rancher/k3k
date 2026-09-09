@@ -24,8 +24,9 @@ const (
 	serviceFinalizerName  = "service.k3k.io/finalizer"
 )
 
+// ServiceReconciler syncs the Services of the virtual cluster to the host cluster.
 type ServiceReconciler struct {
-	*SyncerContext
+	*Context
 }
 
 // AddServiceSyncer adds service syncer controller to the manager of the virtual cluster
@@ -36,7 +37,7 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 	}
 
 	reconciler := ServiceReconciler{
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 			VirtualClient:    virtMgr.GetClient(),
@@ -53,6 +54,8 @@ func AddServiceSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 		Complete(&reconciler)
 }
 
+// Reconcile creates, updates or deletes the host Service matching a virtual one. The
+// cluster's own kubernetes and kube-dns Services are left alone.
 func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
@@ -145,9 +148,9 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
-func (s *ServiceReconciler) service(obj *corev1.Service) *corev1.Service {
+func (r *ServiceReconciler) service(obj *corev1.Service) *corev1.Service {
 	hostService := obj.DeepCopy()
-	s.Translator.TranslateTo(hostService)
+	r.Translator.TranslateTo(hostService)
 	// don't sync finalizers to the host
 	return hostService
 }

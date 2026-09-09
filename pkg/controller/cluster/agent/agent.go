@@ -1,3 +1,5 @@
+// Package agent builds the host cluster resources that run a virtual cluster's
+// agents, in either shared or virtual mode.
 package agent
 
 import (
@@ -19,16 +21,20 @@ const (
 	configName = "agent-config"
 )
 
+// ResourceEnsurer is implemented by the agent modes, which each create and update the
+// resources their mode needs.
 type ResourceEnsurer interface {
 	EnsureResources(context.Context) error
 }
 
+// Config carries the cluster and client that the agents create their resources with.
 type Config struct {
 	cluster *v1beta1.Cluster
 	client  ctrlruntimeclient.Client
 	scheme  *runtime.Scheme
 }
 
+// NewConfig returns a Config for the given cluster, taking the scheme from the client.
 func NewConfig(cluster *v1beta1.Cluster, client ctrlruntimeclient.Client) *Config {
 	return &Config{
 		cluster: cluster,

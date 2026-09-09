@@ -7,7 +7,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -55,8 +54,8 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 				Expect(err).To(Not(HaveOccurred()))
 
 				Expect(cluster.Spec.Mode).To(Equal(v1beta1.SharedClusterMode))
-				Expect(cluster.Spec.Agents).To(Equal(ptr.To[int32](0)))
-				Expect(cluster.Spec.Servers).To(Equal(ptr.To[int32](1)))
+				Expect(cluster.Spec.Agents).To(Equal(new(int32(0))))
+				Expect(cluster.Spec.Servers).To(Equal(new(int32(1))))
 				Expect(cluster.Spec.Version).To(BeEmpty())
 
 				Expect(cluster.Spec.CustomCAs).To(BeNil())
@@ -205,8 +204,8 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 						Spec: v1beta1.ClusterSpec{
 							Expose: &v1beta1.ExposeConfig{
 								NodePort: &v1beta1.NodePortConfig{
-									ServerPort: ptr.To[int32](30010),
-									EtcdPort:   ptr.To[int32](30011),
+									ServerPort: new(int32(30010)),
+									EtcdPort:   new(int32(30011)),
 								},
 							},
 						},
@@ -255,7 +254,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 						Spec: v1beta1.ClusterSpec{
 							Expose: &v1beta1.ExposeConfig{
 								NodePort: &v1beta1.NodePortConfig{
-									EtcdPort: ptr.To[int32](2222),
+									EtcdPort: new(int32(2222)),
 								},
 							},
 						},
@@ -420,7 +419,7 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 						WithPolling(time.Second).
 						Should(Succeed())
 
-					Expect(ingress.Spec.IngressClassName).To(Equal(ptr.To("nginx")))
+					Expect(ingress.Spec.IngressClassName).To(Equal(new("nginx")))
 					Expect(ingress.Annotations).To(HaveKeyWithValue("nginx.ingress.kubernetes.io/ssl-passthrough", "true"))
 
 					Expect(ingress.Spec.Rules).To(HaveLen(1))

@@ -1,3 +1,5 @@
+// Package mounts builds the volumes and volume mounts k3k adds to the server and
+// agent pods it creates.
 package mounts
 
 import (
@@ -6,6 +8,8 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
+// BuildSecretsMountsVolumes returns the volumes and mounts for the secret mounts that
+// apply to the given role. Entries missing a secret name or a mount path are ignored.
 func BuildSecretsMountsVolumes(secretMounts []v1beta1.SecretMount, role string) ([]corev1.Volume, []corev1.VolumeMount) {
 	var (
 		vols      []corev1.Volume
@@ -64,8 +68,9 @@ func buildSecretMountVolume(secretMount v1beta1.SecretMount) (corev1.Volume, cor
 	return vol, volMount
 }
 
+// FilterEmptyDirVolumes strips every EmptyDir volume from the pod spec, along with the
+// container mounts that referenced them.
 func FilterEmptyDirVolumes(podSpec *corev1.PodSpec) {
-	// Remove all EmptyDir volumes and their corresponding mounts.
 	emptyDirNames := make(map[string]bool)
 
 	var filteredVolumes []corev1.Volume
@@ -93,6 +98,7 @@ func FilterEmptyDirVolumes(podSpec *corev1.PodSpec) {
 	}
 }
 
+// AddKmsgMount mounts the host's /dev/kmsg into the pod's first container.
 func AddKmsgMount(podSpec *corev1.PodSpec) {
 	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 		Name: "dev-kmsg",

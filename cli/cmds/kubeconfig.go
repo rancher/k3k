@@ -24,6 +24,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 )
 
+// GenerateKubeconfigConfig holds the flags of the "kubeconfig generate" command.
 type GenerateKubeconfigConfig struct {
 	name                 string
 	configName           string
@@ -34,6 +35,7 @@ type GenerateKubeconfigConfig struct {
 	kubeconfigServerHost string
 }
 
+// NewKubeconfigCmd returns the "kubeconfig" command and its subcommands.
 func NewKubeconfigCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "kubeconfig",
@@ -47,6 +49,7 @@ func NewKubeconfigCmd(appCtx *AppContext) *cobra.Command {
 	return cmd
 }
 
+// NewKubeconfigGenerateCmd returns the "kubeconfig generate" command.
 func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
 	cfg := &GenerateKubeconfigConfig{}
 

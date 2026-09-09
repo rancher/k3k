@@ -25,12 +25,13 @@ var (
 	deleteAll bool
 )
 
+// NewClusterDeleteCmd returns the "cluster delete" command.
 func NewClusterDeleteCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Short:   "Delete an existing cluster.",
 		Example: "k3kcli cluster delete [command options] NAME",
-		RunE:    delete(appCtx),
+		RunE:    clusterDelete(appCtx),
 		Args:    cobra.MaximumNArgs(1),
 	}
 
@@ -44,7 +45,7 @@ func NewClusterDeleteCmd(appCtx *AppContext) *cobra.Command {
 	return cmd
 }
 
-func delete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
+func clusterDelete(appCtx *AppContext) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := appCtx.Client
@@ -151,6 +152,8 @@ func deleteCluster(ctx context.Context, client ctrlclient.Client, cluster *v1bet
 	return nil
 }
 
+// RemoveOwnerReferenceFromSecret detaches a Secret from its cluster, so the Secret
+// survives the cluster's deletion.
 func RemoveOwnerReferenceFromSecret(ctx context.Context, name string, cl ctrlclient.Client, cluster v1beta1.Cluster) error {
 	var secret corev1.Secret
 

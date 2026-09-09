@@ -1,3 +1,4 @@
+// Package main generates the k3kcli reference documentation under docs/cli.
 package main
 
 import (

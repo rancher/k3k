@@ -1,4 +1,4 @@
-package k3k_test
+package e2e_test
 
 import (
 	"context"

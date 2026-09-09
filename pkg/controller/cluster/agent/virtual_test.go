@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.yaml.in/yaml/v4"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,7 +76,7 @@ func baseVirtualAgentPodSpec(v VirtualAgent) corev1.PodSpec {
 				Image:           v.Image,
 				ImagePullPolicy: corev1.PullPolicy(v.ImagePullPolicy),
 				SecurityContext: &corev1.SecurityContext{
-					Privileged: ptr.To(true),
+					Privileged: new(true),
 				},
 				Args: []string{"agent", "--config", "/opt/rancher/k3s/config.yaml"},
 				Command: []string{
@@ -129,7 +128,7 @@ func kataVirtualAgentPodSpec(v VirtualAgent) corev1.PodSpec {
 	return corev1.PodSpec{
 		Affinity:         nil,
 		NodeSelector:     v.cluster.Spec.NodeSelector,
-		RuntimeClassName: ptr.To("kata"),
+		RuntimeClassName: new("kata"),
 		Volumes: []corev1.Volume{
 			{
 				Name: "config",
@@ -160,7 +159,7 @@ func kataVirtualAgentPodSpec(v VirtualAgent) corev1.PodSpec {
 				Image:           v.Image,
 				ImagePullPolicy: corev1.PullPolicy(v.ImagePullPolicy),
 				SecurityContext: &corev1.SecurityContext{
-					Privileged: ptr.To(true),
+					Privileged: new(true),
 				},
 				Args: []string{"agent", "--config", "/opt/rancher/k3s/config.yaml"},
 				Command: []string{
@@ -442,7 +441,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 						},
 						Spec: v1beta1.ClusterSpec{
 							SecurityContext: &corev1.SecurityContext{
-								Privileged: ptr.To(true),
+								Privileged: new(true),
 							},
 						},
 					},
@@ -452,7 +451,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
 				spec.Containers[0].SecurityContext = &corev1.SecurityContext{
-					Privileged: ptr.To(true),
+					Privileged: new(true),
 				}
 
 				return spec
@@ -469,14 +468,14 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 						},
 						Spec: v1beta1.ClusterSpec{
 							SecurityContext: &corev1.SecurityContext{
-								Privileged: ptr.To(true),
+								Privileged: new(true),
 							},
 						},
 						Status: v1beta1.ClusterStatus{
 							Policy: &v1beta1.AppliedPolicy{
 								SecurityContext: &corev1.SecurityContext{
-									Privileged:             ptr.To(false),
-									ReadOnlyRootFilesystem: ptr.To(true),
+									Privileged:             new(false),
+									ReadOnlyRootFilesystem: new(true),
 								},
 							},
 						},
@@ -487,8 +486,8 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
 				spec.Containers[0].SecurityContext = &corev1.SecurityContext{
-					Privileged:             ptr.To(false),
-					ReadOnlyRootFilesystem: ptr.To(true),
+					Privileged:             new(false),
+					ReadOnlyRootFilesystem: new(true),
 				}
 
 				return spec
@@ -504,7 +503,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							RuntimeClassName: ptr.To("kata"),
+							RuntimeClassName: new("kata"),
 						},
 					},
 				},
@@ -526,11 +525,11 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							RuntimeClassName: ptr.To("kata"),
+							RuntimeClassName: new("kata"),
 						},
 						Status: v1beta1.ClusterStatus{
 							Policy: &v1beta1.AppliedPolicy{
-								RuntimeClassName: ptr.To("gvisor"),
+								RuntimeClassName: new("gvisor"),
 							},
 						},
 					},
@@ -539,7 +538,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 			},
 			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.RuntimeClassName = ptr.To("gvisor")
+				spec.RuntimeClassName = new("gvisor")
 
 				return spec
 			},
@@ -554,7 +553,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							HostUsers: ptr.To(false),
+							HostUsers: new(false),
 						},
 					},
 				},
@@ -562,7 +561,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 			},
 			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.HostUsers = ptr.To(false)
+				spec.HostUsers = new(false)
 
 				return spec
 			},
@@ -577,11 +576,11 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 							Namespace: "virtual-test",
 						},
 						Spec: v1beta1.ClusterSpec{
-							HostUsers: ptr.To(true),
+							HostUsers: new(true),
 						},
 						Status: v1beta1.ClusterStatus{
 							Policy: &v1beta1.AppliedPolicy{
-								HostUsers: ptr.To(false),
+								HostUsers: new(false),
 							},
 						},
 					},
@@ -590,7 +589,7 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 			},
 			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
 				spec := baseVirtualAgentPodSpec(sa)
-				spec.HostUsers = ptr.To(false)
+				spec.HostUsers = new(false)
 
 				return spec
 			},

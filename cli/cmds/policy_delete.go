@@ -9,6 +9,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
+// NewPolicyDeleteCmd returns the "policy delete" command.
 func NewPolicyDeleteCmd(appCtx *AppContext) *cobra.Command {
 	return &cobra.Command{
 		Use:               "delete",

@@ -22,21 +22,24 @@ import (
 )
 
 const (
+	// PriorityClassGlobalDefaultAnnotation records that a synced PriorityClass was the
+	// global default in the virtual cluster.
 	PriorityClassGlobalDefaultAnnotation = "priorityclass.k3k.io/globalDefault"
 
 	priorityClassControllerName = "priorityclass-syncer-controller"
 	priorityClassFinalizerName  = "priorityclass.k3k.io/finalizer"
 )
 
+// PriorityClassSyncer syncs the PriorityClasses of the virtual cluster to the host cluster.
 type PriorityClassSyncer struct {
-	*SyncerContext
+	*Context
 }
 
 // AddPriorityClassSyncer adds a PriorityClass reconciler to k3k-kubelet
 func AddPriorityClassSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	// initialize a new Reconciler
 	reconciler := PriorityClassSyncer{
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 			VirtualClient:    virtMgr.GetClient(),
@@ -98,6 +101,7 @@ func (r *PriorityClassSyncer) filterResources(object ctrlruntimeclient.Object) b
 	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
+// Reconcile creates, updates or deletes the host PriorityClass matching a virtual one.
 func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)

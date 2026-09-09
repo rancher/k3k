@@ -24,14 +24,15 @@ const (
 	ingressFinalizerName  = "ingress.k3k.io/finalizer"
 )
 
+// IngressReconciler syncs the Ingresses of the virtual cluster to the host cluster.
 type IngressReconciler struct {
-	*SyncerContext
+	*Context
 }
 
 // AddIngressSyncer adds ingress syncer controller to the manager of the virtual cluster
 func AddIngressSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	reconciler := IngressReconciler{
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 			VirtualClient:    virtMgr.GetClient(),
@@ -77,6 +78,7 @@ func (r *IngressReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
+// Reconcile creates, updates or deletes the host Ingress matching a virtual one.
 func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
@@ -152,16 +154,16 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	return reconcile.Result{}, r.HostClient.Update(ctx, syncedIngress)
 }
 
-func (s *IngressReconciler) ingress(obj *networkingv1.Ingress, disableTLSSecretTranslation bool) *networkingv1.Ingress {
+func (r *IngressReconciler) ingress(obj *networkingv1.Ingress, disableTLSSecretTranslation bool) *networkingv1.Ingress {
 	hostIngress := obj.DeepCopy()
-	s.Translator.TranslateTo(hostIngress)
+	r.Translator.TranslateTo(hostIngress)
 
 	for _, rule := range hostIngress.Spec.Rules {
 		// modify services in rules to point to the synced services
 		if rule.HTTP != nil {
 			for _, path := range rule.HTTP.Paths {
 				if path.Backend.Service != nil {
-					path.Backend.Service.Name = s.Translator.TranslateName(obj.GetNamespace(), path.Backend.Service.Name)
+					path.Backend.Service.Name = r.Translator.TranslateName(obj.GetNamespace(), path.Backend.Service.Name)
 				}
 			}
 		}
@@ -174,7 +176,7 @@ func (s *IngressReconciler) ingress(obj *networkingv1.Ingress, disableTLSSecretT
 	// ensure tls secrets are also translated
 	for i := range hostIngress.Spec.TLS {
 		if hostIngress.Spec.TLS[i].SecretName != "" {
-			hostIngress.Spec.TLS[i].SecretName = s.Translator.TranslateName(obj.GetNamespace(), hostIngress.Spec.TLS[i].SecretName)
+			hostIngress.Spec.TLS[i].SecretName = r.Translator.TranslateName(obj.GetNamespace(), hostIngress.Spec.TLS[i].SecretName)
 		}
 	}
 

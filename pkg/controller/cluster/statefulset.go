@@ -39,6 +39,7 @@ const (
 	etcdPodFinalizerName  = "etcdpod.k3k.io/finalizer"
 )
 
+// StatefulSetReconciler reconciles the StatefulSets that run a virtual cluster's servers.
 type StatefulSetReconciler struct {
 	Client ctrlruntimeclient.Client
 	Scheme *runtime.Scheme
@@ -61,6 +62,7 @@ func AddStatefulSetController(ctx context.Context, mgr manager.Manager, maxConcu
 		Complete(&reconciler)
 }
 
+// Reconcile manages the etcd pod finalizers of a server StatefulSet.
 func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Reconciling StatefulSet")

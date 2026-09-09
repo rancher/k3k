@@ -27,14 +27,15 @@ const (
 	pseudoPVLabel     = "pod.k3k.io/pseudoPV"
 )
 
+// PVCReconciler syncs the PersistentVolumeClaims of the virtual cluster to the host cluster.
 type PVCReconciler struct {
-	*SyncerContext
+	*Context
 }
 
 // AddPVCSyncer adds persistentvolumeclaims syncer controller to k3k-kubelet
 func AddPVCSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	reconciler := PVCReconciler{
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 			VirtualClient:    virtMgr.GetClient(),
@@ -80,6 +81,7 @@ func (r *PVCReconciler) filterResources(object ctrlruntimeclient.Object) bool {
 	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
+// Reconcile creates, updates or deletes the host PersistentVolumeClaim matching a virtual one.
 func (r *PVCReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)

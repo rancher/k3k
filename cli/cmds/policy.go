@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewPolicyCmd returns the "policy" command and its subcommands.
 func NewPolicyCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",

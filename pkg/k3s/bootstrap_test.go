@@ -16,7 +16,7 @@ func Test_GetServerConfig(t *testing.T) {
 		name            string
 		serverResponse  string
 		clientConfig    ClientConfig
-		expectedConfig  *K3SConfig
+		expectedConfig  *Config
 		expectedErr     error
 		isServerRunning bool
 	}{
@@ -34,7 +34,7 @@ func Test_GetServerConfig(t *testing.T) {
 			name:            "cluster init is true",
 			isServerRunning: true,
 			serverResponse:  `{"ClusterInit": true}`,
-			expectedConfig:  &K3SConfig{ClusterInit: true},
+			expectedConfig:  &Config{ClusterInit: true},
 			expectedErr:     ErrServerNotReady,
 			clientConfig:    ClientConfig{},
 		},
@@ -42,7 +42,7 @@ func Test_GetServerConfig(t *testing.T) {
 			name:            "cluster init is false",
 			isServerRunning: true,
 			serverResponse:  `{"ClusterInit": false}`,
-			expectedConfig:  &K3SConfig{ClusterInit: false},
+			expectedConfig:  &Config{ClusterInit: false},
 			expectedErr:     ErrServerNotReady,
 			clientConfig:    ClientConfig{},
 		},

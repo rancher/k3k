@@ -48,10 +48,10 @@ func findNonLoopbackSAN(sans []string) string {
 // pod CIDR, so kube-proxy DNAT to that endpoint fails. We disable the
 // apiserver reconciler in HCP mode (see serverOptions) and own this
 // EndpointSlice object instead.
-func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, cluster *v1beta1.Cluster) error {
+func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	url, err := server.ServerURL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
+	url, err := server.URL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
 	if err != nil {
 		return err
 	}
@@ -124,10 +124,10 @@ func (c *ClusterReconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context
 	return nil
 }
 
-func (c *ClusterReconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *v1beta1.Cluster) error {
+func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	url, err := server.ServerURL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
+	url, err := server.URL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
 	if err != nil {
 		return err
 	}

@@ -32,7 +32,7 @@ var completePersistenceMode = cobra.FixedCompletions(
 )
 
 // completeNamespaces is a cobra.CompletionFunc that completes with every namespace in the host cluster.
-func completeNamespaces(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func completeNamespaces(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	client, err := completionClient(cmd)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError

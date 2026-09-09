@@ -1,4 +1,4 @@
-package k3k_test
+package e2e_test
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -279,7 +278,7 @@ var _ = When("a virtual mode cluster update its envs", Label(updateTestsLabel), 
 		}
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
-		cluster.Spec.Agents = ptr.To[int32](1)
+		cluster.Spec.Agents = new(int32(1))
 
 		CreateCluster(cluster)
 
@@ -414,7 +413,7 @@ var _ = When("a virtual mode cluster update its server args", Label(updateTestsL
 		}
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
-		cluster.Spec.Agents = ptr.To[int32](1)
+		cluster.Spec.Agents = new(int32(1))
 
 		CreateCluster(cluster)
 
@@ -572,7 +571,7 @@ var _ = When("a virtual mode cluster update its version", Label(updateTestsLabel
 		cluster.Spec.Version = k3sOldVersion
 
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
-		cluster.Spec.Agents = ptr.To[int32](1)
+		cluster.Spec.Agents = new(int32(1))
 
 		// need to enable persistence for this
 		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
@@ -711,7 +710,7 @@ var _ = When("a shared mode cluster scales up servers", Label(updateTestsLabel),
 		Expect(err).NotTo(HaveOccurred())
 
 		// scale cluster servers to 3 nodes
-		cluster.Spec.Servers = ptr.To[int32](3)
+		cluster.Spec.Servers = new(int32(3))
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -761,7 +760,7 @@ var _ = When("a shared mode cluster scales down servers", Label(updateTestsLabel
 		cluster := NewCluster(namespace.Name)
 
 		// start cluster with 3 servers
-		cluster.Spec.Servers = ptr.To[int32](3)
+		cluster.Spec.Servers = new(int32(3))
 
 		// need to enable persistence for this
 		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
@@ -803,7 +802,7 @@ var _ = When("a shared mode cluster scales down servers", Label(updateTestsLabel
 		Expect(err).NotTo(HaveOccurred())
 
 		// scale down cluster servers to 1 node
-		cluster.Spec.Servers = ptr.To[int32](1)
+		cluster.Spec.Servers = new(int32(1))
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -889,7 +888,7 @@ var _ = When("a virtual mode cluster scales up servers", Label(updateTestsLabel)
 		Expect(err).NotTo(HaveOccurred())
 
 		// scale cluster servers to 3 nodes
-		cluster.Spec.Servers = ptr.To[int32](3)
+		cluster.Spec.Servers = new(int32(3))
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -941,7 +940,7 @@ var _ = When("a virtual mode cluster scales down servers", Label(updateTestsLabe
 		cluster.Spec.Mode = v1beta1.VirtualClusterMode
 
 		// start cluster with 3 servers
-		cluster.Spec.Servers = ptr.To[int32](3)
+		cluster.Spec.Servers = new(int32(3))
 
 		// need to enable persistence for this
 		cluster.Spec.Persistence = v1beta1.PersistenceConfig{
@@ -984,7 +983,7 @@ var _ = When("a virtual mode cluster scales down servers", Label(updateTestsLabe
 		Expect(err).NotTo(HaveOccurred())
 
 		// scale down cluster servers to 1 node
-		cluster.Spec.Servers = ptr.To[int32](1)
+		cluster.Spec.Servers = new(int32(1))
 
 		err = k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())

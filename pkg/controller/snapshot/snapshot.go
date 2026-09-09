@@ -1,3 +1,5 @@
+// Package snapshot reconciles EtcdSnapshot objects, asking a virtual cluster's k3s
+// server to save and delete the underlying etcd snapshots.
 package snapshot
 
 import (
@@ -34,7 +36,7 @@ const (
 	snapshotController    = "k3k-snapshot-controller"
 	snapshotFinalizerName = "snapshot.k3k.io/finalizer"
 
-	// Condition Types
+	// ConditionReady is the condition type reporting whether a snapshot is ready.
 	ConditionReady = "Ready"
 
 	// FailedCreateSnapshotReason is added in an event or condition when a snapshot is failed to be created.
@@ -51,6 +53,8 @@ const (
 
 var errClusterNotReady = errors.New("cluster is not ready")
 
+// Reconciler drives EtcdSnapshot objects, asking the cluster's k3s server to save and
+// delete the underlying etcd snapshots.
 type Reconciler struct {
 	client.Client
 	events.EventRecorder
@@ -69,6 +73,8 @@ func Add(ctx context.Context, mgr manager.Manager, maxConcurrentReconciles int) 
 		Complete(&reconciler)
 }
 
+// Reconcile saves the etcd snapshot for an EtcdSnapshot object, or deletes it when the
+// object is being deleted.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
 	log.Info("Reconciling EtcdSnapshot")
@@ -173,7 +179,7 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.Et
 	}
 
 	if len(snapshotResp.Created) <= 0 {
-		return fmt.Errorf("no snapshot found")
+		return errors.New("no snapshot found")
 	}
 
 	// handling backpopulation

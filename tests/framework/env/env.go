@@ -1,3 +1,5 @@
+// Package env starts the envtest control plane the k3k integration suites run
+// against.
 package env
 
 import (

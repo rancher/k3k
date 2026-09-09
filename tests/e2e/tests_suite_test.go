@@ -1,4 +1,4 @@
-package k3k_test
+package e2e_test
 
 import (
 	"bytes"
@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -482,7 +481,7 @@ func privateRegistry(ctx context.Context, namespace string) error {
 			APIVersion: "apps/v1",
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: ptr.To(int32(1)),
+			Replicas: new(int32(1)),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app": "private-registry",

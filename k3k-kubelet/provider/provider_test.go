@@ -292,7 +292,7 @@ func Test_configureEnv(t *testing.T) {
 	}
 
 	p := Provider{
-		Translator: translate.ToHostTranslator{
+		translator: translate.ToHostTranslator{
 			ClusterName:      "c-test",
 			ClusterNamespace: "ns-test",
 		},
@@ -350,13 +350,13 @@ func TestGetPods_ScopedToAgent(t *testing.T) {
 		Build()
 
 	p := Provider{
-		Host: ClusterContext{Client: hostClient},
-		Translator: translate.ToHostTranslator{
+		host: ClusterContext{Client: hostClient},
+		translator: translate.ToHostTranslator{
 			ClusterName:      clusterName,
 			ClusterNamespace: clusterNamespace,
 		},
-		ClusterName:      clusterName,
-		ClusterNamespace: clusterNamespace,
+		clusterName:      clusterName,
+		clusterNamespace: clusterNamespace,
 		agentHostname:    agentName,
 		logger:           logr.Discard(),
 	}

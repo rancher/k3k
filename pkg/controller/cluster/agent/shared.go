@@ -21,10 +21,14 @@ import (
 )
 
 const (
+	// SharedNodeAgentName is the name suffix of the resources of a shared mode agent.
 	SharedNodeAgentName = "kubelet"
-	SharedNodeMode      = "shared"
+	// SharedNodeMode is the agent mode where workloads run on the host cluster's nodes.
+	SharedNodeMode = "shared"
 )
 
+// SharedAgent runs a virtual cluster in shared mode, where its workloads run on the host
+// cluster's nodes through a virtual kubelet.
 type SharedAgent struct {
 	*Config
 	serviceIP        string
@@ -47,6 +51,7 @@ type sharedAgentConfig struct {
 	Version          string `yaml:"version"`
 }
 
+// NewSharedAgent returns a SharedAgent for the cluster in config.
 func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token string, kubeletPort int, imagePullSecrets []string) *SharedAgent {
 	return &SharedAgent{
 		Config:           config,
@@ -59,10 +64,13 @@ func NewSharedAgent(config *Config, serviceIP, image, imagePullPolicy, token str
 	}
 }
 
+// Name returns the name shared by the agent's resources.
 func (s *SharedAgent) Name() string {
 	return controller.SafeConcatNameWithPrefix(s.cluster.Name, SharedNodeAgentName)
 }
 
+// EnsureResources creates or updates every resource a shared mode agent needs, and
+// reports all the failures together.
 func (s *SharedAgent) EnsureResources(ctx context.Context) error {
 	if err := errors.Join(
 		s.config(ctx),

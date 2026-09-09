@@ -1,4 +1,5 @@
-package log
+// Package logging builds the zap logger the k3k binaries write through.
+package logging
 
 import (
 	"os"
@@ -9,6 +10,8 @@ import (
 	ctrlruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
+// New returns a zap logger writing to stderr in the given format, at debug level when
+// debug is set and info level otherwise.
 func New(debug bool, format string) *zap.Logger {
 	lvl := zap.NewAtomicLevelAt(zap.InfoLevel)
 	if debug {

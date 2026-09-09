@@ -133,6 +133,7 @@ func addNodePortPorts(service *corev1.Service, nodePortConfig v1beta1.NodePortCo
 	}
 }
 
+// StatefulServerService returns the headless Service backing the server StatefulSet.
 func (s *Server) StatefulServerService() *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{

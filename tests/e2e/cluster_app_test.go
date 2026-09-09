@@ -1,4 +1,4 @@
-package k3k_test
+package e2e_test
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/utils/ptr"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -84,7 +83,7 @@ var _ = Context("In a shared cluster", Label(appTestsLabel), Ordered, func() {
 					Namespace:    namespace,
 				},
 				Spec: appsv1.DeploymentSpec{
-					Replicas: ptr.To[int32](3),
+					Replicas: new(int32(3)),
 					Selector: &metav1.LabelSelector{
 						MatchLabels: labels,
 					},
@@ -222,7 +221,7 @@ var _ = Context("In a shared cluster", Label(appTestsLabel), Ordered, func() {
 					Namespace:    namespace,
 				},
 				Spec: appsv1.StatefulSetSpec{
-					Replicas: ptr.To[int32](3),
+					Replicas: new(int32(3)),
 					Selector: &metav1.LabelSelector{
 						MatchLabels: labels,
 					},

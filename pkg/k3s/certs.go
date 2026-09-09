@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// GetServingKubeletCrt returns the serving certificate the k3s server issues for the kubelet.
 func (c *Client) GetServingKubeletCrt() (*tls.Certificate, error) {
 	endpoint := "/v1-k3s/serving-kubelet.crt"
 

@@ -267,7 +267,7 @@ var _ = When("creating a virtual mode cluster with postgres datastore via drop-i
 				Namespace: namespace.Name,
 			},
 			Data: map[string][]byte{
-				"config.yaml": fmt.Append([]byte("datastore-endpoint: %q\ncluster-init: false\n"), dsn.String()),
+				"config.yaml": fmt.Appendf(nil, "datastore-endpoint: %q\ncluster-init: false\n", dsn.String()),
 			},
 		}
 

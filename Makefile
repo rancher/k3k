@@ -19,6 +19,8 @@ FLAKE_ATTEMPTS ?= 3
 GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 # yamllint is a Python tool; install it with `pipx install yamllint==$(YAMLLINT_VERSION)` (or pip)
 YAMLLINT ?= yamllint
+# shellcheck ships as a binary; install it from your package manager (it is preinstalled on GitHub runners)
+SHELLCHECK ?= shellcheck
 GINKGO ?= go run github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
 CRD_REF_DOCS := go run github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VER)
 PANDOC := $(shell which pandoc 2> /dev/null)
@@ -146,6 +148,10 @@ endif
 .PHONY: lint-yaml
 lint-yaml:	## Lint the GitHub Actions YAML files
 	$(YAMLLINT) .github/
+
+.PHONY: lint-shell
+lint-shell:	## Lint the shell scripts
+	$(SHELLCHECK) $(filter-out %.go,$(wildcard scripts/*))
 
 .PHONY: check-gomod
 check-gomod:	## Check that the root and pkg/apis go.mod agree on common dependency versions

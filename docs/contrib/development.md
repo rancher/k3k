@@ -63,6 +63,7 @@ To see all the available Make commands you can run `make help`, i.e:
   docs-crds                      Build the CRDs docs
   docs-cli                       Build the CLI docs
   lint                           Find any linting issues in the project
+  lint-shell                     Find any linting issues for shell scripts in the project
   fmt                            Format source files in the project
   validate                       Validate the project checking for any dependency or doc mismatch
   install                        Install K3k with Helm on the targeted Kubernetes cluster

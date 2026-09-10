@@ -23,7 +23,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 )
 
-func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1beta1.Cluster) (reconcile.Result, error) {
+func (c *Reconciler) finalizeCluster(ctx context.Context, cluster *v1beta1.Cluster) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Deleting Cluster")
 
@@ -76,7 +76,7 @@ func (c *ClusterReconciler) finalizeCluster(ctx context.Context, cluster *v1beta
 	return reconcile.Result{}, nil
 }
 
-func (c *ClusterReconciler) unbindClusterRoles(ctx context.Context, cluster *v1beta1.Cluster) error {
+func (c *Reconciler) unbindClusterRoles(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Unbinding ClusterRoles")
 

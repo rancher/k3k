@@ -1,7 +1,10 @@
+// Package client builds the scheme and clients the k3k test suites use to reach a
+// cluster.
 package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -40,7 +43,7 @@ func InitFromKubeconfig(ctx context.Context, scheme *runtime.Scheme) (*Config, e
 	// Get kubeconfig path from environment
 	kubeconfigPath := os.Getenv("KUBECONFIG")
 	if kubeconfigPath == "" {
-		return nil, fmt.Errorf("KUBECONFIG environment variable is not set")
+		return nil, errors.New("KUBECONFIG environment variable is not set")
 	}
 
 	// Read kubeconfig file

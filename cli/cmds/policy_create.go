@@ -17,6 +17,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/policy"
 )
 
+// VirtualClusterPolicyCreateConfig holds the flags of the "policy create" command.
 type VirtualClusterPolicyCreateConfig struct {
 	mode        string
 	labels      []string
@@ -25,6 +26,7 @@ type VirtualClusterPolicyCreateConfig struct {
 	overwrite   bool
 }
 
+// NewPolicyCreateCmd returns the "policy create" command.
 func NewPolicyCreateCmd(appCtx *AppContext) *cobra.Command {
 	config := &VirtualClusterPolicyCreateConfig{}
 

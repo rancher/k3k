@@ -42,5 +42,8 @@ jobs:
         pipx install yamllint==1.38.0
         make lint-yaml
 
+    - name: Lint shell scripts
+      run: make lint-shell
+
     - name: Validate
       run: make validate

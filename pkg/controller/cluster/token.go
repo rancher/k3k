@@ -20,7 +20,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 )
 
-func (c *ClusterReconciler) token(ctx context.Context, cluster *v1beta1.Cluster) (string, error) {
+func (c *Reconciler) token(ctx context.Context, cluster *v1beta1.Cluster) (string, error) {
 	if cluster.Spec.TokenSecretRef == nil {
 		return c.ensureTokenSecret(ctx, cluster)
 	}
@@ -43,7 +43,7 @@ func (c *ClusterReconciler) token(ctx context.Context, cluster *v1beta1.Cluster)
 	return string(tokenSecret.Data["token"]), nil
 }
 
-func (c *ClusterReconciler) ensureTokenSecret(ctx context.Context, cluster *v1beta1.Cluster) (string, error) {
+func (c *Reconciler) ensureTokenSecret(ctx context.Context, cluster *v1beta1.Cluster) (string, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	// check if the secret is already created
@@ -95,6 +95,7 @@ func random(size int) (string, error) {
 	return hex.EncodeToString(token), err
 }
 
+// TokenSecretObj returns the Secret holding a cluster's server token.
 func TokenSecretObj(token, name, namespace string) corev1.Secret {
 	return corev1.Secret{
 		TypeMeta: metav1.TypeMeta{

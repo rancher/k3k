@@ -6,7 +6,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -340,8 +339,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					},
 					Spec: v1beta1.ClusterSpec{
 						Mode:    v1beta1.SharedClusterMode,
-						Servers: ptr.To[int32](1),
-						Agents:  ptr.To[int32](0),
+						Servers: new(int32(1)),
+						Agents:  new(int32(0)),
 					},
 				}
 
@@ -376,8 +375,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					},
 					Spec: v1beta1.ClusterSpec{
 						Mode:    v1beta1.SharedClusterMode,
-						Servers: ptr.To[int32](1),
-						Agents:  ptr.To[int32](0),
+						Servers: new(int32(1)),
+						Agents:  new(int32(0)),
 					},
 				}
 
@@ -412,8 +411,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					},
 					Spec: v1beta1.ClusterSpec{
 						Mode:         v1beta1.SharedClusterMode,
-						Servers:      ptr.To[int32](1),
-						Agents:       ptr.To[int32](0),
+						Servers:      new(int32(1)),
+						Agents:       new(int32(0)),
 						NodeSelector: map[string]string{"label-1": "value-1"},
 					},
 				}
@@ -500,8 +499,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					},
 					Spec: v1beta1.ClusterSpec{
 						Mode:    v1beta1.SharedClusterMode,
-						Servers: ptr.To[int32](1),
-						Agents:  ptr.To[int32](0),
+						Servers: new(int32(1)),
+						Agents:  new(int32(0)),
 					},
 				}
 
@@ -556,8 +555,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					},
 					Spec: v1beta1.ClusterSpec{
 						Mode:           v1beta1.SharedClusterMode,
-						Servers:        ptr.To[int32](1),
-						Agents:         ptr.To[int32](0),
+						Servers:        new(int32(1)),
+						Agents:         new(int32(0)),
 						AgentAffinity:  clusterAgentAffinity,
 						ServerAffinity: clusterServerAffinity,
 					},
@@ -727,8 +726,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					},
 					Spec: v1beta1.ClusterSpec{
 						Mode:    v1beta1.SharedClusterMode,
-						Servers: ptr.To[int32](1),
-						Agents:  ptr.To[int32](0),
+						Servers: new(int32(1)),
+						Agents:  new(int32(0)),
 					},
 				}
 

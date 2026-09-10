@@ -15,20 +15,25 @@ import (
 )
 
 const (
-	// Condition Types
+	// ConditionReady is the condition type reporting whether a cluster is ready.
 	ConditionReady = "Ready"
 
-	// Condition Reasons
-	ReasonValidationFailed   = "ValidationFailed"
-	ReasonProvisioning       = "Provisioning"
-	ReasonProvisioned        = "Provisioned"
+	// ReasonValidationFailed is set when a cluster fails validation.
+	ReasonValidationFailed = "ValidationFailed"
+	// ReasonProvisioning is set while a cluster is being provisioned.
+	ReasonProvisioning = "Provisioning"
+	// ReasonProvisioned is set once a cluster has been provisioned.
+	ReasonProvisioned = "Provisioned"
+	// ReasonProvisioningFailed is set when provisioning a cluster fails.
 	ReasonProvisioningFailed = "ProvisioningFailed"
-	ReasonTerminating        = "Terminating"
+	// ReasonTerminating is set while a cluster is being deleted.
+	ReasonTerminating = "Terminating"
 
+	// ActionReconciling is the action reported on cluster events.
 	ActionReconciling = "Reconciling"
 )
 
-func (c *ClusterReconciler) updateStatus(ctx context.Context, cluster *v1beta1.Cluster, reconcileErr error) {
+func (c *Reconciler) updateStatus(ctx context.Context, cluster *v1beta1.Cluster, reconcileErr error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Updating Cluster Conditions")
 

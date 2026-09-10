@@ -1,3 +1,5 @@
+// Package bootstrap fetches a k3s server's bootstrap data and persists it to a
+// secret in the host cluster.
 package bootstrap
 
 import (

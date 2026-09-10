@@ -24,11 +24,13 @@ const (
 	secretFinalizerName  = "secret.k3k.io/finalizer"
 )
 
+// SecretSyncer syncs the Secrets of the virtual cluster to the host cluster.
 type SecretSyncer struct {
-	// SyncerContext contains all client information for host and virtual cluster
-	*SyncerContext
+	// Context contains all client information for host and virtual cluster
+	*Context
 }
 
+// Name returns the name of the controller.
 func (s *SecretSyncer) Name() string {
 	return secretControllerName
 }
@@ -36,7 +38,7 @@ func (s *SecretSyncer) Name() string {
 // AddSecretSyncer adds secret syncer controller to the manager of the virtual cluster
 func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	reconciler := SecretSyncer{
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			VirtualClient: virtMgr.GetClient(),
 			HostClient:    hostMgr.GetClient(),
 			Translator: translate.ToHostTranslator{
@@ -56,12 +58,12 @@ func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clus
 		Complete(&reconciler)
 }
 
-func (r *SecretSyncer) filterResources(object client.Object) bool {
+func (s *SecretSyncer) filterResources(object client.Object) bool {
 	var cluster v1beta1.Cluster
 
 	ctx := context.Background()
 
-	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: r.ClusterName, Namespace: r.ClusterNamespace}, &cluster); err != nil {
+	if err := s.HostClient.Get(ctx, types.NamespacedName{Name: s.ClusterName, Namespace: s.ClusterNamespace}, &cluster); err != nil {
 		return false
 	}
 

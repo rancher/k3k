@@ -22,13 +22,15 @@ type serverConfig struct {
 	DisableAgent       bool     `yaml:"disable-agent,omitempty"`
 	Disable            []string `yaml:"disable,omitempty"`
 	EgressSelectorMode string   `yaml:"egress-selector-mode,omitempty"`
-	KubeApiServerArg   []string `yaml:"kube-apiserver-arg,omitempty"`
+	KubeAPIServerArg   []string `yaml:"kube-apiserver-arg,omitempty"`
 	Server             string   `yaml:"server,omitempty"`
 	ServiceCIDR        string   `yaml:"service-cidr,omitempty"`
 	TLSSAN             []string `yaml:"tls-san,omitempty"`
 	Token              string   `yaml:"token,omitempty"`
 }
 
+// Config returns the Secret holding the k3s configuration file for a server, built for
+// either the init server or a joining one.
 func (s *Server) Config(init bool, serviceIP string) (*corev1.Secret, error) {
 	name := configSecretName(s.cluster.Name, init)
 
@@ -97,7 +99,7 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 		// Disable the apiserver's built-in endpoint reconciler so K3k can
 		// own default/kubernetes Endpoints and point it at the externally
 		// reachable host:port (NodePort / LB / Ingress).
-		serverConfig.KubeApiServerArg = append(serverConfig.KubeApiServerArg, "endpoint-reconciler-type=none")
+		serverConfig.KubeAPIServerArg = append(serverConfig.KubeAPIServerArg, "endpoint-reconciler-type=none")
 	case v1beta1.VirtualClusterMode:
 		// no extra config for virtual mode
 	}

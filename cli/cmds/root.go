@@ -1,3 +1,5 @@
+// Package cmds implements the k3kcli command tree for creating and managing
+// virtual clusters and the policies that constrain them.
 package cmds
 
 import (
@@ -28,6 +30,7 @@ const (
 	completionRequestTimeout = 100 * time.Millisecond // shell completion, must be fast
 )
 
+// AppContext carries the Kubernetes clients and the global flags shared by every command.
 type AppContext struct {
 	RestConfig *rest.Config
 	Client     client.Client
@@ -38,6 +41,7 @@ type AppContext struct {
 	namespace  string
 }
 
+// NewRootCmd returns the root k3kcli command with all its subcommands attached.
 func NewRootCmd() *cobra.Command {
 	appCtx := &AppContext{}
 
@@ -91,6 +95,8 @@ func NewRootCmd() *cobra.Command {
 	return rootCmd
 }
 
+// Namespace returns the namespace given with -n, or the default namespace of the cluster
+// with the given name.
 func (ctx *AppContext) Namespace(name string) string {
 	if ctx.namespace != "" {
 		return ctx.namespace
@@ -99,6 +105,7 @@ func (ctx *AppContext) Namespace(name string) string {
 	return "k3k-" + name
 }
 
+// CobraFlagNamespace adds the shared -n/--namespace flag to a command.
 func CobraFlagNamespace(appCtx *AppContext, cmd *cobra.Command, completeFn cobra.CompletionFunc) {
 	cmd.Flags().StringVarP(&appCtx.namespace, "namespace", "n", "", "namespace of the k3k cluster")
 
@@ -107,6 +114,8 @@ func CobraFlagNamespace(appCtx *AppContext, cmd *cobra.Command, completeFn cobra
 	}
 }
 
+// InitializeConfig binds a command's flags to viper, so they can also be set through
+// K3K_ prefixed environment variables.
 func InitializeConfig(cmd *cobra.Command) {
 	viper.SetEnvPrefix("K3K")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))

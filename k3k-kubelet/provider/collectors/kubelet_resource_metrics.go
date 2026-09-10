@@ -5,6 +5,8 @@ Licensed under the Apache 2.0 license.
 See https://github.com/virtual-kubelet/azure-aci/tree/master/pkg/metrics/collectors
 */
 
+// Package collectors exposes a virtual node's pod and container resource metrics
+// in the Prometheus format the metrics server expects.
 package collectors
 
 import (
@@ -73,7 +75,7 @@ var (
 		"")
 )
 
-// NewResourceMetricsCollector returns a metrics.StableCollector which exports resource metrics
+// NewKubeletResourceMetricsCollector returns a metrics.StableCollector which exports resource metrics
 func NewKubeletResourceMetricsCollector(podStats *stats.Summary) compbasemetrics.StableCollector {
 	return &resourceMetricsCollector{
 		providerPodStats: podStats,

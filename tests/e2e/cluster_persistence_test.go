@@ -1,12 +1,10 @@
-package k3k_test
+package e2e_test
 
 import (
 	"context"
 	"crypto/x509"
 	"errors"
 	"time"
-
-	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -161,7 +159,7 @@ var _ = When("a dynamic cluster is installed", Label(persistenceTestsLabel), Lab
 
 		cluster := NewCluster(namespace.Name)
 		cluster.Spec.Persistence.Type = v1beta1.DynamicPersistenceMode
-		cluster.Spec.Servers = ptr.To[int32](2)
+		cluster.Spec.Servers = new(int32(2))
 
 		CreateCluster(cluster)
 

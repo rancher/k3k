@@ -1,3 +1,5 @@
+// Package provider implements the virtual-kubelet Provider that runs a virtual
+// cluster's pods on the host cluster.
 package provider
 
 import (
@@ -55,20 +57,31 @@ type ClusterContext struct {
 // Provider implements nodetuil.Provider from virtual Kubelet.
 // TODO: Implement NotifyPods and the required usage so that this can be an async provider
 type Provider struct {
-	Host             ClusterContext
-	Virtual          ClusterContext
-	Translator       translate.ToHostTranslator
-	ClusterNamespace string
-	ClusterName      string
+	host             ClusterContext
+	virtual          ClusterContext
+	translator       translate.ToHostTranslator
+	clusterNamespace string
+	clusterName      string
 	serverIP         string
 	dnsIP            string
 	agentHostname    string
 	logger           logr.Logger
 }
 
+// ErrRetryTimeout is returned when the provider gives up retrying an operation.
 var ErrRetryTimeout = errors.New("provider timed out")
 
-func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger logr.Logger, namespace, name, serverIP, dnsIP, agentHostname string) (*Provider, error) {
+// Config identifies the virtual cluster a Provider serves, and how its pods reach it.
+type Config struct {
+	ClusterNamespace string
+	ClusterName      string
+	ServerIP         string
+	DNSIP            string
+	AgentHostname    string
+}
+
+// New returns a Provider that runs the virtual cluster's pods on the host cluster.
+func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger logr.Logger, config Config) (*Provider, error) {
 	coreClient, err := cv1.NewForConfig(&hostConfig)
 	if err != nil {
 		return nil, err
@@ -80,29 +93,29 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger log
 	}
 
 	translator := translate.ToHostTranslator{
-		ClusterName:      name,
-		ClusterNamespace: namespace,
+		ClusterName:      config.ClusterName,
+		ClusterNamespace: config.ClusterNamespace,
 	}
 
 	p := Provider{
-		Host: ClusterContext{
+		host: ClusterContext{
 			Manager:    hostMgr,
 			Client:     hostMgr.GetClient(),
 			CoreClient: coreClient,
 			Config:     hostConfig,
 		},
-		Virtual: ClusterContext{
+		virtual: ClusterContext{
 			Manager:    virtualMgr,
 			Client:     virtualMgr.GetClient(),
 			CoreClient: virtualCoreClient,
 		},
-		Translator:       translator,
-		ClusterNamespace: namespace,
-		ClusterName:      name,
-		logger:           logger.WithValues("cluster", name),
-		serverIP:         serverIP,
-		dnsIP:            dnsIP,
-		agentHostname:    agentHostname,
+		translator:       translator,
+		clusterNamespace: config.ClusterNamespace,
+		clusterName:      config.ClusterName,
+		logger:           logger.WithValues("cluster", config.ClusterName),
+		serverIP:         config.ServerIP,
+		dnsIP:            config.DNSIP,
+		agentHostname:    config.AgentHostname,
 	}
 
 	return &p, nil
@@ -110,7 +123,7 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger log
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
 func (p *Provider) GetContainerLogs(ctx context.Context, namespace, name, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	hostPodName := p.Translator.TranslateName(namespace, name)
+	hostPodName := p.translator.TranslateName(namespace, name)
 
 	logger := p.logger.WithValues("namespace", namespace, "name", name, "pod", hostPodName, "container", containerName)
 	logger.V(1).Info("GetContainerLogs")
@@ -142,7 +155,7 @@ func (p *Provider) GetContainerLogs(ctx context.Context, namespace, name, contai
 		options.SinceTime = &sinceTime
 	}
 
-	closer, err := p.Host.CoreClient.Pods(p.ClusterNamespace).GetLogs(hostPodName, &options).Stream(ctx)
+	closer, err := p.host.CoreClient.Pods(p.clusterNamespace).GetLogs(hostPodName, &options).Stream(ctx)
 	if err != nil {
 		logger.Error(err, "Error getting logs from container")
 	}
@@ -153,15 +166,15 @@ func (p *Provider) GetContainerLogs(ctx context.Context, namespace, name, contai
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *Provider) RunInContainer(ctx context.Context, namespace, name, containerName string, cmd []string, attach api.AttachIO) error {
-	hostPodName := p.Translator.TranslateName(namespace, name)
+	hostPodName := p.translator.TranslateName(namespace, name)
 
 	logger := p.logger.WithValues("namespace", namespace, "name", name, "pod", hostPodName, "container", containerName)
 	logger.V(1).Info("RunInContainer")
 
-	req := p.Host.CoreClient.RESTClient().Post().
+	req := p.host.CoreClient.RESTClient().Post().
 		Resource("pods").
 		Name(hostPodName).
-		Namespace(p.ClusterNamespace).
+		Namespace(p.clusterNamespace).
 		SubResource("exec")
 
 	req.VersionedParams(&corev1.PodExecOptions{
@@ -173,7 +186,7 @@ func (p *Provider) RunInContainer(ctx context.Context, namespace, name, containe
 		Stderr:    attach.Stderr() != nil,
 	}, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(&p.Host.Config, http.MethodPost, req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(&p.host.Config, http.MethodPost, req.URL())
 	if err != nil {
 		logger.Error(err, "Error creating SPDY executor")
 		return err
@@ -198,15 +211,15 @@ func (p *Provider) RunInContainer(ctx context.Context, namespace, name, containe
 // AttachToContainer attaches to the executing process of a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *Provider) AttachToContainer(ctx context.Context, namespace, name, containerName string, attach api.AttachIO) error {
-	hostPodName := p.Translator.TranslateName(namespace, name)
+	hostPodName := p.translator.TranslateName(namespace, name)
 
 	logger := p.logger.WithValues("namespace", namespace, "name", name, "pod", hostPodName, "container", containerName)
 	logger.V(1).Info("AttachToContainer")
 
-	req := p.Host.CoreClient.RESTClient().Post().
+	req := p.host.CoreClient.RESTClient().Post().
 		Resource("pods").
 		Name(hostPodName).
-		Namespace(p.ClusterNamespace).
+		Namespace(p.clusterNamespace).
 		SubResource("attach")
 
 	req.VersionedParams(&corev1.PodAttachOptions{
@@ -217,7 +230,7 @@ func (p *Provider) AttachToContainer(ctx context.Context, namespace, name, conta
 		Stderr:    attach.Stderr() != nil,
 	}, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(&p.Host.Config, http.MethodPost, req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(&p.host.Config, http.MethodPost, req.URL())
 	if err != nil {
 		logger.Error(err, "Error creating SPDY executor")
 		return err
@@ -243,13 +256,13 @@ func (p *Provider) AttachToContainer(ctx context.Context, namespace, name, conta
 func (p *Provider) GetStatsSummary(ctx context.Context) (*v1alpha1stats.Summary, error) {
 	p.logger.V(1).Info("GetStatsSummary")
 
-	node, err := p.Host.CoreClient.Nodes().Get(ctx, p.agentHostname, metav1.GetOptions{})
+	node, err := p.host.CoreClient.Nodes().Get(ctx, p.agentHostname, metav1.GetOptions{})
 	if err != nil {
 		p.logger.Error(err, "Unable to get nodes of cluster")
 		return nil, err
 	}
 
-	res, err := p.Host.CoreClient.RESTClient().
+	res, err := p.host.CoreClient.RESTClient().
 		Get().
 		Resource("nodes").
 		Name(node.Name).
@@ -278,7 +291,7 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*v1alpha1stats.Summary,
 	podsNameMap := make(map[string]*corev1.Pod)
 
 	for _, pod := range pods {
-		hostPodName := p.Translator.TranslateName(pod.Namespace, pod.Name)
+		hostPodName := p.translator.TranslateName(pod.Namespace, pod.Name)
 		podsNameMap[hostPodName] = pod
 	}
 
@@ -289,7 +302,7 @@ func (p *Provider) GetStatsSummary(ctx context.Context) (*v1alpha1stats.Summary,
 
 	for _, podStat := range statsSummary.Pods {
 		// skip pods that are not in the cluster namespace
-		if podStat.PodRef.Namespace != p.ClusterNamespace {
+		if podStat.PodRef.Namespace != p.clusterNamespace {
 			continue
 		}
 
@@ -331,18 +344,18 @@ func (p *Provider) GetMetricsResource(ctx context.Context) ([]*dto.MetricFamily,
 
 // PortForward forwards a local port to a port on the pod
 func (p *Provider) PortForward(ctx context.Context, namespace, name string, port int32, stream io.ReadWriteCloser) error {
-	hostPodName := p.Translator.TranslateName(namespace, name)
+	hostPodName := p.translator.TranslateName(namespace, name)
 
 	logger := p.logger.WithValues("namespace", namespace, "name", name, "pod", hostPodName, "port", port)
 	logger.V(1).Info("PortForward")
 
-	req := p.Host.CoreClient.RESTClient().Post().
+	req := p.host.CoreClient.RESTClient().Post().
 		Resource("pods").
 		Name(hostPodName).
-		Namespace(p.ClusterNamespace).
+		Namespace(p.clusterNamespace).
 		SubResource("portforward")
 
-	transport, upgrader, err := spdy.RoundTripperFor(&p.Host.Config)
+	transport, upgrader, err := spdy.RoundTripperFor(&p.host.Config)
 	if err != nil {
 		logger.Error(err, "Error creating RoundTripper for PortForward")
 		return err
@@ -381,12 +394,12 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 
 	// get Cluster definition
 	clusterKey := types.NamespacedName{
-		Namespace: p.ClusterNamespace,
-		Name:      p.ClusterName,
+		Namespace: p.clusterNamespace,
+		Name:      p.clusterName,
 	}
 
 	var cluster v1beta1.Cluster
-	if err := p.Host.Client.Get(ctx, clusterKey, &cluster); err != nil {
+	if err := p.host.Client.Get(ctx, clusterKey, &cluster); err != nil {
 		logger.Error(err, "Error getting Virtual Cluster definition")
 		return err
 	}
@@ -398,7 +411,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	var virtualPod corev1.Pod
-	if err := p.Virtual.Client.Get(ctx, key, &virtualPod); err != nil {
+	if err := p.virtual.Client.Get(ctx, key, &virtualPod); err != nil {
 		logger.Error(err, "Error getting Pod from Virtual Cluster")
 		return err
 	}
@@ -407,7 +420,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	// do some basic translation and clearing some values (UID, ResourceVersion, ...)
 
 	hostPod := virtualPod.DeepCopy()
-	p.Translator.TranslateTo(hostPod)
+	p.translator.TranslateTo(hostPod)
 
 	// record which k3k-kubelet agent synced this Pod, so GetPods can scope to this agent's own Pods
 	hostPod.Labels[translate.AgentNameLabel] = p.agentHostname
@@ -465,7 +478,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 		if enforcedPriorityClassName != "" {
 			hostPod.Spec.PriorityClassName = enforcedPriorityClassName
 		} else if virtualPod.Spec.PriorityClassName != "" {
-			hostPod.Spec.PriorityClassName = p.Translator.TranslateName("", virtualPod.Spec.PriorityClassName)
+			hostPod.Spec.PriorityClassName = p.translator.TranslateName("", virtualPod.Spec.PriorityClassName)
 			hostPod.Spec.Priority = nil
 		}
 	}
@@ -488,14 +501,14 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	for i, imagePullSecret := range hostPod.Spec.ImagePullSecrets {
-		hostPod.Spec.ImagePullSecrets[i].Name = p.Translator.TranslateName(virtualPod.Namespace, imagePullSecret.Name)
+		hostPod.Spec.ImagePullSecrets[i].Name = p.translator.TranslateName(virtualPod.Namespace, imagePullSecret.Name)
 	}
 
 	// inject networking information to the pod including the virtual cluster controlplane endpoint
 	configureNetworking(hostPod, &virtualPod, p.serverIP, p.dnsIP)
 
 	// set ownerReference to the cluster object
-	if err := controllerutil.SetControllerReference(&cluster, hostPod, p.Host.Client.Scheme()); err != nil {
+	if err := controllerutil.SetControllerReference(&cluster, hostPod, p.host.Client.Scheme()); err != nil {
 		logger.Error(err, "Unable to set owner reference for pod")
 		return err
 	}
@@ -505,7 +518,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 		hardenCoreDNS(hostPod)
 	}
 
-	if err := p.Host.Client.Create(ctx, hostPod); err != nil {
+	if err := p.host.Client.Create(ctx, hostPod); err != nil {
 		logger.Error(err, "Error creating pod on host cluster")
 		return err
 	}
@@ -554,21 +567,21 @@ func (p *Provider) transformVolumes(podNamespace string, volumes []corev1.Volume
 
 		switch {
 		case volume.ConfigMap != nil:
-			volume.ConfigMap.Name = p.Translator.TranslateName(podNamespace, volume.ConfigMap.Name)
+			volume.ConfigMap.Name = p.translator.TranslateName(podNamespace, volume.ConfigMap.Name)
 
 		case volume.Secret != nil:
-			volume.Secret.SecretName = p.Translator.TranslateName(podNamespace, volume.Secret.SecretName)
+			volume.Secret.SecretName = p.translator.TranslateName(podNamespace, volume.Secret.SecretName)
 
 		case volume.PersistentVolumeClaim != nil:
-			volume.PersistentVolumeClaim.ClaimName = p.Translator.TranslateName(podNamespace, volume.PersistentVolumeClaim.ClaimName)
+			volume.PersistentVolumeClaim.ClaimName = p.translator.TranslateName(podNamespace, volume.PersistentVolumeClaim.ClaimName)
 
 		case volume.Projected != nil:
 			for _, source := range volume.Projected.Sources {
 				switch {
 				case source.ConfigMap != nil:
-					source.ConfigMap.Name = p.Translator.TranslateName(podNamespace, source.ConfigMap.Name)
+					source.ConfigMap.Name = p.translator.TranslateName(podNamespace, source.ConfigMap.Name)
 				case source.Secret != nil:
-					source.Secret.Name = p.Translator.TranslateName(podNamespace, source.Secret.Name)
+					source.Secret.Name = p.translator.TranslateName(podNamespace, source.Secret.Name)
 				}
 			}
 
@@ -595,7 +608,7 @@ func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 	// Once scheduled a Pod cannot update other fields than the image of the containers, initcontainers and a few others
 	// See: https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
-	hostPodName := p.Translator.TranslateName(pod.Namespace, pod.Name)
+	hostPodName := p.translator.TranslateName(pod.Namespace, pod.Name)
 
 	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name, "pod", hostPodName)
 	logger.V(1).Info("UpdatePod")
@@ -605,19 +618,19 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 	//
 
 	hostKey := types.NamespacedName{
-		Namespace: p.ClusterNamespace,
+		Namespace: p.clusterNamespace,
 		Name:      hostPodName,
 	}
 
 	var hostPod corev1.Pod
-	if err := p.Host.Client.Get(ctx, hostKey, &hostPod); err != nil {
+	if err := p.host.Client.Get(ctx, hostKey, &hostPod); err != nil {
 		logger.Error(err, "Unable to get Pod to update from host cluster")
 		return err
 	}
 
 	updatePod(&hostPod, pod)
 
-	if err := p.Host.Client.Update(ctx, &hostPod); err != nil {
+	if err := p.host.Client.Update(ctx, &hostPod); err != nil {
 		logger.Error(err, "Unable to update Pod in host cluster")
 		return err
 	}
@@ -628,7 +641,7 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 
 		hostPod.Spec.EphemeralContainers = pod.Spec.EphemeralContainers
 
-		if _, err := p.Host.CoreClient.Pods(p.ClusterNamespace).UpdateEphemeralContainers(ctx, hostPod.Name, &hostPod, metav1.UpdateOptions{}); err != nil {
+		if _, err := p.host.CoreClient.Pods(p.clusterNamespace).UpdateEphemeralContainers(ctx, hostPod.Name, &hostPod, metav1.UpdateOptions{}); err != nil {
 			logger.Error(err, "Error when updating ephemeral containers in host pod")
 			return err
 		}
@@ -646,14 +659,14 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	var virtualPod corev1.Pod
-	if err := p.Virtual.Client.Get(ctx, key, &virtualPod); err != nil {
+	if err := p.virtual.Client.Get(ctx, key, &virtualPod); err != nil {
 		logger.Error(err, "Unable to get pod to update from virtual cluster")
 		return err
 	}
 
 	updatePod(&virtualPod, pod)
 
-	if err := p.Virtual.Client.Update(ctx, &virtualPod); err != nil {
+	if err := p.virtual.Client.Update(ctx, &virtualPod); err != nil {
 		logger.Error(err, "Unable to update Pod in virtual cluster")
 		return err
 	}
@@ -664,7 +677,7 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 
 		virtualPod.Spec.EphemeralContainers = pod.Spec.EphemeralContainers
 
-		if _, err := p.Host.CoreClient.Pods(p.ClusterNamespace).UpdateEphemeralContainers(ctx, virtualPod.Name, &virtualPod, metav1.UpdateOptions{}); err != nil {
+		if _, err := p.host.CoreClient.Pods(p.clusterNamespace).UpdateEphemeralContainers(ctx, virtualPod.Name, &virtualPod, metav1.UpdateOptions{}); err != nil {
 			logger.Error(err, "Error when updating ephemeral containers in virtual pod")
 			return err
 		}
@@ -730,12 +743,12 @@ func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 // expected to call the NotifyPods callback with a terminal pod status where all the containers are in a terminal
 // state, as well as the pod. DeletePod may be called multiple times for the same pod.
 func (p *Provider) deletePod(ctx context.Context, pod *corev1.Pod) error {
-	hostPodName := p.Translator.TranslateName(pod.Namespace, pod.Name)
+	hostPodName := p.translator.TranslateName(pod.Namespace, pod.Name)
 
 	logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name, "pod", hostPodName)
 	logger.V(1).Info("DeletePod")
 
-	err := p.Host.CoreClient.Pods(p.ClusterNamespace).Delete(ctx, hostPodName, metav1.DeleteOptions{})
+	err := p.host.CoreClient.Pods(p.clusterNamespace).Delete(ctx, hostPodName, metav1.DeleteOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("Pod to delete not found in host cluster")
@@ -757,7 +770,7 @@ func (p *Provider) deletePod(ctx context.Context, pod *corev1.Pod) error {
 // concurrently outside of the calling goroutine. Therefore it is recommended
 // to return a version after DeepCopy.
 func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
-	hostPodName := p.Translator.TranslateName(namespace, name)
+	hostPodName := p.translator.TranslateName(namespace, name)
 
 	logger := p.logger.WithValues("namespace", namespace, "name", name, "pod", hostPodName)
 	logger.V(1).Info("GetPod")
@@ -776,7 +789,7 @@ func (p *Provider) GetPod(ctx context.Context, namespace, name string) (*corev1.
 // concurrently outside of the calling goroutine. Therefore it is recommended
 // to return a version after DeepCopy.
 func (p *Provider) GetPodStatus(ctx context.Context, namespace, name string) (*corev1.PodStatus, error) {
-	hostPodName := p.Translator.TranslateName(namespace, name)
+	hostPodName := p.translator.TranslateName(namespace, name)
 
 	logger := p.logger.WithValues("namespace", namespace, "name", name, "pod", hostPodName)
 	logger.V(1).Info("GetPodStatus")
@@ -792,16 +805,16 @@ func (p *Provider) GetPodStatus(ctx context.Context, namespace, name string) (*c
 
 func (p *Provider) getPodFromHostCluster(ctx context.Context, hostPodName string) (*corev1.Pod, error) {
 	key := types.NamespacedName{
-		Namespace: p.ClusterNamespace,
+		Namespace: p.clusterNamespace,
 		Name:      hostPodName,
 	}
 
 	var pod corev1.Pod
-	if err := p.Host.Client.Get(ctx, key, &pod); err != nil {
+	if err := p.host.Client.Get(ctx, key, &pod); err != nil {
 		return nil, err
 	}
 
-	p.Translator.TranslateFrom(&pod)
+	p.translator.TranslateFrom(&pod)
 
 	return &pod, nil
 }
@@ -818,14 +831,14 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	var hostPods corev1.PodList
 
 	listOpts := []client.ListOption{
-		client.InNamespace(p.ClusterNamespace),
+		client.InNamespace(p.clusterNamespace),
 		client.MatchingLabels{
-			translate.ClusterNameLabel: p.ClusterName,
+			translate.ClusterNameLabel: p.clusterName,
 			translate.AgentNameLabel:   p.agentHostname,
 		},
 	}
 
-	if err := p.Host.Client.List(ctx, &hostPods, listOpts...); err != nil {
+	if err := p.host.Client.List(ctx, &hostPods, listOpts...); err != nil {
 		p.logger.Error(err, "Error listing pods from host cluster")
 		return nil, err
 	}
@@ -833,7 +846,7 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	retPods := make([]*corev1.Pod, 0, len(hostPods.Items))
 
 	for _, hostPod := range hostPods.DeepCopy().Items {
-		p.Translator.TranslateFrom(&hostPod)
+		p.translator.TranslateFrom(&hostPod)
 		retPods = append(retPods, &hostPod)
 	}
 
@@ -999,10 +1012,10 @@ func (p *Provider) configureEnv(virtualPod *corev1.Pod, envs []corev1.EnvVar) []
 				}
 
 			case from.ConfigMapKeyRef != nil:
-				resultingEnvVar.ValueFrom.ConfigMapKeyRef.Name = p.Translator.TranslateName(virtualPod.Namespace, resultingEnvVar.ValueFrom.ConfigMapKeyRef.Name)
+				resultingEnvVar.ValueFrom.ConfigMapKeyRef.Name = p.translator.TranslateName(virtualPod.Namespace, resultingEnvVar.ValueFrom.ConfigMapKeyRef.Name)
 
 			case from.SecretKeyRef != nil:
-				resultingEnvVar.ValueFrom.SecretKeyRef.Name = p.Translator.TranslateName(virtualPod.Namespace, resultingEnvVar.ValueFrom.SecretKeyRef.Name)
+				resultingEnvVar.ValueFrom.SecretKeyRef.Name = p.translator.TranslateName(virtualPod.Namespace, resultingEnvVar.ValueFrom.SecretKeyRef.Name)
 			}
 		}
 
@@ -1019,11 +1032,11 @@ func (p *Provider) configureEnvFrom(virtualPod *corev1.Pod, envs []corev1.EnvFro
 		resultingEnvVar := envVar
 
 		if envVar.ConfigMapRef != nil {
-			resultingEnvVar.ConfigMapRef.Name = p.Translator.TranslateName(virtualPod.Namespace, envVar.ConfigMapRef.Name)
+			resultingEnvVar.ConfigMapRef.Name = p.translator.TranslateName(virtualPod.Namespace, envVar.ConfigMapRef.Name)
 		}
 
 		if envVar.SecretRef != nil {
-			resultingEnvVar.SecretRef.Name = p.Translator.TranslateName(virtualPod.Namespace, envVar.SecretRef.Name)
+			resultingEnvVar.SecretRef.Name = p.translator.TranslateName(virtualPod.Namespace, envVar.SecretRef.Name)
 		}
 
 		resultingEnvVars = append(resultingEnvVars, resultingEnvVar)

@@ -55,37 +55,41 @@ func (r *Reconciler) getS3ConfigFromSecret(ctx context.Context, snapshot *v1beta
 
 	// Set timeout from secret if set
 	if v, ok := s3Secret.Data["etcd-s3-timeout"]; ok {
-		if duration, err := time.ParseDuration(string(v)); err != nil {
+		duration, err := time.ParseDuration(string(v))
+		if err != nil {
 			return nil, fmt.Errorf("failed to parse etcd-s3-timeout value from S3 config secret: %w", err)
-		} else {
-			etcdS3.Timeout.Duration = duration
 		}
+
+		etcdS3.Timeout.Duration = duration
 	}
 
 	if v, ok := s3Secret.Data["etcd-s3-retention"]; ok {
-		if retention, err := strconv.Atoi(string(v)); err != nil {
+		retention, err := strconv.Atoi(string(v))
+		if err != nil {
 			return nil, fmt.Errorf("failed to parse etcd-s3-retention value from S3 config secret: %w", err)
-		} else {
-			etcdS3.Retention = retention
 		}
+
+		etcdS3.Retention = retention
 	}
 
 	// configure ssl verification, if value can be parsed
 	if v, ok := s3Secret.Data["etcd-s3-skip-ssl-verify"]; ok {
-		if b, err := strconv.ParseBool(string(v)); err != nil {
+		b, err := strconv.ParseBool(string(v))
+		if err != nil {
 			return nil, fmt.Errorf("failed to parse etcd-s3-skip-ssl-verify value from S3 config secret: %w", err)
-		} else {
-			etcdS3.SkipSSLVerify = b
 		}
+
+		etcdS3.SkipSSLVerify = b
 	}
 
 	// configure insecure http, if value can be parsed
 	if v, ok := s3Secret.Data["etcd-s3-insecure"]; ok {
-		if b, err := strconv.ParseBool(string(v)); err != nil {
+		b, err := strconv.ParseBool(string(v))
+		if err != nil {
 			return nil, fmt.Errorf("failed to parse etcd-s3-insecure value from S3 config secret: %w", err)
-		} else {
-			etcdS3.Insecure = b
 		}
+
+		etcdS3.Insecure = b
 	}
 
 	// encode CA bundles from value, and keys in configmap if one is named
@@ -100,14 +104,14 @@ func (r *Reconciler) getS3ConfigFromSecret(ctx context.Context, snapshot *v1beta
 		var configMap corev1.ConfigMap
 		if err := r.Get(ctx, types.NamespacedName{Name: caConfigMapName, Namespace: s3Secret.Namespace}, &configMap); err != nil {
 			return nil, fmt.Errorf("failed to get ConfigMap %s for etcd-s3-endpoint-ca-name value from S3 config secret %s: %w", caConfigMapName, s3Secret.Name, err)
-		} else {
-			for _, v := range configMap.Data {
-				caBundles = append(caBundles, base64.StdEncoding.EncodeToString([]byte(v)))
-			}
+		}
 
-			for _, v := range configMap.BinaryData {
-				caBundles = append(caBundles, base64.StdEncoding.EncodeToString(v))
-			}
+		for _, v := range configMap.Data {
+			caBundles = append(caBundles, base64.StdEncoding.EncodeToString([]byte(v)))
+		}
+
+		for _, v := range configMap.BinaryData {
+			caBundles = append(caBundles, base64.StdEncoding.EncodeToString(v))
 		}
 	}
 

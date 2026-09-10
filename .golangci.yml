@@ -5,14 +5,35 @@ linters:
   - misspell
   - wsl_v5
   - importas
+  - revive
+  - govet
   exclusions:
     rules:
-    # Allow dot imports for Ginkgo/Gomega in test framework
-    - path: tests/framework/
+    # Allow dot imports for Ginkgo/Gomega in tests dir
+    - path: tests/
       text: "dot imports"
       linters:
       - staticcheck
+      - revive
   settings:
+    revive:
+      enable-all-rules: true
+      rules:
+        - {name: add-constant, disabled: true}
+        - {name: cognitive-complexity, disabled: true}
+        - {name: confusing-naming, disabled: true}
+        - {name: confusing-results, disabled: true}
+        - {name: cyclomatic, disabled: true}
+        - {name: early-return, disabled: true}
+        - {name: enforce-switch-style, disabled: true}
+        - {name: flag-parameter, disabled: true}
+        - {name: function-length, disabled: true}
+        - {name: import-shadowing, disabled: true}
+        - {name: line-length-limit, disabled: true}
+        - {name: unused-parameter, disabled: true}
+        - {name: unused-receiver, disabled: true}
+        - {name: unnecessary-format, disabled: true}
+        - {name: unhandled-error, arguments: ["fmt\\.Print.*", "fmt\\.Fprint.*"]}
     importas:
       # Enforce import aliases for k8s packages
       alias:

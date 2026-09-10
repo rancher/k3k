@@ -1,3 +1,5 @@
+// Package certs issues the client certificates and key pairs k3k components use to
+// authenticate to a virtual cluster.
 package certs
 
 import (
@@ -10,6 +12,8 @@ import (
 	certutil "github.com/rancher/dynamiclistener/cert"
 )
 
+// CreateClientCertKey signs a new client certificate and key with the given CA, and
+// returns them PEM encoded.
 func CreateClientCertKey(commonName string, organization []string, altNames *certutil.AltNames, extKeyUsage []x509.ExtKeyUsage, expiresAt time.Duration, caCert, caKey string) ([]byte, []byte, error) {
 	caKeyPEM, err := certutil.ParsePrivateKeyPEM([]byte(caKey))
 	if err != nil {
@@ -58,6 +62,7 @@ func generateKey() (data []byte, err error) {
 	return generatedData, nil
 }
 
+// AddSANs sorts the given SANs into IP addresses and DNS names.
 func AddSANs(sans []string) certutil.AltNames {
 	var altNames certutil.AltNames
 

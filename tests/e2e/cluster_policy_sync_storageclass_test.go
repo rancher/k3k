@@ -1,10 +1,9 @@
-package k3k_test
+package e2e_test
 
 import (
 	"context"
 	"time"
 
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -97,7 +96,7 @@ var _ = When("a shared mode cluster is created in a namespace with a policy", Or
 				Enabled: false,
 			},
 		}
-		clusterObj.Spec.Expose.NodePort.ServerPort = ptr.To[int32](30000)
+		clusterObj.Spec.Expose.NodePort.ServerPort = new(int32(30000))
 
 		CreateCluster(clusterObj)
 

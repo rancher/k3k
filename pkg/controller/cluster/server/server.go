@@ -1,11 +1,14 @@
+// Package server builds the host cluster resources that run a virtual cluster's k3s
+// servers, and resolves the URL its clients connect to.
 package server
 
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -41,6 +44,7 @@ const (
 	k3sVarRunDir     = "/var/run"
 )
 
+// Server builds the Kubernetes resources that run the k3s servers of a virtual cluster.
 type Server struct {
 	cluster          *v1beta1.Cluster
 	client           client.Client
@@ -51,6 +55,7 @@ type Server struct {
 	imagePullSecrets []string
 }
 
+// New returns a Server that builds resources for the given cluster.
 func New(cluster *v1beta1.Cluster, client client.Client, token, image, imagePullPolicy string, imagePullSecrets []string) *Server {
 	return &Server{
 		cluster:          cluster,
@@ -324,6 +329,8 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	return podSpec
 }
 
+// StatefulServer returns the StatefulSet running the cluster's k3s servers, with storage
+// matching the cluster's persistence mode.
 func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error) {
 	var (
 		replicas   int32
@@ -485,7 +492,7 @@ func (s *Server) setupStartCommand() (string, error) {
 
 func (s *Server) buildCABundleVolumes(ctx context.Context) ([]corev1.Volume, []corev1.VolumeMount, error) {
 	if s.cluster.Spec.CustomCAs == nil {
-		return nil, nil, fmt.Errorf("customCAs not found")
+		return nil, nil, errors.New("customCAs not found")
 	}
 
 	customCerts := s.cluster.Spec.CustomCAs.Sources
@@ -643,7 +650,7 @@ func sortedKeys(keyMap map[string]string) []string {
 		keys = append(keys, k)
 	}
 
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	return keys
 }

@@ -21,16 +21,19 @@ const (
 	eventControllerName = "event-syncer"
 )
 
+// EventSyncer copies the events the host cluster records for a workload into the
+// virtual cluster.
 type EventSyncer struct {
 	// virtEventRecorder is a K8s EventRecorder to emit events into the
 	// virtual cluster.
 	virtEventRecorder record.EventRecorder
 
-	// SyncerContext contains all client information for host and virtual
+	// Context contains all client information for host and virtual
 	// cluster.
-	*SyncerContext
+	*Context
 }
 
+// Name returns the name of the controller.
 func (s *EventSyncer) Name() string {
 	return eventControllerName
 }
@@ -40,7 +43,7 @@ func (s *EventSyncer) Name() string {
 func AddEventSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, virtEventRecorder record.EventRecorder) error {
 	reconciler := EventSyncer{
 		virtEventRecorder: virtEventRecorder,
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			VirtualClient: virtMgr.GetClient(),
 			HostClient:    hostMgr.GetClient(),
 			Translator: translate.ToHostTranslator{

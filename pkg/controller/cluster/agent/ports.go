@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -25,19 +26,23 @@ const (
 	snapshotDataKey   = "snapshotData"
 )
 
+// PortAllocator hands out kubelet ports to virtual clusters, tracking which are in use
+// in a ConfigMap shared by the whole k3k installation.
 type PortAllocator struct {
 	ctrlruntimeclient.Client
 
 	KubeletCM *corev1.ConfigMap
 }
 
+// NewPortAllocator returns a PortAllocator backed by a ConfigMap in the controller
+// namespace. It fails if CONTROLLER_NAMESPACE is not set.
 func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client) (*PortAllocator, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("starting port allocator")
 
 	portRangeConfigMapNamespace := os.Getenv("CONTROLLER_NAMESPACE")
 	if portRangeConfigMapNamespace == "" {
-		return nil, fmt.Errorf("failed to find k3k controller namespace")
+		return nil, errors.New("failed to find k3k controller namespace")
 	}
 
 	var kubeletPortRangeCM corev1.ConfigMap
@@ -51,6 +56,8 @@ func NewPortAllocator(ctx context.Context, client ctrlruntimeclient.Client) (*Po
 	}, nil
 }
 
+// InitPortAllocatorConfig returns a Runnable that creates the backing ConfigMap with the
+// given port range, if it does not exist yet.
 func (a *PortAllocator) InitPortAllocatorConfig(ctx context.Context, client ctrlruntimeclient.Client, kubeletPortRange string) manager.Runnable {
 	return manager.RunnableFunc(func(ctx context.Context) error {
 		return a.getOrCreate(ctx, a.KubeletCM, kubeletPortRange)
@@ -85,10 +92,12 @@ func (a *PortAllocator) getOrCreate(ctx context.Context, configmap *corev1.Confi
 	return nil
 }
 
+// AllocateKubeletPort assigns a free kubelet port to the given cluster.
 func (a *PortAllocator) AllocateKubeletPort(ctx context.Context, clusterName, clusterNamespace string) (int, error) {
 	return a.allocatePort(ctx, clusterName, clusterNamespace, a.KubeletCM)
 }
 
+// DeallocateKubeletPort returns a previously allocated kubelet port to the pool.
 func (a *PortAllocator) DeallocateKubeletPort(ctx context.Context, clusterName, clusterNamespace string, kubeletPort int) error {
 	return a.deallocatePort(ctx, clusterName, clusterNamespace, a.KubeletCM, kubeletPort)
 }
@@ -97,7 +106,7 @@ func (a *PortAllocator) DeallocateKubeletPort(ctx context.Context, clusterName, 
 func (a *PortAllocator) allocatePort(ctx context.Context, clusterName, clusterNamespace string, configMap *corev1.ConfigMap) (int, error) {
 	portRange, ok := configMap.Data[rangeKey]
 	if !ok {
-		return 0, fmt.Errorf("port range is not initialized")
+		return 0, errors.New("port range is not initialized")
 	}
 
 	// get configMap first to avoid conflicts
@@ -148,7 +157,7 @@ func (a *PortAllocator) allocatePort(ctx context.Context, clusterName, clusterNa
 func (a *PortAllocator) deallocatePort(ctx context.Context, clusterName, clusterNamespace string, configMap *corev1.ConfigMap, port int) error {
 	portRange, ok := configMap.Data[rangeKey]
 	if !ok {
-		return fmt.Errorf("port range is not initialized")
+		return errors.New("port range is not initialized")
 	}
 
 	if err := a.getOrCreate(ctx, configMap, portRange); err != nil {

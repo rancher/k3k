@@ -1,3 +1,5 @@
+// Package cluster reconciles Cluster objects into the host cluster resources that
+// run a virtual cluster's servers and agents.
 package cluster
 
 import (
@@ -50,13 +52,19 @@ import (
 const (
 	clusterController    = "k3k-cluster-controller"
 	clusterFinalizerName = "cluster.k3k.io/finalizer"
-	ClusterInvalidName   = "system"
+	// ClusterInvalidName is the namespace name that a cluster may not be created in.
+	ClusterInvalidName = "system"
 
+	// SyncEnabledLabelKey marks a resource as synced between the host and virtual cluster.
 	SyncEnabledLabelKey = "k3k.io/sync-enabled"
-	SyncSourceLabelKey  = "k3k.io/sync-source"
+	// SyncSourceLabelKey records which side a synced resource originated from.
+	SyncSourceLabelKey = "k3k.io/sync-source"
+	// SyncSourceHostLabel is the SyncSourceLabelKey value for host cluster resources.
 	SyncSourceHostLabel = "host"
 
-	ProviderLabelKey   = "provider.cattle.io"
+	// ProviderLabelKey is the label marking which provider manages a resource.
+	ProviderLabelKey = "provider.cattle.io"
+	// ProviderLabelValue is the ProviderLabelKey value for the resources k3k manages.
 	ProviderLabelValue = "k3k"
 
 	defaultVirtualClusterCIDR = "10.52.0.0/16"
@@ -70,10 +78,15 @@ const (
 )
 
 var (
-	ErrClusterValidation         = errors.New("cluster validation error")
+	// ErrClusterValidation is returned when a Cluster spec fails validation.
+	ErrClusterValidation = errors.New("cluster validation error")
+	// ErrCustomCACertSecretMissing is returned when a cluster names a custom CA secret
+	// that does not exist.
 	ErrCustomCACertSecretMissing = errors.New("custom CA certificate secret is missing")
 )
 
+// Config holds the images and pull settings the reconciler uses for the servers and
+// agents it creates.
 type Config struct {
 	ClusterCIDR                 string
 	SharedAgentImage            string
@@ -86,7 +99,9 @@ type Config struct {
 	AgentImagePullSecrets       []string
 }
 
-type ClusterReconciler struct {
+// Reconciler reconciles Cluster objects into the server and agent workloads that
+// back a virtual cluster.
+type Reconciler struct {
 	DiscoveryClient *discovery.DiscoveryClient
 	Client          client.Client
 	RestCfg         *rest.Config
@@ -108,7 +123,7 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 	}
 
 	// initialize a new Reconciler
-	reconciler := ClusterReconciler{
+	reconciler := Reconciler{
 		DiscoveryClient: discoveryClient,
 		Client:          mgr.GetClient(),
 		RestCfg:         mgr.GetConfig(),
@@ -128,7 +143,10 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 
 	// index the 'spec.sync.storageClasses.enabled' field
 	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassEnabledIndexField, func(rawObj client.Object) []string {
-		vc := rawObj.(*v1beta1.Cluster)
+		vc, ok := rawObj.(*v1beta1.Cluster)
+		if !ok {
+			return []string{"false"}
+		}
 
 		if vc.Spec.Sync != nil && vc.Spec.Sync.StorageClasses.Enabled {
 			return []string{"true"}
@@ -142,7 +160,10 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 
 	// index the 'status.policy.sync.storageClasses.enabled' field
 	err = mgr.GetCache().IndexField(ctx, &v1beta1.Cluster{}, storageClassStatusEnabledIndexField, func(rawObj client.Object) []string {
-		vc := rawObj.(*v1beta1.Cluster)
+		vc, ok := rawObj.(*v1beta1.Cluster)
+		if !ok {
+			return []string{"false"}
+		}
 
 		if vc.Status.Policy != nil && vc.Status.Policy.Sync != nil && vc.Status.Policy.Sync.StorageClasses.Enabled {
 			return []string{"true"}
@@ -166,7 +187,7 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		Complete(&reconciler)
 }
 
-func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj client.Object) []reconcile.Request {
+func (c *Reconciler) mapStorageClassToCluster(ctx context.Context, obj client.Object) []reconcile.Request {
 	log := ctrl.LoggerFrom(ctx)
 
 	if _, ok := obj.(*storagev1.StorageClass); !ok {
@@ -177,7 +198,7 @@ func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj cl
 	allClusters := make(map[types.NamespacedName]struct{})
 
 	var specClusterList v1beta1.ClusterList
-	if err := r.Client.List(ctx, &specClusterList, client.MatchingFields{storageClassEnabledIndexField: "true"}); err != nil {
+	if err := c.Client.List(ctx, &specClusterList, client.MatchingFields{storageClassEnabledIndexField: "true"}); err != nil {
 		log.Error(err, "error listing clusters with spec sync enabled for storageclass sync")
 	} else {
 		for _, cluster := range specClusterList.Items {
@@ -186,7 +207,7 @@ func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj cl
 	}
 
 	var statusClusterList v1beta1.ClusterList
-	if err := r.Client.List(ctx, &statusClusterList, client.MatchingFields{storageClassStatusEnabledIndexField: "true"}); err != nil {
+	if err := c.Client.List(ctx, &statusClusterList, client.MatchingFields{storageClassStatusEnabledIndexField: "true"}); err != nil {
 		log.Error(err, "error listing clusters with status sync enabled for storageclass sync")
 	} else {
 		for _, cluster := range statusClusterList.Items {
@@ -202,7 +223,7 @@ func (r *ClusterReconciler) mapStorageClassToCluster(ctx context.Context, obj cl
 	return requests
 }
 
-func namespaceEventHandler(r *ClusterReconciler) handler.Funcs {
+func namespaceEventHandler(c *Reconciler) handler.Funcs {
 	return handler.Funcs{
 		// We don't need to update for create or delete events
 		CreateFunc: func(context.Context, event.CreateEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {},
@@ -226,7 +247,7 @@ func namespaceEventHandler(r *ClusterReconciler) handler.Funcs {
 
 			// Enqueue all the Cluster in the namespace
 			var clusterList v1beta1.ClusterList
-			if err := r.Client.List(ctx, &clusterList, client.InNamespace(oldNs.Name)); err != nil {
+			if err := c.Client.List(ctx, &clusterList, client.InNamespace(oldNs.Name)); err != nil {
 				return
 			}
 
@@ -237,7 +258,9 @@ func namespaceEventHandler(r *ClusterReconciler) handler.Funcs {
 	}
 }
 
-func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+// Reconcile provisions the servers and agents of a Cluster and keeps its status up to
+// date, or finalizes the cluster when it is being deleted.
+func (c *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Reconciling Cluster")
 
@@ -318,14 +341,14 @@ func (c *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	return reconcile.Result{}, nil
 }
 
-func (c *ClusterReconciler) reconcileCluster(ctx context.Context, cluster *v1beta1.Cluster) error {
+func (c *Reconciler) reconcileCluster(ctx context.Context, cluster *v1beta1.Cluster) error {
 	err := c.reconcile(ctx, cluster)
 	c.updateStatus(ctx, cluster, err)
 
 	return err
 }
 
-func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) error {
+func (c *Reconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	if cluster.Labels == nil {
@@ -469,15 +492,11 @@ func (c *ClusterReconciler) reconcile(ctx context.Context, cluster *v1beta1.Clus
 	// Important: if you need to call the Server API of the Virtual Cluster
 	// this needs to be done AFTER he kubeconfig has been generated
 
-	if err := c.ensureStorageClasses(ctx, cluster); err != nil {
-		return err
-	}
-
-	return nil
+	return c.ensureStorageClasses(ctx, cluster)
 }
 
 // ensureBootstrapSecret will create or update the Secret containing the bootstrap data from the k3s server
-func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
+func (c *Reconciler) ensureBootstrapSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring bootstrap secret")
 
@@ -495,7 +514,7 @@ func (c *ClusterReconciler) ensureBootstrapSecret(ctx context.Context, cluster *
 }
 
 // ensureKubeconfigSecret will create or update the Secret containing the kubeconfig data from the k3s server
-func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP string) error {
+func (c *Reconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1beta1.Cluster, serviceIP string) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring Kubeconfig Secret")
 
@@ -533,7 +552,7 @@ func (c *ClusterReconciler) ensureKubeconfigSecret(ctx context.Context, cluster 
 	return err
 }
 
-func (c *ClusterReconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, serviceIP string) error {
+func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, serviceIP string) error {
 	// init node config
 	initServerConfig, err := server.Config(true, serviceIP)
 	if err != nil {
@@ -575,7 +594,7 @@ func (c *ClusterReconciler) ensureClusterConfigs(ctx context.Context, cluster *v
 	return nil
 }
 
-func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1beta1.Cluster) error {
+func (c *Reconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring network policy")
 
@@ -689,7 +708,7 @@ func (c *ClusterReconciler) ensureNetworkPolicy(ctx context.Context, cluster *v1
 	return nil
 }
 
-func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v1beta1.Cluster) (*corev1.Service, error) {
+func (c *Reconciler) ensureClusterService(ctx context.Context, cluster *v1beta1.Cluster) (*corev1.Service, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring Cluster Service")
 
@@ -725,7 +744,7 @@ func (c *ClusterReconciler) ensureClusterService(ctx context.Context, cluster *v
 	return currentService, nil
 }
 
-func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1beta1.Cluster) error {
+func (c *Reconciler) ensureIngress(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring cluster ingress")
 
@@ -761,7 +780,7 @@ func (c *ClusterReconciler) ensureIngress(ctx context.Context, cluster *v1beta1.
 	return nil
 }
 
-func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v1beta1.Cluster) error {
+func (c *Reconciler) ensureStorageClasses(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Ensuring cluster StorageClasses")
 
@@ -875,7 +894,7 @@ func (c *ClusterReconciler) ensureStorageClasses(ctx context.Context, cluster *v
 	return nil
 }
 
-func (c *ClusterReconciler) server(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server) error {
+func (c *Reconciler) server(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	// create headless service for the statefulset
@@ -917,7 +936,7 @@ func (c *ClusterReconciler) server(ctx context.Context, cluster *v1beta1.Cluster
 	return err
 }
 
-func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1beta1.Cluster) error {
+func (c *Reconciler) bindClusterRoles(ctx context.Context, cluster *v1beta1.Cluster) error {
 	clusterRoles := []string{"k3k-kubelet-node", "k3k-priorityclass"}
 
 	var err error
@@ -947,7 +966,7 @@ func (c *ClusterReconciler) bindClusterRoles(ctx context.Context, cluster *v1bet
 	return err
 }
 
-func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
+func (c *Reconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cluster, serviceIP, token string) error {
 	// hcp mode is BYO-node by design: external (out-of-host-cluster) nodes
 	// join using the standard K3s installer command, which is printed by
 	// `k3kcli cluster create` / `k3kcli kubeconfig generate`. k3k therefore
@@ -985,7 +1004,7 @@ func (c *ClusterReconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cl
 // validate validates a Cluster before reconciling it. The policy is nil when the namespace
 // of the Cluster is not bound to any VirtualClusterPolicy: only the checks that depend on it
 // are skipped in that case.
-func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) error {
+func (c *Reconciler) validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) error {
 	if cluster.Name == ClusterInvalidName {
 		return fmt.Errorf("%w: invalid cluster name %q", ErrClusterValidation, cluster.Name)
 	}
@@ -1016,7 +1035,7 @@ func (c *ClusterReconciler) validate(cluster *v1beta1.Cluster, policy *v1beta1.V
 // lookupServiceCIDR attempts to determine the cluster's service CIDR.
 // It first attempts to create a failing Service (with an invalid cluster IP)and extracts the expected CIDR from the resulting error.
 // If that fails, it searches the 'kube-apiserver' Pod's arguments for the --service-cluster-ip-range flag.
-func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, error) {
+func (c *Reconciler) lookupServiceCIDR(ctx context.Context) (string, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	// Try to look for the serviceCIDR creating a failing service.
@@ -1091,7 +1110,7 @@ func (c *ClusterReconciler) lookupServiceCIDR(ctx context.Context) (string, erro
 }
 
 // validateCustomCACerts will make sure that all the cert secrets exists
-func (c *ClusterReconciler) validateCustomCACerts(credentialSources v1beta1.CredentialSources) error {
+func (c *Reconciler) validateCustomCACerts(credentialSources v1beta1.CredentialSources) error {
 	if credentialSources.ClientCA.SecretName == "" ||
 		credentialSources.ServerCA.SecretName == "" ||
 		credentialSources.EtcdPeerCA.SecretName == "" ||

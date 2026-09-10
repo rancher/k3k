@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -20,6 +19,7 @@ import (
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 )
 
+// UpdateConfig holds the flags of the "cluster update" command.
 type UpdateConfig struct {
 	servers     int32
 	agents      int32
@@ -29,6 +29,7 @@ type UpdateConfig struct {
 	noConfirm   bool
 }
 
+// NewClusterUpdateCmd returns the "cluster update" command.
 func NewClusterUpdateCmd(appCtx *AppContext) *cobra.Command {
 	updateConfig := &UpdateConfig{}
 
@@ -99,7 +100,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 			}
 
 			if newVersionSemver.LT(currentVersionSemver) {
-				return fmt.Errorf("downgrading cluster version is not supported")
+				return errors.New("downgrading cluster version is not supported")
 			}
 
 			changes = append(changes, change{"Version", currentVersion, config.version})
@@ -114,7 +115,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 			if oldServers != config.servers {
 				changes = append(changes, change{"Servers", fmt.Sprintf("%d", oldServers), fmt.Sprintf("%d", config.servers)})
-				virtualCluster.Spec.Servers = ptr.To(config.servers)
+				virtualCluster.Spec.Servers = new(config.servers)
 			}
 		}
 
@@ -126,7 +127,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 			if oldAgents != config.agents {
 				changes = append(changes, change{"Agents", fmt.Sprintf("%d", oldAgents), fmt.Sprintf("%d", config.agents)})
-				virtualCluster.Spec.Agents = ptr.To(config.agents)
+				virtualCluster.Spec.Agents = new(config.agents)
 			}
 		}
 

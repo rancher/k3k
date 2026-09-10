@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v4"
-	"k8s.io/utils/ptr"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,10 +19,13 @@ import (
 )
 
 const (
+	// VirtualNodeMode is the agent mode where a cluster runs its own k3s agents.
 	VirtualNodeMode      = "virtual"
 	virtualNodeAgentName = "agent"
 )
 
+// VirtualAgent runs a virtual cluster in virtual mode, where its workloads run on k3s
+// agents dedicated to that cluster.
 type VirtualAgent struct {
 	*Config
 	serviceIP        string
@@ -37,24 +39,28 @@ type VirtualAgent struct {
 type virtualAgentConfig struct {
 	Server     string `yaml:"server"`
 	Token      string `yaml:"token"`
-	WithNodeId bool   `yaml:"with-node-id"`
+	WithNodeID bool   `yaml:"with-node-id"`
 }
 
-func NewVirtualAgent(config *Config, serviceIP, token, Image, ImagePullPolicy string, imagePullSecrets []string) *VirtualAgent {
+// NewVirtualAgent returns a VirtualAgent for the cluster in config.
+func NewVirtualAgent(config *Config, serviceIP, token, image, imagePullPolicy string, imagePullSecrets []string) *VirtualAgent {
 	return &VirtualAgent{
 		Config:           config,
 		serviceIP:        serviceIP,
 		token:            token,
-		Image:            Image,
-		ImagePullPolicy:  ImagePullPolicy,
+		Image:            image,
+		ImagePullPolicy:  imagePullPolicy,
 		imagePullSecrets: imagePullSecrets,
 	}
 }
 
+// Name returns the name shared by the agent's resources.
 func (v *VirtualAgent) Name() string {
 	return controller.SafeConcatNameWithPrefix(v.cluster.Name, virtualNodeAgentName)
 }
 
+// EnsureResources creates or updates every resource a virtual mode agent needs, and
+// reports all the failures together.
 func (v *VirtualAgent) EnsureResources(ctx context.Context) error {
 	if err := errors.Join(
 		v.config(ctx),
@@ -97,7 +103,7 @@ func virtualAgentData(serviceIP, token string) ([]byte, error) {
 	agentConfig := virtualAgentConfig{
 		Server:     "https://" + serviceIP,
 		Token:      token,
-		WithNodeId: true,
+		WithNodeID: true,
 	}
 
 	return yaml.Marshal(agentConfig)
@@ -230,7 +236,7 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 				Image:           image,
 				ImagePullPolicy: corev1.PullPolicy(v.ImagePullPolicy),
 				SecurityContext: &corev1.SecurityContext{
-					Privileged: ptr.To(true),
+					Privileged: new(true),
 				},
 				Args: args,
 				Command: []string{

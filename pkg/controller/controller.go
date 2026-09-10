@@ -1,3 +1,5 @@
+// Package controller holds the helpers shared by the k3k controllers, such as k3s
+// image and version resolution and length-safe name generation.
 package controller
 
 import (
@@ -14,7 +16,8 @@ import (
 )
 
 const (
-	namePrefix      = "k3k"
+	namePrefix = "k3k"
+	// AdminCommonName is the common name of the admin certificate of a virtual cluster.
 	AdminCommonName = "system:admin"
 )
 

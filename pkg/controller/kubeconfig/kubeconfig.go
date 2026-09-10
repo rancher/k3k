@@ -1,3 +1,5 @@
+// Package kubeconfig builds the kubeconfig that clients use to reach a virtual
+// cluster, issuing the client certificate it embeds.
 package kubeconfig
 
 import (
@@ -18,6 +20,7 @@ import (
 	"github.com/rancher/k3k/pkg/controller/cluster/server/bootstrap"
 )
 
+// KubeConfig describes the client certificate to issue when generating a kubeconfig.
 type KubeConfig struct {
 	AltNames   certutil.AltNames
 	CN         string
@@ -25,6 +28,7 @@ type KubeConfig struct {
 	ExpiryDate time.Duration
 }
 
+// New returns a KubeConfig for a cluster admin certificate.
 func New() *KubeConfig {
 	return &KubeConfig{
 		CN:         controller.AdminCommonName,
@@ -33,6 +37,8 @@ func New() *KubeConfig {
 	}
 }
 
+// Generate issues an admin certificate from the cluster's bootstrap data and returns a
+// kubeconfig for reaching the virtual cluster.
 func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster *v1beta1.Cluster, hostServerIP string) (*clientcmdapi.Config, error) {
 	bootstrapData, err := bootstrap.LoadFromSecret(ctx, client, cluster)
 	if err != nil {
@@ -54,7 +60,7 @@ func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster
 		return nil, err
 	}
 
-	serverURL, err := server.ServerURL(ctx, client, cluster, hostServerIP)
+	serverURL, err := server.URL(ctx, client, cluster, hostServerIP)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +70,7 @@ func (k *KubeConfig) Generate(ctx context.Context, client client.Client, cluster
 	return config, nil
 }
 
+// NewConfig assembles a single-cluster kubeconfig from the given server URL and credentials.
 func NewConfig(url string, serverCA, clientCert, clientKey []byte) *clientcmdapi.Config {
 	config := clientcmdapi.NewConfig()
 

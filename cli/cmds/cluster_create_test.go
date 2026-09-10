@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/utils/ptr"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -63,11 +62,11 @@ func Test_printClusterDetails(t *testing.T) {
 			cluster: &v1beta1.Cluster{
 				Spec: v1beta1.ClusterSpec{
 					Mode:   v1beta1.SharedClusterMode,
-					Agents: ptr.To[int32](3),
+					Agents: new(int32(3)),
 					Persistence: v1beta1.PersistenceConfig{
 						Type:               v1beta1.DynamicPersistenceMode,
-						StorageClassName:   ptr.To("local-path"),
-						StorageRequestSize: ptr.To(resource.MustParse("3G")),
+						StorageClassName:   new("local-path"),
+						StorageRequestSize: new(resource.MustParse("3G")),
 					},
 				},
 				Status: v1beta1.ClusterStatus{

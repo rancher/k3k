@@ -19,9 +19,11 @@ import (
 )
 
 const (
+	// TLSDir is the directory where a k3s server keeps its TLS assets.
 	TLSDir = "/var/lib/rancher/k3s/server/tls/"
 )
 
+// BootstrapData holds the CA certificates and keys served by the k3s bootstrap endpoint.
 type BootstrapData struct {
 	ServerCA        cert `json:"serverCA"`
 	ServerCAKey     cert `json:"serverCAKey"`
@@ -36,15 +38,19 @@ type cert struct {
 	Content   string
 }
 
-type K3SConfig struct {
+// Config is the subset of the k3s server configuration that k3k needs.
+type Config struct {
 	ClusterInit bool `json:"ClusterInit"`
 }
 
-func (c *Client) GetServerConfig() (*K3SConfig, error) {
+// GetServerConfig returns the configuration reported by the k3s server.
+func (c *Client) GetServerConfig() (*Config, error) {
 	endpoint := "/v1-k3s/config"
-	return do[*K3SConfig](c, endpoint, "node", http.MethodGet, nil)
+	return do[*Config](c, endpoint, "node", http.MethodGet, nil)
 }
 
+// GetServerBootstrap returns the bootstrap data of the k3s server, with each
+// certificate decoded from the base64 form the endpoint serves it in.
 func (c *Client) GetServerBootstrap() (*BootstrapData, error) {
 	endpoint := "/v1-k3s/server-bootstrap"
 
@@ -113,6 +119,9 @@ func decode(data *BootstrapData) error {
 	return nil
 }
 
+// ReadBootstrapFromK3sPod reads the bootstrap CAs directly from the first server pod of
+// a cluster. It is needed when the cluster uses an external datastore, where the
+// bootstrap endpoint is not available.
 func ReadBootstrapFromK3sPod(ctx context.Context, restConfig *rest.Config, clusterName, clusterNamespace string) (*BootstrapData, error) {
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {

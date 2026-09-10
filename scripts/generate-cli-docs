@@ -28,8 +28,9 @@ SUBCOMMAND_FILES=(
 )
 
 # Check for newly added doc files
+ACTUAL_FILES=("$DOCS_DIR"/k3kcli_*.md)
 EXPECTED_COUNT=${#SUBCOMMAND_FILES[@]}
-ACTUAL_COUNT=$(ls -1 $DOCS_DIR/k3kcli_*.md | wc -l)
+ACTUAL_COUNT=${#ACTUAL_FILES[@]}
 
 if [ "$EXPECTED_COUNT" -ne "$ACTUAL_COUNT" ]; then
     echo "ERROR: File count mismatch!"

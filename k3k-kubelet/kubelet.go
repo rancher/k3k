@@ -250,19 +250,25 @@ func (k *kubelet) start(ctx context.Context) error {
 
 func (k *kubelet) newProviderFunc(cfg config) nodeutil.NewProviderFunc {
 	return func(pc nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
-		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, cfg.ClusterNamespace, cfg.ClusterName, cfg.ServerIP, k.dnsIP, cfg.AgentHostname)
+		providerConfig := provider.Config{
+			ClusterNamespace: cfg.ClusterNamespace,
+			ClusterName:      cfg.ClusterName,
+			ServerIP:         cfg.ServerIP,
+			DNSIP:            k.dnsIP,
+			AgentHostname:    cfg.AgentHostname,
+		}
+
+		utilProvider, err := provider.New(*k.hostConfig, k.hostMgr, k.virtualMgr, k.logger, providerConfig)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to make nodeutil provider: %w", err)
 		}
 
-		err = provider.ConfigureNode(
+		err = utilProvider.ConfigureNode(
 			k.logger,
 			pc.Node,
 			cfg.AgentHostname,
 			k.port,
 			k.agentIP,
-			utilProvider.Host.Manager,
-			utilProvider.Virtual.Client,
 			k.virtualCluster,
 			cfg.Version,
 			cfg.MirrorHostNodes,

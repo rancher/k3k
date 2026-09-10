@@ -10,6 +10,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
+// NewPolicyListCmd returns the "policy list" command.
 func NewPolicyListCmd(appCtx *AppContext) *cobra.Command {
 	return &cobra.Command{
 		Use:     "list",

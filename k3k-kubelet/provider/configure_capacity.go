@@ -3,7 +3,7 @@ package provider
 import (
 	"context"
 	"maps"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -224,7 +224,7 @@ func distributeQuotas(hostResourceMap, virtResourceMap map[string]corev1.Resourc
 			eligibleNodes = append(eligibleNodes, vn)
 		}
 
-		sort.Strings(eligibleNodes)
+		slices.Sort(eligibleNodes)
 
 		totalValue := totalQuantity.Value()
 		if useMilli {

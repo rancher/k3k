@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewClusterCmd returns the "cluster" command and its subcommands.
 func NewClusterCmd(appCtx *AppContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cluster",

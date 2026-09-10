@@ -1,3 +1,5 @@
+// Package k3k provides helpers for creating and cleaning up the resources the k3k
+// test suites work with.
 package k3k
 
 import (
@@ -7,7 +9,6 @@ import (
 	"sync"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -59,7 +60,7 @@ func DeleteNamespaces(clientset kubernetes.Interface, names ...string) {
 			By(fmt.Sprintf("Deleting namespace %s", name))
 
 			err := clientset.CoreV1().Namespaces().Delete(context.Background(), name, metav1.DeleteOptions{
-				GracePeriodSeconds: ptr.To[int64](0),
+				GracePeriodSeconds: new(int64(0)),
 			})
 			Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
 		}()

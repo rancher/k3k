@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +43,7 @@ func TestService(t *testing.T) {
 					c.Spec = v1beta1.ClusterSpec{
 						Expose: &v1beta1.ExposeConfig{
 							LoadBalancer: &v1beta1.LoadBalancerConfig{
-								ServerPort: ptr.To[int32](9443),
+								ServerPort: new(int32(9443)),
 							},
 						},
 					}
@@ -77,7 +76,7 @@ func TestService(t *testing.T) {
 							"example.com/testing": "test-annotation",
 						},
 						LoadBalancer: &v1beta1.LoadBalancerConfig{
-							ServerPort: ptr.To[int32](9443),
+							ServerPort: new(int32(9443)),
 						},
 					}
 				},
@@ -109,7 +108,7 @@ func TestService(t *testing.T) {
 				func(c *v1beta1.Cluster) {
 					c.Spec.Expose = &v1beta1.ExposeConfig{
 						NodePort: &v1beta1.NodePortConfig{
-							ServerPort: ptr.To[int32](7443),
+							ServerPort: new(int32(7443)),
 						},
 					}
 				},

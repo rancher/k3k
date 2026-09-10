@@ -13,7 +13,8 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
-// redefining the EtcdS3 Configuration to avoid k3s-io/k3s dependency
+// EtcdS3 is the S3 configuration for etcd snapshots. It redefines the k3s type of the
+// same name to avoid taking a dependency on k3s-io/k3s.
 type EtcdS3 struct {
 	AccessKey     string          `json:"accessKey,omitempty"`
 	Bucket        string          `json:"bucket,omitempty"`
@@ -63,6 +64,8 @@ const (
 	snapshotOperationDelete snapshotOperation = "delete"
 )
 
+// SaveSnapshot asks the k3s server to save an etcd snapshot, storing it on S3 when
+// s3Config is set. It wraps ErrSaveSnapshot on failure.
 func (c *Client) SaveSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) (*SnapshotResponse, error) {
 	req := snapshotRequest{
 		Operation: snapshotOperationSave,
@@ -79,6 +82,8 @@ func (c *Client) SaveSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) 
 	return snapshotResult, nil
 }
 
+// ListSnapshots returns the etcd snapshots known to the k3s server, including those on
+// S3 when s3Config is set. It wraps ErrListSnapshots on failure.
 func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, error) {
 	req := snapshotRequest{
 		Operation: snapshotOperationList,
@@ -93,6 +98,8 @@ func (c *Client) ListSnapshots(s3Config *EtcdS3) (*k3sv1.ETCDSnapshotFileList, e
 	return snapshotFileList, nil
 }
 
+// DeleteSnapshot deletes the snapshot file recorded in the snapshot status. It returns
+// ErrSnapshotNotFound if the server does not report the file as deleted.
 func (c *Client) DeleteSnapshot(snapshot *v1beta1.EtcdSnapshot, s3Config *EtcdS3) (*SnapshotResponse, error) {
 	req := snapshotRequest{
 		Operation: snapshotOperationDelete,
@@ -119,6 +126,7 @@ type snapshotRequest struct {
 	S3        *EtcdS3           `json:"s3,omitempty"`
 }
 
+// SnapshotResponse is the k3s server's reply to a snapshot save or delete request.
 type SnapshotResponse struct {
 	Created []string `json:"created,omitempty"`
 	Deleted []string `json:"deleted,omitempty"`

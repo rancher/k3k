@@ -1,3 +1,5 @@
+// Package k3s talks to the internal API of a k3s server, for bootstrap data,
+// certificates and etcd snapshots.
 package k3s
 
 import (
@@ -16,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ClientConfig holds the details needed to reach and authenticate to a k3s server.
 type ClientConfig struct {
 	AgentIP  string
 	NodeName string
@@ -23,12 +26,16 @@ type ClientConfig struct {
 	ServerIP string
 	Token    string
 }
+
+// Client talks to the internal API of a k3s server.
 type Client struct {
 	config        ClientConfig
 	httpClient    *http.Client
 	staticHeaders http.Header
 }
 
+// ErrServerNotReady is returned when the k3s server refuses the connection,
+// meaning it has not finished starting up yet.
 var ErrServerNotReady = errors.New("server not ready")
 
 const (
@@ -37,6 +44,8 @@ const (
 	k3sNodeNameHeader     = "k3s-Node-Name"
 )
 
+// New returns a Client for the k3s server described by config. TLS verification is
+// skipped, since the k3s CA is not available yet when the client is first used.
 func New(config ClientConfig) *Client {
 	httpClient := &http.Client{
 		Transport: http.DefaultTransport,

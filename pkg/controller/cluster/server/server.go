@@ -322,8 +322,6 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 
 	if podSpec.RuntimeClassName != nil && strings.HasPrefix(*podSpec.RuntimeClassName, "kata") {
 		mounts.AddKmsgMount(&podSpec)
-
-		mounts.FilterEmptyDirVolumes(&podSpec)
 	}
 
 	return podSpec

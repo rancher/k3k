@@ -125,60 +125,23 @@ func baseVirtualAgentPodSpec(v VirtualAgent) corev1.PodSpec {
 }
 
 func kataVirtualAgentPodSpec(v VirtualAgent) corev1.PodSpec {
-	return corev1.PodSpec{
-		Affinity:         nil,
-		NodeSelector:     v.cluster.Spec.NodeSelector,
-		RuntimeClassName: new("kata"),
-		Volumes: []corev1.Volume{
-			{
-				Name: "config",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: configSecretName(v.cluster.Name),
-						Items: []corev1.KeyToPath{
-							{
-								Key:  "config.yaml",
-								Path: "config.yaml",
-							},
-						},
-					},
-				},
-			},
-			{
-				Name: "dev-kmsg",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/dev/kmsg",
-					},
-				},
+	spec := baseVirtualAgentPodSpec(v)
+	spec.RuntimeClassName = new("kata")
+	spec.Volumes = append(spec.Volumes, corev1.Volume{
+		Name: "dev-kmsg",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/dev/kmsg",
 			},
 		},
-		Containers: []corev1.Container{
-			{
-				Name:            "k3k-agent",
-				Image:           v.Image,
-				ImagePullPolicy: corev1.PullPolicy(v.ImagePullPolicy),
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: new(true),
-				},
-				Args: []string{"agent", "--config", "/opt/rancher/k3s/config.yaml"},
-				Command: []string{
-					"/bin/k3s",
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      "config",
-						MountPath: "/opt/rancher/k3s/",
-						ReadOnly:  false,
-					},
-					{
-						Name:      "dev-kmsg",
-						MountPath: "/dev/kmsg",
-					},
-				},
-			},
-		},
-	}
+	})
+
+	spec.Containers[0].VolumeMounts = append(spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		Name:      "dev-kmsg",
+		MountPath: "/dev/kmsg",
+	})
+
+	return spec
 }
 
 func Test_virtualAgentData(t *testing.T) {

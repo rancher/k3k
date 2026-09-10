@@ -100,8 +100,8 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 		// own default/kubernetes Endpoints and point it at the externally
 		// reachable host:port (NodePort / LB / Ingress).
 		serverConfig.KubeAPIServerArg = append(serverConfig.KubeAPIServerArg, "endpoint-reconciler-type=none")
-	case v1beta1.VirtualClusterMode:
-		// no extra config for virtual mode
+	default:
+		// virtual mode needs no extra config, and any other mode is rejected by the CRD validation
 	}
 
 	return serverConfig

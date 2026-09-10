@@ -531,7 +531,7 @@ func (s *Server) buildCABundleVolumes(ctx context.Context) ([]corev1.Volume, []c
 
 		volumeName := certName + "-vol"
 
-		vol, certMounts := s.mountCACert(volumeName, certName, secretName, "tls")
+		vol, certMounts := mountCACert(volumeName, certName, secretName, "tls")
 		volumes = append(volumes, *vol)
 		mounts = append(mounts, certMounts...)
 	}
@@ -539,7 +539,7 @@ func (s *Server) buildCABundleVolumes(ctx context.Context) ([]corev1.Volume, []c
 	return volumes, mounts, nil
 }
 
-func (s *Server) mountCACert(volumeName, certName, secretName string, subPathMount string) (*corev1.Volume, []corev1.VolumeMount) {
+func mountCACert(volumeName, certName, secretName string, subPathMount string) (*corev1.Volume, []corev1.VolumeMount) {
 	var (
 		volume *corev1.Volume
 		mounts []corev1.VolumeMount

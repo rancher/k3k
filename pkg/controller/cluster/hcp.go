@@ -70,14 +70,15 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 
 	var addressType discoveryv1.AddressType
 
-	if ip := net.ParseIP(addr.IP); ip != nil {
-		if ip.To4() != nil {
-			addressType = discoveryv1.AddressTypeIPv4
-		} else {
-			addressType = discoveryv1.AddressTypeIPv6
-		}
-	} else {
+	ip := net.ParseIP(addr.IP)
+	if ip == nil {
 		return fmt.Errorf("invalid IP address %q", addr.IP)
+	}
+
+	if ip.To4() != nil {
+		addressType = discoveryv1.AddressTypeIPv4
+	} else {
+		addressType = discoveryv1.AddressTypeIPv6
 	}
 
 	virtClient, err := newVirtualClient(ctx, c.Client, cluster.Name, cluster.Namespace)

@@ -375,7 +375,7 @@ func (c *Reconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) er
 		}
 	}
 
-	if err := c.validate(cluster, vcp); err != nil {
+	if err := validate(cluster, vcp); err != nil {
 		return err
 	}
 
@@ -1004,7 +1004,7 @@ func (c *Reconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cluster, 
 // validate validates a Cluster before reconciling it. The policy is nil when the namespace
 // of the Cluster is not bound to any VirtualClusterPolicy: only the checks that depend on it
 // are skipped in that case.
-func (c *Reconciler) validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) error {
+func validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) error {
 	if cluster.Name == ClusterInvalidName {
 		return fmt.Errorf("%w: invalid cluster name %q", ErrClusterValidation, cluster.Name)
 	}
@@ -1014,7 +1014,7 @@ func (c *Reconciler) validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualC
 	}
 
 	if cluster.Spec.CustomCAs != nil && cluster.Spec.CustomCAs.Enabled {
-		if err := c.validateCustomCACerts(cluster.Spec.CustomCAs.Sources); err != nil {
+		if err := validateCustomCACerts(cluster.Spec.CustomCAs.Sources); err != nil {
 			return fmt.Errorf("%w: %w", ErrClusterValidation, err)
 		}
 	}
@@ -1110,7 +1110,7 @@ func (c *Reconciler) lookupServiceCIDR(ctx context.Context) (string, error) {
 }
 
 // validateCustomCACerts will make sure that all the cert secrets exists
-func (c *Reconciler) validateCustomCACerts(credentialSources v1beta1.CredentialSources) error {
+func validateCustomCACerts(credentialSources v1beta1.CredentialSources) error {
 	if credentialSources.ClientCA.SecretName == "" ||
 		credentialSources.ServerCA.SecretName == "" ||
 		credentialSources.EtcdPeerCA.SecretName == "" ||

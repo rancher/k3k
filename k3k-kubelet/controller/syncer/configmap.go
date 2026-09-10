@@ -30,11 +30,6 @@ type ConfigMapSyncer struct {
 	*Context
 }
 
-// Name returns the name of the controller.
-func (c *ConfigMapSyncer) Name() string {
-	return configMapControllerName
-}
-
 // AddConfigMapSyncer adds configmap syncer controller to the manager of the virtual cluster
 func AddConfigMapSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	reconciler := ConfigMapSyncer{

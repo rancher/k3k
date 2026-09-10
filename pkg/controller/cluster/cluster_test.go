@@ -100,11 +100,7 @@ func Test_validate(t *testing.T) {
 				},
 			}
 
-			// the Client is only needed to validate the customCAs secrets,
-			// which none of these clusters enable
-			reconciler := &Reconciler{}
-
-			err := reconciler.validate(cluster, tt.policy)
+			err := validate(cluster, tt.policy)
 
 			if tt.wantErr == "" {
 				assert.NoError(t, err)

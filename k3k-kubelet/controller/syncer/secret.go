@@ -30,11 +30,6 @@ type SecretSyncer struct {
 	*Context
 }
 
-// Name returns the name of the controller.
-func (s *SecretSyncer) Name() string {
-	return secretControllerName
-}
-
 // AddSecretSyncer adds secret syncer controller to the manager of the virtual cluster
 func AddSecretSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	reconciler := SecretSyncer{

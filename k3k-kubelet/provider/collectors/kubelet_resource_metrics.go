@@ -92,7 +92,7 @@ type resourceMetricsCollector struct {
 var _ compbasemetrics.StableCollector = &resourceMetricsCollector{}
 
 // DescribeWithStability implements compbasemetrics.StableCollector
-func (rc *resourceMetricsCollector) DescribeWithStability(ch chan<- *compbasemetrics.Desc) {
+func (*resourceMetricsCollector) DescribeWithStability(ch chan<- *compbasemetrics.Desc) {
 	descs := []*compbasemetrics.Desc{
 		nodeCPUUsageDesc,
 		nodeMemoryUsageDesc,
@@ -138,7 +138,7 @@ func (rc *resourceMetricsCollector) CollectWithStability(ch chan<- compbasemetri
 
 // implement collector methods and validate that correct data is used
 
-func (rc *resourceMetricsCollector) collectNodeCPUMetrics(ch chan<- compbasemetrics.Metric, s stats.NodeStats) {
+func (*resourceMetricsCollector) collectNodeCPUMetrics(ch chan<- compbasemetrics.Metric, s stats.NodeStats) {
 	if s.CPU == nil || s.CPU.UsageCoreNanoSeconds == nil {
 		return
 	}
@@ -147,7 +147,7 @@ func (rc *resourceMetricsCollector) collectNodeCPUMetrics(ch chan<- compbasemetr
 		compbasemetrics.NewLazyConstMetric(nodeCPUUsageDesc, compbasemetrics.CounterValue, float64(*s.CPU.UsageCoreNanoSeconds)/float64(time.Second)))
 }
 
-func (rc *resourceMetricsCollector) collectNodeMemoryMetrics(ch chan<- compbasemetrics.Metric, s stats.NodeStats) {
+func (*resourceMetricsCollector) collectNodeMemoryMetrics(ch chan<- compbasemetrics.Metric, s stats.NodeStats) {
 	if s.Memory == nil || s.Memory.WorkingSetBytes == nil {
 		return
 	}
@@ -156,7 +156,7 @@ func (rc *resourceMetricsCollector) collectNodeMemoryMetrics(ch chan<- compbasem
 		compbasemetrics.NewLazyConstMetric(nodeMemoryUsageDesc, compbasemetrics.GaugeValue, float64(*s.Memory.WorkingSetBytes)))
 }
 
-func (rc *resourceMetricsCollector) collectContainerStartTime(ch chan<- compbasemetrics.Metric, pod stats.PodStats, s stats.ContainerStats) {
+func (*resourceMetricsCollector) collectContainerStartTime(ch chan<- compbasemetrics.Metric, pod stats.PodStats, s stats.ContainerStats) {
 	if s.StartTime.Unix() <= 0 {
 		return
 	}
@@ -165,7 +165,7 @@ func (rc *resourceMetricsCollector) collectContainerStartTime(ch chan<- compbase
 		compbasemetrics.NewLazyConstMetric(containerStartTimeDesc, compbasemetrics.GaugeValue, float64(s.StartTime.UnixNano())/float64(time.Second), s.Name, pod.PodRef.Name, pod.PodRef.Namespace))
 }
 
-func (rc *resourceMetricsCollector) collectContainerCPUMetrics(ch chan<- compbasemetrics.Metric, pod stats.PodStats, s stats.ContainerStats) {
+func (*resourceMetricsCollector) collectContainerCPUMetrics(ch chan<- compbasemetrics.Metric, pod stats.PodStats, s stats.ContainerStats) {
 	if s.CPU == nil || s.CPU.UsageCoreNanoSeconds == nil {
 		return
 	}
@@ -175,7 +175,7 @@ func (rc *resourceMetricsCollector) collectContainerCPUMetrics(ch chan<- compbas
 			float64(*s.CPU.UsageCoreNanoSeconds)/float64(time.Second), s.Name, pod.PodRef.Name, pod.PodRef.Namespace))
 }
 
-func (rc *resourceMetricsCollector) collectContainerMemoryMetrics(ch chan<- compbasemetrics.Metric, pod stats.PodStats, s stats.ContainerStats) {
+func (*resourceMetricsCollector) collectContainerMemoryMetrics(ch chan<- compbasemetrics.Metric, pod stats.PodStats, s stats.ContainerStats) {
 	if s.Memory == nil || s.Memory.WorkingSetBytes == nil {
 		return
 	}
@@ -185,7 +185,7 @@ func (rc *resourceMetricsCollector) collectContainerMemoryMetrics(ch chan<- comp
 			float64(*s.Memory.WorkingSetBytes), s.Name, pod.PodRef.Name, pod.PodRef.Namespace))
 }
 
-func (rc *resourceMetricsCollector) collectPodCPUMetrics(ch chan<- compbasemetrics.Metric, pod stats.PodStats) {
+func (*resourceMetricsCollector) collectPodCPUMetrics(ch chan<- compbasemetrics.Metric, pod stats.PodStats) {
 	if pod.CPU == nil || pod.CPU.UsageCoreNanoSeconds == nil {
 		return
 	}
@@ -195,7 +195,7 @@ func (rc *resourceMetricsCollector) collectPodCPUMetrics(ch chan<- compbasemetri
 			float64(*pod.CPU.UsageCoreNanoSeconds)/float64(time.Second), pod.PodRef.Name, pod.PodRef.Namespace))
 }
 
-func (rc *resourceMetricsCollector) collectPodMemoryMetrics(ch chan<- compbasemetrics.Metric, pod stats.PodStats) {
+func (*resourceMetricsCollector) collectPodMemoryMetrics(ch chan<- compbasemetrics.Metric, pod stats.PodStats) {
 	if pod.Memory == nil || pod.Memory.WorkingSetBytes == nil {
 		return
 	}

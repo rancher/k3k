@@ -33,11 +33,6 @@ type EventSyncer struct {
 	*Context
 }
 
-// Name returns the name of the controller.
-func (s *EventSyncer) Name() string {
-	return eventControllerName
-}
-
 // AddEventSyncer adds event syncer controller to the manager of the virtual
 // cluster.
 func AddEventSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string, virtEventRecorder record.EventRecorder) error {

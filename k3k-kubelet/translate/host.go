@@ -92,7 +92,7 @@ func (t *ToHostTranslator) TranslateTo(obj client.Object) {
 
 // TranslateFrom reverses TranslateTo, restoring the original name and namespace an
 // object had in the virtual cluster.
-func (t *ToHostTranslator) TranslateFrom(obj client.Object) {
+func (*ToHostTranslator) TranslateFrom(obj client.Object) {
 	// owning objects may be in the virtual cluster, but may not be in the host cluster
 	obj.SetOwnerReferences(nil)
 

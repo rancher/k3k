@@ -148,11 +148,11 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 		cluster.Spec.TLSSANs = uniqueStrings(sans)
 
 		if err := client.Create(ctx, cluster); err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				logrus.Infof("Cluster '%s' already exists", name)
-			} else {
+			if !apierrors.IsAlreadyExists(err) {
 				return err
 			}
+
+			logrus.Infof("Cluster '%s' already exists", name)
 		}
 
 		if err := waitForClusterReconciled(ctx, client, cluster, config.timeout); err != nil {

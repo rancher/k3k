@@ -6,7 +6,6 @@ linters:
   - wsl_v5
   - importas
   - revive
-  - govet
   exclusions:
     rules:
     # Allow dot imports for Ginkgo/Gomega in tests dir
@@ -19,21 +18,18 @@ linters:
     revive:
       enable-all-rules: true
       rules:
-        - {name: add-constant, disabled: true}
-        - {name: cognitive-complexity, disabled: true}
-        - {name: confusing-naming, disabled: true}
-        - {name: confusing-results, disabled: true}
-        - {name: cyclomatic, disabled: true}
-        - {name: early-return, disabled: true}
-        - {name: enforce-switch-style, disabled: true}
-        - {name: flag-parameter, disabled: true}
-        - {name: function-length, disabled: true}
-        - {name: import-shadowing, disabled: true}
-        - {name: line-length-limit, disabled: true}
-        - {name: unused-parameter, disabled: true}
-        - {name: unused-receiver, disabled: true}
-        - {name: unnecessary-format, disabled: true}
-        - {name: unhandled-error, arguments: ["fmt\\.Print.*", "fmt\\.Fprint.*"]}
+      - { name: cyclomatic, arguments: [ 30 ] }
+      - { name: unhandled-error, arguments: [ "fmt\\.Print.*", "fmt\\.Fprint.*" ] }
+      # disabled rules
+      - { name: add-constant, disabled: true }
+      - { name: cognitive-complexity, disabled: true }
+      - { name: confusing-naming, disabled: true }
+      - { name: confusing-results, disabled: true }
+      - { name: flag-parameter, disabled: true }
+      - { name: function-length, disabled: true }
+      - { name: import-shadowing, disabled: true }
+      - { name: line-length-limit, disabled: true }
+      - { name: unused-parameter, disabled: true }
     importas:
       # Enforce import aliases for k8s packages
       alias:
@@ -68,3 +64,8 @@ formatters:
       rewrite-rules:
       - pattern: 'interface{}'
         replacement: 'any'
+
+issues:
+  # Report everything: the defaults (50 per linter, 3 per rule) silently truncate
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -19,7 +19,7 @@ import (
 )
 
 // reconcileNamespacePodSecurityLabels will update the labels of the namespace to reconcile the PSA level specified in the VirtualClusterPolicy
-func (c *VirtualClusterPolicyReconciler) reconcileNamespacePodSecurityLabels(ctx context.Context, namespace *corev1.Namespace, policy *v1beta1.VirtualClusterPolicy) {
+func reconcileNamespacePodSecurityLabels(ctx context.Context, namespace *corev1.Namespace, policy *v1beta1.VirtualClusterPolicy) {
 	log := ctrl.LoggerFrom(ctx)
 	log.V(1).Info("Reconciling PSA labels")
 

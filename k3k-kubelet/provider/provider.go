@@ -385,7 +385,7 @@ func (p *Provider) PortForward(ctx context.Context, namespace, name string, port
 
 // CreatePod executes createPod with retry
 func (p *Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
-	return p.withRetry(ctx, p.createPod, pod)
+	return withRetry(ctx, p.createPod, pod)
 }
 
 func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
@@ -529,7 +529,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 }
 
 // withRetry retries passed function with interval and timeout
-func (p *Provider) withRetry(ctx context.Context, f func(context.Context, *corev1.Pod) error, pod *corev1.Pod) error {
+func withRetry(ctx context.Context, f func(context.Context, *corev1.Pod) error, pod *corev1.Pod) error {
 	const (
 		interval = time.Second
 		timeout  = 10 * time.Second
@@ -582,6 +582,8 @@ func (p *Provider) transformVolumes(podNamespace string, volumes []corev1.Volume
 					source.ConfigMap.Name = p.translator.TranslateName(podNamespace, source.ConfigMap.Name)
 				case source.Secret != nil:
 					source.Secret.Name = p.translator.TranslateName(podNamespace, source.Secret.Name)
+				default:
+					// other projected sources reference no host resource by name
 				}
 			}
 
@@ -593,16 +595,23 @@ func (p *Provider) transformVolumes(podNamespace string, volumes []corev1.Volume
 						downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNameAnnotation)
 					case translate.MetadataNamespaceField:
 						downwardAPI.FieldRef.FieldPath = fmt.Sprintf("metadata.annotations['%s']", translate.ResourceNamespaceAnnotation)
+					default:
+						// other field paths are the same in the host cluster
 					}
 				}
 			}
+
+		default:
+			// Volumes that reference namespaced resources through other fields
+			// (CSI NodePublishSecretRef, Ephemeral VolumeClaimTemplate, the
+			// in-tree SecretRefs) are not translated yet.
 		}
 	}
 }
 
 // UpdatePod executes updatePod with retry
 func (p *Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
-	return p.withRetry(ctx, p.updatePod, pod)
+	return withRetry(ctx, p.updatePod, pod)
 }
 
 func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
@@ -736,7 +745,7 @@ func updateContainerImages(dst, src []corev1.Container) {
 
 // DeletePod executes deletePod with retry
 func (p *Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
-	return p.withRetry(ctx, p.deletePod, pod)
+	return withRetry(ctx, p.deletePod, pod)
 }
 
 // deletePod takes a Kubernetes Pod and deletes it from the provider. Once a pod is deleted, the provider is
@@ -1009,6 +1018,8 @@ func (p *Provider) configureEnv(virtualPod *corev1.Pod, envs []corev1.EnvVar) []
 				case "metadata.namespace":
 					resultingEnvVar.Value = virtualPod.Namespace
 					resultingEnvVar.ValueFrom = nil
+				default:
+					// other field paths are the same in the host cluster
 				}
 
 			case from.ConfigMapKeyRef != nil:
@@ -1016,6 +1027,9 @@ func (p *Provider) configureEnv(virtualPod *corev1.Pod, envs []corev1.EnvVar) []
 
 			case from.SecretKeyRef != nil:
 				resultingEnvVar.ValueFrom.SecretKeyRef.Name = p.translator.TranslateName(virtualPod.Namespace, resultingEnvVar.ValueFrom.SecretKeyRef.Name)
+
+			default:
+				// other sources reference no host resource by name
 			}
 		}
 

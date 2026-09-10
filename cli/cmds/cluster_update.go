@@ -182,7 +182,7 @@ func confirmClusterUpdate(cluster *v1beta1.Cluster) bool {
 
 	fmt.Printf("\nNew %s\n", clusterDetails)
 
-	fmt.Printf("\nDo you want to update the cluster? [y/N]: ")
+	fmt.Print("\nDo you want to update the cluster? [y/N]: ")
 
 	scanner := bufio.NewScanner(os.Stdin)
 
@@ -194,7 +194,7 @@ func confirmClusterUpdate(cluster *v1beta1.Cluster) bool {
 		return false
 	}
 
-	fmt.Printf("\n")
+	fmt.Println()
 
 	return strings.ToLower(strings.TrimSpace(scanner.Text())) == "y"
 }

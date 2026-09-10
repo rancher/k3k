@@ -108,6 +108,10 @@ func URL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostSer
 				log.V(1).Info("No usable ingress address found in LoadBalancer service.")
 			}
 		}
+
+	default:
+		// ExternalName services expose no routable address, so keep the host server IP
+		log.V(1).Info("Unsupported service type, falling back to the host server IP", "type", k3kService.Spec.Type)
 	}
 
 	if !slices.Contains(cluster.Status.TLSSANs, host) {

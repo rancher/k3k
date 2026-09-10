@@ -356,7 +356,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileMatchingNamespaces(ctx context
 			return err
 		}
 
-		c.reconcileNamespacePodSecurityLabels(ctx, &ns, policy)
+		reconcileNamespacePodSecurityLabels(ctx, &ns, policy)
 
 		if !reflect.DeepEqual(orig, &ns) {
 			log.Info("Updating Namespace")

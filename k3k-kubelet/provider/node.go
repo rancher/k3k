@@ -12,7 +12,7 @@ type Node struct {
 }
 
 // Ping is called to check if the node is healthy - in the current format it always is
-func (n *Node) Ping(context.Context) error {
+func (*Node) Ping(context.Context) error {
 	return nil
 }
 

@@ -1,0 +1,95 @@
+{{- if eq .Values.netpol.flavor "ccnp" }}
+{{/* Mimic the logic in getURLFromService, see pkg/controller/kubeconfig/kubeconfig.go */}}
+{{- $k3kService := (lookup "v1" "Service" "default" "kubernetes") -}}
+
+{{- if $k3kService -}}
+  {{- $ip := "" -}}
+  {{- $port := "" -}}
+
+  {{- /* Case: NodePort (uses Host IP and NodePort) */ -}}
+  {{- if eq $k3kService.spec.type "NodePort" -}}
+    {{- $ip = "reserved:host" -}}
+    {{- if $k3kService.spec.ports -}}
+      {{- $port = (index $k3kService.spec.ports 0).nodePort -}}
+    {{- end -}}
+  {{- /* Case: ClusterIP (look up endpoint and use that) */ -}}
+  {{- else if eq $k3kService.spec.type "ClusterIP" -}}
+    {{- $endpointslice := (lookup "discovery.k8s.io/v1" "EndpointSlice" "default" "kubernetes") }}
+    {{- $ip = get ($endpointslice.endpoints | first) "addresses" | first -}}
+    {{/* Pain: If the k8s api is exposed on the host IP, the EndpointSlice just names it by IP. However,
+         Cilium doesn't allow traffic by CIDR to the host, it wants the special "this is traffic to the
+         host" label. */}}
+    {{- $nodes := lookup "v1" "Node" "" "" -}}
+    {{- $nodeaddrs := list -}}
+    {{- range $k, $node := $nodes.items -}}
+      {{- range $addr := $node.status.addresses }}
+        {{ $nodeaddrs = append $nodeaddrs $addr.address}}
+      {{- end -}}
+    {{- end -}}
+    {{- if has (index (splitList "/" $ip) 0) $nodeaddrs -}}
+      {{- $ip = "reserved:host" -}}
+    {{- end -}}
+    {{- $port = get ($endpointslice.ports | first) "port" -}}
+  {{- /* Case: LoadBalancer */ -}}
+  {{- else if eq $k3kService.spec.type "LoadBalancer" -}}
+    {{- if and $k3kService.status.loadBalancer.ingress (gt (len $k3kService.status.loadBalancer.ingress) 0) -}}
+      {{- $ip = (index $k3kService.status.loadBalancer.ingress 0).ip -}}
+    {{- end -}}
+    {{- if $k3kService.spec.ports -}}
+      {{- $port = (index $k3kService.spec.ports 0).port -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- /* Only generate the policy if we successfully resolved a port */ -}}
+  {{- if $port -}}
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: "allow-agent-to-k3k-dynamic"
+spec:
+  endpointSelector:
+    matchLabels:
+      type: agent
+  egress:
+    -
+    {{- if eq $ip "reserved:host" }}
+      toEndpoints:
+        - matchLabels:
+            "reserved:host": ""
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": default
+    {{- else if $ip }}
+        # If it's a specific IP, we use toCIDR for precision
+      toCIDR:
+        - {{ printf "%s/32" $ip }}
+    {{- end }}
+      toPorts:
+        - ports:
+            - port: {{ $port | quote }}
+              protocol: TCP
+{{- /* if $port */ -}}
+{{- end -}}
+{{- /* if $k3kService */ -}}
+{{- end -}}
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: "allow-k3k-to-servers"
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: k3k
+  egress:
+    -
+      toEndpoints:
+        - matchLabels:
+            role: server
+      toPorts:
+        - ports:
+            - port: "6443"
+              protocol: TCP
+
+{{- /* if ccnp netpol is enabled */ -}}
+{{- end -}}

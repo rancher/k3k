@@ -4,7 +4,9 @@ Thanks for taking the time to contribute to K3k!
 
 Contributing is not limited to writing code and submitting a PR. Feel free to submit an [issue](https://github.com/rancher/k3k/issues/new/choose) or comment on an existing one to report a bug, provide feedback, or suggest a new feature. You can also join the discussion on [slack](https://rancher-users.slack.com/channels/k3k).
 
-Of course, contributing code is more than welcome! To keep things simple, if you're fixing a small issue, you can simply submit a PR and we will pick it up. However, if you're planning to submit a bigger PR to implement a new feature or fix a relatively complex bug, please open an issue that explains the change and the motivation for it. If you're addressing a bug, please explain how to reproduce it.
+Of course, contributing code is more than welcome! Every submitted PR must have an issue opened that explains the bug or the new feature that it implements, the submitted PR will be closed if there is no corresponding issue is opened for it. 
+
+Before submitting the PR please make sure that the issue was discussed with one of the maintainers. If you are implementing a change or a feature please explain in the issue the motivation behind it or if you're addressing a bug, please explain how to reproduce it.
 
 ## AI Guidance
 
@@ -49,10 +51,7 @@ Generally, pull requests need one approvals from maintainers to be merged. Excep
 
 When addressing review feedback, it is helpful to the reviewer if additional changes are made in new commits. This allows the reviewer to easily see the delta between what they previously reviewed and the changes you added to address their feedback.
 
-Once a PR has the necessary approvals, it can be merged. Here’s how the merge should be handled:
-- If the PR is a single logical commit, the merger should use the “Rebase and merge” option. This keeps the git commit history very clean and simple and eliminates noise from "merge commits."
-- If the PR is more than one logical commit, the merger should use the “Create a merge commit” option.
-- If the PR consists of more than one commit because the author added commits to address feedback, the commits should be squashed into a single commit (or more than one logical commit, if it is a big feature that needs more commits). This can be achieved in one of two ways:
+Once a PR has the necessary approvals, it can be merged. The commits of any PR should be squashed into a single commit (or more than one logical commit, if it is a big feature that needs more commits). This can be achieved in one of two ways:
   - The merger can use the “Squash and merge” option. If they do this, the merger is responsible for cleaning up the commit message according to the previously stated commit message guidance.
   - The pull request author, after getting the requisite approvals, can reorganize the commits as they see fit (using, for example, git rebase -i) and re-push.
 

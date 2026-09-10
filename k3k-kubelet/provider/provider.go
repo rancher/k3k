@@ -10,6 +10,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -899,26 +900,7 @@ func configureNetworking(hostPod, virtualPod *corev1.Pod, serverIP, dnsIP string
 		},
 	})
 
-	// injecting cluster DNS IP to the pods except for coredns pod
-	if !isCoreDNSPod(*virtualPod) && hostPod.Spec.DNSConfig == nil {
-		hostPod.Spec.DNSPolicy = corev1.DNSNone
-		hostPod.Spec.DNSConfig = &corev1.PodDNSConfig{
-			Nameservers: []string{
-				dnsIP,
-			},
-			Searches: []string{
-				virtualPod.Namespace + ".svc.cluster.local",
-				"svc.cluster.local",
-				"cluster.local",
-			},
-			Options: []corev1.PodDNSConfigOption{
-				{
-					Name:  "ndots",
-					Value: new("5"),
-				},
-			},
-		}
-	}
+	configureDNS(hostPod, virtualPod, dnsIP)
 
 	updatedEnvVars := []corev1.EnvVar{
 		{Name: "KUBERNETES_SERVICE_HOST", Value: serverIP},
@@ -1043,4 +1025,64 @@ func (p *Provider) configureEnvFrom(virtualPod *corev1.Pod, envs []corev1.EnvFro
 	}
 
 	return resultingEnvVars
+}
+
+// Limits the API server enforces on a pod with dnsPolicy None.
+const (
+	maxDNSNameservers = 3
+	maxDNSSearchPaths = 32
+)
+
+// configureDNS points the host pod at the virtual cluster's coredns. It mirrors
+// what the kubelet does for dnsPolicy ClusterFirst: the cluster nameserver and
+// search domains come first, the pod's own dnsConfig entries are appended, and
+// the pod's options are kept (ndots defaults to 5 when the pod sets none).
+//
+// A pod with dnsPolicy None owns its DNS configuration and is left untouched,
+// as is the virtual cluster's own coredns pod.
+func configureDNS(hostPod, virtualPod *corev1.Pod, dnsIP string) {
+	if isCoreDNSPod(*virtualPod) || virtualPod.Spec.DNSPolicy == corev1.DNSNone {
+		return
+	}
+
+	dnsConfig := &corev1.PodDNSConfig{
+		Nameservers: []string{dnsIP},
+		Searches: []string{
+			virtualPod.Namespace + ".svc.cluster.local",
+			"svc.cluster.local",
+			"cluster.local",
+		},
+	}
+
+	if podConfig := virtualPod.Spec.DNSConfig; podConfig != nil {
+		dnsConfig.Nameservers = appendUnique(dnsConfig.Nameservers, podConfig.Nameservers, maxDNSNameservers)
+		dnsConfig.Searches = appendUnique(dnsConfig.Searches, podConfig.Searches, maxDNSSearchPaths)
+		dnsConfig.Options = append(dnsConfig.Options, podConfig.Options...)
+	}
+
+	if !hasDNSOption(dnsConfig.Options, "ndots") {
+		dnsConfig.Options = append(dnsConfig.Options, corev1.PodDNSConfigOption{Name: "ndots", Value: new("5")})
+	}
+
+	hostPod.Spec.DNSPolicy = corev1.DNSNone
+	hostPod.Spec.DNSConfig = dnsConfig
+}
+
+// appendUnique appends the entries of extra that are not yet in base, up to limit entries in total.
+func appendUnique(base, extra []string, limit int) []string {
+	for _, e := range extra {
+		if len(base) >= limit {
+			break
+		}
+
+		if !slices.Contains(base, e) {
+			base = append(base, e)
+		}
+	}
+
+	return base
+}
+
+func hasDNSOption(options []corev1.PodDNSConfigOption, name string) bool {
+	return slices.ContainsFunc(options, func(o corev1.PodDNSConfigOption) bool { return o.Name == name })
 }

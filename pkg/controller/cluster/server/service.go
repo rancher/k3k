@@ -78,6 +78,11 @@ func Service(cluster *v1beta1.Cluster) *corev1.Service {
 		}
 	}
 
+	if cluster.Spec.Mode == v1beta1.HCPClusterMode &&
+		(service.Spec.Type == corev1.ServiceTypeNodePort || service.Spec.Type == corev1.ServiceTypeLoadBalancer) {
+		service.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyLocal
+	}
+
 	return service
 }
 

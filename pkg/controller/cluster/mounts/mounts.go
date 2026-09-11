@@ -68,36 +68,6 @@ func buildSecretMountVolume(secretMount v1beta1.SecretMount) (corev1.Volume, cor
 	return vol, volMount
 }
 
-// FilterEmptyDirVolumes strips every EmptyDir volume from the pod spec, along with the
-// container mounts that referenced them.
-func FilterEmptyDirVolumes(podSpec *corev1.PodSpec) {
-	emptyDirNames := make(map[string]bool)
-
-	var filteredVolumes []corev1.Volume
-
-	for _, vol := range podSpec.Volumes {
-		if vol.EmptyDir != nil {
-			emptyDirNames[vol.Name] = true
-		} else {
-			filteredVolumes = append(filteredVolumes, vol)
-		}
-	}
-
-	podSpec.Volumes = filteredVolumes
-
-	for i := range podSpec.Containers {
-		var filteredMounts []corev1.VolumeMount
-
-		for _, mount := range podSpec.Containers[i].VolumeMounts {
-			if !emptyDirNames[mount.Name] {
-				filteredMounts = append(filteredMounts, mount)
-			}
-		}
-
-		podSpec.Containers[i].VolumeMounts = filteredMounts
-	}
-}
-
 // AddKmsgMount mounts the host's /dev/kmsg into the pod's first container.
 func AddKmsgMount(podSpec *corev1.PodSpec) {
 	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{

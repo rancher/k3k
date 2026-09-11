@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
@@ -68,14 +69,56 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 		return err
 	}
 
-	var addressType discoveryv1.AddressType
-
-	ip := net.ParseIP(addr.IP)
-	if ip == nil {
-		return fmt.Errorf("invalid IP address %q", addr.IP)
+	isIPv4 := true
+	if ip := net.ParseIP(addr.IP); ip != nil && ip.To4() == nil {
+		isIPv4 = false
 	}
 
-	if ip.To4() != nil {
+	var ips []string
+
+	listOpts := []client.ListOptions{
+		{client.InNamespace(cluster.Namespace)},
+		client.MatchingLabels{
+			"cluster": cluster.Name,
+			"role":    "server",
+		},
+	}
+
+	var podList corev1.PodList
+	if err := c.Client.List(ctx, &podList, listOpts); err == nil && len(podList.Items) > 0 {
+		nodeNames := make(map[string]bool)
+
+		for _, pod := range podList.Items {
+			if pod.Spec.NodeName != "" {
+				nodeNames[pod.Spec.NodeName] = true
+			}
+		}
+
+		for nodeName := range nodeNames {
+			var node corev1.Node
+			if err := c.Client.Get(ctx, client.ObjectKey{Name: nodeName}, &node); err == nil {
+				for _, address := range node.Status.Addresses {
+					if address.Type == corev1.NodeInternalIP {
+						nodeIP := net.ParseIP(address.Address)
+						if nodeIP != nil {
+							if isIPv4 && nodeIP.To4() != nil {
+								ips = append(ips, address.Address)
+							} else if !isIPv4 && nodeIP.To4() == nil {
+								ips = append(ips, address.Address)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if len(ips) == 0 {
+		ips = append(ips, addr.IP)
+	}
+
+	var addressType discoveryv1.AddressType
+	if isIPv4 {
 		addressType = discoveryv1.AddressTypeIPv4
 	} else {
 		addressType = discoveryv1.AddressTypeIPv6
@@ -102,9 +145,14 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 		endpointSlice.Labels[discoveryv1.LabelServiceName] = "kubernetes"
 		endpointSlice.AddressType = addressType
 
-		endpointSlice.Endpoints = []discoveryv1.Endpoint{
-			{Addresses: []string{addr.IP}},
+		var endpoints []discoveryv1.Endpoint
+		for _, nodeIP := range ips {
+			endpoints = append(endpoints, discoveryv1.Endpoint{
+				Addresses: []string{nodeIP},
+			})
 		}
+
+		endpointSlice.Endpoints = endpoints
 
 		endpointSlice.Ports = []discoveryv1.EndpointPort{
 			{
@@ -120,7 +168,7 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 		return fmt.Errorf("upserting default/kubernetes endpointslice in virtual cluster: %w", err)
 	}
 
-	log.V(1).Info("HCP kubernetes endpointslice reconciled", "address", addr.IP, "host", url.Hostname(), "port", port)
+	log.V(1).Info("HCP kubernetes endpointslice reconciled", "ips", ips, "host", url.Hostname(), "port", port)
 
 	return nil
 }
@@ -159,6 +207,38 @@ func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *
 		return err
 	}
 
+	var addresses []corev1.EndpointAddress
+
+	epPort := int32(port)
+
+	var podList corev1.PodList
+	if err := c.Client.List(ctx, &podList, client.InNamespace(cluster.Namespace), client.MatchingLabels{
+		"cluster": cluster.Name,
+		"role":    "server",
+	}); err == nil && len(podList.Items) > 0 {
+		for _, pod := range podList.Items {
+			if pod.Status.PodIP != "" {
+				addresses = append(addresses, corev1.EndpointAddress{
+					IP: pod.Status.PodIP,
+					TargetRef: &corev1.ObjectReference{
+						Kind:            "Pod",
+						Name:            pod.Name,
+						Namespace:       pod.Namespace,
+						UID:             pod.UID,
+						ResourceVersion: pod.ResourceVersion,
+					},
+				})
+			}
+		}
+	}
+
+	if len(addresses) > 0 {
+		// If using direct pod IPs, they listen on 6443
+		epPort = 6443
+	} else {
+		addresses = append(addresses, addr)
+	}
+
 	_, err = controllerutil.CreateOrUpdate(ctx, virtClient, endpoints, func() error {
 		if endpoints.Labels == nil {
 			endpoints.Labels = make(map[string]string)
@@ -170,11 +250,11 @@ func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *
 		//nolint:staticcheck // SA1019 corev1.EndpointSubset is deprecated in v1.33+, but needed in the Conformance tests
 		endpoints.Subsets = []corev1.EndpointSubset{
 			{
-				Addresses: []corev1.EndpointAddress{addr},
+				Addresses: addresses,
 				Ports: []corev1.EndpointPort{
 					{
 						Name:     "https",
-						Port:     int32(port),
+						Port:     epPort,
 						Protocol: corev1.ProtocolTCP,
 					},
 				},
@@ -187,7 +267,7 @@ func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *
 		return fmt.Errorf("upserting default/kubernetes endpoints in virtual cluster: %w", err)
 	}
 
-	log.V(1).Info("HCP kubernetes endpoints reconciled", "address", addr.IP, "host", url.Host, "port", port)
+	log.V(1).Info("HCP kubernetes endpoints reconciled", "addresses", addresses, "port", epPort)
 
 	return nil
 }

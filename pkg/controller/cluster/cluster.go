@@ -553,6 +553,21 @@ func (c *Reconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1beta
 }
 
 func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, serviceIP string) error {
+	if cluster.Spec.Mode == v1beta1.HCPClusterMode {
+		var nodeList corev1.NodeList
+		if err := c.Client.List(ctx, &nodeList); err == nil {
+			for _, node := range nodeList.Items {
+				for _, address := range node.Status.Addresses {
+					if address.Type == corev1.NodeInternalIP {
+						if !slices.Contains(cluster.Status.TLSSANs, address.Address) {
+							cluster.Status.TLSSANs = append(cluster.Status.TLSSANs, address.Address)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// init node config
 	initServerConfig, err := server.Config(true, serviceIP)
 	if err != nil {

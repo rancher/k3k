@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -74,43 +75,9 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 		isIPv4 = false
 	}
 
-	var ips []string
-
-	listOpts := []client.ListOptions{
-		{client.InNamespace(cluster.Namespace)},
-		client.MatchingLabels{
-			"cluster": cluster.Name,
-			"role":    "server",
-		},
-	}
-
-	var podList corev1.PodList
-	if err := c.Client.List(ctx, &podList, listOpts); err == nil && len(podList.Items) > 0 {
-		nodeNames := make(map[string]bool)
-
-		for _, pod := range podList.Items {
-			if pod.Spec.NodeName != "" {
-				nodeNames[pod.Spec.NodeName] = true
-			}
-		}
-
-		for nodeName := range nodeNames {
-			var node corev1.Node
-			if err := c.Client.Get(ctx, client.ObjectKey{Name: nodeName}, &node); err == nil {
-				for _, address := range node.Status.Addresses {
-					if address.Type == corev1.NodeInternalIP {
-						nodeIP := net.ParseIP(address.Address)
-						if nodeIP != nil {
-							if isIPv4 && nodeIP.To4() != nil {
-								ips = append(ips, address.Address)
-							} else if !isIPv4 && nodeIP.To4() == nil {
-								ips = append(ips, address.Address)
-							}
-						}
-					}
-				}
-			}
-		}
+	ips, err := c.serverNodeIPs(ctx, cluster, isIPv4)
+	if err != nil {
+		return err
 	}
 
 	if len(ips) == 0 {
@@ -173,6 +140,104 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 	return nil
 }
 
+// serverNodeIPs returns the sorted internal IPs of the host cluster nodes
+// running the server pods of the given cluster, restricted to the IPv4 or IPv6 family.
+// Nodes that cannot be fetched are skipped, so a single missing node does not drop the endpoints of all the others.
+func (c *Reconciler) serverNodeIPs(ctx context.Context, cluster *v1beta1.Cluster, isIPv4 bool) ([]string, error) {
+	log := ctrl.LoggerFrom(ctx)
+
+	serverPods, err := c.listServerPods(ctx, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeNames := sets.New[string]()
+
+	for _, pod := range serverPods {
+		if pod.Spec.NodeName != "" {
+			nodeNames.Insert(pod.Spec.NodeName)
+		}
+	}
+
+	var ips []string
+
+	// sets.List returns the node names sorted, keeping the endpoints stable across reconciles.
+	for _, nodeName := range sets.List(nodeNames) {
+		var node corev1.Node
+		if err := c.Client.Get(ctx, client.ObjectKey{Name: nodeName}, &node); err != nil {
+			log.V(1).Info("skipping node while collecting HCP endpoint addresses", "node", nodeName, "error", err)
+			continue
+		}
+
+		for _, address := range node.Status.Addresses {
+			if address.Type != corev1.NodeInternalIP {
+				continue
+			}
+
+			nodeIP := net.ParseIP(address.Address)
+			if nodeIP == nil {
+				continue
+			}
+
+			if (nodeIP.To4() != nil) != isIPv4 {
+				continue
+			}
+
+			ips = append(ips, address.Address)
+		}
+	}
+
+	return ips, nil
+}
+
+// serverPodAddresses returns the endpoint addresses of the server pods of the given
+// cluster, pointing directly at their pod IPs.
+func (c *Reconciler) serverPodAddresses(ctx context.Context, cluster *v1beta1.Cluster) ([]corev1.EndpointAddress, error) {
+	serverPods, err := c.listServerPods(ctx, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	var addresses []corev1.EndpointAddress
+
+	for _, pod := range serverPods {
+		if pod.Status.PodIP == "" {
+			continue
+		}
+
+		addresses = append(addresses, corev1.EndpointAddress{
+			IP: pod.Status.PodIP,
+			TargetRef: &corev1.ObjectReference{
+				Kind:            "Pod",
+				Name:            pod.Name,
+				Namespace:       pod.Namespace,
+				UID:             pod.UID,
+				ResourceVersion: pod.ResourceVersion,
+			},
+		})
+	}
+
+	return addresses, nil
+}
+
+// listServerPods returns the host cluster pods running the servers of the given cluster.
+func (c *Reconciler) listServerPods(ctx context.Context, cluster *v1beta1.Cluster) ([]corev1.Pod, error) {
+	listOpts := []client.ListOption{
+		client.InNamespace(cluster.Namespace),
+		client.MatchingLabels{
+			"cluster": cluster.Name,
+			"role":    "server",
+		},
+	}
+
+	var podList corev1.PodList
+	if err := c.Client.List(ctx, &podList, listOpts...); err != nil {
+		return nil, fmt.Errorf("listing server pods: %w", err)
+	}
+
+	return podList.Items, nil
+}
+
 func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
@@ -207,29 +272,11 @@ func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *
 		return err
 	}
 
-	var addresses []corev1.EndpointAddress
-
 	epPort := int32(port)
 
-	var podList corev1.PodList
-	if err := c.Client.List(ctx, &podList, client.InNamespace(cluster.Namespace), client.MatchingLabels{
-		"cluster": cluster.Name,
-		"role":    "server",
-	}); err == nil && len(podList.Items) > 0 {
-		for _, pod := range podList.Items {
-			if pod.Status.PodIP != "" {
-				addresses = append(addresses, corev1.EndpointAddress{
-					IP: pod.Status.PodIP,
-					TargetRef: &corev1.ObjectReference{
-						Kind:            "Pod",
-						Name:            pod.Name,
-						Namespace:       pod.Namespace,
-						UID:             pod.UID,
-						ResourceVersion: pod.ResourceVersion,
-					},
-				})
-			}
-		}
+	addresses, err := c.serverPodAddresses(ctx, cluster)
+	if err != nil {
+		return err
 	}
 
 	if len(addresses) > 0 {

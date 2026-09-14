@@ -49,6 +49,7 @@ const (
 	// labels below; `!slow` selects a fast local subset.
 	slowTestsLabel = "slow"
 
+	hcpTestsLabel          = "hcp"
 	lifecycleTestsLabel    = "lifecycle"
 	kubeletTestsLabel      = "kubelet"
 	updateTestsLabel       = "update"

@@ -75,13 +75,17 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 		isIPv4 = false
 	}
 
-	ips, err := c.serverNodeIPs(ctx, cluster, isIPv4)
-	if err != nil {
-		return err
-	}
+	ips := []string{addr.IP}
 
-	if len(ips) == 0 {
-		ips = append(ips, addr.IP)
+	if cluster.Spec.Expose != nil && cluster.Spec.Expose.NodePort != nil {
+		nodeIPs, err := c.serverNodeIPs(ctx, cluster, isIPv4)
+		if err != nil {
+			return err
+		}
+
+		if len(nodeIPs) > 0 {
+			ips = nodeIPs
+		}
 	}
 
 	var addressType discoveryv1.AddressType

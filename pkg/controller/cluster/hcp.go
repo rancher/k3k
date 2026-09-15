@@ -40,9 +40,9 @@ func findNonLoopbackSAN(sans []string) string {
 
 // ensureHCPKubernetesEndpointSlice maintains the default/kubernetes Service
 // EndpointSlice inside the virtual cluster, pointing it at the externally
-// reachable host:port (NodePort / LoadBalancer / Ingress) so that pods
+// reachable addresses (NodePort / LoadBalancer / Ingress) so that pods
 // scheduled on external worker nodes can reach the in-cluster apiserver
-// ClusterIP.
+// ClusterIP. See hcpEndpointAddresses for how those are picked.
 //
 // Background: the kube-apiserver normally reconciles default/kubernetes
 // EndpointSlice to its own --advertise-address:--secure-port (the host-cluster
@@ -53,43 +53,13 @@ func findNonLoopbackSAN(sans []string) string {
 func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	url, err := server.URL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
+	ips, port, err := c.hcpEndpointAddresses(ctx, cluster)
 	if err != nil {
 		return err
-	}
-
-	portStr := cmp.Or(url.Port(), "443")
-
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return err
-	}
-
-	addr, err := hcpEndpointAddress(ctx, url.Hostname())
-	if err != nil {
-		return err
-	}
-
-	isIPv4 := true
-	if ip := net.ParseIP(addr.IP); ip != nil && ip.To4() == nil {
-		isIPv4 = false
-	}
-
-	ips := []string{addr.IP}
-
-	if cluster.Spec.Expose != nil && cluster.Spec.Expose.NodePort != nil {
-		nodeIPs, err := c.serverNodeIPs(ctx, cluster, isIPv4)
-		if err != nil {
-			return err
-		}
-
-		if len(nodeIPs) > 0 {
-			ips = nodeIPs
-		}
 	}
 
 	var addressType discoveryv1.AddressType
-	if isIPv4 {
+	if isIPv4(ips[0]) {
 		addressType = discoveryv1.AddressTypeIPv4
 	} else {
 		addressType = discoveryv1.AddressTypeIPv6
@@ -128,7 +98,7 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 		endpointSlice.Ports = []discoveryv1.EndpointPort{
 			{
 				Name:     new("https"),
-				Port:     new(int32(port)),
+				Port:     new(port),
 				Protocol: new(corev1.ProtocolTCP),
 			},
 		}
@@ -139,15 +109,63 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 		return fmt.Errorf("upserting default/kubernetes endpointslice in virtual cluster: %w", err)
 	}
 
-	log.V(1).Info("HCP kubernetes endpointslice reconciled", "ips", ips, "host", url.Hostname(), "port", port)
+	log.V(1).Info("HCP kubernetes endpointslice reconciled", "ips", ips, "port", port)
 
 	return nil
+}
+
+// hcpEndpointAddresses returns the addresses and the port that both the default/kubernetes
+// Endpoints and EndpointSlice publish: one host node IP per server when the cluster is
+// exposed via NodePort, so that every server is individually addressable, otherwise the
+// single externally resolved address.
+//
+// Both objects have to describe the same thing: a client picking one over the other
+// must not end up with a different set of servers.
+func (c *Reconciler) hcpEndpointAddresses(ctx context.Context, cluster *v1beta1.Cluster) ([]string, int32, error) {
+	url, err := server.URL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	port, err := strconv.Atoi(cmp.Or(url.Port(), "443"))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	addr, err := hcpEndpointAddress(ctx, url.Hostname())
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// An Ingress or a LoadBalancer is a single front door that cannot address an
+	// individual server, and the port reported for those is not what the nodes listen
+	// on, so the per-node addressing only applies to NodePort.
+	if cluster.Spec.Expose != nil && cluster.Spec.Expose.NodePort != nil {
+		nodeIPs, err := c.serverNodeIPs(ctx, cluster, isIPv4(addr.IP))
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if len(nodeIPs) > 0 {
+			return nodeIPs, int32(port), nil
+		}
+	}
+
+	return []string{addr.IP}, int32(port), nil
+}
+
+// isIPv4 reports whether the given address is an IPv4 one. A non-IP address is
+// not IPv4.
+func isIPv4(address string) bool {
+	ip := net.ParseIP(address)
+
+	return ip != nil && ip.To4() != nil
 }
 
 // serverNodeIPs returns the sorted internal IPs of the host cluster nodes
 // running the server pods of the given cluster, restricted to the IPv4 or IPv6 family.
 // Nodes that cannot be fetched are skipped, so a single missing node does not drop the endpoints of all the others.
-func (c *Reconciler) serverNodeIPs(ctx context.Context, cluster *v1beta1.Cluster, isIPv4 bool) ([]string, error) {
+func (c *Reconciler) serverNodeIPs(ctx context.Context, cluster *v1beta1.Cluster, wantIPv4 bool) ([]string, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	serverPods, err := c.listServerPods(ctx, cluster)
@@ -178,12 +196,11 @@ func (c *Reconciler) serverNodeIPs(ctx context.Context, cluster *v1beta1.Cluster
 				continue
 			}
 
-			nodeIP := net.ParseIP(address.Address)
-			if nodeIP == nil {
+			if net.ParseIP(address.Address) == nil {
 				continue
 			}
 
-			if (nodeIP.To4() != nil) != isIPv4 {
+			if isIPv4(address.Address) != wantIPv4 {
 				continue
 			}
 
@@ -192,36 +209,6 @@ func (c *Reconciler) serverNodeIPs(ctx context.Context, cluster *v1beta1.Cluster
 	}
 
 	return ips, nil
-}
-
-// serverPodAddresses returns the endpoint addresses of the server pods of the given
-// cluster, pointing directly at their pod IPs.
-func (c *Reconciler) serverPodAddresses(ctx context.Context, cluster *v1beta1.Cluster) ([]corev1.EndpointAddress, error) {
-	serverPods, err := c.listServerPods(ctx, cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	var addresses []corev1.EndpointAddress
-
-	for _, pod := range serverPods {
-		if pod.Status.PodIP == "" {
-			continue
-		}
-
-		addresses = append(addresses, corev1.EndpointAddress{
-			IP: pod.Status.PodIP,
-			TargetRef: &corev1.ObjectReference{
-				Kind:            "Pod",
-				Name:            pod.Name,
-				Namespace:       pod.Namespace,
-				UID:             pod.UID,
-				ResourceVersion: pod.ResourceVersion,
-			},
-		})
-	}
-
-	return addresses, nil
 }
 
 // listServerPods returns the host cluster pods running the servers of the given cluster.
@@ -245,12 +232,7 @@ func (c *Reconciler) listServerPods(ctx context.Context, cluster *v1beta1.Cluste
 func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *v1beta1.Cluster) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	url, err := server.URL(ctx, c.Client, cluster, findNonLoopbackSAN(cluster.Spec.TLSSANs))
-	if err != nil {
-		return err
-	}
-
-	addr, err := hcpEndpointAddress(ctx, url.Hostname())
+	ips, port, err := c.hcpEndpointAddresses(ctx, cluster)
 	if err != nil {
 		return err
 	}
@@ -269,25 +251,10 @@ func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *
 		},
 	}
 
-	portStr := cmp.Or(url.Port(), "443")
-
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return err
-	}
-
-	epPort := int32(port)
-
-	addresses, err := c.serverPodAddresses(ctx, cluster)
-	if err != nil {
-		return err
-	}
-
-	if len(addresses) > 0 {
-		// If using direct pod IPs, they listen on 6443
-		epPort = 6443
-	} else {
-		addresses = append(addresses, addr)
+	//nolint:staticcheck // SA1019 corev1.EndpointAddress is deprecated in v1.33+, but needed in the Conformance tests
+	addresses := make([]corev1.EndpointAddress, 0, len(ips))
+	for _, ip := range ips {
+		addresses = append(addresses, corev1.EndpointAddress{IP: ip})
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, virtClient, endpoints, func() error {
@@ -305,7 +272,7 @@ func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *
 				Ports: []corev1.EndpointPort{
 					{
 						Name:     "https",
-						Port:     epPort,
+						Port:     port,
 						Protocol: corev1.ProtocolTCP,
 					},
 				},
@@ -318,7 +285,7 @@ func (c *Reconciler) ensureHCPKubernetesEndpoints(ctx context.Context, cluster *
 		return fmt.Errorf("upserting default/kubernetes endpoints in virtual cluster: %w", err)
 	}
 
-	log.V(1).Info("HCP kubernetes endpoints reconciled", "addresses", addresses, "port", epPort)
+	log.V(1).Info("HCP kubernetes endpoints reconciled", "ips", ips, "port", port)
 
 	return nil
 }

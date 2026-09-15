@@ -16,7 +16,7 @@ CRD_REF_DOCS_VER ?= v0.2.0
 YAMLLINT_VERSION ?= 1.38.0
 FLAKE_ATTEMPTS ?= 3
 
-GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+GOLANGCI_LINT ?= v2.13.2
 # yamllint is a Python tool; install it with `pipx install yamllint==$(YAMLLINT_VERSION)` (or pip)
 YAMLLINT ?= yamllint
 # shellcheck ships as a binary; install it from your package manager (it is preinstalled on GitHub runners)

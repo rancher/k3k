@@ -38,6 +38,7 @@ const (
 	k3sKubeletDir    = "/var/lib/kubelet"
 	k3sDataDir       = "/var/lib/rancher/k3s"
 	k3sEtcdDataDir   = "/var/lib/rancher/k3s/server/db/etcd"
+	k3sSnapshotDir   = "/var/lib/rancher/k3s/server/db/snapshots"
 	k3sManifestDir   = "/var/lib/rancher/k3s/server/manifests"
 	k3sTLSDir        = "/var/lib/rancher/k3s/server/tls"
 	k3sLogDir        = "/var/log"

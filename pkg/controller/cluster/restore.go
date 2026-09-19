@@ -74,7 +74,7 @@ func (c *Reconciler) restore(ctx context.Context, cluster *v1beta1.Cluster, rest
 	cluster.Spec.Servers = new(int32(0))
 	s := server.New(cluster, c.Client, token, c.K3SServerImage, c.K3SServerImagePullPolicy, c.ServerImagePullSecrets)
 
-	if err := c.server(ctx, cluster, s); err != nil {
+	if err := c.server(ctx, cluster, s, nil); err != nil {
 		return err
 	}
 

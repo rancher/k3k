@@ -392,7 +392,7 @@ _Appears In:_
 | *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
  |  | 
 | *`spec`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorespec[$$EtcdRestoreSpec$$]__ |  |  | 
-| *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorestatus[$$EtcdRestoreStatus$$]__ |  | {  } | 
+| *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorestatus[$$EtcdRestoreStatus$$]__ |  |  | 
 |===
 
 
@@ -457,7 +457,7 @@ _Appears In:_
 [cols="25a,55a,10a,10a", options="header"]
 |===
 | Field | Description | Default | Validation
-| *`conditions`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta[$$Condition$$] array__ | Conditions are the individual conditions for the cluster set. + |  | 
+| *`conditions`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta[$$Condition$$] array__ | Conditions are the individual conditions for the EtcdRestore. + |  | 
 |===
 
 

@@ -15,6 +15,8 @@
 === Resource Types
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-cluster[$$Cluster$$]
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterlist[$$ClusterList$$]
+- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestore[$$EtcdRestore$$]
+- xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorelist[$$EtcdRestoreList$$]
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshot[$$EtcdSnapshot$$]
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdsnapshotlist[$$EtcdSnapshotList$$]
 - xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicy[$$VirtualClusterPolicy$$]
@@ -271,8 +273,9 @@ _Appears In:_
 This field is set by the VirtualClusterPolicy controller. + |  | 
 | *`kubeletPort`* __integer__ | KubeletPort specefies the port used by k3k-kubelet in shared mode. + |  | 
 | *`conditions`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta[$$Condition$$] array__ | Conditions are the individual conditions for the cluster set. + |  | 
-| *`phase`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterphase[$$ClusterPhase$$]__ | Phase is a high-level summary of the cluster's current lifecycle state. + | Unknown | Enum: [Pending Provisioning Ready Failed Terminating Unknown] +
+| *`phase`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterphase[$$ClusterPhase$$]__ | Phase is a high-level summary of the cluster's current lifecycle state. + | Unknown | Enum: [Pending Provisioning Ready Restoring Failed Terminating Unknown] +
 
+| *`activeRestoreRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | ActiveRestoreRef is the reference to the current active restoration object that is being restored. + |  | 
 |===
 
 
@@ -365,6 +368,96 @@ _Appears In:_
 | Field | Description | Default | Validation
 | *`enabled`* __boolean__ | Enabled toggles this feature on or off. + | true | 
 | *`sources`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-credentialsources[$$CredentialSources$$]__ | Sources defines the sources for all required custom CA certificates. + |  | 
+|===
+
+
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestore"]
+=== EtcdRestore
+
+
+
+
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorelist[$$EtcdRestoreList$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`apiVersion`* __string__ | `k3k.io/v1beta1` | |
+| *`kind`* __string__ | `EtcdRestore` | |
+| *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
+ |  | 
+| *`spec`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorespec[$$EtcdRestoreSpec$$]__ |  |  | 
+| *`status`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorestatus[$$EtcdRestoreStatus$$]__ |  | {  } | 
+|===
+
+
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorelist"]
+=== EtcdRestoreList
+
+
+
+EtcdRestoreList is a list of EtcdSnapshot resources.
+
+
+
+
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`apiVersion`* __string__ | `k3k.io/v1beta1` | |
+| *`kind`* __string__ | `EtcdRestoreList` | |
+| *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#listmeta-v1-meta[$$ListMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
+ |  | 
+| *`items`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestore[$$EtcdRestore$$] array__ |  |  | 
+|===
+
+
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorespec"]
+=== EtcdRestoreSpec
+
+
+
+EtcdRestoreSpec defines the desired state of a EtcdRestore.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestore[$$EtcdRestore$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`clusterRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | ClusterRef is a reference to the cluster where a snapshot will be restored. +
+This field is immutable. + |  | 
+| *`snapshotRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | SnapshotRef is a reference to the EtcdSnapshot object that will be restored on the cluster. +
+This field is immutable. + |  | 
+|===
+
+
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestorestatus"]
+=== EtcdRestoreStatus
+
+
+
+EtcdRestoreStatus reflects the observed state of a EtcdRestore.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestore[$$EtcdRestore$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`conditions`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta[$$Condition$$] array__ | Conditions are the individual conditions for the cluster set. + |  | 
 |===
 
 

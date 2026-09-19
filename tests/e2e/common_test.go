@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -24,7 +25,9 @@ import (
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/certs"
+	"github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
+	k3ksnapshot "github.com/rancher/k3k/pkg/controller/snapshot"
 	fwclient "github.com/rancher/k3k/tests/framework/client"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
@@ -132,6 +135,10 @@ func CreateCluster(cluster *v1beta1.Cluster) {
 	err := k8sClient.Create(ctx, cluster)
 	Expect(err).To(Not(HaveOccurred()))
 
+	waitForCluster(ctx, cluster)
+}
+
+func waitForCluster(ctx context.Context, cluster *v1beta1.Cluster) {
 	expectedServers := int(*cluster.Spec.Servers)
 	expectedAgents := int(*cluster.Spec.Agents)
 
@@ -497,5 +504,68 @@ func newSnapshot(name, namespace, s3ConfigSecretName string) *v1beta1.EtcdSnapsh
 		}
 	}
 
+	By("Creating snapshot and waiting for it to be created")
+
+	ctx := context.Background()
+
+	err := k8sClient.Create(ctx, s)
+	Expect(err).To(Not(HaveOccurred()))
+
+	Eventually(func(g Gomega) {
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(s), s)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Status.Filename).ToNot(BeEmpty())
+
+		cond := meta.FindStatusCondition(s.Status.Conditions, k3ksnapshot.ConditionReady)
+		g.Expect(cond).NotTo(BeNil())
+		g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+		g.Expect(cond.Reason).To(Equal(k3ksnapshot.SuccessfulCreateSnapshotReason))
+		g.Expect(cond.Message).To(ContainSubstring(`Snapshot was created`))
+	}).
+		WithTimeout(time.Minute).
+		WithPolling(time.Second).
+		Should(Succeed())
+
 	return s
+}
+
+func newRestore(namespace, clusterName, snapshotName string) *v1beta1.EtcdRestore {
+	r := &v1beta1.EtcdRestore{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "etcd-restore-",
+			Namespace:    namespace,
+		},
+		Spec: v1beta1.EtcdRestoreSpec{
+			ClusterRef: corev1.LocalObjectReference{
+				Name: clusterName,
+			},
+			SnapshotRef: corev1.LocalObjectReference{
+				Name: snapshotName,
+			},
+		},
+	}
+
+	By("Creating Restore request and wait for it to completed")
+
+	ctx := context.Background()
+
+	var err error
+
+	err = k8sClient.Create(ctx, r)
+	Expect(err).To(Not(HaveOccurred()))
+
+	Eventually(func(g Gomega) {
+		err = k8sClient.Get(ctx, client.ObjectKeyFromObject(r), r)
+		g.Expect(err).To(Not(HaveOccurred()))
+
+		cond := meta.FindStatusCondition(r.Status.Conditions, cluster.RestoreSucceededCondition)
+		g.Expect(cond).NotTo(BeNil())
+		g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+		g.Expect(cond.Reason).To(Equal(cluster.RestoreReasonCompleted))
+	}).
+		WithTimeout(time.Minute * 5).
+		WithPolling(time.Second * 10).
+		Should(Succeed())
+
+	return r
 }

@@ -181,6 +181,7 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		Watches(&storagev1.StorageClass{},
 			handler.EnqueueRequestsFromMapFunc(reconciler.mapStorageClassToCluster),
 		).
+		Watches(&v1beta1.EtcdRestore{}, handler.EnqueueRequestsFromMapFunc(reconciler.mapRestoreToCluster)).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
@@ -223,7 +224,24 @@ func (c *Reconciler) mapStorageClassToCluster(ctx context.Context, obj client.Ob
 	return requests
 }
 
-func namespaceEventHandler(c *Reconciler) handler.Funcs {
+func (*Reconciler) mapRestoreToCluster(ctx context.Context, obj client.Object) []reconcile.Request {
+	restore, ok := obj.(*v1beta1.EtcdRestore)
+
+	if !ok {
+		return nil
+	}
+
+	if restore.Spec.ClusterRef.Name == "" {
+		return nil
+	}
+
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{
+		Name:      restore.Spec.ClusterRef.Name,
+		Namespace: restore.Namespace,
+	}}}
+}
+
+func namespaceEventHandler(s *Reconciler) handler.Funcs {
 	return handler.Funcs{
 		// We don't need to update for create or delete events
 		CreateFunc: func(context.Context, event.CreateEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {},
@@ -247,7 +265,7 @@ func namespaceEventHandler(c *Reconciler) handler.Funcs {
 
 			// Enqueue all the Cluster in the namespace
 			var clusterList v1beta1.ClusterList
-			if err := c.Client.List(ctx, &clusterList, client.InNamespace(oldNs.Name)); err != nil {
+			if err := s.Client.List(ctx, &clusterList, client.InNamespace(oldNs.Name)); err != nil {
 				return
 			}
 
@@ -272,6 +290,16 @@ func (c *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// if DeletionTimestamp is not Zero -> finalize the object
 	if !cluster.DeletionTimestamp.IsZero() {
 		return c.finalizeCluster(ctx, &cluster)
+	}
+
+	// check for restoration requests
+	eligibleRestore, err := c.findEligibleRestore(ctx, &cluster)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if eligibleRestore != nil {
+		return c.restoreCluster(ctx, &cluster, eligibleRestore)
 	}
 
 	// Set initial status if not already set
@@ -339,6 +367,74 @@ func (c *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (c *Reconciler) restoreCluster(ctx context.Context, cluster *v1beta1.Cluster, eligibleRestore *v1beta1.EtcdRestore) (reconcile.Result, error) {
+	log := ctrl.LoggerFrom(ctx)
+
+	log.Info("Restoring cluster", "ActiveRestoreRef", eligibleRestore)
+	origRestore := eligibleRestore.DeepCopy()
+	origCluster := cluster.DeepCopy()
+
+	// set the status to restore and active restore status to the restore obj name and update the cluster if only status changed
+	cluster.Status.Phase = v1beta1.ClusterRestoring
+	cluster.Status.ActiveRestoreRef.Name = eligibleRestore.Name
+	meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
+		Type:    ConditionReady,
+		Status:  metav1.ConditionFalse,
+		Reason:  ReasonRestoring,
+		Message: "Cluster is being restored",
+	})
+
+	if !equality.Semantic.DeepEqual(cluster.Status, origCluster.Status) {
+		if err := c.Client.Status().Update(ctx, cluster); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	restoreErr := c.restore(ctx, cluster, eligibleRestore)
+	// update restore object status
+	c.updateRestoreStatus(eligibleRestore, restoreErr)
+
+	if !equality.Semantic.DeepEqual(eligibleRestore.Status, origRestore.Status) {
+		if err := c.Client.Status().Update(ctx, eligibleRestore); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	// update cluster status with restoration error or success
+	if restoreErr != nil {
+		if isRestoreInProgress(eligibleRestore) || apierrors.IsConflict(restoreErr) {
+			return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+		}
+
+		cluster.Status.Phase = v1beta1.ClusterFailed
+		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
+			Type:    ConditionReady,
+			Status:  metav1.ConditionFalse,
+			Reason:  ReasonRestoringFailed,
+			Message: restoreErr.Error(),
+		})
+
+		c.Eventf(cluster, nil, corev1.EventTypeWarning, ReasonRestoringFailed, ActionReconciling, restoreErr.Error())
+	} else {
+		cluster.Status.ActiveRestoreRef = corev1.LocalObjectReference{}
+		cluster.Status.Phase = v1beta1.ClusterReady
+		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
+			Type:    ConditionReady,
+			Status:  metav1.ConditionTrue,
+			Reason:  ReasonRestored,
+			Message: "Cluster successfully restored",
+		})
+
+		c.Eventf(cluster, nil, corev1.EventTypeNormal, RestoreReasonCompleted, ActionReconciling, "Cluster successfully restored")
+	}
+
+	if !equality.Semantic.DeepEqual(eligibleRestore.Status, origRestore.Status) {
+		return reconcile.Result{}, c.Client.Status().Update(ctx, cluster)
+	}
+
+	return reconcile.Result{}, restoreErr
 }
 
 func (c *Reconciler) reconcileCluster(ctx context.Context, cluster *v1beta1.Cluster) error {

@@ -38,6 +38,8 @@ jobs:
           label-filter: "pod || app || sync || policy || status"
         - name: features
           label-filter: "networking || certificates || registry || addons || datastore"
+        - name: backup
+          label-filter: "snapshot || restore"
 
     name: tests-e2e (${{ matrix.name }})
 

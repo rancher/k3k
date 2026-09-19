@@ -293,7 +293,7 @@ _Appears in:_
 | `kind` _string_ | `EtcdRestore` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[EtcdRestoreSpec](#etcdrestorespec)_ |  |  |  |
-| `status` _[EtcdRestoreStatus](#etcdrestorestatus)_ |  | \{  \} |  |
+| `status` _[EtcdRestoreStatus](#etcdrestorestatus)_ |  |  |  |
 
 
 #### EtcdRestoreList
@@ -344,7 +344,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the cluster set. |  |  |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the EtcdRestore. |  |  |
 
 
 #### EtcdSnapshot

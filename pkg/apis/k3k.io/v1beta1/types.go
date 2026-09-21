@@ -300,6 +300,11 @@ type SyncConfig struct {
 	// +kubebuilder:default={"enabled": true}
 	// +optional
 	PersistentVolumeClaims PersistentVolumeClaimSyncConfig `json:"persistentVolumeClaims"`
+	// PodDisruptionBudgets resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": false}
+	// +optional
+	PodDisruptionBudgets PodDisruptionBudgetSyncConfig `json:"podDisruptionBudgets"`
 	// PriorityClasses resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": false}
@@ -384,6 +389,21 @@ type PersistentVolumeClaimSyncConfig struct {
 	// Enabled is an on/off switch for syncing resources.
 	//
 	// +kubebuilder:default=true
+	// +required
+	Enabled bool `json:"enabled"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+}
+
+// PodDisruptionBudgetSyncConfig specifies the sync options for PodDisruptionBudgets.
+type PodDisruptionBudgetSyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	//
+	// +kubebuilder:default=false
 	// +required
 	Enabled bool `json:"enabled"`
 

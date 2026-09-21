@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -150,16 +151,23 @@ func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Reque
 		}
 	}
 
-	// create the priorityClass on the host
-	log.Info("creating the priorityClass for the first time on the host cluster")
-
-	err := r.HostClient.Create(ctx, hostPriorityClass)
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
+	var existingPriorityClass schedulingv1.PriorityClass
+	if err := r.HostClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(hostPriorityClass), &existingPriorityClass); err != nil {
+		if !apierrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{}, r.HostClient.Update(ctx, hostPriorityClass)
+		log.Info("creating the priorityClass for the first time on the host cluster")
+
+		return reconcile.Result{}, r.HostClient.Create(ctx, hostPriorityClass)
+	}
+
+	hostPriorityClass.ResourceVersion = existingPriorityClass.ResourceVersion
+
+	log.Info("updating priorityClass on the host cluster")
+
+	if err := r.HostClient.Update(ctx, hostPriorityClass); err != nil {
+		return reconcile.Result{}, fmt.Errorf("updating priorityclass in host: %w", err)
 	}
 
 	return reconcile.Result{}, nil

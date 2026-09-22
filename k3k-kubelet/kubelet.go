@@ -349,6 +349,12 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 		if err := syncer.AddGatewayAPISyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 			return fmt.Errorf("failed to add gateway api syncer controller: %w", err)
 		}
+
+		logger.Info("adding gateway api status syncer controller")
+		if err := syncer.AddGatewayAPIStatusSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+			return fmt.Errorf("failed to add gateway api status syncer controller: %w", err)
+		}
+		logger.Info("gateway api status syncer controller added")
 	} else {
 		logger.Info("gateway api crds not found, skipping gateway api syncer")
 	}

@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"context"
+	"reflect"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -20,8 +21,9 @@ import (
 )
 
 const (
-	gatewayAPIControllerName = "gateway_api-syncer-controller"
-	gatewayAPIFinalizerName  = "gatewayapi.k3k.io/finalizer"
+	gatewayAPIControllerName       = "gateway_api-syncer-controller"
+	gatewayAPIFinalizerName        = "gatewayapi.k3k.io/finalizer"
+	gatewayAPIStatusControllerName = "gateway-api-status-syncer-controller"
 )
 
 type GatewayAPIReconciler struct {
@@ -174,4 +176,72 @@ func (r *GatewayAPIReconciler) httproute(obj *gatewayv1.HTTPRoute, syncConfig v1
 	}
 
 	return hostHTTPRoute
+}
+
+// GatewayAPIStatusReconciler watches HTTPRoute objects on the host cluster and mirrors
+// their status back to the corresponding virtual cluster HTTPRoute.
+type GatewayAPIStatusReconciler struct {
+	*Context
+}
+
+// AddGatewayAPIStatusSyncer registers a controller on the host manager that watches host
+// HTTPRoutes and propagates their status to the matching virtual HTTPRoute.
+func AddGatewayAPIStatusSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
+	reconciler := GatewayAPIStatusReconciler{
+		Context: &Context{
+			ClusterName:      clusterName,
+			ClusterNamespace: clusterNamespace,
+			VirtualClient:    virtMgr.GetClient(),
+			HostClient:       hostMgr.GetClient(),
+			HostReader:       hostMgr.GetAPIReader(),
+			Translator: translate.ToHostTranslator{
+				ClusterName:      clusterName,
+				ClusterNamespace: clusterNamespace,
+			},
+		},
+	}
+
+	name := reconciler.Translator.TranslateName(clusterNamespace, gatewayAPIStatusControllerName)
+
+	return ctrl.NewControllerManagedBy(hostMgr).
+		Named(name).
+		For(&gatewayv1.HTTPRoute{}).
+		WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterHostRoutes)).
+		Complete(&reconciler)
+}
+
+// filterHostRoutes selects only host HTTPRoutes that belong to this virtual cluster.
+// The hostMgr cache is already scoped to clusterNamespace, so namespace filtering is implicit.
+func (r *GatewayAPIStatusReconciler) filterHostRoutes(obj ctrlruntimeclient.Object) bool {
+	return obj.GetLabels()[translate.ClusterNameLabel] == r.ClusterName
+}
+
+func (r *GatewayAPIStatusReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
+	ctx = ctrl.LoggerInto(ctx, log)
+
+	var hostRoute gatewayv1.HTTPRoute
+	if err := r.HostClient.Get(ctx, req.NamespacedName, &hostRoute); err != nil {
+		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+	}
+
+	annotations := hostRoute.GetAnnotations()
+	virtName := annotations[translate.ResourceNameAnnotation]
+	virtNamespace := annotations[translate.ResourceNamespaceAnnotation]
+	if virtName == "" || virtNamespace == "" {
+		return reconcile.Result{}, nil
+	}
+
+	var virtRoute gatewayv1.HTTPRoute
+	if err := r.VirtualClient.Get(ctx, types.NamespacedName{Name: virtName, Namespace: virtNamespace}, &virtRoute); err != nil {
+		return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+	}
+
+	if reflect.DeepEqual(virtRoute.Status, hostRoute.Status) {
+		return reconcile.Result{}, nil
+	}
+
+	log.Info("mirroring httproute status to virtual cluster", "name", virtName, "namespace", virtNamespace)
+	virtRoute.Status = hostRoute.Status
+	return reconcile.Result{}, r.VirtualClient.Status().Update(ctx, &virtRoute)
 }

@@ -26,6 +26,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -40,6 +41,7 @@ var baseScheme = runtime.NewScheme()
 func init() {
 	_ = clientgoscheme.AddToScheme(baseScheme)
 	_ = v1beta1.AddToScheme(baseScheme)
+	_ = gatewayv1.Install(baseScheme)
 }
 
 type kubelet struct {
@@ -112,10 +114,12 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 		return nil, fmt.Errorf("unable to create controller-runtime mgr for host cluster: %w", err)
 	}
 
-	// virtual client will only use core types (for now), no need to add anything other than the basics
 	virtualScheme := runtime.NewScheme()
 	if err := clientgoscheme.AddToScheme(virtualScheme); err != nil {
 		return nil, fmt.Errorf("unable to add client go types to virtual cluster scheme: %w", err)
+	}
+	if err := gatewayv1.Install(virtualScheme); err != nil {
+		return nil, fmt.Errorf("unable to add gateway api types to virtual cluster scheme: %w", err)
 	}
 
 	virtualMgr, err := ctrl.NewManager(virtConfig, manager.Options{
@@ -336,6 +340,12 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 
 	if err := syncer.AddIngressSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 		return fmt.Errorf("failed to add ingress syncer controller: %w", err)
+	}
+
+	logger.Info("adding gateway api syncer controller")
+
+	if err := syncer.AddGatewayAPISyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return fmt.Errorf("failed to add gateway api syncer controller: %w", err)
 	}
 
 	logger.Info("adding pvc syncer controller")

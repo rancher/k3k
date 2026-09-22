@@ -12,6 +12,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -342,10 +343,14 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 		return fmt.Errorf("failed to add ingress syncer controller: %w", err)
 	}
 
-	logger.Info("adding gateway api syncer controller")
+	if gatewayAPIAvailable(virtualMgr) {
+		logger.Info("adding gateway api syncer controller")
 
-	if err := syncer.AddGatewayAPISyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
-		return fmt.Errorf("failed to add gateway api syncer controller: %w", err)
+		if err := syncer.AddGatewayAPISyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+			return fmt.Errorf("failed to add gateway api syncer controller: %w", err)
+		}
+	} else {
+		logger.Info("gateway api crds not found, skipping gateway api syncer")
 	}
 
 	logger.Info("adding pvc syncer controller")
@@ -365,4 +370,16 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	}
 
 	return nil
+}
+
+// gatewayAPIAvailable reports whether the virtual cluster has Gateway API CRDs installed.
+// If not, the Gateway API syncer is skipped to avoid crashing the manager on startup.
+func gatewayAPIAvailable(virtMgr manager.Manager) bool {
+	mapper := virtMgr.GetRESTMapper()
+
+	_, err := mapper.RESTMapping(
+		schema.GroupKind{Group: "gateway.networking.k8s.io", Kind: "HTTPRoute"},
+	)
+
+	return err == nil
 }

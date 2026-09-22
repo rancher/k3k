@@ -27,9 +27,9 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/controller/syncer"
 	"github.com/rancher/k3k/k3k-kubelet/provider"
@@ -119,6 +119,7 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 	if err := clientgoscheme.AddToScheme(virtualScheme); err != nil {
 		return nil, fmt.Errorf("unable to add client go types to virtual cluster scheme: %w", err)
 	}
+
 	if err := gatewayv1.Install(virtualScheme); err != nil {
 		return nil, fmt.Errorf("unable to add gateway api types to virtual cluster scheme: %w", err)
 	}
@@ -351,9 +352,11 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 		}
 
 		logger.Info("adding gateway api status syncer controller")
+
 		if err := syncer.AddGatewayAPIStatusSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
 			return fmt.Errorf("failed to add gateway api status syncer controller: %w", err)
 		}
+
 		logger.Info("gateway api status syncer controller added")
 	} else {
 		logger.Info("gateway api crds not found, skipping gateway api syncer")

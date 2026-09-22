@@ -26,10 +26,12 @@ const (
 	gatewayAPIStatusControllerName = "gateway-api-status-syncer-controller"
 )
 
+// GatewayAPIReconciler syncs HTTPRoute objects from the virtual cluster to the host cluster.
 type GatewayAPIReconciler struct {
 	*Context
 }
 
+// AddGatewayAPISyncer registers the HTTPRoute toHost syncer controller with the virtual cluster manager.
 func AddGatewayAPISyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	reconciler := GatewayAPIReconciler{
 		Context: &Context{
@@ -77,6 +79,7 @@ func (r *GatewayAPIReconciler) filterResources(object ctrlruntimeclient.Object) 
 	return labelSelector.Matches(labels.Set(object.GetLabels()))
 }
 
+// Reconcile syncs an HTTPRoute from the virtual cluster to the host cluster.
 func (r *GatewayAPIReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
@@ -142,6 +145,7 @@ func (r *GatewayAPIReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 	log.Info("updating httproute on the host cluster")
 
 	syncedHTTPRoute.ResourceVersion = hostHTTPRoute.ResourceVersion
+
 	return reconcile.Result{}, r.HostClient.Update(ctx, syncedHTTPRoute)
 }
 
@@ -158,10 +162,12 @@ func (r *GatewayAPIReconciler) httproute(obj *gatewayv1.HTTPRoute, syncConfig v1
 	} else {
 		for i := range hostHTTPRoute.Spec.ParentRefs {
 			ref := &hostHTTPRoute.Spec.ParentRefs[i]
+
 			srcNS := obj.Namespace
 			if ref.Namespace != nil {
 				srcNS = string(*ref.Namespace)
 			}
+
 			ref.Name = gatewayv1.ObjectName(r.Translator.TranslateName(srcNS, string(ref.Name)))
 			ns := gatewayv1.Namespace(r.ClusterNamespace)
 			ref.Namespace = &ns
@@ -216,6 +222,7 @@ func (r *GatewayAPIStatusReconciler) filterHostRoutes(obj ctrlruntimeclient.Obje
 	return obj.GetLabels()[translate.ClusterNameLabel] == r.ClusterName
 }
 
+// Reconcile mirrors the status of a host HTTPRoute back to the corresponding virtual HTTPRoute.
 func (r *GatewayAPIStatusReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := ctrl.LoggerFrom(ctx).WithValues("cluster", r.ClusterName, "clusterNamespace", r.ClusterNamespace)
 	ctx = ctrl.LoggerInto(ctx, log)
@@ -227,6 +234,7 @@ func (r *GatewayAPIStatusReconciler) Reconcile(ctx context.Context, req reconcil
 
 	annotations := hostRoute.GetAnnotations()
 	virtName := annotations[translate.ResourceNameAnnotation]
+
 	virtNamespace := annotations[translate.ResourceNamespaceAnnotation]
 	if virtName == "" || virtNamespace == "" {
 		return reconcile.Result{}, nil
@@ -242,6 +250,8 @@ func (r *GatewayAPIStatusReconciler) Reconcile(ctx context.Context, req reconcil
 	}
 
 	log.Info("mirroring httproute status to virtual cluster", "name", virtName, "namespace", virtNamespace)
+
 	virtRoute.Status = hostRoute.Status
+
 	return reconcile.Result{}, r.VirtualClient.Status().Update(ctx, &virtRoute)
 }

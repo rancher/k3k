@@ -18,6 +18,6 @@ type Context struct {
 	HostClient       client.Client
 	// HostReader is an uncached API reader for the host cluster. Use it when
 	// reading objects from namespaces outside the host manager's cache scope.
-	HostReader    client.Reader
-	Translator    translate.ToHostTranslator
+	HostReader client.Reader
+	Translator translate.ToHostTranslator
 }

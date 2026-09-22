@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -146,7 +147,7 @@ func TestHTTPRouteTranslation(t *testing.T) {
 				},
 			},
 			syncConfig: v1beta1.GatewayAPISyncConfig{},
-			verify: func(t *testing.T, _ *gatewayv1.HTTPRoute) {},
+			verify:     func(t *testing.T, _ *gatewayv1.HTTPRoute) {},
 		},
 		{
 			name: "result is placed in host namespace",

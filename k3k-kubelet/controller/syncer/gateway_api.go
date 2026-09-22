@@ -35,6 +35,7 @@ func AddGatewayAPISyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, 
 			ClusterNamespace: clusterNamespace,
 			VirtualClient:    virtMgr.GetClient(),
 			HostClient:       hostMgr.GetClient(),
+			HostReader:       hostMgr.GetAPIReader(),
 			Translator: translate.ToHostTranslator{
 				ClusterName:      clusterName,
 				ClusterNamespace: clusterNamespace,
@@ -127,7 +128,7 @@ func (r *GatewayAPIReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 	}
 
 	var hostHTTPRoute gatewayv1.HTTPRoute
-	if err := r.HostClient.Get(ctx, types.NamespacedName{Name: syncedHTTPRoute.Name, Namespace: r.ClusterNamespace}, &hostHTTPRoute); err != nil {
+	if err := r.HostReader.Get(ctx, types.NamespacedName{Name: syncedHTTPRoute.Name, Namespace: syncedHTTPRoute.Namespace}, &hostHTTPRoute); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("creating httproute on the host cluster")
 			return reconcile.Result{}, r.HostClient.Create(ctx, syncedHTTPRoute)
@@ -138,6 +139,7 @@ func (r *GatewayAPIReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 
 	log.Info("updating httproute on the host cluster")
 
+	syncedHTTPRoute.ResourceVersion = hostHTTPRoute.ResourceVersion
 	return reconcile.Result{}, r.HostClient.Update(ctx, syncedHTTPRoute)
 }
 

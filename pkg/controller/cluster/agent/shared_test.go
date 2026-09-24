@@ -205,6 +205,62 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "node selector from policy overrides spec",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-nodeselector-policy",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							NodeSelector: map[string]string{"spec-key": "spec-value"},
+						},
+						Status: v1beta1.ClusterStatus{
+							Policy: &v1beta1.AppliedPolicy{
+								NodeSelector: map[string]string{"policy-key": "policy-value"},
+							},
+						},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.NodeSelector = map[string]string{"policy-key": "policy-value"}
+
+				return spec
+			},
+		},
+		{
+			name: "empty node selector from policy does not override spec",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-nodeselector-policy-empty",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							NodeSelector: map[string]string{"spec-key": "spec-value"},
+						},
+						Status: v1beta1.ClusterStatus{
+							Policy: &v1beta1.AppliedPolicy{},
+						},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.NodeSelector = map[string]string{"spec-key": "spec-value"}
+
+				return spec
+			},
+		},
+		{
 			name: "agent envs from spec are appended to default env",
 			sharedAgent: SharedAgent{
 				Config: &Config{

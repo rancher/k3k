@@ -164,6 +164,10 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 	args := v.cluster.Spec.AgentArgs
 	args = append([]string{"agent", "--config", "/opt/rancher/k3s/config.yaml"}, args...)
 
+	if v.ImageRegistry != "" {
+		image = v.ImageRegistry + "/" + image
+	}
+
 	// Use the agent affinity from the policy status if it exists, otherwise fall back to the spec.
 	agentAffinity := v.cluster.Spec.AgentAffinity
 	if v.cluster.Status.Policy != nil && v.cluster.Status.Policy.AgentAffinity != nil {
@@ -171,13 +175,16 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 		agentAffinity = v.cluster.Status.Policy.AgentAffinity
 	}
 
-	if v.ImageRegistry != "" {
-		image = v.ImageRegistry + "/" + image
+	// Use the node selector from the policy status if it exists, otherwise fall back to the spec.
+	nodeSelector := v.cluster.Spec.NodeSelector
+	if v.cluster.Status.Policy != nil && len(v.cluster.Status.Policy.NodeSelector) > 0 {
+		log.V(1).Info("Using node selector from policy", "policyName", v.cluster.Status.PolicyName, "clusterName", v.cluster.Name)
+		nodeSelector = v.cluster.Status.Policy.NodeSelector
 	}
 
 	podSpec := corev1.PodSpec{
 		Affinity:     agentAffinity,
-		NodeSelector: v.cluster.Spec.NodeSelector,
+		NodeSelector: nodeSelector,
 		Volumes: []corev1.Volume{
 			{
 				Name: "config",

@@ -49,6 +49,22 @@ func K3SVersion(cluster *v1beta1.Cluster) string {
 	return "latest"
 }
 
+// K3SRelease returns the k3s release name (e.g. "v1.33.1+k3s1") of the cluster.
+// It resolves the same version as K3SVersion, but uses the "+" separator of the k3s GitHub releases
+// instead of the "-" used in the rancher/k3s image tags.
+// Returns "latest" as fallback.
+func K3SRelease(cluster *v1beta1.Cluster) string {
+	if cluster.Spec.Version != "" {
+		return strings.Replace(cluster.Spec.Version, "-", "+", 1)
+	}
+
+	if cluster.Status.HostVersion != "" {
+		return cluster.Status.HostVersion + "+k3s1"
+	}
+
+	return "latest"
+}
+
 // FilterDNSNames returns only the DNS names of the given list, dropping the IP addresses.
 // It is useful for the fields that cannot hold an IP, like the hosts of an Ingress.
 func FilterDNSNames(names []string) []string {

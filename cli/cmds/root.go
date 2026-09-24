@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	defaultRequestTimeout    = 30 * time.Second       // normal commands
-	completionRequestTimeout = 100 * time.Millisecond // shell completion, must be fast
+	defaultRequestTimeout    = 30 * time.Second // normal commands
+	completionRequestTimeout = time.Second      // shell completion
 )
 
 // AppContext carries the Kubernetes clients and the global flags shared by every command.

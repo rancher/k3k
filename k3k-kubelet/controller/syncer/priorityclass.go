@@ -157,14 +157,14 @@ func (r *PriorityClassSyncer) Reconcile(ctx context.Context, req reconcile.Reque
 			return reconcile.Result{}, err
 		}
 
-		log.Info("creating the priorityClass for the first time on the host cluster")
+		log.V(1).Info("creating the priorityClass for the first time on the host cluster")
 
 		return reconcile.Result{}, r.HostClient.Create(ctx, hostPriorityClass)
 	}
 
 	hostPriorityClass.ResourceVersion = existingPriorityClass.ResourceVersion
 
-	log.Info("updating priorityClass on the host cluster")
+	log.V(1).Info("updating priorityClass on the host cluster")
 
 	if err := r.HostClient.Update(ctx, hostPriorityClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("updating priorityclass in host: %w", err)

@@ -191,12 +191,19 @@ func (s *SharedAgent) podSpec(ctx context.Context) corev1.PodSpec {
 		agentAffinity = s.cluster.Status.Policy.AgentAffinity
 	}
 
+	// Use the node selector from the policy status if it exists, otherwise fall back to the spec.
+	nodeSelector := s.cluster.Spec.NodeSelector
+	if s.cluster.Status.Policy != nil && len(s.cluster.Status.Policy.NodeSelector) > 0 {
+		log.V(1).Info("Using node selector from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
+		nodeSelector = s.cluster.Status.Policy.NodeSelector
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity:           agentAffinity,
 		HostNetwork:        hostNetwork,
 		DNSPolicy:          dnsPolicy,
 		ServiceAccountName: s.Name(),
-		NodeSelector:       s.cluster.Spec.NodeSelector,
+		NodeSelector:       nodeSelector,
 		Volumes: []corev1.Volume{
 			{
 				Name: "config",

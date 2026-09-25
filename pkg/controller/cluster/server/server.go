@@ -78,9 +78,16 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		serverAffinity = s.cluster.Status.Policy.ServerAffinity
 	}
 
+	// Use the node selector from the policy status if it exists, otherwise fall back to the spec.
+	nodeSelector := s.cluster.Spec.NodeSelector
+	if s.cluster.Status.Policy != nil && len(s.cluster.Status.Policy.NodeSelector) > 0 {
+		log.V(1).Info("Using node selector from policy", "policyName", s.cluster.Status.PolicyName, "clusterName", s.cluster.Name)
+		nodeSelector = s.cluster.Status.Policy.NodeSelector
+	}
+
 	podSpec := corev1.PodSpec{
 		Affinity:          serverAffinity,
-		NodeSelector:      s.cluster.Spec.NodeSelector,
+		NodeSelector:      nodeSelector,
 		PriorityClassName: s.cluster.Spec.PriorityClass,
 		Volumes: []corev1.Volume{
 			{

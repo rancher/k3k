@@ -300,6 +300,60 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "node selector from policy overrides spec",
+			virtualAgent: VirtualAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "vc-nodeselector-policy",
+							Namespace: "virtual-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							NodeSelector: map[string]string{"spec-key": "spec-value"},
+						},
+						Status: v1beta1.ClusterStatus{
+							Policy: &v1beta1.AppliedPolicy{
+								NodeSelector: map[string]string{"policy-key": "policy-value"},
+							},
+						},
+					},
+				},
+				Image: "rancher/k3k:latest",
+			},
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
+				spec := baseVirtualAgentPodSpec(sa)
+				spec.NodeSelector = map[string]string{"policy-key": "policy-value"}
+
+				return spec
+			},
+		},
+		{
+			name: "empty node selector from policy does not override spec",
+			virtualAgent: VirtualAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "vc-nodeselector-policy-empty",
+							Namespace: "virtual-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							NodeSelector: map[string]string{"spec-key": "spec-value"},
+						},
+						Status: v1beta1.ClusterStatus{
+							Policy: &v1beta1.AppliedPolicy{},
+						},
+					},
+				},
+				Image: "rancher/k3k:latest",
+			},
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
+				spec := baseVirtualAgentPodSpec(sa)
+				spec.NodeSelector = map[string]string{"spec-key": "spec-value"}
+
+				return spec
+			},
+		},
+		{
 			name: "agent args from spec are appended to default args",
 			virtualAgent: VirtualAgent{
 				Config: &Config{

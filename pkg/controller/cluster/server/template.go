@@ -138,8 +138,20 @@ configure_cgroups() {
 	EXTRA_ARGS="$EXTRA_ARGS --kubelet-arg=kubelet-cgroups=$root_cgroup_parent/k3s --kubelet-arg=cgroup-root=$root_cgroup_parent"
 }
 
+configure_mount_propagation() {
+	if [ "{{.K3K_MODE}}" != "virtual" ]; then
+		return
+	fi
+
+	info "Setting root mount propagation to rshared"
+	if ! mount --make-rshared /; then
+		info "Failed to set root mount propagation to rshared, workloads using mountPropagation may fail to start"
+	fi
+}
+
 EXTRA_ARGS="{{.EXTRA_ARGS}}"
 configure_cgroups
+configure_mount_propagation
 
 if [ ! -f /etc/machine-id ]; then
 	MACHINE_ID=$(printf '%s' "$POD_NAME" | md5sum | cut -d' ' -f1)

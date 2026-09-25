@@ -225,7 +225,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 func printHCPJoinInstructions(cluster *v1beta1.Cluster, kc *clientcmdapi.Config) {
 	tokenSecretName := k3kcluster.TokenSecretName(cluster.Name)
 	serverURL := kc.Clusters["default"].Server
-	k3sRelease := controller.K3SRelease(cluster)
+	k3sVersion := controller.ResolveK3sVersion(cluster)
 
 	logrus.Infof(`To join an external worker node to this HCP cluster:
 
@@ -237,7 +237,7 @@ func printHCPJoinInstructions(cluster *v1beta1.Cluster, kc *clientcmdapi.Config)
 
 		curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=%s K3S_URL=%s K3S_TOKEN=<TOKEN> sh -
 
-`, cluster.Namespace, tokenSecretName, k3sRelease, serverURL)
+`, cluster.Namespace, tokenSecretName, k3sVersion.ReleaseName(), serverURL)
 }
 
 func newCluster(name, namespace string, config *CreateConfig) (*v1beta1.Cluster, error) {

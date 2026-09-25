@@ -29,40 +29,49 @@ var Backoff = wait.Backoff{
 	Jitter:   0.1,
 }
 
+// K3sVersion encapsulates the resolved version metadata for a child K3s cluster.
+type K3sVersion struct {
+	// Raw holds the resolved version string (e.g. "v1.31.1-k3s1" or "latest").
+	Raw string
+}
+
+// ResolveK3sVersion extracts and resolves the target K3s version from the Cluster CR.
+// It prioritizes cluster.Spec.Version, falls back to cluster.Status.HostVersion with
+// a default "-k3s1" release suffix, and defaults to "latest" if neither is populated.
+func ResolveK3sVersion(cluster *v1beta1.Cluster) K3sVersion {
+	if cluster.Spec.Version != "" {
+		return K3sVersion{Raw: cluster.Spec.Version}
+	}
+
+	if cluster.Status.HostVersion != "" {
+		return K3sVersion{Raw: cluster.Status.HostVersion + "-k3s1"}
+	}
+
+	return K3sVersion{Raw: "latest"}
+}
+
+// ImageTag returns the version string formatted for container image references
+// (e.g., v1.31.1-k3s1).
+func (v K3sVersion) ImageTag() string {
+	return v.Raw
+}
+
+// ReleaseName returns the version string formatted for GitHub releases using the '+' delimiter
+// (e.g., "v1.31.1+k3s1").
+func (v K3sVersion) ReleaseName() string {
+	return strings.Replace(v.Raw, "-", "+", 1)
+}
+
+// KubernetesVersion extracts the base semver string by stripping both build ('+') and prerelease/k3s ('-') metadata tags
+// (e.g., "v1.31.1").
+func (v K3sVersion) KubernetesVersion() string {
+	return strings.Split(strings.Split(v.Raw, "-")[0], "+")[0]
+}
+
 // K3SImage returns the rancher/k3s image tagged with the found K3SVersion.
 func K3SImage(cluster *v1beta1.Cluster, k3SImage string) string {
-	return k3SImage + ":" + K3SVersion(cluster)
-}
-
-// K3SVersion returns the rancher/k3s specified version.
-// If empty it will return the k3s version of the Kubernetes version of the host cluster, stored in the Status object.
-// Returns the latest version as fallback.
-func K3SVersion(cluster *v1beta1.Cluster) string {
-	if cluster.Spec.Version != "" {
-		return cluster.Spec.Version
-	}
-
-	if cluster.Status.HostVersion != "" {
-		return cluster.Status.HostVersion + "-k3s1"
-	}
-
-	return "latest"
-}
-
-// K3SRelease returns the k3s release name (e.g. "v1.33.1+k3s1") of the cluster.
-// It resolves the same version as K3SVersion, but uses the "+" separator of the k3s GitHub releases
-// instead of the "-" used in the rancher/k3s image tags.
-// Returns "latest" as fallback.
-func K3SRelease(cluster *v1beta1.Cluster) string {
-	if cluster.Spec.Version != "" {
-		return strings.Replace(cluster.Spec.Version, "-", "+", 1)
-	}
-
-	if cluster.Status.HostVersion != "" {
-		return cluster.Status.HostVersion + "+k3s1"
-	}
-
-	return "latest"
+	k3sVersion := ResolveK3sVersion(cluster)
+	return k3SImage + ":" + k3sVersion.ImageTag()
 }
 
 // FilterDNSNames returns only the DNS names of the given list, dropping the IP addresses.

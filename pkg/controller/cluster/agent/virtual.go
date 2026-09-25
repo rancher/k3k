@@ -342,6 +342,8 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 
 	if podSpec.RuntimeClassName != nil && strings.HasPrefix(*podSpec.RuntimeClassName, "kata") {
 		mounts.AddKmsgMount(&podSpec)
+
+		mounts.FilterEmptyDirVolumes(&podSpec)
 	}
 
 	return podSpec

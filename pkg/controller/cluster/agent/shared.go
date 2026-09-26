@@ -440,6 +440,11 @@ func (s *SharedAgent) role(ctx context.Context) error {
 				Verbs:     []string{"*"},
 			},
 			{
+				APIGroups: []string{"gateway.networking.k8s.io"},
+				Resources: []string{"httproutes"},
+				Verbs:     []string{"*"},
+			},
+			{
 				APIGroups: []string{"k3k.io"},
 				Resources: []string{"clusters"},
 				Verbs:     []string{"get", "watch", "list"},
@@ -481,3 +486,4 @@ func (s *SharedAgent) roleBinding(ctx context.Context) error {
 
 	return s.ensureObject(ctx, roleBinding)
 }
+

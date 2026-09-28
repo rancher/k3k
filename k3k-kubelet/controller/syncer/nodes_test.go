@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 func newNodeSyncer(hostObjs, virtObjs []runtime.Object, scheme *runtime.Scheme) *NodeSyncer {
@@ -142,20 +143,55 @@ func TestMirroredFieldsChangedPredicate(t *testing.T) {
 		updated := base.DeepCopy()
 		updated.Status.NodeInfo.KubeletVersion = "v1.34.9"
 
-		assert.False(t, mirroredFieldsChangedPredicate.Update(event.UpdateEvent{ObjectOld: base, ObjectNew: updated}))
+		assert.False(t, mirroredFieldsChanged().Update(event.UpdateEvent{ObjectOld: base, ObjectNew: updated}))
 	})
 
 	t.Run("label change passes", func(t *testing.T) {
 		updated := base.DeepCopy()
 		updated.Labels["b"] = "2"
 
-		assert.True(t, mirroredFieldsChangedPredicate.Update(event.UpdateEvent{ObjectOld: base, ObjectNew: updated}))
+		assert.True(t, mirroredFieldsChanged().Update(event.UpdateEvent{ObjectOld: base, ObjectNew: updated}))
 	})
 
 	t.Run("cordon passes", func(t *testing.T) {
 		updated := base.DeepCopy()
 		updated.Spec.Unschedulable = true
 
-		assert.True(t, mirroredFieldsChangedPredicate.Update(event.UpdateEvent{ObjectOld: base, ObjectNew: updated}))
+		assert.True(t, mirroredFieldsChanged().Update(event.UpdateEvent{ObjectOld: base, ObjectNew: updated}))
 	})
+}
+
+func TestNodeSyncerNodeSelected(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, v1beta1.AddToScheme(scheme))
+
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-1", Labels: map[string]string{"pool": "a"}}}
+
+	tests := []struct {
+		name   string
+		spec   map[string]string
+		policy map[string]string
+		want   bool
+	}{
+		{name: "no node selector selects every node", want: true},
+		{name: "cluster node selector matches", spec: map[string]string{"pool": "a"}, want: true},
+		{name: "cluster node selector does not match", spec: map[string]string{"pool": "b"}, want: false},
+		{name: "policy node selector wins over the cluster one", spec: map[string]string{"pool": "a"}, policy: map[string]string{"pool": "b"}, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{Name: "mycluster", Namespace: "ns-1"},
+				Spec:       v1beta1.ClusterSpec{NodeSelector: tt.spec},
+			}
+			if tt.policy != nil {
+				cluster.Status.Policy = &v1beta1.AppliedPolicy{NodeSelector: tt.policy}
+			}
+
+			s := newNodeSyncer([]runtime.Object{cluster}, nil, scheme)
+			assert.Equal(t, tt.want, s.nodeSelected(node))
+		})
+	}
 }

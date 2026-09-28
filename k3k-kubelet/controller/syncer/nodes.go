@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -17,6 +19,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 const (
@@ -41,10 +44,6 @@ type NodeSyncer struct {
 	*Context
 }
 
-func (s *NodeSyncer) Name() string {
-	return nodeControllerName
-}
-
 // AddNodeSyncer adds the node syncer controller to the manager of the host
 // cluster. It only acts on host nodes that have a mirrored counterpart in
 // the virtual cluster, so it is a no-op for nodes the cluster's kubelets
@@ -67,27 +66,49 @@ func AddNodeSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, cluste
 
 	return ctrl.NewControllerManagedBy(hostMgr).
 		Named(name).
-		For(&corev1.Node{}).
-		WithEventFilter(mirroredFieldsChangedPredicate).
+		For(&corev1.Node{}, builder.WithPredicates(
+			predicate.NewPredicateFuncs(reconciler.nodeSelected),
+			mirroredFieldsChanged(),
+		)).
 		Complete(&reconciler)
 }
 
-// mirroredFieldsChangedPredicate skips node updates that do not touch any
-// mirrored field — most notably the periodic status/heartbeat updates.
-var mirroredFieldsChangedPredicate = predicate.Funcs{
-	UpdateFunc: func(e event.UpdateEvent) bool {
-		oldNode, okOld := e.ObjectOld.(*corev1.Node)
-		newNode, okNew := e.ObjectNew.(*corev1.Node)
+// nodeSelected reports whether a host node can run this virtual cluster's
+// kubelet: the node selector of the active VirtualClusterPolicy if it sets
+// one, the node selector of the cluster otherwise (the same rule the shared
+// agent DaemonSet uses). Nodes of other virtual clusters are ignored.
+func (s *NodeSyncer) nodeSelected(obj ctrlruntimeclient.Object) bool {
+	var cluster v1beta1.Cluster
+	if err := s.HostClient.Get(context.Background(), types.NamespacedName{Name: s.ClusterName, Namespace: s.ClusterNamespace}, &cluster); err != nil {
+		return false
+	}
 
-		if !okOld || !okNew {
-			return false
-		}
+	nodeSelector := cluster.Spec.NodeSelector
+	if cluster.Status.Policy != nil && len(cluster.Status.Policy.NodeSelector) > 0 {
+		nodeSelector = cluster.Status.Policy.NodeSelector
+	}
 
-		return !equality.Semantic.DeepEqual(oldNode.Labels, newNode.Labels) ||
-			!equality.Semantic.DeepEqual(oldNode.Annotations, newNode.Annotations) ||
-			!equality.Semantic.DeepEqual(oldNode.Spec.Taints, newNode.Spec.Taints) ||
-			oldNode.Spec.Unschedulable != newNode.Spec.Unschedulable
-	},
+	return labels.SelectorFromSet(nodeSelector).Matches(labels.Set(obj.GetLabels()))
+}
+
+// mirroredFieldsChanged skips node updates that do not touch any mirrored
+// field — most notably the periodic status/heartbeat updates.
+func mirroredFieldsChanged() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldNode, okOld := e.ObjectOld.(*corev1.Node)
+			newNode, okNew := e.ObjectNew.(*corev1.Node)
+
+			if !okOld || !okNew {
+				return false
+			}
+
+			return !equality.Semantic.DeepEqual(oldNode.Labels, newNode.Labels) ||
+				!equality.Semantic.DeepEqual(oldNode.Annotations, newNode.Annotations) ||
+				!equality.Semantic.DeepEqual(oldNode.Spec.Taints, newNode.Spec.Taints) ||
+				oldNode.Spec.Unschedulable != newNode.Spec.Unschedulable
+		},
+	}
 }
 
 // Reconcile implements reconcile.Reconciler and mirrors label, annotation,
@@ -136,7 +157,7 @@ func (s *NodeSyncer) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	virtNode.Spec.Taints = hostNode.Spec.Taints
 	virtNode.Spec.Unschedulable = hostNode.Spec.Unschedulable
 
-	logger.Info("mirroring host node change to virtual node", "node", req.Name)
+	logger.V(1).Info("mirroring host node change to virtual node", "node", req.Name)
 
 	return reconcile.Result{}, s.VirtualClient.Patch(ctx, &virtNode, patch)
 }

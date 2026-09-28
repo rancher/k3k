@@ -38,7 +38,7 @@ const (
 // to the matching virtual node. Status is left to the virtual kubelet's
 // own update loop.
 type NodeSyncer struct {
-	*SyncerContext
+	*Context
 }
 
 func (s *NodeSyncer) Name() string {
@@ -51,7 +51,7 @@ func (s *NodeSyncer) Name() string {
 // have not registered.
 func AddNodeSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clusterName, clusterNamespace string) error {
 	reconciler := NodeSyncer{
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			VirtualClient: virtMgr.GetClient(),
 			HostClient:    hostMgr.GetClient(),
 			Translator: translate.ToHostTranslator{

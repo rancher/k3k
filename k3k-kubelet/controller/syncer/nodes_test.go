@@ -20,7 +20,7 @@ import (
 
 func newNodeSyncer(hostObjs, virtObjs []runtime.Object, scheme *runtime.Scheme) *NodeSyncer {
 	return &NodeSyncer{
-		SyncerContext: &SyncerContext{
+		Context: &Context{
 			HostClient:    fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(hostObjs...).Build(),
 			VirtualClient: fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(virtObjs...).Build(),
 			Translator: translate.ToHostTranslator{

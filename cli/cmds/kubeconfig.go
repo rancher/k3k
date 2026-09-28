@@ -212,6 +212,7 @@ You can start using the cluster with:
 
 	kubectl config use-context %s
 	kubectl cluster-info
+
 `, name, file.Path(), name)
 
 	return nil

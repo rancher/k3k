@@ -121,7 +121,8 @@ INFO[0073] Added the 'k3k-mycluster/mycluster' context in the current kubeconfig
 You can start using the cluster with:
 
         kubectl config use-context k3k-mycluster/mycluster
-        kubectl cluster-info  
+        kubectl cluster-info
+
 ```
 
 The context is only added: your current context is never switched for you. After selecting it,

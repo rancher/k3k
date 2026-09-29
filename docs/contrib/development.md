@@ -109,6 +109,12 @@ KEEP_NAMESPACES=true make test-e2e
 
 The e2e and cli tests run against the cluster configured in your KUBECONFIG environment variable. Make sure K3k is installed on that cluster (e.g. with `make install`) before running them.
 
+By default the e2e tests expose the virtual clusters with a `NodePort` Service, so the host nodes need to be reachable on their NodePorts. To run them against a cloud provider (EKS, GKE, ...) you can expose them with a `LoadBalancer` Service instead:
+
+```
+E2E_EXPOSE_TYPE=loadbalancer make test-e2e
+```
+
 The whole e2e suite has a timeout of 1h. If it takes longer (i.e. on slower clusters, or when retrying flaky tests) you can increase it with the `E2E_TIMEOUT` variable:
 
 ```

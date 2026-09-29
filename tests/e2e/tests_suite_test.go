@@ -95,8 +95,19 @@ func TestTests(t *testing.T) {
 	RunSpecs(t, "Tests Suite")
 }
 
+// exposeType selects how the virtual clusters created by the suite expose their API server.
+// It's read from the E2E_EXPOSE_TYPE env var: "nodeport" (default) requires the host nodes to be
+// reachable on their NodePorts, while "loadbalancer" works with cloud providers (EKS, GKE, ...).
+type exposeType string
+
+const (
+	exposeNodePort     exposeType = "nodeport"
+	exposeLoadBalancer exposeType = "loadbalancer"
+)
+
 var (
 	hostIP    string
+	expose    exposeType
 	restcfg   *rest.Config
 	k8s       *kubernetes.Clientset
 	k8sClient client.Client
@@ -107,12 +118,24 @@ var _ = BeforeSuite(func() {
 
 	GinkgoWriter.Println("GOCOVERDIR:", os.Getenv("GOCOVERDIR"))
 
+	initExposeType()
 	initKubernetesClient(ctx)
 
 	GinkgoWriter.Println("Checking K3k deployment status")
 
 	patchPVC(ctx, k8s)
 })
+
+func initExposeType() {
+	expose = exposeType(strings.ToLower(os.Getenv("E2E_EXPOSE_TYPE")))
+	if expose == "" {
+		expose = exposeNodePort
+	}
+
+	Expect(expose).To(BeElementOf(exposeNodePort, exposeLoadBalancer), "invalid E2E_EXPOSE_TYPE")
+
+	GinkgoWriter.Println("Expose type: " + expose)
+}
 
 func initKubernetesClient(ctx context.Context) {
 	scheme := fwclient.NewScheme()

@@ -154,6 +154,8 @@ jobs:
         kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m
 
         k3kcli kubeconfig generate --name mycluster
+        CLUSTER_PORT=$(kubectl get svc -n k3k-mycluster k3k-mycluster-service -o jsonpath='{.spec.ports[?(@.name=="k3s-server-port")].nodePort}')
+        echo "CLUSTER_PORT=${CLUSTER_PORT}" >> $GITHUB_ENV
 
         export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
 
@@ -172,17 +174,17 @@ jobs:
       uses: ./.github/actions/provision-k3s-vm-workers
       with:
         worker-count: 2
-        k3s-url: https://192.168.100.1:30001
+        k3s-url: https://192.168.100.1:${{ .env.CLUSTER_PORT }}
         k3s-token: ${{ steps.k3s-token.outputs.token }}
         k3s-version: ${{ env.KUBERNETES_VERSION }}+k3s1
 
     - name: Test connectivity from VMs to K3k API server
       run: |
         ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.11 \
-          "curl -kv --max-time 10 https://192.168.100.1:30001/readyz || echo 'Worker 1 connectivity test failed'"
+          "curl -kv --max-time 10 https://192.168.100.1:${{ .env.CLUSTER_PORT }}/readyz || echo 'Worker 1 connectivity test failed'"
 
         ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.12 \
-          "curl -kv --max-time 10 https://192.168.100.1:30001/readyz || echo 'Worker 2 connectivity test failed'"
+          "curl -kv --max-time 10 https://192.168.100.1:${{ .env.CLUSTER_PORT }}/readyz || echo 'Worker 2 connectivity test failed'"
 
     - name: Verify Cluster Nodes
       env:

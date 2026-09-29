@@ -132,23 +132,7 @@ jobs:
 
     - name: Create virtual cluster
       run: |
-        kubectl create namespace k3k-mycluster
-
-        cat <<EOF | kubectl apply -f -
-        apiVersion: k3k.io/v1beta1
-        kind: Cluster
-        metadata:
-          name: mycluster
-          namespace: k3k-mycluster
-        spec:
-          mode: hcp
-          tlsSANs:
-            - "127.0.0.1"
-            - "192.168.100.1"
-          expose:
-            nodePort:
-              serverPort: 30001
-        EOF
+        k3kcli cluster create --mode=hcp --tls-sans "127.0.0.1" --tls-sans "192.168.100.1" mycluster
 
         echo "Wait for bootstrap secret to be available"
         kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m

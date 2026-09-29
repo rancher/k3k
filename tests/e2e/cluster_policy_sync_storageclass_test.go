@@ -96,7 +96,6 @@ var _ = When("a shared mode cluster is created in a namespace with a policy", Or
 				Enabled: false,
 			},
 		}
-		clusterObj.Spec.Expose.NodePort.ServerPort = new(int32(30000))
 
 		CreateCluster(clusterObj)
 

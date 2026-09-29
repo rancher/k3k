@@ -109,6 +109,12 @@ KEEP_NAMESPACES=true make test-e2e
 
 The e2e and cli tests run against the cluster configured in your KUBECONFIG environment variable. Make sure K3k is installed on that cluster (e.g. with `make install`) before running them.
 
+By default the e2e tests expose the virtual clusters with a `NodePort` Service, so the host nodes need to be reachable on their NodePorts. To run them against a cloud provider (EKS, GKE, ...) you can expose them with a `LoadBalancer` Service instead:
+
+```
+E2E_EXPOSE_TYPE=loadbalancer make test-e2e
+```
+
 We use [Ginkgo](https://onsi.github.io/ginkgo/), and [`envtest`](https://book.kubebuilder.io/reference/envtest) for testing the controllers.
 
 The required binaries for `envtest` are installed with [`setup-envtest`](https://pkg.go.dev/sigs.k8s.io/controller-runtime/tools/setup-envtest), in the `.envtest` folder.

@@ -4,30 +4,29 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/authentication/user"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
+	"github.com/rancher/k3k/cli/kubeconfig"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/certs"
-	"github.com/rancher/k3k/pkg/controller/kubeconfig"
+	ctrlkubeconfig "github.com/rancher/k3k/pkg/controller/kubeconfig"
 )
 
 // GenerateKubeconfigConfig holds the flags of the "kubeconfig generate" command.
 type GenerateKubeconfigConfig struct {
+	kubeconfigOutFlags
+
 	name                 string
-	configName           string
 	cn                   string
 	org                  []string
 	altNames             []string
@@ -65,6 +64,8 @@ func NewKubeconfigGenerateCmd(appCtx *AppContext) *cobra.Command {
 
 	CobraFlagNamespace(appCtx, cmd, completeClusterNamespaces)
 
+	CobraFlagKubeconfigOut(cmd, &cfg.kubeconfigOutFlags)
+
 	generateKubeconfigFlags(cmd, cfg)
 
 	return cmd
@@ -78,6 +79,14 @@ func generateKubeconfigFlags(cmd *cobra.Command, cfg *GenerateKubeconfigConfig) 
 	}
 
 	cmd.Flags().StringVar(&cfg.configName, "config-name", "", "the name of the generated kubeconfig file")
+
+	if err := cmd.Flags().MarkDeprecated("config-name", "use --out instead"); err != nil {
+		logrus.Fatal(err)
+	}
+
+	cmd.MarkFlagsMutuallyExclusive("config-name", "out")
+	cmd.MarkFlagsMutuallyExclusive("config-name", "no-out")
+
 	cmd.Flags().StringVar(&cfg.cn, "cn", controller.AdminCommonName, "Common name (CN) of the generated certificates for the kubeconfig")
 	cmd.Flags().StringSliceVar(&cfg.org, "org", nil, "Organization name (ORG) of the generated certificates for the kubeconfig")
 	cmd.Flags().StringSliceVar(&cfg.altNames, "altNames", nil, "altNames of the generated certificates for the kubeconfig")
@@ -140,7 +149,7 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 			cfg.org = []string{user.SystemPrivilegedGroup}
 		}
 
-		kubeCfg := kubeconfig.KubeConfig{
+		kubeCfg := ctrlkubeconfig.KubeConfig{
 			CN:         cfg.cn,
 			ORG:        cfg.org,
 			ExpiryDate: time.Hour * 24 * time.Duration(cfg.expirationDays),
@@ -149,24 +158,83 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 
 		logrus.Infof("waiting for cluster to be available..")
 
-		var kubeconfig *clientcmdapi.Config
+		var kubeConfig *clientcmdapi.Config
 
 		if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
-			kubeconfig, err = kubeCfg.Generate(ctx, client, &cluster, host)
+			kubeConfig, err = kubeCfg.Generate(ctx, client, &cluster, host)
 			return err
 		}); err != nil {
 			return err
 		}
 
-		if err := writeKubeconfigFile(&cluster, kubeconfig, cfg.configName); err != nil {
+		serverURL := kubeconfig.ServerURL(kubeConfig)
+
+		if err := writeKubeconfig(appCtx, &cluster, kubeConfig, cfg.standalonePath(&cluster)); err != nil {
 			return err
 		}
 
 		if cluster.Spec.Mode == v1beta1.HCPClusterMode {
-			printHCPJoinInstructions(&cluster, kubeconfig)
+			printHCPJoinInstructions(&cluster, serverURL)
 		}
 
 		return nil
+	}
+}
+
+// writeKubeconfig writes the kubeconfig of the cluster to the standalone file at path, if
+// any, and always adds it as a context to the kubeconfig of the user.
+func writeKubeconfig(appCtx *AppContext, cluster *v1beta1.Cluster, config *clientcmdapi.Config, path string) error {
+	if path != "" {
+		absPath, err := kubeconfig.Write(config, path)
+		if err != nil {
+			return err
+		}
+
+		logrus.Infof("Wrote a standalone kubeconfig to '%s'", absPath)
+	}
+
+	return addKubeconfigContext(appCtx, cluster, config)
+}
+
+// addKubeconfigContext adds the cluster to the kubeconfig of the user as a "<namespace>/<name>" context,
+// leaving the rest of the file, and the current context, untouched.
+func addKubeconfigContext(appCtx *AppContext, cluster *v1beta1.Cluster, config *clientcmdapi.Config) error {
+	file := kubeconfig.New(appCtx.Kubeconfig)
+	name := kubeconfig.ContextName(cluster.Namespace, cluster.Name)
+
+	if err := file.Add(name, config); err != nil {
+		return err
+	}
+
+	logrus.Infof(`Added the '%s' context in the current kubeconfig (%s)
+
+You can start using the cluster with:
+
+	kubectl config use-context %s
+	kubectl cluster-info
+
+`, name, file.Path(), name)
+
+	return nil
+}
+
+// removeKubeconfigContexts removes the contexts of the deleted clusters from the kubeconfig of the user.
+func removeKubeconfigContexts(appCtx *AppContext, clusters ...v1beta1.Cluster) {
+	file := kubeconfig.New(appCtx.Kubeconfig)
+
+	names := make([]string, 0, len(clusters))
+	for i := range clusters {
+		names = append(names, kubeconfig.ContextName(clusters[i].Namespace, clusters[i].Name))
+	}
+
+	removed, err := file.Remove(names...)
+	if err != nil {
+		logrus.Warnf("Failed to remove the contexts from the current kubeconfig (%s): %v", file.Path(), err)
+		return
+	}
+
+	for _, name := range removed {
+		logrus.Infof("Removed the '%s' context from the current kubeconfig (%s)", name, file.Path())
 	}
 }
 
@@ -184,28 +252,4 @@ func resolveServerHost(restConfigHost, override string) (string, error) {
 	}
 
 	return u.Hostname(), nil
-}
-
-func writeKubeconfigFile(cluster *v1beta1.Cluster, kubeconfig *clientcmdapi.Config, configName string) error {
-	if configName == "" {
-		configName = cluster.Namespace + "-" + cluster.Name + "-kubeconfig.yaml"
-	}
-
-	pwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	logrus.Infof(`You can start using the cluster with:
-
-	export KUBECONFIG=%s
-	kubectl cluster-info
-	`, filepath.Join(pwd, configName))
-
-	kubeconfigData, err := clientcmd.Write(*kubeconfig)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(configName, kubeconfigData, 0o644)
 }

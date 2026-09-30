@@ -166,7 +166,7 @@ jobs:
 
     - name: Test connectivity from VMs to K3k API server
       env:
-          CLUSTER_PORT: ${{ env.CLUSTER_PORT }}
+        CLUSTER_PORT: ${{ env.CLUSTER_PORT }}
       run: |
         ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.100.11 \
           "curl -kv --max-time 10 https://192.168.100.1:${CLUSTER_PORT}/readyz || echo 'Worker 1 connectivity test failed'"

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	k3sVersion    = "v1.36.2-k3s1"
+	k3sVersion    = "v1.37.1-k3s1"
 	k3sOldVersion = "v1.36.0-k3s1"
 )
 

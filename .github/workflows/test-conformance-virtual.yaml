@@ -89,10 +89,10 @@ jobs:
         kubectl cluster-info
         kubectl get nodes
 
+        echo "KUBECONFIG=${KUBECONFIG}" >> $GITHUB_ENV
+
     - name: Setup K3k (from source)
       if: inputs.k3k_version == ''
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
         export REPO=k3k.local
 
@@ -110,8 +110,6 @@ jobs:
 
     - name: Setup K3k (from release)
       if: inputs.k3k_version != ''
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
         K3K_VERSION="${{ inputs.k3k_version }}"
         CHART_VERSION="${K3K_VERSION#v}"
@@ -125,8 +123,6 @@ jobs:
         sudo chmod +x /usr/local/bin/k3kcli
 
     - name: Wait for K3k controller
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
         echo "Wait for K3k controller deployment to be available"
         kubectl wait -n k3k-system deployment -l "app.kubernetes.io/name=k3k" --for=condition=Available --timeout=5m
@@ -135,10 +131,13 @@ jobs:
       run: k3kcli -v
 
     - name: Create virtual cluster
-      env:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       run: |
         k3kcli cluster create --mode=virtual --servers=2 mycluster
+
+        echo "Wait for bootstrap secret to be available"
+        kubectl wait -n k3k-mycluster --for=create secret k3k-mycluster-bootstrap --timeout=5m
+
+        k3kcli kubeconfig generate --name mycluster
 
         export KUBECONFIG=${{ github.workspace }}/k3k-mycluster-mycluster-kubeconfig.yaml
 

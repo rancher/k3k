@@ -55,13 +55,7 @@ func copyHostKubeconfig() string {
 	data, err := os.ReadFile(os.Getenv("KUBECONFIG"))
 	Expect(err).To(Not(HaveOccurred()))
 
-	dir, err := os.MkdirTemp("", "k3k-cli")
-	Expect(err).To(Not(HaveOccurred()))
-
-	DeferCleanup(func() {
-		_ = os.RemoveAll(dir)
-	})
-
+	dir := GinkgoT().TempDir()
 	path := filepath.Join(dir, "config")
 	Expect(os.WriteFile(path, data, 0o600)).To(Succeed())
 

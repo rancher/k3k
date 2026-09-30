@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -53,13 +54,9 @@ func Test_standalonePath(t *testing.T) {
 
 			assert.Equal(t, tt.wantPath, tt.flags.standalonePath(cluster))
 
-			var warned bool
-
-			for _, entry := range hook.AllEntries() {
-				if entry.Level == logrus.WarnLevel {
-					warned = true
-				}
-			}
+			warned := slices.ContainsFunc(hook.AllEntries(), func(e *logrus.Entry) bool {
+				return e.Level == logrus.WarnLevel
+			})
 
 			assert.Equal(t, tt.wantWarns, warned)
 		})

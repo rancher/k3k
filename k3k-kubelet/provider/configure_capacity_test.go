@@ -1,14 +1,117 @@
 package provider
 
 import (
+	"context"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
+
+func TestUpdateNodeCapacity(t *testing.T) {
+	tests := []struct {
+		name            string
+		specVersion     string
+		hostVersion     string
+		currentVersion  string
+		expectedVersion string
+	}{
+		{
+			name:            "uses configured cluster version",
+			specVersion:     "v1.32.1+k3s1",
+			hostVersion:     "v1.31.5+k3s1",
+			currentVersion:  "v1.30.0+k3s1",
+			expectedVersion: "v1.32.1+k3s1",
+		},
+		{
+			name:            "falls back to host version",
+			hostVersion:     "v1.31.5+k3s1",
+			currentVersion:  "v1.30.0+k3s1",
+			expectedVersion: "v1.31.5+k3s1",
+		},
+		{
+			name:            "preserves current version when cluster versions are empty",
+			currentVersion:  "v1.30.0+k3s1",
+			expectedVersion: "v1.30.0+k3s1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			require.NoError(t, corev1.AddToScheme(scheme))
+			require.NoError(t, v1beta1.AddToScheme(scheme))
+
+			const (
+				clusterName      = "test-cluster"
+				clusterNamespace = "test-namespace"
+				nodeName         = "test-node"
+			)
+
+			hostAllocatable := corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceMemory: resource.MustParse("8Gi"),
+			}
+			cluster := &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      clusterName,
+					Namespace: clusterNamespace,
+				},
+				Spec: v1beta1.ClusterSpec{
+					Version: tt.specVersion,
+				},
+				Status: v1beta1.ClusterStatus{
+					HostVersion: tt.hostVersion,
+				},
+			}
+			staleCluster := cluster.DeepCopy()
+			staleCluster.Spec.Version = "v1.29.0+k3s1"
+			staleCluster.Status.HostVersion = "v1.29.0+k3s1"
+			hostNode := &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{Name: nodeName},
+				Status: corev1.NodeStatus{
+					Allocatable: hostAllocatable,
+				},
+			}
+			virtualNode := &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{Name: nodeName},
+				Status: corev1.NodeStatus{
+					NodeInfo: corev1.NodeSystemInfo{
+						KubeletVersion: tt.currentVersion,
+					},
+				},
+			}
+
+			hostClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(cluster, hostNode).
+				Build()
+			virtualClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithStatusSubresource(&corev1.Node{}).
+				WithObjects(virtualNode).
+				Build()
+
+			updateNodeCapacity(context.Background(), logr.Discard(), hostClient, virtualClient, *staleCluster, nodeName)
+
+			var updatedNode corev1.Node
+			require.NoError(t, virtualClient.Get(context.Background(), types.NamespacedName{Name: nodeName}, &updatedNode))
+			assert.Equal(t, tt.expectedVersion, updatedNode.Status.NodeInfo.KubeletVersion)
+			assert.Equal(t, hostAllocatable, updatedNode.Status.Capacity)
+			assert.Equal(t, hostAllocatable, updatedNode.Status.Allocatable)
+		})
+	}
+}
 
 func Test_distributeQuotas(t *testing.T) {
 	scheme := runtime.NewScheme()

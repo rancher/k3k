@@ -58,6 +58,7 @@ func (s *Server) Config(init bool, serviceIP string) (*corev1.Secret, error) {
 
 func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, token string) serverConfig {
 	sans := sets.NewString(cluster.Spec.TLSSANs...)
+	sans.Insert(cluster.Status.TLSSANs...)
 	sans.Insert(
 		serviceIP,
 		ServiceName(cluster.Name),

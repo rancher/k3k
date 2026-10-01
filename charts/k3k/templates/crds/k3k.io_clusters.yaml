@@ -3000,6 +3000,40 @@ spec:
                     required:
                     - enabled
                     type: object
+                  httpRoutes:
+                    default:
+                      enabled: false
+                    description: HTTPRoutes resources sync configuration.
+                    properties:
+                      enabled:
+                        default: false
+                        description: Enabled is an on/off switch for syncing resources.
+                        type: boolean
+                      overrideParentGateway:
+                        description: |-
+                          OverrideParentGateway replaces all parentRefs in synced HTTPRoutes with a single
+                          host-cluster Gateway. If unset, parentRef names are translated like other resources.
+                        properties:
+                          name:
+                            description: Name is the name of the Gateway.
+                            type: string
+                          namespace:
+                            description: Namespace is the namespace of the Gateway.
+                            type: string
+                        required:
+                        - name
+                        - namespace
+                        type: object
+                      selector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Selector specifies set of labels of the resources that will be synced, if empty
+                          then all resources of the given type will be synced.
+                        type: object
+                    required:
+                    - enabled
+                    type: object
                   ingresses:
                     default:
                       enabled: false
@@ -5501,6 +5535,40 @@ spec:
                             default: true
                             description: Enabled is an on/off switch for syncing resources.
                             type: boolean
+                          selector:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Selector specifies set of labels of the resources that will be synced, if empty
+                              then all resources of the given type will be synced.
+                            type: object
+                        required:
+                        - enabled
+                        type: object
+                      httpRoutes:
+                        default:
+                          enabled: false
+                        description: HTTPRoutes resources sync configuration.
+                        properties:
+                          enabled:
+                            default: false
+                            description: Enabled is an on/off switch for syncing resources.
+                            type: boolean
+                          overrideParentGateway:
+                            description: |-
+                              OverrideParentGateway replaces all parentRefs in synced HTTPRoutes with a single
+                              host-cluster Gateway. If unset, parentRef names are translated like other resources.
+                            properties:
+                              name:
+                                description: Name is the name of the Gateway.
+                                type: string
+                              namespace:
+                                description: Namespace is the namespace of the Gateway.
+                                type: string
+                            required:
+                            - name
+                            - namespace
+                            type: object
                           selector:
                             additionalProperties:
                               type: string

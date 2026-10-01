@@ -295,6 +295,11 @@ type SyncConfig struct {
 	// +kubebuilder:default={"enabled": false}
 	// +optional
 	Ingresses IngressSyncConfig `json:"ingresses"`
+	// HTTPRoutes resources sync configuration.
+	//
+	// +kubebuilder:default={"enabled": false}
+	// +optional
+	HTTPRoutes GatewayAPISyncConfig `json:"httpRoutes"`
 	// PersistentVolumeClaims resources sync configuration.
 	//
 	// +kubebuilder:default={"enabled": true}
@@ -377,6 +382,35 @@ type IngressSyncConfig struct {
 	// +kubebuilder:default=false
 	// +optional
 	DisableTLSSecretTranslation bool `json:"disableTLSSecretTranslation,omitempty"`
+}
+
+// GatewayAPISyncConfig specifies the sync options for Gateway API HTTPRoutes.
+type GatewayAPISyncConfig struct {
+	// Enabled is an on/off switch for syncing resources.
+	//
+	// +kubebuilder:default=false
+	// +required
+	Enabled bool `json:"enabled"`
+
+	// Selector specifies set of labels of the resources that will be synced, if empty
+	// then all resources of the given type will be synced.
+	//
+	// +optional
+	Selector map[string]string `json:"selector,omitempty"`
+
+	// OverrideParentGateway replaces all parentRefs in synced HTTPRoutes with a single
+	// host-cluster Gateway. If unset, parentRef names are translated like other resources.
+	//
+	// +optional
+	OverrideParentGateway *GatewayParentRef `json:"overrideParentGateway,omitempty"`
+}
+
+// GatewayParentRef identifies a Gateway on the host cluster.
+type GatewayParentRef struct {
+	// Name is the name of the Gateway.
+	Name string `json:"name"`
+	// Namespace is the namespace of the Gateway.
+	Namespace string `json:"namespace"`
 }
 
 // PersistentVolumeClaimSyncConfig specifies the sync options for PersistentVolumeClaims.

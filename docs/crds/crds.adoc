@@ -719,6 +719,9 @@ Directories within the path are not affected by this setting. +
 This might be in conflict with other options that affect the file +
 mode, like fsGroup, and the result can be other mode bits set. + |  | 
 | *`optional`* __boolean__ | optional field specify whether the Secret or its keys must be defined + |  | 
+| *`defaultUser`* __integer__ | defaultUser is Optional: The owner UID of the created files by default. +
+The defaultUser field is only used as a fallback when the item-level user field is unset. +
+(Alpha) This field requires the AtomicWriteVolumeUserFields feature gate to be enabled. + |  | 
 | *`name`* __string__ | Name is the name of the secret mount volume that will be used +
 as the name of volume and volume mount for the server or agent pod +
 if empty then the secret name will be used instead. + |  | MaxLength: 63 +

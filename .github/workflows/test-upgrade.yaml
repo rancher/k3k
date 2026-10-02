@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  KUBERNETES_VERSION: v1.36.2
+  KUBERNETES_VERSION: v1.37.0
 
 jobs:
   # Checks that a k3k installation can be upgraded from the latest released version to the build from source,

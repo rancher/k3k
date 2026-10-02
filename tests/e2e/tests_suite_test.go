@@ -38,7 +38,7 @@ import (
 const (
 	k3kNamespace = "k3k-system"
 
-	k3sVersion    = "v1.36.2-k3s1"
+	k3sVersion    = "v1.37.0-k3s1"
 	k3sOldVersion = "v1.36.0-k3s1"
 
 	// slowTestsLabel marks a top-level test container (a When/Describe node) whose

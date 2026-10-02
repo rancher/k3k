@@ -1019,7 +1019,7 @@ var _ = When("a virtual mode cluster scales down servers", Label(updateTestsLabe
 		}).
 			MustPassRepeatedly(5).
 			WithPolling(time.Second * 5).
-			WithTimeout(time.Minute * 2).
+			WithTimeout(time.Minute * 3).
 			Should(Succeed())
 
 		By("Checking that Nginx Pod is Running")

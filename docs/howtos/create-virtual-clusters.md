@@ -167,7 +167,7 @@ kind: Cluster
 metadata:
   name: k3kcluster-custom-k8s
 spec:
-  version: "v1.36.2-k3s1"
+  version: "v1.37.0-k3s1"
 ```
 
 This sets the virtual cluster's Kubernetes version explicitly.  
@@ -178,7 +178,7 @@ This sets the virtual cluster's Kubernetes version explicitly.
 
 ```sh
 k3kcli cluster create \
-  --version v1.36.2-k3s1 \
+  --version v1.37.0-k3s1 \
   k3kcluster-custom-k8s
 ```
 

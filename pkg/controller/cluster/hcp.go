@@ -59,7 +59,7 @@ func (c *Reconciler) ensureHCPKubernetesEndpointSlice(ctx context.Context, clust
 	}
 
 	var addressType discoveryv1.AddressType
-	if isIPv4(ips[0]) {
+	if len(ips) > 0 && isIPv4(ips[0]) {
 		addressType = discoveryv1.AddressTypeIPv4
 	} else {
 		addressType = discoveryv1.AddressTypeIPv6

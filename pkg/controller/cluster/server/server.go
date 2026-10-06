@@ -78,6 +78,10 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		serverAffinity = s.cluster.Status.Policy.ServerAffinity
 	}
 
+	if serverAffinity == nil {
+		serverAffinity = defaultServerAffinity(s.cluster)
+	}
+
 	// Use the node selector from the policy status if it exists, otherwise fall back to the spec.
 	nodeSelector := s.cluster.Spec.NodeSelector
 	if s.cluster.Status.Policy != nil && len(s.cluster.Status.Policy.NodeSelector) > 0 {
@@ -334,6 +338,37 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	}
 
 	return podSpec
+}
+
+// defaultServerAffinity returns the affinity used when neither the cluster nor its policy
+// set one: in HCP mode with more than one server it spreads the server pods across host
+// nodes, otherwise it returns nil.
+//
+// In HCP mode the agents reach every server through the internal IP of the node it runs
+// on, so servers sharing a node also share an address and cannot each get a tunnel. The
+// anti-affinity is only preferred, so a host cluster with fewer nodes than servers can
+// still schedule all of them.
+func defaultServerAffinity(cluster *v1beta1.Cluster) *corev1.Affinity {
+	if cluster.Spec.Mode != v1beta1.HCPClusterMode || cluster.Spec.Servers == nil || *cluster.Spec.Servers <= 1 {
+		return nil
+	}
+
+	return &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+				Weight: 100,
+				PodAffinityTerm: corev1.PodAffinityTerm{
+					TopologyKey: corev1.LabelHostname,
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"cluster": cluster.Name,
+							"role":    "server",
+						},
+					},
+				},
+			}},
+		},
+	}
 }
 
 // StatefulServer returns the StatefulSet running the cluster's k3s servers, with storage

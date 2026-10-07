@@ -979,7 +979,7 @@ func (c *Reconciler) ensureAgent(ctx context.Context, cluster *v1beta1.Cluster, 
 
 	var agentEnsurer agent.ResourceEnsurer
 	if cluster.Spec.Mode == agent.VirtualNodeMode {
-		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.VirtualAgentImage, c.VirtualAgentImagePullPolicy, c.AgentImagePullSecrets)
+		agentEnsurer = agent.NewVirtualAgent(config, serviceIP, token, c.VirtualAgentImage, c.VirtualAgentImagePullPolicy, c.AgentImagePullSecrets, c.EventRecorder)
 	} else {
 		// Assign port from pool if shared agent enabled mirroring of host nodes
 		kubeletPort := 10250

@@ -4,9 +4,13 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/kubernetes/pkg/probe"
+	"k8s.io/kubernetes/pkg/probe/tcp"
 
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
@@ -20,6 +24,8 @@ func (k *kubelet) registerNode(agentIP, podIP string, cfg config) error {
 	}
 
 	mux := http.NewServeMux()
+
+	mux.Handle("/readyz", readyz(agentIP))
 
 	node, err := nodeutil.NewNode(
 		k.name,
@@ -88,4 +94,21 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 	return &tls.Config{
 		Certificates: []tls.Certificate{*tlsCrt},
 	}, nil
+}
+
+func readyz(agentIP string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		res, errStr, _ := tcp.DoTCPProbe(agentIP+":443", time.Second*5)
+		if res != probe.Success {
+			http.Error(w, errStr, http.StatusServiceUnavailable)
+			return
+		}
+
+		data := []byte("ok")
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+		w.Write(data) //nolint:errcheck
+	})
 }

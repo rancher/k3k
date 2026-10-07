@@ -13,6 +13,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -41,6 +42,12 @@ func init() {
 	_ = clientgoscheme.AddToScheme(baseScheme)
 	_ = v1beta1.AddToScheme(baseScheme)
 }
+
+const (
+	probeAPIFailureThreshold = 3
+	probeAPIPeriod           = 10 * time.Second
+	probeAPITimeout          = 5 * time.Second
+)
 
 type kubelet struct {
 	virtualCluster v1beta1.Cluster
@@ -194,10 +201,10 @@ func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostCl
 }
 
 func (k *kubelet) start(ctx context.Context) error {
-	errChan := make(chan error, 2)
+	errChan := make(chan error, 3)
 
-	// any one of the following 3 tasks (host manager, virtual manager, node) crashing will stop the
-	// program, and all 3 of them block on start, so we start them here in go-routines
+	// any one of the following 4 tasks (host manager, virtual manager, node, APIProbe) crashing will stop the
+	// program, and all 4 of them block on start, so we start them here in go-routines
 	go func() {
 		err := k.hostMgr.Start(ctx)
 		if err != nil {
@@ -230,6 +237,15 @@ func (k *kubelet) start(ctx context.Context) error {
 		k.logger.Error(err, "node was not ready within timeout of 1 minute")
 		return err
 	}
+
+	go func() {
+		err := k.watchVirtualAPI(ctx)
+		if err != nil {
+			k.logger.Error(err, "virtual API server is not responsive")
+		}
+
+		errChan <- err
+	}()
 
 	select {
 	case <-k.node.Done():
@@ -355,4 +371,34 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	}
 
 	return nil
+}
+
+// watchVirtualAPI will run a poll loop to probe the /readyz endpoint which check for the availability of the virtual
+// API server, if the failures exceeds probeAPIFailureThreshold or the timeout exceeds probeAPITimeout deadline, then
+// the function will return an error
+func (k *kubelet) watchVirtualAPI(ctx context.Context) error {
+	var failures int
+
+	lastErr := wait.PollUntilContextCancel(ctx, probeAPIPeriod, true, func(ctx context.Context) (done bool, err error) {
+		probeCtx, cancel := context.WithTimeout(ctx, probeAPITimeout)
+		defer cancel()
+
+		_, err = k.virtClient.Discovery().RESTClient().Get().AbsPath("/readyz").DoRaw(probeCtx)
+		if err == nil {
+			failures = 0
+			return false, nil
+		}
+
+		failures++
+
+		k.logger.Error(err, "failed to probe API server, retrying")
+
+		if failures >= probeAPIFailureThreshold {
+			return true, fmt.Errorf("failure threshold reached for probing virtual API server: %w", err)
+		}
+
+		return false, nil
+	})
+
+	return lastErr
 }

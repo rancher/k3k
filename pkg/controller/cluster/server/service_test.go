@@ -161,6 +161,55 @@ func newTestService(cluster *v1beta1.Cluster, opts ...func(*corev1.Service)) *co
 	return svc
 }
 
+func TestLoadBalancerSANs(t *testing.T) {
+	tests := map[string]struct {
+		service  *corev1.Service
+		expected []string
+	}{
+		"nil service": {
+			service:  nil,
+			expected: nil,
+		},
+		"cluster IP service": {
+			service: newTestService(newTestCluster(), func(s *corev1.Service) {
+				s.Spec.Type = corev1.ServiceTypeClusterIP
+			}),
+			expected: nil,
+		},
+		"load balancer without ingress": {
+			service: newTestService(newTestCluster(), func(s *corev1.Service) {
+				s.Spec.Type = corev1.ServiceTypeLoadBalancer
+			}),
+			expected: nil,
+		},
+		"load balancer with multiple ingresses": {
+			service: newTestService(newTestCluster(), func(s *corev1.Service) {
+				s.Spec.Type = corev1.ServiceTypeLoadBalancer
+				s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+					{IP: "172.18.0.100"},
+					{Hostname: "lb.example.com"},
+					{IP: "172.18.0.101", Hostname: "lb2.example.com"},
+					{},
+				}
+			}),
+			expected: []string{"172.18.0.100", "lb.example.com", "172.18.0.101", "lb2.example.com"},
+		},
+		"node port service with stale ingress": {
+			service: newTestService(newTestCluster(), func(s *corev1.Service) {
+				s.Spec.Type = corev1.ServiceTypeNodePort
+				s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "172.18.0.100"}}
+			}),
+			expected: nil,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, LoadBalancerSANs(tt.service))
+		})
+	}
+}
+
 func newTestCluster(opts ...func(*v1beta1.Cluster)) *v1beta1.Cluster {
 	cluster := &v1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{

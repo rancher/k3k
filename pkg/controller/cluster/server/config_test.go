@@ -35,6 +35,7 @@ func Test_buildServerConfig(t *testing.T) {
 		name       string
 		cluster    *v1beta1.Cluster
 		initServer bool
+		exposeSANs []string
 		expected   serverConfig
 	}{
 		{
@@ -224,11 +225,44 @@ func Test_buildServerConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "init server with expose SANs merged and sorted",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testClusterName,
+					Namespace: testClusterNamespace,
+				},
+				Spec: v1beta1.ClusterSpec{
+					Mode:    v1beta1.VirtualClusterMode,
+					TLSSANs: []string{"10.0.0.1"},
+				},
+				Status: v1beta1.ClusterStatus{
+					ClusterCIDR: defaultVirtualClusterCIDR,
+					ServiceCIDR: defaultVirtualServiceCIDR,
+				},
+			},
+			initServer: true,
+			exposeSANs: []string{"172.18.0.100", "lb.example.com", "10.0.0.1"},
+			expected: serverConfig{
+				ClusterInit: true,
+				ClusterCIDR: defaultVirtualClusterCIDR,
+				ServiceCIDR: defaultVirtualServiceCIDR,
+				Token:       testToken,
+				TLSSAN: []string{
+					testServiceIP,
+					"10.0.0.1",
+					"172.18.0.100",
+					"lb.example.com",
+					ServiceName(testClusterName),
+					fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace),
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := buildServerConfig(tt.cluster, tt.initServer, testServiceIP, testToken)
+			config := buildServerConfig(tt.cluster, tt.initServer, testServiceIP, tt.exposeSANs, testToken)
 			assert.Equal(t, tt.expected, config)
 		})
 	}

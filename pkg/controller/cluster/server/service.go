@@ -81,6 +81,29 @@ func Service(cluster *v1beta1.Cluster) *corev1.Service {
 	return service
 }
 
+// LoadBalancerSANs returns the IP addresses and hostnames assigned to the given Service by its
+// load balancer, so they can be added to the TLS SANs of the k3s server certificate.
+// It returns nil for any other Service type, or if no address has been assigned yet.
+func LoadBalancerSANs(service *corev1.Service) []string {
+	if service == nil || service.Spec.Type != corev1.ServiceTypeLoadBalancer {
+		return nil
+	}
+
+	var sans []string
+
+	for _, ingress := range service.Status.LoadBalancer.Ingress {
+		if ingress.IP != "" {
+			sans = append(sans, ingress.IP)
+		}
+
+		if ingress.Hostname != "" {
+			sans = append(sans, ingress.Hostname)
+		}
+	}
+
+	return sans
+}
+
 // addLoadBalancerPorts adds the load balancer ports to the service
 func addLoadBalancerPorts(service *corev1.Service, loadbalancerConfig v1beta1.LoadBalancerConfig, k3sServerPort, etcdPort corev1.ServicePort) {
 	// If the server port is not specified, use the default port

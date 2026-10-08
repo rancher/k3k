@@ -32,10 +32,10 @@ type serverConfig struct {
 // Config returns the Secret holding the k3s configuration file for a server, built for
 // either the init server or a joining one. The extraSANs are added to the TLS SANs of the
 // server certificate.
-func (s *Server) Config(init bool, serviceIP string, extraSANs ...string) (*corev1.Secret, error) {
+func (s *Server) Config(init bool, service *corev1.Service, extraSANs ...string) (*corev1.Secret, error) {
 	name := configSecretName(s.cluster.Name, init)
 
-	serverConfig := buildServerConfig(s.cluster, init, serviceIP, s.token, extraSANs...)
+	serverConfig := buildServerConfig(s.cluster, init, service.Spec.ClusterIP, LoadBalancerSANs(service), s.token, extraSANs...)
 
 	config, err := yaml.Marshal(serverConfig)
 	if err != nil {
@@ -57,7 +57,7 @@ func (s *Server) Config(init bool, serviceIP string, extraSANs ...string) (*core
 	}, nil
 }
 
-func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, token string, extraSANs ...string) serverConfig {
+func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP string, exposeSANs []string, token string, extraSANs ...string) serverConfig {
 	sans := sets.NewString(cluster.Spec.TLSSANs...)
 	sans.Insert(extraSANs...)
 	sans.Insert(
@@ -65,6 +65,8 @@ func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, tok
 		ServiceName(cluster.Name),
 		fmt.Sprintf("%s.%s", ServiceName(cluster.Name), cluster.Namespace),
 	)
+	// addresses assigned by the expose configuration (i.e. the LoadBalancer ingress)
+	sans.Insert(exposeSANs...)
 
 	cluster.Status.TLSSANs = sans.List()
 

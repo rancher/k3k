@@ -421,8 +421,11 @@ func (s *SharedAgent) role(ctx context.Context) error {
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"persistentvolumeclaims", "pods", "pods/log", "pods/attach", "pods/exec", "pods/ephemeralcontainers", "secrets", "configmaps", "services"},
-				Verbs:     []string{"*"},
+				Resources: []string{
+					"persistentvolumeclaims", "secrets", "configmaps", "services",
+					"pods", "pods/log", "pods/attach", "pods/exec", "pods/ephemeralcontainers", "pods/portforward",
+				},
+				Verbs: []string{"*"},
 			},
 			{
 				APIGroups: []string{""},

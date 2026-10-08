@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -12,7 +13,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/transport/spdy"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -386,6 +389,48 @@ func (c *VirtualCluster) ExecCmd(pod *corev1.Pod, command string) (string, strin
 	})
 
 	return stdout.String(), stderr.String(), err
+}
+
+// PortForward forwards a random local port to the remotePort of the pod, returning the local port.
+// The port forward is stopped when the spec ends.
+func (c *VirtualCluster) PortForward(pod *corev1.Pod, remotePort int) uint16 {
+	GinkgoHelper()
+
+	req := c.Client.CoreV1().RESTClient().Post().Resource("pods").Name(pod.Name).Namespace(pod.Namespace).SubResource("portforward")
+
+	transport, upgrader, err := spdy.RoundTripperFor(c.RestConfig)
+	Expect(err).To(Not(HaveOccurred()))
+
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, req.URL())
+
+	stopChan := make(chan struct{})
+	readyChan := make(chan struct{})
+	errChan := make(chan error, 1)
+
+	fw, err := portforward.New(dialer, []string{fmt.Sprintf("0:%d", remotePort)}, stopChan, readyChan, GinkgoWriter, GinkgoWriter)
+	Expect(err).To(Not(HaveOccurred()))
+
+	go func() {
+		errChan <- fw.ForwardPorts()
+	}()
+
+	DeferCleanup(func() {
+		close(stopChan)
+	})
+
+	select {
+	case <-readyChan:
+	case err := <-errChan:
+		Fail(fmt.Sprintf("port forward failed: %v", err))
+	case <-time.After(time.Second * 30):
+		Fail("timed out waiting for the port forward to be ready")
+	}
+
+	ports, err := fw.GetPorts()
+	Expect(err).To(Not(HaveOccurred()))
+	Expect(ports).To(HaveLen(1))
+
+	return ports[0].Local
 }
 
 func restartServerPod(ctx context.Context, virtualCluster *VirtualCluster) {

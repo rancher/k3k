@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"time"
 
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -65,7 +66,7 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 				ctx, "k3k-"+cluster.GetName()+"-service", metav1.GetOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
 
-			g.Expect(service.GetAnnotations()).To(MatchAllKeys(Keys{
+			g.Expect(service.GetAnnotations()).To(MatchKeys(IgnoreExtras, Keys{
 				"example.com/test": Equal("testing"),
 			}))
 		}).
@@ -84,7 +85,7 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 				ctx, "k3k-"+cluster.GetName()+"-service", metav1.GetOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
 
-			g.Expect(service.GetAnnotations()).To(MatchAllKeys(Keys{
+			g.Expect(service.GetAnnotations()).To(MatchKeys(IgnoreExtras, Keys{
 				"example.com/test": Equal("testing"),
 			}))
 		}).
@@ -92,12 +93,18 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 			WithPolling(time.Second).
 			Should(Succeed())
 
-		service, err := k8s.CoreV1().Services(cluster.Namespace).Get(
-			ctx, "k3k-"+cluster.GetName()+"-service", metav1.GetOptions{})
-		Expect(err).To(Not(HaveOccurred()))
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			service, err := k8s.CoreV1().Services(cluster.Namespace).Get(
+				ctx, "k3k-"+cluster.GetName()+"-service", metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 
-		service.Annotations["example.com/other-annotation"] = "retain-this"
-		_, err = k8s.CoreV1().Services(cluster.Namespace).Update(ctx, service, metav1.UpdateOptions{})
+			service.Annotations["example.com/other-annotation"] = "retain-this"
+			_, err = k8s.CoreV1().Services(cluster.Namespace).Update(ctx, service, metav1.UpdateOptions{})
+
+			return err
+		})
 		Expect(err).To(Not(HaveOccurred()))
 
 		// Reload cluster
@@ -115,7 +122,7 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 				ctx, "k3k-"+cluster.GetName()+"-service", metav1.GetOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
 
-			g.Expect(service.GetAnnotations()).To(MatchAllKeys(Keys{
+			g.Expect(service.GetAnnotations()).To(MatchKeys(IgnoreExtras, Keys{
 				"example.com/test":             Equal("updated"),
 				"example.com/other-annotation": Equal("retain-this"),
 			}))

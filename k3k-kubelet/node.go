@@ -104,9 +104,7 @@ func readyz(serverIP string) http.Handler {
 			return
 		}
 
-		data := []byte("ok")
-
 		w.WriteHeader(http.StatusOK)
-		w.Write(data) //nolint:errcheck
+		w.Write([]byte("ok")) //nolint:errcheck
 	})
 }

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,7 +24,6 @@ import (
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/certs"
-	"github.com/rancher/k3k/pkg/controller/cluster/server"
 	"github.com/rancher/k3k/pkg/controller/kubeconfig"
 	fwclient "github.com/rancher/k3k/tests/framework/client"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
@@ -260,10 +257,6 @@ func NewVirtualK8sClientAndKubeconfig(cluster *v1beta1.Cluster) (*kubernetes.Cli
 		WithPolling(time.Second * 5).
 		Should(BeNil())
 
-	if expose == exposeLoadBalancer {
-		useLoadBalancerEndpoint(ctx, cluster, config)
-	}
-
 	configData, err := clientcmd.Write(*config)
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -273,47 +266,6 @@ func NewVirtualK8sClientAndKubeconfig(cluster *v1beta1.Cluster) (*kubernetes.Cli
 	Expect(err).To(Not(HaveOccurred()))
 
 	return virtualK8sClient, restcfg, configData
-}
-
-// useLoadBalancerEndpoint points the kubeconfig to the LoadBalancer address of the cluster Service.
-// The address is assigned only after the server certificate has been issued, so it's not in the
-// TLS SANs: the Service DNS name, always included in the SANs, is used to verify the certificate.
-func useLoadBalancerEndpoint(ctx context.Context, cluster *v1beta1.Cluster, config *clientcmdapi.Config) {
-	GinkgoHelper()
-
-	var service *corev1.Service
-
-	By("Waiting for the LoadBalancer address of the cluster Service")
-
-	Eventually(func(g Gomega) {
-		var err error
-
-		service, err = k8s.CoreV1().Services(cluster.Namespace).Get(ctx, server.ServiceName(cluster.Name), metav1.GetOptions{})
-		g.Expect(err).To(Not(HaveOccurred()))
-		g.Expect(service.Status.LoadBalancer.Ingress).To(Not(BeEmpty()))
-	}).
-		WithTimeout(time.Minute * 5).
-		WithPolling(time.Second * 5).
-		Should(Succeed())
-
-	ingress := service.Status.LoadBalancer.Ingress[0]
-
-	host := ingress.IP
-	if host == "" {
-		host = ingress.Hostname
-	}
-
-	Expect(host).To(Not(BeEmpty()))
-
-	port := int32(443)
-	if len(service.Spec.Ports) > 0 {
-		port = service.Spec.Ports[0].Port
-	}
-
-	for _, clusterCfg := range config.Clusters {
-		clusterCfg.Server = "https://" + net.JoinHostPort(host, strconv.Itoa(int(port)))
-		clusterCfg.TLSServerName = server.ServiceName(cluster.Name)
-	}
 }
 
 func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {

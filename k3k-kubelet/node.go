@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
@@ -107,8 +106,6 @@ func readyz(serverIP string) http.Handler {
 
 		data := []byte("ok")
 
-		w.Header().Set("Content-Type", "text/plain")
-		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 		w.WriteHeader(http.StatusOK)
 		w.Write(data) //nolint:errcheck
 	})

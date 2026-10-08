@@ -14,6 +14,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/mounts"
 )
@@ -116,9 +117,10 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 
 	selector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			"cluster": v.cluster.Name,
-			"type":    "agent",
-			"mode":    "virtual",
+			"cluster":                  v.cluster.Name,
+			translate.ClusterNameLabel: v.cluster.Name,
+			"type":                     "agent",
+			"mode":                     "virtual",
 		},
 	}
 	podSpec := v.podSpec(ctx, image, name)

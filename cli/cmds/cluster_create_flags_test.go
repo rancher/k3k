@@ -67,6 +67,22 @@ func Test_validateCreateConfig(t *testing.T) {
 			wantErr: `invalid storage size, should be a valid resource quantity e.g "10Gi"`,
 		},
 		{
+			name: "negative storage size",
+			cfg: CreateConfig{
+				servers:            1,
+				storageRequestSize: "-1G",
+			},
+			wantErr: `invalid storage size: must be greater than zero`,
+		},
+		{
+			name: "zero storage size",
+			cfg: CreateConfig{
+				servers:            1,
+				storageRequestSize: "0",
+			},
+			wantErr: `invalid storage size: must be greater than zero`,
+		},
+		{
 			name: "empty mode",
 			cfg: CreateConfig{
 				servers:            1,

@@ -42,6 +42,16 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 				Name:            sharedAgent.Name(),
 				Image:           sharedAgent.image,
 				ImagePullPolicy: corev1.PullPolicy(sharedAgent.imagePullPolicy),
+				ReadinessProbe: &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: "/readyz",
+						},
+					},
+					InitialDelaySeconds: 30,
+					FailureThreshold:    5,
+					TimeoutSeconds:      10,
+				},
 				Env: []corev1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",

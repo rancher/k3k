@@ -228,10 +228,12 @@ func (s *SharedAgent) podSpec(ctx context.Context) corev1.PodSpec {
 				ReadinessProbe: &corev1.Probe{
 					ProbeHandler: corev1.ProbeHandler{
 						HTTPGet: &corev1.HTTPGetAction{
-							Path: "/readyz",
+							Scheme: corev1.URISchemeHTTPS,
+							Path:   "/readyz",
+							Port:   intstr.FromInt(s.kubeletPort),
 						},
 					},
-					InitialDelaySeconds: 30,
+					InitialDelaySeconds: 60,
 					FailureThreshold:    5,
 					TimeoutSeconds:      10,
 				},

@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,7 +26,7 @@ func (k *kubelet) registerNode(agentIP, podIP string, cfg config) error {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/readyz", readyz(agentIP))
+	mux.Handle("/readyz", readyz(cfg.ServerIP))
 
 	node, err := nodeutil.NewNode(
 		k.name,
@@ -96,9 +97,9 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 	}, nil
 }
 
-func readyz(agentIP string) http.Handler {
+func readyz(serverIP string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		res, errStr, _ := tcp.DoTCPProbe(agentIP+":443", time.Second*5)
+		res, errStr, _ := tcp.DoTCPProbe(net.JoinHostPort(serverIP, "443"), time.Second*5)
 		if res != probe.Success {
 			http.Error(w, errStr, http.StatusServiceUnavailable)
 			return
@@ -106,9 +107,9 @@ func readyz(agentIP string) http.Handler {
 
 		data := []byte("ok")
 
-		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+		w.WriteHeader(http.StatusOK)
 		w.Write(data) //nolint:errcheck
 	})
 }

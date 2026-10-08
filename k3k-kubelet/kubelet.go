@@ -150,7 +150,7 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 
 	clusterIP, err := clusterIP(ctx, c.ServiceName, c.ClusterNamespace, hostClient)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract the clusterIP for the server service: %w", err)
+		return nil, fmt.Errorf("failed to extract the clusterIP for the agent service: %w", err)
 	}
 
 	// get the cluster's DNS IP to be injected to pods

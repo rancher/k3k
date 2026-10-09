@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -18,6 +19,10 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
+// ErrLoadBalancerNotReady is returned when the cluster is exposed through a LoadBalancer
+// that has not been assigned an address yet.
+var ErrLoadBalancerNotReady = errors.New("the LoadBalancer address of the cluster service has not been assigned yet")
+
 // URL generates the API server URL for the kubeconfig based on the service configuration.
 //
 // It handles internal vs external access patterns:
@@ -27,7 +32,8 @@ import (
 // Service type handling:
 //   - ClusterIP: uses service.Spec.ClusterIP (internal-only)
 //   - NodePort: uses hostServerIP:NodePort for external access, ClusterIP:Port for internal access
-//   - LoadBalancer: uses the LoadBalancer ingress IP, falling back to its hostname
+//   - LoadBalancer: uses the first LoadBalancer ingress IP or hostname, returning ErrLoadBalancerNotReady
+//     if no address has been assigned yet
 //   - Ingress (if configured): takes precedence over the service-based URL
 //
 // The hostServerIP parameter determines the access pattern:
@@ -96,18 +102,14 @@ func URL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostSer
 		}
 
 	case corev1.ServiceTypeLoadBalancer:
-		if len(k3kService.Status.LoadBalancer.Ingress) > 0 {
-			ingress := k3kService.Status.LoadBalancer.Ingress[0]
-
-			switch {
-			case ingress.IP != "":
-				host = ingress.IP
-			case ingress.Hostname != "":
-				host = ingress.Hostname
-			default:
-				log.V(1).Info("No usable ingress address found in LoadBalancer service.")
-			}
+		// The LoadBalancer addresses are always added to the server TLS SANs by the controller,
+		// so there is no need to check them: falling back to another SAN would mix it with the LoadBalancer port.
+		sans := LoadBalancerSANs(&k3kService)
+		if len(sans) == 0 {
+			return nil, ErrLoadBalancerNotReady
 		}
+
+		return buildURL(sans[0], port), nil
 
 	default:
 		// ExternalName services expose no routable address, so keep the host server IP
@@ -130,7 +132,11 @@ func URL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostSer
 		}
 	}
 
-	// Build URL with port only if not the default HTTPS port
+	return buildURL(host, port), nil
+}
+
+// buildURL returns the https URL for the given host, with the port only if it's not the default HTTPS port.
+func buildURL(host string, port int32) *url.URL {
 	if port != int32(443) {
 		host = net.JoinHostPort(host, strconv.Itoa(int(port)))
 	}
@@ -138,5 +144,5 @@ func URL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostSer
 	return &url.URL{
 		Scheme: "https",
 		Host:   host,
-	}, nil
+	}
 }

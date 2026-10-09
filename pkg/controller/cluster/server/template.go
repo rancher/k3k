@@ -13,6 +13,11 @@ fatal()
     exit 1
 }
 
+
+DB_DIR=/var/lib/rancher/k3s/server/db
+RESET_FILE=${DB_DIR}/reset-flag
+RESTORE_FILE=${DB_DIR}/restore-flag
+
 # safe mode function to reset node IP after pod restarts
 safe_mode() {
 	CURRENT_IP=""
@@ -61,14 +66,17 @@ start_single_node() {
 
 		# clear any reset flags left behind by interrupted or failed reset
 		# prevents crashloop on failed/interrupted cluster reset
-		rm -f /var/lib/rancher/k3s/server/db/reset-flag
+		rm -f ${RESET_FILE}
 
 		# The reset output is left visible in the container logs so failures are diagnosable.
 		if ! /bin/k3s server --cluster-reset --config {{.INIT_CONFIG}} $EXTRA_ARGS; then
 			fatal "cluster reset failed!"
 		fi
 		info "Cluster reset complete. Removing Reset flag file."
-		rm -f /var/lib/rancher/k3s/server/db/reset-flag
+		rm -f ${RESET_FILE}
+
+		# remove restore file if exists
+		rm -f ${RESTORE_FILE}
 	fi
 
 	# entering safe mode to ensure correct NodeIP
@@ -82,6 +90,17 @@ start_single_node() {
 
 start_ha_node() {
 	info "Starting pod $POD_NAME in HA node setup"
+
+	if [ -f ${RESTORE_FILE} ] && [ ${POD_NAME: -1} == 0 ]; then
+		info "Cluster restoration detected, removing pre-existing flags and resetting cluster with new pod IP"
+		rm -f ${RESTORE_FILE}
+
+		if ! /bin/k3s server --cluster-reset --config {{.INIT_CONFIG}} $EXTRA_ARGS; then
+			fatal "cluster reset failed!"
+		fi
+
+		rm -f ${RESET_FILE}
+	fi
 
 	if [ ${POD_NAME: -1} == 0 ] && [ ! -d "{{.ETCD_DIR}}" ]; then
 		info "Adding pod IP file."

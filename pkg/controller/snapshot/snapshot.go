@@ -167,7 +167,7 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.Et
 	var s3Config *k3s.EtcdS3
 
 	if snapshot.Spec.S3ConfigSecretRef != nil {
-		s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
+		s3Config, err = k3s.GetS3ConfigFromSecret(ctx, r.Client, snapshot)
 		if err != nil {
 			return err
 		}
@@ -281,7 +281,7 @@ func (r *Reconciler) deleteSnapshot(ctx context.Context, snapshot *v1beta1.EtcdS
 	var s3Config *k3s.EtcdS3
 
 	if snapshot.Spec.S3ConfigSecretRef != nil {
-		s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
+		s3Config, err = k3s.GetS3ConfigFromSecret(ctx, r.Client, snapshot)
 		if err != nil {
 			return err
 		}

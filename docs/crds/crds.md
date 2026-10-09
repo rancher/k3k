@@ -10,6 +10,8 @@
 ### Resource Types
 - [Cluster](#cluster)
 - [ClusterList](#clusterlist)
+- [EtcdRestore](#etcdrestore)
+- [EtcdRestoreList](#etcdrestorelist)
 - [EtcdSnapshot](#etcdsnapshot)
 - [EtcdSnapshotList](#etcdsnapshotlist)
 - [VirtualClusterPolicy](#virtualclusterpolicy)
@@ -197,7 +199,8 @@ _Appears in:_
 | `policy` _[AppliedPolicy](#appliedpolicy)_ | policy represents the status of the policy applied to this cluster.<br />This field is set by the VirtualClusterPolicy controller. |  |  |
 | `kubeletPort` _integer_ | KubeletPort specefies the port used by k3k-kubelet in shared mode. |  |  |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the cluster set. |  |  |
-| `phase` _[ClusterPhase](#clusterphase)_ | Phase is a high-level summary of the cluster's current lifecycle state. | Unknown | Enum: [Pending Provisioning Ready Failed Terminating Unknown] <br /> |
+| `phase` _[ClusterPhase](#clusterphase)_ | Phase is a high-level summary of the cluster's current lifecycle state. | Unknown | Enum: [Pending Provisioning Ready Restoring Failed Terminating Unknown] <br /> |
+| `activeRestoreRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | ActiveRestoreRef is the reference to the current active restoration object that is being restored. |  |  |
 
 
 #### ConfigMapSyncConfig
@@ -271,6 +274,77 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled toggles this feature on or off. | true |  |
 | `sources` _[CredentialSources](#credentialsources)_ | Sources defines the sources for all required custom CA certificates. |  |  |
+
+
+#### EtcdRestore
+
+
+
+
+
+
+
+_Appears in:_
+- [EtcdRestoreList](#etcdrestorelist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
+| `kind` _string_ | `EtcdRestore` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[EtcdRestoreSpec](#etcdrestorespec)_ |  |  |  |
+| `status` _[EtcdRestoreStatus](#etcdrestorestatus)_ |  |  |  |
+
+
+#### EtcdRestoreList
+
+
+
+EtcdRestoreList is a list of EtcdSnapshot resources.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `k3k.io/v1beta1` | | |
+| `kind` _string_ | `EtcdRestoreList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[EtcdRestore](#etcdrestore) array_ |  |  |  |
+
+
+#### EtcdRestoreSpec
+
+
+
+EtcdRestoreSpec defines the desired state of a EtcdRestore.
+
+
+
+_Appears in:_
+- [EtcdRestore](#etcdrestore)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `clusterRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | ClusterRef is a reference to the cluster where a snapshot will be restored.<br />This field is immutable. |  |  |
+| `snapshotRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | SnapshotRef is a reference to the EtcdSnapshot object that will be restored on the cluster.<br />This field is immutable. |  |  |
+
+
+#### EtcdRestoreStatus
+
+
+
+EtcdRestoreStatus reflects the observed state of a EtcdRestore.
+
+
+
+_Appears in:_
+- [EtcdRestore](#etcdrestore)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the EtcdRestore. |  |  |
 
 
 #### EtcdSnapshot

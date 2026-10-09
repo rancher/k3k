@@ -11,9 +11,3 @@ go run sigs.k8s.io/controller-tools/cmd/controller-gen@${CONTROLLER_TOOLS_VERSIO
     crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=false \
     object paths=./pkg/apis/... \
     output:crd:dir=./charts/k3k/templates/crds
-
-# add the 'helm.sh/resource-policy: keep' annotation to the CRDs
-for f in ./charts/k3k/templates/crds/*.yaml; do
-    echo "Annotating $f"
-    yq -c -i '.metadata.annotations["helm.sh/resource-policy"] = "keep"' "$f"
-done

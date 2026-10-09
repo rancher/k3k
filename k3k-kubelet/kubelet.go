@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"time"
@@ -227,13 +228,13 @@ func (k *kubelet) start(ctx context.Context) error {
 	go func() {
 		klog.SetLogger(k.logger.V(1))
 
-		ctx = log.WithLogger(ctx, klogv2.New(nil))
-		if err := k.node.Run(ctx); err != nil {
+		nodeCtx := log.WithLogger(ctx, klogv2.New(nil))
+		if err := k.node.Run(nodeCtx); err != nil {
 			k.logger.Error(err, "node errored when running")
 		}
 	}()
 
-	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
+	if err := k.node.WaitReady(ctx, time.Minute*1); err != nil {
 		k.logger.Error(err, "node was not ready within timeout of 1 minute")
 		return err
 	}
@@ -259,7 +260,12 @@ func (k *kubelet) start(ctx context.Context) error {
 
 		return nil
 	case err := <-errChan:
-		k.logger.Error(err, "manager stopped, exiting")
+		if err != nil {
+			k.logger.Error(err, "component stopped, exiting")
+		} else {
+			k.logger.Info("component stopped, exiting")
+		}
+
 		return err
 	}
 }
@@ -399,6 +405,11 @@ func (k *kubelet) watchVirtualAPI(ctx context.Context) error {
 
 		return false, nil
 	})
+
+	if errors.Is(lastErr, context.Canceled) {
+		// normal shutdown, not a probe failure
+		return nil
+	}
 
 	return lastErr
 }

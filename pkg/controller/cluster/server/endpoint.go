@@ -32,8 +32,9 @@ var ErrLoadBalancerNotReady = errors.New("the LoadBalancer address of the cluste
 // Service type handling:
 //   - ClusterIP: uses service.Spec.ClusterIP (internal-only)
 //   - NodePort: uses hostServerIP:NodePort for external access, ClusterIP:Port for internal access
-//   - LoadBalancer: uses the first LoadBalancer ingress IP or hostname, returning ErrLoadBalancerNotReady
-//     if no address has been assigned yet
+//   - LoadBalancer: uses the first LoadBalancer ingress IP or hostname with the custom LoadBalancer port (if any)
+//     for external access, returning ErrLoadBalancerNotReady if no address has been assigned yet,
+//     and ClusterIP:Port for internal access
 //   - Ingress (if configured): takes precedence over the service-based URL
 //
 // The hostServerIP parameter determines the access pattern:
@@ -102,11 +103,23 @@ func URL(ctx context.Context, c client.Client, cluster *v1beta1.Cluster, hostSer
 		}
 
 	case corev1.ServiceTypeLoadBalancer:
+		// Internal connection: use ClusterIP and the default server port
+		if hostServerIP == k3kService.Spec.ClusterIP {
+			return buildURL(k3kService.Spec.ClusterIP, port), nil
+		}
+
 		// The LoadBalancer addresses are always added to the server TLS SANs by the controller,
 		// so there is no need to check them: falling back to another SAN would mix it with the LoadBalancer port.
 		sans := LoadBalancerSANs(&k3kService)
 		if len(sans) == 0 {
 			return nil, ErrLoadBalancerNotReady
+		}
+
+		// use the custom LoadBalancer server port, if configured
+		for _, servicePort := range k3kService.Spec.Ports {
+			if servicePort.Name == lbServerPortName {
+				port = servicePort.Port
+			}
 		}
 
 		return buildURL(sans[0], port), nil

@@ -12,6 +12,10 @@ import (
 	"github.com/rancher/k3k/pkg/controller"
 )
 
+// lbServerPortName is the name of the additional Service port used to expose the server
+// on a custom LoadBalancer port.
+const lbServerPortName = "k3s-server-lb-port"
+
 // Service creates a Kubernetes Service for the given cluster.
 //
 // It sets the service type based on the cluster's expose configuration and adds the
@@ -104,15 +108,26 @@ func LoadBalancerSANs(service *corev1.Service) []string {
 	return sans
 }
 
-// addLoadBalancerPorts adds the load balancer ports to the service
+// addLoadBalancerPorts adds the load balancer ports to the service.
+//
+// The default server port is always added, since the internal components (i.e. the agents and the
+// bootstrap client) reach the server on the ClusterIP with the default https port.
+// A custom server port is added as an additional port, used by the external clients.
 func addLoadBalancerPorts(service *corev1.Service, loadbalancerConfig v1beta1.LoadBalancerConfig, k3sServerPort, etcdPort corev1.ServicePort) {
+	service.Spec.Ports = append(service.Spec.Ports, k3sServerPort)
+
 	// If the server port is not specified, use the default port
-	if loadbalancerConfig.ServerPort == nil {
-		service.Spec.Ports = append(service.Spec.Ports, k3sServerPort)
-	} else if *loadbalancerConfig.ServerPort > 0 {
-		// If the server port is specified, set the port, otherwise the service will not be exposed
-		k3sServerPort.Port = *loadbalancerConfig.ServerPort
-		service.Spec.Ports = append(service.Spec.Ports, k3sServerPort)
+	serverPort := k3sServerPort.Port
+	if loadbalancerConfig.ServerPort != nil {
+		serverPort = *loadbalancerConfig.ServerPort
+	}
+
+	// A custom server port is added as an additional port, unless it's the default one or it's disabled (0 or negative)
+	if serverPort > 0 && serverPort != k3sServerPort.Port {
+		lbServerPort := k3sServerPort
+		lbServerPort.Name = lbServerPortName
+		lbServerPort.Port = serverPort
+		service.Spec.Ports = append(service.Spec.Ports, lbServerPort)
 	}
 
 	// If the etcd port is not specified, use the default port

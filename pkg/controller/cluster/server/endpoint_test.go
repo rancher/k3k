@@ -20,6 +20,8 @@ package server_test
 //    Hostname, so a hostname-only ingress produces a valid URL.
 //    The LoadBalancer address is never replaced by a TLS SAN fallback, and an
 //    error is returned while no address has been assigned.
+//    A custom LoadBalancer port is used for external access, while internal
+//    access (hostServerIP == ClusterIP) uses the ClusterIP with the default port.
 
 import (
 	"testing"
@@ -177,6 +179,23 @@ func TestURLGeneration_LoadBalancerNoFallback(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "https://203.0.113.10", url.String())
+}
+
+// TestURLGeneration_LoadBalancerCustomPort tests that the custom LoadBalancer port is used for the
+// external access, and the default server port on the ClusterIP for the internal access
+func TestURLGeneration_LoadBalancerCustomPort(t *testing.T) {
+	cluster, svc := createLoadBalancerService("test-cluster", "default", 443, "203.0.113.10", "")
+	svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{Name: "k3s-server-lb-port", Port: 9443})
+
+	fakeClient := createFakeClient(t, cluster, svc)
+
+	url, err := server.URL(t.Context(), fakeClient, cluster, "10.0.0.1")
+	require.NoError(t, err)
+	assert.Equal(t, "https://203.0.113.10:9443", url.String())
+
+	url, err = server.URL(t.Context(), fakeClient, cluster, svc.Spec.ClusterIP)
+	require.NoError(t, err)
+	assert.Equal(t, "https://10.43.0.100", url.String())
 }
 
 // TestURLGeneration_LoadBalancerNotReady tests that an error is returned when the

@@ -39,13 +39,7 @@ var _ = When("a cluster's status is tracked", Label(statusTestsLabel), func() {
 
 		namespace = fwk3k.CreateNamespace(k8s)
 
-		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
-		Expect(err).To(Not(HaveOccurred()))
-
-		namespace.Labels = map[string]string{
-			policy.PolicyNameLabelKey: vcp.Name,
-		}
-		Expect(k8sClient.Update(ctx, namespace)).To(Succeed())
+		fwk3k.SetNamespaceLabel(ctx, k8sClient, namespace.Name, policy.PolicyNameLabelKey, vcp.Name)
 	})
 
 	AfterEach(func() {

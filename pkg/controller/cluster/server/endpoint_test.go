@@ -18,6 +18,8 @@ package server_test
 // 3. LoadBalancer hostname support:
 //    Reads Status.LoadBalancer.Ingress[0], preferring IP and falling back to
 //    Hostname, so a hostname-only ingress produces a valid URL.
+//    The LoadBalancer address is never replaced by a TLS SAN fallback, and an
+//    error is returned while no address has been assigned.
 
 import (
 	"testing"
@@ -160,6 +162,34 @@ func TestURLGeneration_LoadBalancer(t *testing.T) {
 			assert.Equal(t, tt.expectedURL, url.String())
 		})
 	}
+}
+
+// TestURLGeneration_LoadBalancerNoFallback tests that the LoadBalancer address is not replaced
+// with a TLS SAN, i.e. when the status of the given cluster has not been updated yet
+func TestURLGeneration_LoadBalancerNoFallback(t *testing.T) {
+	cluster, svc := createLoadBalancerService("test-cluster", "default", 443, "203.0.113.10", "")
+	cluster.Spec.TLSSANs = []string{"10.0.0.1"}
+	cluster.Status.TLSSANs = nil
+
+	fakeClient := createFakeClient(t, cluster, svc)
+
+	url, err := server.URL(t.Context(), fakeClient, cluster, "10.0.0.1")
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://203.0.113.10", url.String())
+}
+
+// TestURLGeneration_LoadBalancerNotReady tests that an error is returned when the
+// LoadBalancer has not been assigned an address yet
+func TestURLGeneration_LoadBalancerNotReady(t *testing.T) {
+	cluster, svc := createLoadBalancerService("test-cluster", "default", 443, "", "")
+	cluster.Spec.TLSSANs = []string{"10.0.0.1"}
+	svc.Status.LoadBalancer.Ingress = nil
+
+	fakeClient := createFakeClient(t, cluster, svc)
+
+	_, err := server.URL(t.Context(), fakeClient, cluster, "10.0.0.1")
+	require.ErrorIs(t, err, server.ErrLoadBalancerNotReady)
 }
 
 // TestURLGeneration_Ingress tests URL generation when Ingress is configured

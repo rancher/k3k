@@ -444,11 +444,18 @@ func (c *Reconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) er
 
 	serviceIP := service.Spec.ClusterIP
 
+	// The LoadBalancer addresses are added to the server TLS SANs: wait for them before configuring
+	// the servers, to avoid restarting them (and losing the data of ephemeral clusters) once assigned.
+	exposeSANs := server.LoadBalancerSANs(service)
+	if service.Spec.Type == corev1.ServiceTypeLoadBalancer && len(exposeSANs) == 0 {
+		return fmt.Errorf("%w: waiting for the LoadBalancer address of the cluster service", k3s.ErrServerNotReady)
+	}
+
 	if err := c.ensureClusterConfigs(ctx, cluster, s, service); err != nil {
 		return err
 	}
 
-	if err := c.server(ctx, cluster, s, server.LoadBalancerSANs(service)); err != nil {
+	if err := c.server(ctx, cluster, s, exposeSANs); err != nil {
 		return err
 	}
 

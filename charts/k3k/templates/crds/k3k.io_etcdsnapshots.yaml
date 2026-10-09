@@ -4,7 +4,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-    helm.sh/resource-policy: keep
   name: etcdsnapshots.k3k.io
 spec:
   group: k3k.io
@@ -81,10 +80,12 @@ spec:
                   it to S3. When the request is deleted, both the on-disk and S3 files will be deleted.
                 properties:
                   name:
-                    description: name is unique within a namespace to reference a secret resource.
+                    description: name is unique within a namespace to reference a
+                      secret resource.
                     type: string
                   namespace:
-                    description: namespace defines the space within which the secret name must be unique.
+                    description: namespace defines the space within which the secret
+                      name must be unique.
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
@@ -100,7 +101,8 @@ spec:
               conditions:
                 description: Conditions are the individual conditions for the snapshot.
                 items:
-                  description: Condition contains details for one aspect of the current state of this API Resource.
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-

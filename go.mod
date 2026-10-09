@@ -1,6 +1,6 @@
 module github.com/rancher/k3k
 
-go 1.27.0
+go 1.27.1
 
 replace github.com/rancher/k3k/pkg/apis => ./pkg/apis
 

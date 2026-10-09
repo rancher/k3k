@@ -225,6 +225,18 @@ func (s *SharedAgent) podSpec(ctx context.Context) corev1.PodSpec {
 				Name:            s.Name(),
 				Image:           image,
 				ImagePullPolicy: corev1.PullPolicy(s.imagePullPolicy),
+				ReadinessProbe: &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Scheme: corev1.URISchemeHTTPS,
+							Path:   "/readyz",
+							Port:   intstr.FromInt(s.kubeletPort),
+						},
+					},
+					InitialDelaySeconds: 60,
+					FailureThreshold:    5,
+					TimeoutSeconds:      10,
+				},
 				Env: append([]corev1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",

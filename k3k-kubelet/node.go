@@ -3,10 +3,14 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/kubernetes/pkg/probe"
+	"k8s.io/kubernetes/pkg/probe/tcp"
 
 	"github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
@@ -20,6 +24,8 @@ func (k *kubelet) registerNode(agentIP, podIP string, cfg config) error {
 	}
 
 	mux := http.NewServeMux()
+
+	mux.Handle("/readyz", readyz(cfg.ServerIP))
 
 	node, err := nodeutil.NewNode(
 		k.name,
@@ -88,4 +94,16 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 	return &tls.Config{
 		Certificates: []tls.Certificate{*tlsCrt},
 	}, nil
+}
+
+func readyz(serverIP string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		res, errStr, _ := tcp.DoTCPProbe(net.JoinHostPort(serverIP, "443"), time.Second*5)
+		if res != probe.Success {
+			http.Error(w, errStr, http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Write([]byte("ok")) //nolint:errcheck
+	})
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -41,6 +43,12 @@ func init() {
 	_ = clientgoscheme.AddToScheme(baseScheme)
 	_ = v1beta1.AddToScheme(baseScheme)
 }
+
+const (
+	probeAPIFailureThreshold = 3
+	probeAPIPeriod           = 10 * time.Second
+	probeAPITimeout          = 5 * time.Second
+)
 
 type kubelet struct {
 	virtualCluster v1beta1.Cluster
@@ -143,7 +151,7 @@ func newKubelet(ctx context.Context, c *config) (*kubelet, error) {
 
 	clusterIP, err := clusterIP(ctx, c.ServiceName, c.ClusterNamespace, hostClient)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract the clusterIP for the server service: %w", err)
+		return nil, fmt.Errorf("failed to extract the clusterIP for the agent service: %w", err)
 	}
 
 	// get the cluster's DNS IP to be injected to pods
@@ -194,10 +202,10 @@ func clusterIP(ctx context.Context, serviceName, clusterNamespace string, hostCl
 }
 
 func (k *kubelet) start(ctx context.Context) error {
-	errChan := make(chan error, 2)
+	errChan := make(chan error, 3)
 
-	// any one of the following 3 tasks (host manager, virtual manager, node) crashing will stop the
-	// program, and all 3 of them block on start, so we start them here in go-routines
+	// any one of the following 4 tasks (host manager, virtual manager, node, APIProbe) crashing will stop the
+	// program, and all 4 of them block on start, so we start them here in go-routines
 	go func() {
 		err := k.hostMgr.Start(ctx)
 		if err != nil {
@@ -220,16 +228,25 @@ func (k *kubelet) start(ctx context.Context) error {
 	go func() {
 		klog.SetLogger(k.logger.V(1))
 
-		ctx = log.WithLogger(ctx, klogv2.New(nil))
-		if err := k.node.Run(ctx); err != nil {
+		nodeCtx := log.WithLogger(ctx, klogv2.New(nil))
+		if err := k.node.Run(nodeCtx); err != nil {
 			k.logger.Error(err, "node errored when running")
 		}
 	}()
 
-	if err := k.node.WaitReady(context.Background(), time.Minute*1); err != nil {
+	if err := k.node.WaitReady(ctx, time.Minute*1); err != nil {
 		k.logger.Error(err, "node was not ready within timeout of 1 minute")
 		return err
 	}
+
+	go func() {
+		err := k.watchVirtualAPI(ctx)
+		if err != nil {
+			k.logger.Error(err, "virtual API server is not responsive")
+		}
+
+		errChan <- err
+	}()
 
 	select {
 	case <-k.node.Done():
@@ -243,7 +260,12 @@ func (k *kubelet) start(ctx context.Context) error {
 
 		return nil
 	case err := <-errChan:
-		k.logger.Error(err, "manager stopped, exiting")
+		if err != nil {
+			k.logger.Error(err, "component stopped, exiting")
+		} else {
+			k.logger.Info("component stopped, exiting")
+		}
+
 		return err
 	}
 }
@@ -355,4 +377,39 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 	}
 
 	return nil
+}
+
+// watchVirtualAPI will run a poll loop to probe the /readyz endpoint which check for the availability of the virtual
+// API server, if the failures exceeds probeAPIFailureThreshold or the timeout exceeds probeAPITimeout deadline, then
+// the function will return an error
+func (k *kubelet) watchVirtualAPI(ctx context.Context) error {
+	var failures int
+
+	lastErr := wait.PollUntilContextCancel(ctx, probeAPIPeriod, true, func(ctx context.Context) (done bool, err error) {
+		probeCtx, cancel := context.WithTimeout(ctx, probeAPITimeout)
+		defer cancel()
+
+		_, err = k.virtClient.Discovery().RESTClient().Get().AbsPath("/readyz").DoRaw(probeCtx)
+		if err == nil {
+			failures = 0
+			return false, nil
+		}
+
+		failures++
+
+		k.logger.Error(err, "failed to probe API server, retrying")
+
+		if failures >= probeAPIFailureThreshold {
+			return true, fmt.Errorf("failure threshold reached for probing virtual API server: %w", err)
+		}
+
+		return false, nil
+	})
+
+	if errors.Is(lastErr, context.Canceled) {
+		// normal shutdown, not a probe failure
+		return nil
+	}
+
+	return lastErr
 }

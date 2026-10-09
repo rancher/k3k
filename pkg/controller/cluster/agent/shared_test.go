@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.yaml.in/yaml/v4"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,6 +43,18 @@ func baseSharedAgentPodSpec(sharedAgent SharedAgent) corev1.PodSpec {
 				Name:            sharedAgent.Name(),
 				Image:           sharedAgent.image,
 				ImagePullPolicy: corev1.PullPolicy(sharedAgent.imagePullPolicy),
+				ReadinessProbe: &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Scheme: corev1.URISchemeHTTPS,
+							Path:   "/readyz",
+							Port:   intstr.FromInt(sharedAgent.kubeletPort),
+						},
+					},
+					InitialDelaySeconds: 60,
+					FailureThreshold:    5,
+					TimeoutSeconds:      10,
+				},
 				Env: []corev1.EnvVar{
 					{
 						Name: "AGENT_HOSTNAME",

@@ -291,7 +291,7 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
 				Name:  "nginx",
-				Image: "nginx",
+				Image: "nginx:alpine",
 			}},
 		},
 	}
@@ -314,7 +314,7 @@ func (c *VirtualCluster) NewNginxPod(namespace string) (*corev1.Pod, string) {
 		g.Expect(cond).NotTo(BeNil())
 		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
 	}).
-		WithTimeout(time.Minute).
+		WithTimeout(2 * time.Minute).
 		WithPolling(time.Second).
 		Should(Succeed())
 

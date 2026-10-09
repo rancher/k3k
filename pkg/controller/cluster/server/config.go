@@ -31,10 +31,10 @@ type serverConfig struct {
 
 // Config returns the Secret holding the k3s configuration file for a server, built for
 // either the init server or a joining one.
-func (s *Server) Config(init bool, serviceIP string) (*corev1.Secret, error) {
+func (s *Server) Config(init bool, service *corev1.Service) (*corev1.Secret, error) {
 	name := configSecretName(s.cluster.Name, init)
 
-	serverConfig := buildServerConfig(s.cluster, init, serviceIP, s.token)
+	serverConfig := buildServerConfig(s.cluster, init, service.Spec.ClusterIP, LoadBalancerSANs(service), s.token)
 
 	config, err := yaml.Marshal(serverConfig)
 	if err != nil {
@@ -56,13 +56,15 @@ func (s *Server) Config(init bool, serviceIP string) (*corev1.Secret, error) {
 	}, nil
 }
 
-func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, token string) serverConfig {
+func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP string, exposeSANs []string, token string) serverConfig {
 	sans := sets.NewString(cluster.Spec.TLSSANs...)
 	sans.Insert(
 		serviceIP,
 		ServiceName(cluster.Name),
 		fmt.Sprintf("%s.%s", ServiceName(cluster.Name), cluster.Namespace),
 	)
+	// addresses assigned by the expose configuration (i.e. the LoadBalancer ingress)
+	sans.Insert(exposeSANs...)
 
 	cluster.Status.TLSSANs = sans.List()
 

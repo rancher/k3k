@@ -413,7 +413,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />If not specified, the default https 443 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
+| `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />The default https 443 port is always allocated, since it's used by the internal components<br />to reach the server: if specified, the ServerPort is allocated as an additional port.<br />If 0 or negative, only the default https 443 port will be allocated. |  |  |
 | `etcdPort` _integer_ | EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
 
 

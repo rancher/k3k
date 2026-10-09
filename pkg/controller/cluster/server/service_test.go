@@ -56,6 +56,12 @@ func TestService(t *testing.T) {
 						{
 							Name:       "k3s-server-port",
 							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							TargetPort: intstr.FromInt(6443),
+						},
+						{
+							Name:       "k3s-server-lb-port",
+							Protocol:   corev1.ProtocolTCP,
 							Port:       int32(9443),
 							TargetPort: intstr.FromInt(6443),
 						},
@@ -91,6 +97,12 @@ func TestService(t *testing.T) {
 						{
 							Name:       "k3s-server-port",
 							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							TargetPort: intstr.FromInt(6443),
+						},
+						{
+							Name:       "k3s-server-lb-port",
+							Protocol:   corev1.ProtocolTCP,
 							Port:       int32(9443),
 							TargetPort: intstr.FromInt(6443),
 						},
@@ -98,6 +110,61 @@ func TestService(t *testing.T) {
 							Name:     "k3s-etcd-port",
 							Protocol: corev1.ProtocolTCP,
 							Port:     int32(2379),
+						},
+					}
+				},
+			},
+		},
+		"expose load balancer with default server port": {
+			clusterOpts: []func(*v1beta1.Cluster){
+				func(c *v1beta1.Cluster) {
+					c.Spec.Expose = &v1beta1.ExposeConfig{
+						LoadBalancer: &v1beta1.LoadBalancerConfig{
+							ServerPort: new(int32(443)),
+						},
+					}
+				},
+			},
+			serviceOpts: []func(*corev1.Service){
+				func(s *corev1.Service) {
+					s.Spec.Type = corev1.ServiceTypeLoadBalancer
+					s.Spec.Ports = []corev1.ServicePort{
+						{
+							Name:       "k3s-server-port",
+							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							TargetPort: intstr.FromInt(6443),
+						},
+						{
+							Name:     "k3s-etcd-port",
+							Protocol: corev1.ProtocolTCP,
+							Port:     int32(2379),
+						},
+					}
+				},
+			},
+		},
+		"expose load balancer with server port disabled": {
+			clusterOpts: []func(*v1beta1.Cluster){
+				func(c *v1beta1.Cluster) {
+					c.Spec.Expose = &v1beta1.ExposeConfig{
+						LoadBalancer: &v1beta1.LoadBalancerConfig{
+							ServerPort: new(int32(0)),
+							EtcdPort:   new(int32(0)),
+						},
+					}
+				},
+			},
+			serviceOpts: []func(*corev1.Service){
+				func(s *corev1.Service) {
+					s.Spec.Type = corev1.ServiceTypeLoadBalancer
+					// the default server port is still needed by the internal components
+					s.Spec.Ports = []corev1.ServicePort{
+						{
+							Name:       "k3s-server-port",
+							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							TargetPort: intstr.FromInt(6443),
 						},
 					}
 				},
@@ -159,6 +226,55 @@ func newTestService(cluster *v1beta1.Cluster, opts ...func(*corev1.Service)) *co
 	}
 
 	return svc
+}
+
+func TestLoadBalancerSANs(t *testing.T) {
+	tests := map[string]struct {
+		service  *corev1.Service
+		expected []string
+	}{
+		"nil service": {
+			service:  nil,
+			expected: nil,
+		},
+		"cluster IP service": {
+			service: newTestService(newTestCluster(), func(s *corev1.Service) {
+				s.Spec.Type = corev1.ServiceTypeClusterIP
+			}),
+			expected: nil,
+		},
+		"load balancer without ingress": {
+			service: newTestService(newTestCluster(), func(s *corev1.Service) {
+				s.Spec.Type = corev1.ServiceTypeLoadBalancer
+			}),
+			expected: nil,
+		},
+		"load balancer with multiple ingresses": {
+			service: newTestService(newTestCluster(), func(s *corev1.Service) {
+				s.Spec.Type = corev1.ServiceTypeLoadBalancer
+				s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+					{IP: "172.18.0.100"},
+					{Hostname: "lb.example.com"},
+					{IP: "172.18.0.101", Hostname: "lb2.example.com"},
+					{},
+				}
+			}),
+			expected: []string{"172.18.0.100", "lb.example.com", "172.18.0.101", "lb2.example.com"},
+		},
+		"node port service with stale ingress": {
+			service: newTestService(newTestCluster(), func(s *corev1.Service) {
+				s.Spec.Type = corev1.ServiceTypeNodePort
+				s.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "172.18.0.100"}}
+			}),
+			expected: nil,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, LoadBalancerSANs(tt.service))
+		})
+	}
 }
 
 func newTestCluster(opts ...func(*v1beta1.Cluster)) *v1beta1.Cluster {

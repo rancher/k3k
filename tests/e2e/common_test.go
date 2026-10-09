@@ -254,10 +254,16 @@ func NewVirtualK8sClientAndKubeconfig(cluster *v1beta1.Cluster) (*kubernetes.Cli
 	ctx := context.Background()
 
 	Eventually(func() error {
+		// the server URL depends on the TLS SANs in the status, so the latest Cluster is needed
+		var currentCluster v1beta1.Cluster
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), &currentCluster); err != nil {
+			return err
+		}
+
 		vKubeconfig := kubeconfig.New()
 		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
 		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
-		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP)
+		config, err = vKubeconfig.Generate(ctx, k8sClient, &currentCluster, hostIP)
 
 		return err
 	}).

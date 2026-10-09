@@ -5,6 +5,8 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -42,6 +44,11 @@ const (
 	k3sTLSDir        = "/var/lib/rancher/k3s/server/tls"
 	k3sLogDir        = "/var/log"
 	k3sVarRunDir     = "/var/run"
+
+	// exposeSANsHashAnnotation is set on the server pods with a hash of the TLS SANs derived from the
+	// expose configuration. k3s reads the tls-san only at startup, so a change of these SANs
+	// (i.e. a LoadBalancer address being assigned or changed) needs to roll out the server pods.
+	exposeSANsHashAnnotation = "k3k.io/expose-sans-hash"
 )
 
 // Server builds the Kubernetes resources that run the k3s servers of a virtual cluster.
@@ -337,8 +344,9 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 }
 
 // StatefulServer returns the StatefulSet running the cluster's k3s servers, with storage
-// matching the cluster's persistence mode.
-func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error) {
+// matching the cluster's persistence mode. The exposeSANs are the TLS SANs derived from the
+// expose configuration: their hash is added to the pods to restart them when they change.
+func (s *Server) StatefulServer(ctx context.Context, exposeSANs []string) (*appsv1.StatefulSet, error) {
 	var (
 		replicas   int32
 		pvClaim    corev1.PersistentVolumeClaim
@@ -427,7 +435,8 @@ func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error
 			Selector:    &selector,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: selector.MatchLabels,
+					Labels:      selector.MatchLabels,
+					Annotations: exposeSANsAnnotations(exposeSANs),
 				},
 				Spec: podSpec,
 			},
@@ -438,6 +447,24 @@ func (s *Server) StatefulServer(ctx context.Context) (*appsv1.StatefulSet, error
 	}
 
 	return ss, nil
+}
+
+// exposeSANsAnnotations returns the pod annotations holding the hash of the given SANs.
+// No annotation is returned without SANs, to avoid restarting the servers of clusters that are not
+// exposed through a LoadBalancer.
+func exposeSANsAnnotations(exposeSANs []string) map[string]string {
+	if len(exposeSANs) == 0 {
+		return nil
+	}
+
+	sans := slices.Clone(exposeSANs)
+	slices.Sort(sans)
+
+	hash := sha256.Sum256([]byte(strings.Join(sans, ",")))
+
+	return map[string]string{
+		exposeSANsHashAnnotation: hex.EncodeToString(hash[:]),
+	}
 }
 
 func (s *Server) setupDynamicPersistence() corev1.PersistentVolumeClaim {

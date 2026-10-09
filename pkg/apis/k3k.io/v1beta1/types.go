@@ -525,8 +525,9 @@ type IngressConfig struct {
 // LoadBalancerConfig specifies options for exposing the API server through a LoadBalancer service.
 type LoadBalancerConfig struct {
 	// ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.
-	// If not specified, the default https 443 port will be allocated.
-	// If 0 or negative, the port will not be exposed.
+	// The default https 443 port is always allocated, since it's used by the internal components
+	// to reach the server: if specified, the ServerPort is allocated as an additional port.
+	// If 0 or negative, only the default https 443 port will be allocated.
 	//
 	// +optional
 	ServerPort *int32 `json:"serverPort,omitempty"`

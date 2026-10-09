@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"k8s.io/kubernetes/pkg/api/v1/pod"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,20 +37,14 @@ var _ = When("a cluster with private registry configuration is used", Label(regi
 
 		namespace := fwk3k.CreateNamespace(k8s)
 
-		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
-		Expect(err).To(Not(HaveOccurred()))
-
-		namespace.Labels = map[string]string{
-			policy.PolicyNameLabelKey: vcp.Name,
-		}
-		Expect(k8sClient.Update(ctx, namespace)).To(Succeed())
+		fwk3k.SetNamespaceLabel(ctx, k8sClient, namespace.Name, policy.PolicyNameLabelKey, vcp.Name)
 
 		DeferCleanup(func() {
 			fwk3k.DeleteNamespaces(k8s, namespace.Name)
 			Expect(k8sClient.Delete(ctx, vcp)).To(Succeed())
 		})
 
-		err = privateRegistry(ctx, namespace.Name)
+		err := privateRegistry(ctx, namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
 		cluster := NewCluster(namespace.Name)

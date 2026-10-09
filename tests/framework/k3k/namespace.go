@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -36,6 +37,28 @@ func CreateNamespace(clientset kubernetes.Interface) *corev1.Namespace {
 	Expect(err).To(Not(HaveOccurred()))
 
 	return namespace
+}
+
+// SetNamespaceLabel sets a label on the namespace, retrying on conflicts
+// with other actors modifying it concurrently.
+func SetNamespaceLabel(ctx context.Context, c client.Client, name, key, value string) {
+	GinkgoHelper()
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var ns corev1.Namespace
+		if err := c.Get(ctx, client.ObjectKey{Name: name}, &ns); err != nil {
+			return err
+		}
+
+		if ns.Labels == nil {
+			ns.Labels = map[string]string{}
+		}
+
+		ns.Labels[key] = value
+
+		return c.Update(ctx, &ns)
+	})
+	Expect(err).To(Not(HaveOccurred()))
 }
 
 // DeleteNamespaces deletes the specified namespaces in parallel.

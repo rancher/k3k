@@ -115,6 +115,12 @@ By default the e2e tests expose the virtual clusters with a `NodePort` Service, 
 E2E_EXPOSE_TYPE=loadbalancer make test-e2e
 ```
 
+The whole e2e suite has a timeout of 1h. If it takes longer (i.e. with a `LoadBalancer`, or retrying flaky tests) you can increase it with the `E2E_TIMEOUT` variable:
+
+```
+E2E_TIMEOUT=2h make test-e2e
+```
+
 We use [Ginkgo](https://onsi.github.io/ginkgo/), and [`envtest`](https://book.kubebuilder.io/reference/envtest) for testing the controllers.
 
 The required binaries for `envtest` are installed with [`setup-envtest`](https://pkg.go.dev/sigs.k8s.io/controller-runtime/tools/setup-envtest), in the `.envtest` folder.

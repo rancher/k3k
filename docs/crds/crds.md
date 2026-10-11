@@ -415,6 +415,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />If not specified, the default https 443 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
 | `etcdPort` _integer_ | EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
+| `loadBalancerClass` _string_ | LoadBalancerClass specifies the class of the load-balancer implementation for the exposed Service.<br />If not specified, the host cluster's default load-balancer implementation is used.<br />Once set, Kubernetes does not allow the Service's loadBalancerClass to change while its type remains LoadBalancer. |  |  |
 
 
 #### NodePortConfig

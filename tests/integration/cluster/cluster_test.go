@@ -322,6 +322,9 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 
 					Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeLoadBalancer))
 
+					loadBalancerClass := service.Spec.LoadBalancerClass
+					Expect(loadBalancerClass).To(BeNil())
+
 					servicePorts := service.Spec.Ports
 					Expect(servicePorts).NotTo(BeEmpty())
 					Expect(servicePorts).To(HaveLen(2))
@@ -335,6 +338,43 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(etcdPort.Name).To(Equal("k3s-etcd-port"))
 					Expect(etcdPort.Port).To(BeEquivalentTo(2379))
 					Expect(etcdPort.TargetPort.IntValue()).To(BeEquivalentTo(2379))
+				})
+
+				It("will have a LoadBalancer service with the specified class", func() {
+					cluster := &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1beta1.ClusterSpec{
+							Expose: &v1beta1.ExposeConfig{
+								LoadBalancer: &v1beta1.LoadBalancerConfig{
+									LoadBalancerClass: new(string("example.com/public-vip")),
+								},
+							},
+						},
+					}
+
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+
+					var service corev1.Service
+
+					Eventually(func() error {
+						serviceKey := client.ObjectKey{
+							Name:      server.ServiceName(cluster.Name),
+							Namespace: cluster.Namespace,
+						}
+
+						return k8sClient.Get(ctx, serviceKey, &service)
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeLoadBalancer))
+
+					loadBalancerClass := service.Spec.LoadBalancerClass
+					Expect(loadBalancerClass).To(Equal(new("example.com/public-vip")))
 				})
 			})
 

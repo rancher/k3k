@@ -3379,7 +3379,8 @@ spec:
             description: Status reflects the observed state of the Cluster.
             properties:
               activeRestoreRef:
-                description: ActiveRestoreRef is the reference to the current active restoration object that is being restored.
+                description: ActiveRestoreRef is the reference to the current active
+                  restoration object that is being restored.
                 properties:
                   name:
                     default: ""

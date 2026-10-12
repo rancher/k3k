@@ -4,7 +4,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.22.0
-    helm.sh/resource-policy: keep
   name: etcdrestores.k3k.io
 spec:
   group: k3k.io
@@ -94,7 +93,8 @@ spec:
               conditions:
                 description: Conditions are the individual conditions for the EtcdRestore.
                 items:
-                  description: Condition contains details for one aspect of the current state of this API Resource.
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-

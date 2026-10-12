@@ -76,7 +76,7 @@ const (
 	storageClassEnabledIndexField       = "spec.sync.storageClasses.enabled"
 	storageClassStatusEnabledIndexField = "status.policy.sync.storageClasses.enabled"
 
-	etcdRestoreFinalizerName = "etcdRestore.k3k.io/finalizer"
+	etcdRestoreFinalizerName = "etcdrestore.k3k.io/finalizer"
 )
 
 var (

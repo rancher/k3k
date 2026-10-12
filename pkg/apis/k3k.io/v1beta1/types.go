@@ -977,8 +977,8 @@ type EtcdSnapshotSpec struct {
 
 	// Compress specifies if the snapshot should be compressed
 	//
-	// +k8s:immutable
 	// +kubebuilder:default=false
+	// +k8s:immutable
 	// +optional
 	Compress bool `json:"compress"`
 }
@@ -1030,14 +1030,14 @@ type EtcdRestoreSpec struct {
 	// ClusterRef is a reference to the cluster where a snapshot will be restored.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="clusterRef is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +required
 	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
 
 	// SnapshotRef is a reference to the EtcdSnapshot object that will be restored on the cluster.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="snapshotRef is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +required
 	SnapshotRef corev1.LocalObjectReference `json:"snapshotRef"`
 }
@@ -1053,7 +1053,7 @@ type EtcdRestoreStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 
-// EtcdRestoreList is a list of EtcdSnapshot resources.
+// EtcdRestoreList is a list of EtcdRestore resources.
 type EtcdRestoreList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	metav1.TypeMeta `json:",inline"`

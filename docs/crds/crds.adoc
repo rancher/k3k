@@ -474,7 +474,7 @@ _Appears In:_
 
 
 
-EtcdRestoreList is a list of EtcdSnapshot resources.
+EtcdRestoreList is a list of EtcdRestore resources.
 
 
 

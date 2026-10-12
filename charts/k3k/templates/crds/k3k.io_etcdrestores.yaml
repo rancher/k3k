@@ -62,7 +62,7 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
                 x-kubernetes-validations:
-                - message: clusterRef is immutable
+                - message: field is immutable
                   rule: self == oldSelf
               snapshotRef:
                 description: |-
@@ -81,7 +81,7 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
                 x-kubernetes-validations:
-                - message: snapshotRef is immutable
+                - message: field is immutable
                   rule: self == oldSelf
             required:
             - clusterRef

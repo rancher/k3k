@@ -302,7 +302,7 @@ _Appears in:_
 
 
 
-EtcdRestoreList is a list of EtcdSnapshot resources.
+EtcdRestoreList is a list of EtcdRestore resources.
 
 
 

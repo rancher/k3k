@@ -320,7 +320,7 @@ func (c *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{Requeue: true}, nil
+		return reconcile.Result{RequeueAfter: time.Second}, nil
 	}
 
 	// add finalizer
@@ -331,7 +331,7 @@ func (c *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{Requeue: true}, nil
+		return reconcile.Result{RequeueAfter: time.Second}, nil
 	}
 
 	orig := cluster.DeepCopy()
@@ -379,6 +379,7 @@ func (c *Reconciler) restoreCluster(ctx context.Context, cluster *v1beta1.Cluste
 	}
 
 	log.Info("Restoring cluster")
+
 	origRestore := eligibleRestore.DeepCopy()
 	origCluster := cluster.DeepCopy()
 
@@ -404,7 +405,7 @@ func (c *Reconciler) restoreCluster(ctx context.Context, cluster *v1beta1.Cluste
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{Requeue: true}, nil
+		return reconcile.Result{RequeueAfter: time.Second}, nil
 	}
 
 	restoreErr := c.restore(ctx, cluster, eligibleRestore)

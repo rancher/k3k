@@ -75,6 +75,8 @@ const (
 
 	storageClassEnabledIndexField       = "spec.sync.storageClasses.enabled"
 	storageClassStatusEnabledIndexField = "status.policy.sync.storageClasses.enabled"
+
+	etcdRestoreFinalizerName = "etcdRestore.k3k.io/finalizer"
 )
 
 var (
@@ -370,9 +372,13 @@ func (c *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 func (c *Reconciler) restoreCluster(ctx context.Context, cluster *v1beta1.Cluster, eligibleRestore *v1beta1.EtcdRestore) (reconcile.Result, error) {
-	log := ctrl.LoggerFrom(ctx)
+	log := ctrl.LoggerFrom(ctx).WithValues("EtcdRestore", eligibleRestore.Name)
 
-	log.Info("Restoring cluster", "ActiveRestoreRef", eligibleRestore)
+	if !eligibleRestore.DeletionTimestamp.IsZero() {
+		return c.finalizeRestore(ctx, eligibleRestore)
+	}
+
+	log.Info("Restoring cluster")
 	origRestore := eligibleRestore.DeepCopy()
 	origCluster := cluster.DeepCopy()
 
@@ -390,6 +396,15 @@ func (c *Reconciler) restoreCluster(ctx context.Context, cluster *v1beta1.Cluste
 		if err := c.Client.Status().Update(ctx, cluster); err != nil {
 			return reconcile.Result{}, err
 		}
+	}
+
+	// Add the finalizer to the EtcdRestore to avoid deletion until restoration is completed or failed
+	if controllerutil.AddFinalizer(eligibleRestore, etcdRestoreFinalizerName) {
+		if err := c.Client.Update(ctx, eligibleRestore); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	restoreErr := c.restore(ctx, cluster, eligibleRestore)
@@ -423,18 +438,18 @@ func (c *Reconciler) restoreCluster(ctx context.Context, cluster *v1beta1.Cluste
 		meta.SetStatusCondition(&cluster.Status.Conditions, metav1.Condition{
 			Type:    ConditionReady,
 			Status:  metav1.ConditionTrue,
-			Reason:  ReasonRestored,
+			Reason:  RestoreReasonCompleted,
 			Message: "Cluster successfully restored",
 		})
 
 		c.Eventf(cluster, nil, corev1.EventTypeNormal, RestoreReasonCompleted, ActionReconciling, "Cluster successfully restored")
 	}
 
-	if !equality.Semantic.DeepEqual(eligibleRestore.Status, origRestore.Status) {
+	if !equality.Semantic.DeepEqual(cluster.Status, origCluster.Status) {
 		return reconcile.Result{}, c.Client.Status().Update(ctx, cluster)
 	}
 
-	return reconcile.Result{}, restoreErr
+	return reconcile.Result{}, nil
 }
 
 func (c *Reconciler) reconcileCluster(ctx context.Context, cluster *v1beta1.Cluster) error {

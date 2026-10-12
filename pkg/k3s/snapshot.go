@@ -23,6 +23,7 @@ import (
 // EtcdS3 is the S3 configuration for etcd snapshots. It redefines the k3s type of the
 // same name to avoid taking a dependency on k3s-io/k3s.
 type EtcdS3 struct {
+	Enabled       bool   `json:"-" yaml:"etcd-s3"`
 	AccessKey     string `json:"accessKey,omitempty" yaml:"etcd-s3-access-key,omitempty"`
 	Bucket        string `json:"bucket,omitempty" yaml:"etcd-s3-bucket,omitempty"`
 	BucketLookup  string `json:"bucketLookup,omitempty" yaml:"etcd-s3-bucket-lookup-type,omitempty"`
@@ -152,6 +153,7 @@ func GetS3ConfigFromSecret(ctx context.Context, client client.Client, snapshot *
 	}
 
 	etcdS3 := EtcdS3{
+		Enabled:      true,
 		AccessKey:    string(s3Secret.Data["etcd-s3-access-key"]),
 		Bucket:       string(s3Secret.Data["etcd-s3-bucket"]),
 		BucketLookup: string(s3Secret.Data["etcd-s3-bucket-lookup-type"]),

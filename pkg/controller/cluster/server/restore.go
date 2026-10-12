@@ -19,7 +19,30 @@ import (
 	"github.com/rancher/k3k/pkg/k3s"
 )
 
-func (s *Server) restorePodSpec(ctx context.Context, image, name string, snapshot *v1beta1.EtcdSnapshot, serverIndex int) (*corev1.PodSpec, error) {
+func (s *Server) restorePodSpec(ctx context.Context, image, name string, snapshot *v1beta1.EtcdSnapshot, serverIndex int) corev1.PodSpec {
+	podSpec := s.baseRestorePodSpec(ctx, image, name, serverIndex)
+
+	path := filepath.Join(k3sSnapshotDir, snapshot.Status.Filename)
+
+	if snapshot.Spec.S3ConfigSecretRef != nil && serverIndex == 0 {
+		podSpec.Volumes[0].Projected.Sources = append(podSpec.Volumes[0].Projected.Sources, buildS3ConfigVolume(name))
+		path = snapshot.Status.Filename
+	}
+
+	cmd := restorePodCommand(path, serverIndex)
+
+	podSpec.Containers[0].Command = cmd
+
+	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, s.cluster.Spec.ServerEnvs...)
+
+	for _, imagePullSecret := range s.imagePullSecrets {
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
+	}
+
+	return podSpec
+}
+
+func (s *Server) baseRestorePodSpec(ctx context.Context, image, name string, serverIndex int) corev1.PodSpec {
 	log := ctrl.LoggerFrom(ctx)
 
 	serverAffinity := s.cluster.Spec.ServerAffinity
@@ -28,9 +51,9 @@ func (s *Server) restorePodSpec(ctx context.Context, image, name string, snapsho
 		serverAffinity = s.cluster.Status.Policy.ServerAffinity
 	}
 
-	// only restoring the snapshots on the first server's node
 	pvcName := fmt.Sprintf("varlibrancherk3s-%s-%d", controller.SafeConcatNameWithPrefix(s.cluster.Name, serverName), serverIndex)
-	podSpec := &corev1.PodSpec{
+
+	return corev1.PodSpec{
 		Affinity:          serverAffinity,
 		NodeSelector:      s.cluster.Spec.NodeSelector,
 		PriorityClassName: s.cluster.Spec.PriorityClass,
@@ -87,105 +110,80 @@ func (s *Server) restorePodSpec(ctx context.Context, image, name string, snapsho
 			},
 		},
 	}
+}
 
-	snapshotPath := filepath.Join(k3sSnapshotDir, snapshot.Status.Filename)
-	etcdS3Flag := ""
-
-	if snapshot.Spec.S3ConfigSecretRef != nil {
-		log.V(1).Info("Using s3 config to pull snapshot", "S3ConfigSecretRef", snapshot.Spec.S3ConfigSecretRef, "clusterName", s.cluster.Name)
-		snapshotPath = snapshot.Status.Filename
-
-		s3Config, err := k3s.GetS3ConfigFromSecret(ctx, s.client, snapshot)
-		if err != nil {
-			return nil, err
-		}
-
-		// marshal the config to yaml to be used by k3s drop-in config
-		s3ConfigData, err := yaml.Marshal(s3Config)
-		if err != nil {
-			return nil, err
-		}
-
-		s3ConfigRestoreSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: s.cluster.Namespace,
-			},
-			Data: map[string][]byte{
-				"s3.yaml": s3ConfigData,
-			},
-		}
-
-		_, err = controllerutil.CreateOrUpdate(ctx, s.client, s3ConfigRestoreSecret, func() error {
-			return controllerutil.SetControllerReference(s.cluster, s3ConfigRestoreSecret, s.client.Scheme())
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		// mounting the s3 secret to be picked by the k3s config
-		podSpec.Volumes[0].Projected.Sources = append(podSpec.Volumes[0].Projected.Sources, corev1.VolumeProjection{
-			Secret: &corev1.SecretProjection{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: s3ConfigRestoreSecret.Name,
-				},
-				Items: []corev1.KeyToPath{
-					{
-						Key:  "s3.yaml",
-						Path: "config.yaml.d/s3.yaml",
-					},
-				},
-			},
-		})
-
-		etcdS3Flag = " --etcd-s3"
+func (s *Server) ensureS3ConfigSecret(ctx context.Context, name string, snapshot *v1beta1.EtcdSnapshot, restoreObj *v1beta1.EtcdRestore) error {
+	s3Config, err := k3s.GetS3ConfigFromSecret(ctx, s.client, snapshot)
+	if err != nil {
+		return err
 	}
 
-	// restoring will run as an agentless server and will drop a restore flag afterwards to make sure
-	// the scaled up server will perform cluster reset since the job will run with different node IP.
-	// The command also remove the reset flag since restoration process is also a cluster reset process.
-	cmd := []string{
-		"/bin/sh",
-		"-c",
-		"k3s server -c /opt/rancher/k3s/server/config.yaml --disable-agent" + etcdS3Flag + " --cluster-reset --cluster-reset-restore-path " + snapshotPath +
-			" && touch /var/lib/rancher/k3s/server/db/restore-flag && rm /var/lib/rancher/k3s/server/db/reset-flag",
+	s3ConfigData, err := yaml.Marshal(s3Config)
+	if err != nil {
+		return err
 	}
 
+	s3ConfigRestoreSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: s.cluster.Namespace,
+		},
+		Data: map[string][]byte{
+			"s3.yaml": s3ConfigData,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, s.client, s3ConfigRestoreSecret, func() error {
+		return controllerutil.SetControllerReference(restoreObj, s3ConfigRestoreSecret, s.client.Scheme())
+	})
+
+	return err
+}
+
+func buildS3ConfigVolume(secretName string) corev1.VolumeProjection {
+	return corev1.VolumeProjection{
+		Secret: &corev1.SecretProjection{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: secretName,
+			},
+			Items: []corev1.KeyToPath{
+				{
+					Key:  "s3.yaml",
+					Path: "config.yaml.d/s3.yaml",
+				},
+			},
+		},
+	}
+}
+
+func restorePodCommand(snapshotPath string, serverIndex int) []string {
 	if serverIndex > 0 {
-		// for other servers we simply scrub the data dir allowing correct join for HA servers
-		// https://docs.k3s.io/cli/etcd-snapshot?etcdsnap=Multiple+Servers
-		cmd = []string{
+		return []string{
 			"/bin/sh",
 			"-cx",
 			"if [ -d /var/lib/rancher/k3s/server/db ]; then mv /var/lib/rancher/k3s/server/db /var/lib/rancher/k3s/server/db-old-$(date +%Y%m%d_%H%M%S); fi",
 		}
 	}
 
-	podSpec.Containers[0].Command = cmd
-
-	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, s.cluster.Spec.ServerEnvs...)
-
-	for _, imagePullSecret := range s.imagePullSecrets {
-		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
+	return []string{
+		"/bin/sh",
+		"-c",
+		"k3s server -c /opt/rancher/k3s/server/config.yaml --disable-agent --cluster-reset --cluster-reset-restore-path " + snapshotPath +
+			" && touch /var/lib/rancher/k3s/server/db/restore-flag && rm /var/lib/rancher/k3s/server/db/reset-flag",
 	}
-
-	return podSpec, nil
 }
 
 // RestoreJobs returns a Job list object where it configures a job for the init server to run the restoration,
 // and for the other servers to scrub the data dir before rejoining the cluster.
-func (s *Server) RestoreJobs(ctx context.Context, restoreName string, snapshot *v1beta1.EtcdSnapshot, serverCount int) (*batchv1.JobList, error) {
+func (s *Server) RestoreJobs(ctx context.Context, restoreObj *v1beta1.EtcdRestore, snapshot *v1beta1.EtcdSnapshot, serverCount int) (*batchv1.JobList, error) {
+	log := ctrl.LoggerFrom(ctx).WithValues("EtcdRestore", restoreObj.Name)
+
 	image := controller.K3SImage(s.cluster, s.image)
 
 	var jobList batchv1.JobList
 
 	for i := range serverCount {
-		name := controller.SafeConcatNameWithPrefix(s.cluster.Name, "restore", restoreName, strconv.Itoa(i))
-
-		podSpec, err := s.restorePodSpec(ctx, image, name, snapshot, i)
-		if err != nil {
-			return nil, err
-		}
+		name := controller.SafeConcatNameWithPrefix(s.cluster.Name, "restore", restoreObj.Name, strconv.Itoa(i))
 
 		job := batchv1.Job{
 			TypeMeta: metav1.TypeMeta{
@@ -198,11 +196,18 @@ func (s *Server) RestoreJobs(ctx context.Context, restoreName string, snapshot *
 			},
 			Spec: batchv1.JobSpec{
 				BackoffLimit: new(int32(3)),
-				Template: corev1.PodTemplateSpec{
-					Spec: *podSpec,
-				},
 			},
 		}
+
+		if snapshot.Spec.S3ConfigSecretRef != nil && i == 0 {
+			log.V(1).Info("Using s3 config to pull snapshot", "S3ConfigSecretRef", snapshot.Spec.S3ConfigSecretRef, "clusterName", s.cluster.Name)
+
+			if err := s.ensureS3ConfigSecret(ctx, name, snapshot, restoreObj); err != nil {
+				return nil, err
+			}
+		}
+
+		job.Spec.Template.Spec = s.restorePodSpec(ctx, image, name, snapshot, i)
 
 		jobList.Items = append(jobList.Items, job)
 	}

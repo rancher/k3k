@@ -164,7 +164,7 @@ func isIPv4(address string) bool {
 
 // serverNodeIPs returns the sorted internal IPs of the host cluster nodes
 // running the server pods of the given cluster, restricted to the IPv4 or IPv6 family.
-// Nodes that cannot be fetched are skipped, so a single missing node does not drop the endpoints of all the others.
+// Terminating pods and nodes are skipped. Nodes that cannot be fetched are skipped too, so a single missing node does not drop the endpoints of all the others.
 func (c *Reconciler) serverNodeIPs(ctx context.Context, cluster *v1beta1.Cluster, wantIPv4 bool) ([]string, error) {
 	log := ctrl.LoggerFrom(ctx)
 
@@ -176,7 +176,8 @@ func (c *Reconciler) serverNodeIPs(ctx context.Context, cluster *v1beta1.Cluster
 	nodeNames := sets.New[string]()
 
 	for _, pod := range serverPods {
-		if pod.Spec.NodeName != "" {
+		// A terminating server will not serve the node traffic anymore.
+		if pod.Spec.NodeName != "" && pod.DeletionTimestamp == nil {
 			nodeNames.Insert(pod.Spec.NodeName)
 		}
 	}
@@ -188,6 +189,12 @@ func (c *Reconciler) serverNodeIPs(ctx context.Context, cluster *v1beta1.Cluster
 		var node corev1.Node
 		if err := c.Client.Get(ctx, client.ObjectKey{Name: nodeName}, &node); err != nil {
 			log.V(1).Info("skipping node while collecting HCP endpoint addresses", "node", nodeName, "error", err)
+			continue
+		}
+
+		// Node termination can take a while, do not publish a node that is going away.
+		if node.DeletionTimestamp != nil {
+			log.V(1).Info("skipping terminating node while collecting HCP endpoint addresses", "node", nodeName)
 			continue
 		}
 

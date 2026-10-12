@@ -657,7 +657,7 @@ type ClusterStatus struct {
 	// ActiveRestoreRef is the reference to the current active restoration object that is being restored.
 	//
 	// +optional
-	ActiveRestoreRef corev1.LocalObjectReference `json:"activeRestoreRef,omitempty"`
+	ActiveRestoreRef *corev1.LocalObjectReference `json:"activeRestoreRef,omitempty"`
 }
 
 // AppliedPolicy defines the observed state of an applied policy.
@@ -929,7 +929,7 @@ type EtcdSnapshotSpec struct {
 	//
 	// +k8s:immutable
 	// +required
-	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
+	ClusterRef *corev1.LocalObjectReference `json:"clusterRef"`
 
 	// S3ConfigSecretRef defines the S3 configuration secret that contains all
 	// S3 configuration. The configuration items are expected to match the following:
@@ -1001,14 +1001,14 @@ type EtcdRestoreSpec struct {
 	//
 	// +k8s:immutable
 	// +required
-	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
+	ClusterRef *corev1.LocalObjectReference `json:"clusterRef"`
 
 	// SnapshotRef is a reference to the EtcdSnapshot object that will be restored on the cluster.
 	// This field is immutable.
 	//
 	// +k8s:immutable
 	// +required
-	SnapshotRef corev1.LocalObjectReference `json:"snapshotRef"`
+	SnapshotRef *corev1.LocalObjectReference `json:"snapshotRef"`
 }
 
 // EtcdRestoreStatus reflects the observed state of a EtcdRestore.

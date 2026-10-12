@@ -491,7 +491,7 @@ func newSnapshot(name, namespace, s3ConfigSecretName string) *v1beta1.EtcdSnapsh
 			Namespace:    namespace,
 		},
 		Spec: v1beta1.EtcdSnapshotSpec{
-			ClusterRef: corev1.LocalObjectReference{
+			ClusterRef: &corev1.LocalObjectReference{
 				Name: name,
 			},
 		},
@@ -536,10 +536,10 @@ func newRestore(namespace, clusterName, snapshotName string) *v1beta1.EtcdRestor
 			Namespace:    namespace,
 		},
 		Spec: v1beta1.EtcdRestoreSpec{
-			ClusterRef: corev1.LocalObjectReference{
+			ClusterRef: &corev1.LocalObjectReference{
 				Name: clusterName,
 			},
-			SnapshotRef: corev1.LocalObjectReference{
+			SnapshotRef: &corev1.LocalObjectReference{
 				Name: snapshotName,
 			},
 		},

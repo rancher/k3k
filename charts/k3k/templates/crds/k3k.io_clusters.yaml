@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.20.0
+    controller-gen.kubebuilder.io/version: v0.22.0
     helm.sh/resource-policy: keep
   name: clusters.k3k.io
 spec:
@@ -1168,7 +1168,7 @@ spec:
                   This field is immutable.
                 type: string
                 x-kubernetes-validations:
-                - message: clusterCIDR is immutable
+                - message: field is immutable
                   rule: self == oldSelf
               clusterDNS:
                 description: |-
@@ -1177,7 +1177,7 @@ spec:
                   This field is immutable.
                 type: string
                 x-kubernetes-validations:
-                - message: clusterDNS is immutable
+                - message: field is immutable
                   rule: self == oldSelf
               customCAs:
                 description: CustomCAs specifies the cert/key pairs for custom CA
@@ -1371,7 +1371,7 @@ spec:
                 - hcp
                 type: string
                 x-kubernetes-validations:
-                - message: mode is immutable
+                - message: field is immutable
                   rule: self == oldSelf
               nodeSelector:
                 additionalProperties:
@@ -1402,13 +1402,16 @@ spec:
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                     x-kubernetes-validations:
-                    - message: storageRequestSize is immutable
+                    - message: field is immutable
                       rule: self == oldSelf
                   type:
                     default: dynamic
                     description: Type specifies the persistence mode.
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: field storageRequestSize is immutable once set
+                  rule: '!has(oldSelf.storageRequestSize) || has(self.storageRequestSize)'
               podSecurityContext:
                 description: |-
                   PodSecurityContext specifies custom PodSecurityContext to be added
@@ -3120,7 +3123,7 @@ spec:
                   This field is immutable.
                 type: string
                 x-kubernetes-validations:
-                - message: serviceCIDR is immutable
+                - message: field is immutable
                   rule: self == oldSelf
               sync:
                 default: {}
@@ -3362,6 +3365,15 @@ spec:
                     type: object
                 type: object
             type: object
+            x-kubernetes-validations:
+            - message: field mode is immutable once set
+              rule: '!has(oldSelf.mode) || has(self.mode)'
+            - message: field clusterCIDR is immutable once set
+              rule: '!has(oldSelf.clusterCIDR) || has(self.clusterCIDR)'
+            - message: field serviceCIDR is immutable once set
+              rule: '!has(oldSelf.serviceCIDR) || has(self.serviceCIDR)'
+            - message: field clusterDNS is immutable once set
+              rule: '!has(oldSelf.clusterDNS) || has(self.clusterDNS)'
           status:
             default: {}
             description: Status reflects the observed state of the Cluster.

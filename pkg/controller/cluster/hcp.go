@@ -211,6 +211,29 @@ func (c *Reconciler) serverNodeIPs(ctx context.Context, cluster *v1beta1.Cluster
 	return ips, nil
 }
 
+// hostNodeIPs returns the sorted internal IPs of the host cluster nodes
+// matching the node selector of the server pods of the given cluster.
+func (c *Reconciler) hostNodeIPs(ctx context.Context, cluster *v1beta1.Cluster) ([]string, error) {
+	matchingLabelsOpt := client.MatchingLabels(server.NodeSelector(cluster))
+
+	var nodeList corev1.NodeList
+	if err := c.Client.List(ctx, &nodeList, matchingLabelsOpt); err != nil {
+		return nil, fmt.Errorf("listing host nodes: %w", err)
+	}
+
+	ips := sets.New[string]()
+
+	for _, node := range nodeList.Items {
+		for _, address := range node.Status.Addresses {
+			if address.Type == corev1.NodeInternalIP {
+				ips.Insert(address.Address)
+			}
+		}
+	}
+
+	return sets.List(ips), nil
+}
+
 // listServerPods returns the host cluster pods running the servers of the given cluster.
 func (c *Reconciler) listServerPods(ctx context.Context, cluster *v1beta1.Cluster) ([]corev1.Pod, error) {
 	listOpts := []client.ListOption{

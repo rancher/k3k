@@ -32,8 +32,6 @@ const (
 	ReasonRestoring = "Restoring"
 	// ReasonRestoringFailed is set when restoring a cluster fails.
 	ReasonRestoringFailed = "RestoringFailed"
-	// ReasonRestored is set once a cluster has been restored.
-	ReasonRestored = "Restored"
 
 	// ActionReconciling is the action reported on cluster events.
 	ActionReconciling = "Reconciling"

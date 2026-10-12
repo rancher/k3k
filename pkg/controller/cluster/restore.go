@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +49,7 @@ var (
 // 2. Start a restoration jobs that mounts the each server PVC and run restoration for init server and scrub data for other servers
 // 3. Check restoration jobs status if completed then exit and trigger normal reconcile
 func (c *Reconciler) restore(ctx context.Context, cluster *v1beta1.Cluster, restoreObj *v1beta1.EtcdRestore) error {
-	log := ctrl.LoggerFrom(ctx)
+	log := ctrl.LoggerFrom(ctx).WithValues("EtcdRestore", restoreObj.Name)
 
 	// fail if the cluster is using ephemeral storage
 	if cluster.Spec.Persistence.Type != v1beta1.DynamicPersistenceMode {
@@ -97,7 +98,7 @@ func (c *Reconciler) restore(ctx context.Context, cluster *v1beta1.Cluster, rest
 	}
 
 	// Phase 2: start a restoration jobs with the same k3s image
-	jobList, err := s.RestoreJobs(ctx, restoreObj.Name, &snapshot, origServerCount)
+	jobList, err := s.RestoreJobs(ctx, restoreObj, &snapshot, origServerCount)
 	if err != nil {
 		return err
 	}
@@ -106,18 +107,9 @@ func (c *Reconciler) restore(ctx context.Context, cluster *v1beta1.Cluster, rest
 
 	for _, job := range jobList.Items {
 		_, err = controllerutil.CreateOrUpdate(ctx, c.Client, &job, func() error {
-			return controllerutil.SetControllerReference(cluster, &job, c.Client.Scheme())
+			return controllerutil.SetControllerReference(restoreObj, &job, c.Client.Scheme())
 		})
 		if err != nil {
-			return err
-		}
-
-		// wait until the restoration job is completed
-		if err := c.Client.Get(ctx, client.ObjectKeyFromObject(&job), &job); err != nil {
-			if apierrors.IsNotFound(err) {
-				return ErrRestoreJobInProgress
-			}
-
 			return err
 		}
 
@@ -142,7 +134,7 @@ func (c *Reconciler) restore(ctx context.Context, cluster *v1beta1.Cluster, rest
 }
 
 // findEligibleRestore will list restore objects for the passed cluster, if any active restore
-// is in progress then it will be returned otherwise it will pick the oldest pending restore object.
+// is being deleted or in progress then it will be returned otherwise it will pick the oldest pending restore object.
 func (c *Reconciler) findEligibleRestore(ctx context.Context, cluster *v1beta1.Cluster) (*v1beta1.EtcdRestore, error) {
 	var restoreList v1beta1.EtcdRestoreList
 
@@ -155,6 +147,11 @@ func (c *Reconciler) findEligibleRestore(ctx context.Context, cluster *v1beta1.C
 	for _, restoreObj := range restoreList.Items {
 		if restoreObj.Spec.ClusterRef.Name != cluster.Name {
 			continue
+		}
+
+		// return restore objects being deleted regardless of their state so the finalizer can be removed
+		if !restoreObj.DeletionTimestamp.IsZero() {
+			return &restoreObj, nil
 		}
 
 		// return the restore object currently in progress
@@ -195,13 +192,14 @@ func (*Reconciler) updateRestoreStatus(restore *v1beta1.EtcdRestore, lastErr err
 	if lastErr != nil {
 		err := lastErr.Error()
 
-		if !errors.Is(lastErr, ErrRestoreJobInProgress) && !errors.Is(lastErr, ErrRestoreScalingInProgress) && !apierrors.IsConflict(lastErr) {
-			setRestoreCondition(status, RestoreSucceededCondition, metav1.ConditionFalse, RestoreReasonFailed, err)
+		if errors.Is(lastErr, ErrRestoreSnapshotValidation) {
+			setRestoreCondition(status, RestoreSucceededCondition, metav1.ConditionFalse, RestoreReasonValidationFailed, err)
 			return
 		}
 
-		if errors.Is(lastErr, ErrRestoreSnapshotValidation) {
-			setRestoreCondition(status, RestoreSucceededCondition, metav1.ConditionFalse, RestoreReasonValidationFailed, err)
+		if !errors.Is(lastErr, ErrRestoreJobInProgress) && !errors.Is(lastErr, ErrRestoreScalingInProgress) && !apierrors.IsConflict(lastErr) {
+			setRestoreCondition(status, RestoreSucceededCondition, metav1.ConditionFalse, RestoreReasonFailed, err)
+			return
 		}
 
 		setRestoreCondition(status, RestoreSucceededCondition, metav1.ConditionUnknown, RestoreReasonInProgress, "Restore is in progress")
@@ -248,4 +246,52 @@ func (*Reconciler) validateSnapshot(cluster *v1beta1.Cluster, snapshot v1beta1.E
 	}
 
 	return nil
+}
+
+func (c *Reconciler) finalizeRestore(ctx context.Context, restoreObj *v1beta1.EtcdRestore) (reconcile.Result, error) {
+	log := ctrl.LoggerFrom(ctx).WithValues("EtcdRestore", restoreObj.Name)
+
+	log.V(1).Info("Deleting EtcdRestore")
+
+	// check if restoreJobs still in progress
+	var restoreJobs batchv1.JobList
+
+	listOpts := []client.ListOption{
+		client.InNamespace(restoreObj.Namespace),
+	}
+	if err := c.Client.List(ctx, &restoreJobs, listOpts...); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	for i := range restoreJobs.Items {
+		job := &restoreJobs.Items[i]
+		if !metav1.IsControlledBy(job, restoreObj) {
+			continue
+		}
+
+		if isJobInProgress(job) {
+			return reconcile.Result{}, fmt.Errorf("%w: %s", ErrRestoreJobInProgress, job.Name)
+		}
+	}
+
+	// Remove finalizer from the restore and update it only when all restore jobs are finished
+	if controllerutil.RemoveFinalizer(restoreObj, etcdRestoreFinalizerName) {
+		log.Info("Deleting Restore removing finalizer")
+
+		if err := c.Client.Update(ctx, restoreObj); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func isJobInProgress(job *batchv1.Job) bool {
+	for _, cond := range job.Status.Conditions {
+		if cond.Status == corev1.ConditionTrue && (cond.Type == batchv1.JobComplete || cond.Type == batchv1.JobFailed) {
+			return false
+		}
+	}
+
+	return true
 }

@@ -234,6 +234,37 @@ func Test_buildServerConfig(t *testing.T) {
 	}
 }
 
+func Test_buildServerConfig_TLSSANs(t *testing.T) {
+	cluster := &v1beta1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testClusterName,
+			Namespace: testClusterNamespace,
+		},
+		Spec: v1beta1.ClusterSpec{
+			Mode:    v1beta1.HCPClusterMode,
+			TLSSANs: []string{"custom.example.com"},
+		},
+		Status: v1beta1.ClusterStatus{
+			// a node IP added by a previous reconcile, of a node that is gone
+			TLSSANs: []string{"10.0.0.9"},
+		},
+	}
+
+	config := buildServerConfig(cluster, true, testServiceIP, testToken, "10.0.0.2", "10.0.0.1")
+
+	expected := []string{
+		testServiceIP,
+		"10.0.0.1",
+		"10.0.0.2",
+		"custom.example.com",
+		ServiceName(testClusterName),
+		fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace),
+	}
+
+	assert.Equal(t, expected, config.TLSSAN)
+	assert.Equal(t, expected, cluster.Status.TLSSANs, "the status should be rebuilt and not keep the stale SANs")
+}
+
 func Test_setupStartCommand_MultipleServerArgs(t *testing.T) {
 	cluster := &v1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{Name: testClusterName, Namespace: testClusterNamespace},

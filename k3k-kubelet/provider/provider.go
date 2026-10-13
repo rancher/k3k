@@ -44,7 +44,7 @@ import (
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
 
-const customSchedulerAnnotation = "k3k.io/hostSchedulerName"
+const customSchedulerAnnotation = "k3k.io/host-scheduler-name"
 
 // check at compile time if the Provider implements the nodeutil.Provider interface
 var _ nodeutil.Provider = (*Provider)(nil)
@@ -492,7 +492,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	// if custom scheduler annotation is present then we check for allowed scheduler and then add it to the host pod
-	if schedulerName, ok := virtualPod.Annotations[customSchedulerAnnotation]; ok {
+	if schedulerName, ok := virtualPod.Annotations[customSchedulerAnnotation]; ok && schedulerName != "" {
 		allowedSchedulers := cluster.Spec.AllowedSchedulers
 		if cluster.Status.Policy != nil && cluster.Status.Policy.AllowedSchedulers != nil {
 			allowedSchedulers = cluster.Status.Policy.AllowedSchedulers

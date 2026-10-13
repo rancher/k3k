@@ -242,7 +242,7 @@ type ClusterSpec struct {
 	HostUsers *bool `json:"hostUsers,omitempty"`
 
 	// AllowedSchedulers is the list of host cluster schedulers that workloads can request
-	// with the "k3k.io/hostSchedulerName" annotation. It only applies to shared mode,
+	// with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,
 	// where the requested scheduler is set on the Pod synced to the host cluster.
 	// Pods requesting a scheduler that is not in this list are not synced.
 	//
@@ -725,7 +725,7 @@ type AppliedPolicy struct {
 	HostUsers *bool `json:"hostUsers,omitempty"`
 
 	// AllowedSchedulers is the list of host cluster schedulers that workloads can request
-	// with the "k3k.io/hostSchedulerName" annotation. It only applies to shared mode,
+	// with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,
 	// where the requested scheduler is set on the Pod synced to the host cluster.
 	// Pods requesting a scheduler that is not in this list are not synced.
 	//
@@ -863,7 +863,7 @@ type VirtualClusterPolicySpec struct {
 	HostUsers *bool `json:"hostUsers,omitempty"`
 
 	// AllowedSchedulers is the list of host cluster schedulers that workloads can request
-	// with the "k3k.io/hostSchedulerName" annotation. It only applies to shared mode,
+	// with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,
 	// where the requested scheduler is set on the Pod synced to the host cluster.
 	// Pods requesting a scheduler that is not in this list are not synced.
 	//

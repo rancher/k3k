@@ -12,7 +12,6 @@ import (
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -655,7 +654,9 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 		})
 	})
 
-	When("creating a Pod with the host scheduler annotation", func() {
+	When("creating a Pod with the host scheduler annotation", Label("test"), func() {
+		hostSchedulerAnnotation := "k3k.io/host-scheduler-name"
+
 		newPod := func(ctx context.Context, annotations map[string]string) *corev1.Pod {
 			GinkgoHelper()
 
@@ -680,7 +681,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 		}
 
 		It("should use the annotated scheduler on the host Pod when it is allowed", func(ctx context.Context) {
-			virtualPod := newPod(ctx, map[string]string{"k3k.io/hostSchedulerName": "custom-scheduler"})
+			virtualPod := newPod(ctx, map[string]string{hostSchedulerAnnotation: "custom-scheduler"})
 			hostPodName := translator.NamespacedName(virtualPod)
 
 			Eventually(func(g Gomega) {
@@ -694,15 +695,27 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 		})
 
 		It("should not create the host Pod when the annotated scheduler is not allowed", func(ctx context.Context) {
-			virtualPod := newPod(ctx, map[string]string{"k3k.io/hostSchedulerName": "not-allowed-scheduler"})
-			hostPodName := translator.NamespacedName(virtualPod)
+			virtualPod := newPod(ctx, map[string]string{hostSchedulerAnnotation: "not-allowed-scheduler"})
 
-			Consistently(func(g Gomega) {
-				_, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
-				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			Eventually(func(g Gomega) {
+				eventList, err := virtualCluster.Client.CoreV1().Events(virtualPod.Namespace).List(ctx, metav1.ListOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(len(eventList.Items) > 0).To(BeTrue())
+
+				var providerFailedEvent *corev1.Event
+
+				for _, event := range eventList.Items {
+					if event.Type == corev1.EventTypeWarning && event.Reason == "ProviderCreateFailed" {
+						providerFailedEvent = &event
+						break
+					}
+				}
+
+				g.Expect(providerFailedEvent).NotTo(BeNil())
+				g.Expect(providerFailedEvent.Message).To(ContainSubstring("scheduler not-allowed-scheduler is not allowed to be used for this cluster"))
 			}).
 				WithPolling(time.Second).
-				WithTimeout(20 * time.Second).
+				WithTimeout(time.Minute).
 				Should(Succeed())
 		})
 

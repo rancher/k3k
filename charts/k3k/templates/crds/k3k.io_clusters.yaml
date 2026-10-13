@@ -1161,6 +1161,15 @@ spec:
                 x-kubernetes-validations:
                 - message: invalid value for agents
                   rule: self >= 0
+              allowedSchedulers:
+                description: |-
+                  AllowedSchedulers is the list of host cluster schedulers that workloads can request
+                  with the "k3k.io/hostSchedulerName" annotation. It only applies to shared mode,
+                  where the requested scheduler is set on the Pod synced to the host cluster.
+                  Pods requesting a scheduler that is not in this list are not synced.
+                items:
+                  type: string
+                type: array
               clusterCIDR:
                 description: |-
                   ClusterCIDR is the CIDR range for pod IPs.
@@ -4375,6 +4384,15 @@ spec:
                             x-kubernetes-list-type: atomic
                         type: object
                     type: object
+                  allowedSchedulers:
+                    description: |-
+                      AllowedSchedulers is the list of host cluster schedulers that workloads can request
+                      with the "k3k.io/hostSchedulerName" annotation. It only applies to shared mode,
+                      where the requested scheduler is set on the Pod synced to the host cluster.
+                      Pods requesting a scheduler that is not in this list are not synced.
+                    items:
+                      type: string
+                    type: array
                   hostUsers:
                     description: |-
                       HostUsers sets the user namespace for server and agent pods.

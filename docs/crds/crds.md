@@ -57,6 +57,7 @@ _Appears in:_
 | `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podsecuritycontext-v1-core)_ | PodSecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  |  |
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | SecurityContext specifies custom container SecurityContext to be added<br />to the agent and server containers of the cluster in virtual or shared mode. |  |  |
 | `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
+| `allowedSchedulers` _string array_ | AllowedSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/hostSchedulerName" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced. |  |  |
 
 
 #### Cluster
@@ -173,6 +174,7 @@ _Appears in:_
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | SecurityContext specifies custom container SecurityContext to be added<br />to the agent and server containers of the cluster in virtual or shared mode.<br />This option will override the SecurityContext set by default for virtual mode. |  |  |
 | `runtimeClassName` _string_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
 | `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
+| `allowedSchedulers` _string array_ | AllowedSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/hostSchedulerName" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced. |  |  |
 
 
 #### ClusterStatus
@@ -679,6 +681,7 @@ _Appears in:_
 | `runtimeClassName` _string_ | SecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  |  |
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
 | `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
+| `allowedSchedulers` _string array_ | AllowedSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/hostSchedulerName" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced. |  |  |
 
 
 #### VirtualClusterPolicyStatus

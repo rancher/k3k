@@ -10,6 +10,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +43,8 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
+
+const customSchedulerAnnotation = "k3k.io/hostSchedulerName"
 
 // check at compile time if the Provider implements the nodeutil.Provider interface
 var _ nodeutil.Provider = (*Provider)(nil)
@@ -486,6 +489,21 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	// if the priority class is set we need to remove the priority
 	if hostPod.Spec.PriorityClassName != "" {
 		hostPod.Spec.Priority = nil
+	}
+
+	// if custom scheduler annotation is present then we check for allowed scheduler and then add it to the host pod
+	if schedulerName, ok := virtualPod.Annotations[customSchedulerAnnotation]; ok {
+		allowedSchedulers := cluster.Spec.AllowedSchedulers
+		if cluster.Status.Policy != nil && cluster.Status.Policy.AllowedSchedulers != nil {
+			allowedSchedulers = cluster.Status.Policy.AllowedSchedulers
+		}
+
+		if !slices.Contains(allowedSchedulers, schedulerName) {
+			// if the scheduler is not listed in the allowed schedulers then we should return an error
+			return fmt.Errorf("scheduler %s is not allowed to be used for this cluster", schedulerName)
+		}
+
+		hostPod.Spec.SchedulerName = schedulerName
 	}
 
 	p.configurePodEnvs(hostPod, &virtualPod)

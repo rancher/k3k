@@ -12,9 +12,11 @@ import (
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
@@ -29,7 +31,9 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 	)
 
 	BeforeAll(func() {
-		virtualCluster = NewVirtualCluster()
+		virtualCluster = NewVirtualClusterWithOpts(func(c *v1beta1.Cluster) {
+			c.Spec.AllowedSchedulers = []string{"custom-scheduler"}
+		})
 		translator = translate.NewHostTranslator(virtualCluster.Cluster)
 
 		DeferCleanup(func() {
@@ -644,6 +648,72 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(hostSecret.Data).NotTo(BeNil())
 				g.Expect(hostSecret.Data[serviceAccountTokenPath]).NotTo(BeEmpty())
+			}).
+				WithPolling(time.Second).
+				WithTimeout(time.Minute).
+				Should(Succeed())
+		})
+	})
+
+	When("creating a Pod with the host scheduler annotation", func() {
+		newPod := func(ctx context.Context, annotations map[string]string) *corev1.Pod {
+			GinkgoHelper()
+
+			p := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "nginx-",
+					Namespace:    "default",
+					Annotations:  annotations,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "nginx",
+						Image: "nginx",
+					}},
+				},
+			}
+
+			p, err := virtualCluster.Client.CoreV1().Pods(p.Namespace).Create(ctx, p, metav1.CreateOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+
+			return p
+		}
+
+		It("should use the annotated scheduler on the host Pod when it is allowed", func(ctx context.Context) {
+			virtualPod := newPod(ctx, map[string]string{"k3k.io/hostSchedulerName": "custom-scheduler"})
+			hostPodName := translator.NamespacedName(virtualPod)
+
+			Eventually(func(g Gomega) {
+				hostPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(hostPod.Spec.SchedulerName).To(Equal("custom-scheduler"))
+			}).
+				WithPolling(time.Second).
+				WithTimeout(time.Minute).
+				Should(Succeed())
+		})
+
+		It("should not create the host Pod when the annotated scheduler is not allowed", func(ctx context.Context) {
+			virtualPod := newPod(ctx, map[string]string{"k3k.io/hostSchedulerName": "not-allowed-scheduler"})
+			hostPodName := translator.NamespacedName(virtualPod)
+
+			Consistently(func(g Gomega) {
+				_, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}).
+				WithPolling(time.Second).
+				WithTimeout(20 * time.Second).
+				Should(Succeed())
+		})
+
+		It("should use the default scheduler on the host Pod without the annotation", func(ctx context.Context) {
+			virtualPod := newPod(ctx, nil)
+			hostPodName := translator.NamespacedName(virtualPod)
+
+			Eventually(func(g Gomega) {
+				hostPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(hostPod.Spec.SchedulerName).To(Equal(corev1.DefaultSchedulerName))
 			}).
 				WithPolling(time.Second).
 				WithTimeout(time.Minute).

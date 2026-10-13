@@ -32,6 +32,8 @@ jobs:
           label-filter: "update && scaling"
         - name: lifecycle
           label-filter: "lifecycle || kubelet"
+        - name: hcp
+          label-filter: "hcp"
         - name: persistence
           label-filter: "persistence"
         - name: sync

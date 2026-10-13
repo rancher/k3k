@@ -64,13 +64,26 @@ func Service(cluster *v1beta1.Cluster) *corev1.Service {
 			maps.Copy(service.Annotations, expose.Annotations)
 		}
 
+		// In HCP mode each server must be reachable on its own node,
+		// so that the agents can open a tunnel to every one of them.
+		// Only the externally routed types support a traffic policy.
+		isHCPMode := cluster.Spec.Mode == v1beta1.HCPClusterMode
+
 		switch {
 		case expose.LoadBalancer != nil:
 			service.Spec.Type = corev1.ServiceTypeLoadBalancer
 			addLoadBalancerPorts(service, *expose.LoadBalancer, k3sServerPort, etcdPort)
+
+			if isHCPMode {
+				service.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyLocal
+			}
 		case expose.NodePort != nil:
 			service.Spec.Type = corev1.ServiceTypeNodePort
 			addNodePortPorts(service, *expose.NodePort, k3sServerPort, etcdPort)
+
+			if isHCPMode {
+				service.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyLocal
+			}
 		default:
 			// default to clusterIP for ingress or empty expose config
 			service.Spec.Type = corev1.ServiceTypeClusterIP

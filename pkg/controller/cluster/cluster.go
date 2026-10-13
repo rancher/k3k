@@ -553,8 +553,19 @@ func (c *Reconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1beta
 }
 
 func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, serviceIP string) error {
+	// In HCP mode the agents reach the servers through the host node IPs,
+	// so these have to be valid for the server certificate.
+	var nodeSANs []string
+
+	if cluster.Spec.Mode == v1beta1.HCPClusterMode {
+		var err error
+		if nodeSANs, err = c.hostNodeIPs(ctx, cluster); err != nil {
+			return err
+		}
+	}
+
 	// init node config
-	initServerConfig, err := server.Config(true, serviceIP)
+	initServerConfig, err := server.Config(true, serviceIP, nodeSANs...)
 	if err != nil {
 		return err
 	}
@@ -573,7 +584,7 @@ func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.
 	}
 
 	// servers configuration
-	serverConfig, err := server.Config(false, serviceIP)
+	serverConfig, err := server.Config(false, serviceIP, nodeSANs...)
 	if err != nil {
 		return err
 	}

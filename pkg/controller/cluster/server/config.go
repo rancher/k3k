@@ -30,11 +30,12 @@ type serverConfig struct {
 }
 
 // Config returns the Secret holding the k3s configuration file for a server, built for
-// either the init server or a joining one.
-func (s *Server) Config(init bool, serviceIP string) (*corev1.Secret, error) {
+// either the init server or a joining one. The extraSANs are added to the TLS SANs of the
+// server certificate.
+func (s *Server) Config(init bool, serviceIP string, extraSANs ...string) (*corev1.Secret, error) {
 	name := configSecretName(s.cluster.Name, init)
 
-	serverConfig := buildServerConfig(s.cluster, init, serviceIP, s.token)
+	serverConfig := buildServerConfig(s.cluster, init, serviceIP, s.token, extraSANs...)
 
 	config, err := yaml.Marshal(serverConfig)
 	if err != nil {
@@ -56,8 +57,9 @@ func (s *Server) Config(init bool, serviceIP string) (*corev1.Secret, error) {
 	}, nil
 }
 
-func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, token string) serverConfig {
+func buildServerConfig(cluster *v1beta1.Cluster, initServer bool, serviceIP, token string, extraSANs ...string) serverConfig {
 	sans := sets.NewString(cluster.Spec.TLSSANs...)
+	sans.Insert(extraSANs...)
 	sans.Insert(
 		serviceIP,
 		ServiceName(cluster.Name),

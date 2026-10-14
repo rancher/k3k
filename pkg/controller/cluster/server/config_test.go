@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -35,7 +36,7 @@ func Test_buildServerConfig(t *testing.T) {
 		name       string
 		cluster    *v1beta1.Cluster
 		initServer bool
-		exposeSANs []string
+		lbIngress  []corev1.LoadBalancerIngress
 		expected   serverConfig
 	}{
 		{
@@ -242,7 +243,11 @@ func Test_buildServerConfig(t *testing.T) {
 				},
 			},
 			initServer: true,
-			exposeSANs: []string{"172.18.0.100", "lb.example.com", "10.0.0.1"},
+			lbIngress: []corev1.LoadBalancerIngress{
+				{IP: "172.18.0.100"},
+				{Hostname: "lb.example.com"},
+				{IP: "10.0.0.1"},
+			},
 			expected: serverConfig{
 				ClusterInit: true,
 				ClusterCIDR: defaultVirtualClusterCIDR,
@@ -262,7 +267,19 @@ func Test_buildServerConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := buildServerConfig(tt.cluster, tt.initServer, testServiceIP, tt.exposeSANs, testToken)
+			service := &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeClusterIP,
+					ClusterIP: testServiceIP,
+				},
+			}
+
+			if len(tt.lbIngress) > 0 {
+				service.Spec.Type = corev1.ServiceTypeLoadBalancer
+				service.Status.LoadBalancer.Ingress = tt.lbIngress
+			}
+
+			config := buildServerConfig(tt.cluster, tt.initServer, service, testToken)
 			assert.Equal(t, tt.expected, config)
 		})
 	}
@@ -284,7 +301,9 @@ func Test_buildServerConfig_TLSSANs(t *testing.T) {
 		},
 	}
 
-	config := buildServerConfig(cluster, true, testServiceIP, nil, testToken, "10.0.0.2", "10.0.0.1")
+	service := &corev1.Service{Spec: corev1.ServiceSpec{ClusterIP: testServiceIP}}
+
+	config := buildServerConfig(cluster, true, service, testToken, "10.0.0.2", "10.0.0.1")
 
 	expected := []string{
 		testServiceIP,

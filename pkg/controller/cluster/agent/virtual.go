@@ -13,7 +13,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,29 +72,22 @@ func (v *VirtualAgent) Name() string {
 // EnsureResources creates or updates every resource a virtual mode agent needs, and
 // reports all the failures together.
 func (v *VirtualAgent) EnsureResources(ctx context.Context) error {
-	// check if deployment is in use then keep it until its fully removed
-	var (
-		agentsDeployment appsv1.Deployment
-		allErrs          error
-	)
+	dep, err := v.deprecatedDeployment(ctx)
+	if err != nil {
+		return err
+	}
 
-	if err := v.client.Get(ctx, types.NamespacedName{Name: v.Name(), Namespace: v.cluster.Namespace}, &agentsDeployment); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-
+	var allErrs error
+	if dep != nil {
+		allErrs = errors.Join(
+			v.config(ctx, true),
+			v.deployment(ctx),
+		)
+	} else {
 		allErrs = errors.Join(
 			v.config(ctx, false),
 			v.headlessService(ctx),
 			v.statefulset(ctx),
-		)
-	} else {
-		// emit warning event to users for deployment deprecation
-		v.Eventf(v.cluster, &agentsDeployment, corev1.EventTypeWarning, deploymentDetectedReason, reconcilingAction, deprecationWarning)
-
-		allErrs = errors.Join(
-			v.config(ctx, true),
-			v.deployment(ctx),
 		)
 	}
 
@@ -104,6 +96,18 @@ func (v *VirtualAgent) EnsureResources(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (v *VirtualAgent) deprecatedDeployment(ctx context.Context) (*appsv1.Deployment, error) {
+	var dep appsv1.Deployment
+	if err := v.client.Get(ctx, types.NamespacedName{Name: v.Name(), Namespace: v.cluster.Namespace}, &dep); err != nil {
+		return nil, ctrlruntimeclient.IgnoreNotFound(err)
+	}
+
+	// emit warning event to users for deployment deprecation
+	v.Eventf(v.cluster, &dep, corev1.EventTypeWarning, deploymentDetectedReason, reconcilingAction, deprecationWarning)
+
+	return &dep, nil
 }
 
 func (v *VirtualAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Object) error {

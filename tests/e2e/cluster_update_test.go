@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/client-go/util/retry"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 
 	corev1 "k8s.io/api/core/v1"
@@ -93,14 +94,15 @@ var _ = When("a shared mode cluster update its envs", Label(updateTestsLabel), L
 		Expect(ok).To(BeTrue())
 		Expect(agentEnv2).To(Equal("toBeRemoved"))
 	})
+
 	It("will update server and agent envs when cluster is updated", func() {
-		Eventually(func(g Gomega) {
+		// update both agent and server envs
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			var cluster v1beta1.Cluster
+			if err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster); err != nil {
+				return err
+			}
 
-			err := k8sClient.Get(ctx, ctrlruntimeclient.ObjectKeyFromObject(virtualCluster.Cluster), &cluster)
-			g.Expect(err).NotTo(HaveOccurred())
-
-			// update both agent and server envs
 			cluster.Spec.ServerEnvs = []corev1.EnvVar{
 				{
 					Name:  "TEST_SERVER_ENV_1",
@@ -122,9 +124,13 @@ var _ = When("a shared mode cluster update its envs", Label(updateTestsLabel), L
 				},
 			}
 
-			err = k8sClient.Update(ctx, &cluster)
-			g.Expect(err).NotTo(HaveOccurred())
+			return k8sClient.Update(ctx, &cluster)
+		})
+		Expect(err).NotTo(HaveOccurred())
 
+		// The agents can restart while the server is restarting, and their readiness probe
+		// has an initial delay of 60s, so this can take a few minutes.
+		Eventually(func(g Gomega) {
 			// server pods
 			serverPods := listServerPods(ctx, virtualCluster)
 			g.Expect(len(serverPods)).To(Equal(1))
@@ -152,24 +158,28 @@ var _ = When("a shared mode cluster update its envs", Label(updateTestsLabel), L
 			aPods := listAgentPods(ctx, virtualCluster)
 			g.Expect(aPods).To(HaveLen(len(nodes.Items)))
 
-			agentPod := aPods[0]
-			_, cond = pod.GetPodCondition(&agentPod.Status, corev1.PodReady)
-			g.Expect(cond).NotTo(BeNil())
-			g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+			// check all the agents, the pods are listed by name so the first one is a random one
+			for _, agentPod := range aPods {
+				g.Expect(agentPod.DeletionTimestamp).To(BeNil(), "agent pod %s is terminating", agentPod.Name)
 
-			agentEnv1, ok := getEnv(&aPods[0], "TEST_AGENT_ENV_1")
-			g.Expect(ok).To(BeTrue())
-			g.Expect(agentEnv1).To(Equal("upgraded"))
+				_, cond = pod.GetPodCondition(&agentPod.Status, corev1.PodReady)
+				g.Expect(cond).NotTo(BeNil())
+				g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue), "agent pod %s is not ready", agentPod.Name)
 
-			_, ok = getEnv(&aPods[0], "TEST_AGENT_ENV_2")
-			g.Expect(ok).To(BeFalse())
+				agentEnv1, ok := getEnv(&agentPod, "TEST_AGENT_ENV_1")
+				g.Expect(ok).To(BeTrue())
+				g.Expect(agentEnv1).To(Equal("upgraded"))
 
-			agentEnv3, ok := getEnv(&aPods[0], "TEST_AGENT_ENV_3")
-			g.Expect(ok).To(BeTrue())
-			g.Expect(agentEnv3).To(Equal("new"))
+				_, ok = getEnv(&agentPod, "TEST_AGENT_ENV_2")
+				g.Expect(ok).To(BeFalse())
+
+				agentEnv3, ok := getEnv(&agentPod, "TEST_AGENT_ENV_3")
+				g.Expect(ok).To(BeTrue())
+				g.Expect(agentEnv3).To(Equal("new"))
+			}
 		}).
 			WithPolling(time.Second * 2).
-			WithTimeout(time.Minute * 2).
+			WithTimeout(time.Minute * 3).
 			Should(Succeed())
 	})
 })

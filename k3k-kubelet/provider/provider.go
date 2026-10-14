@@ -342,8 +342,11 @@ func (p *Provider) GetMetricsResource(ctx context.Context) ([]*dto.MetricFamily,
 	return metricFamily, nil
 }
 
-// PortForward forwards a local port to a port on the pod
+// PortForward forwards the data of a single port-forward connection to a port on the host pod.
+// It's called once per forwarded connection, with stream carrying the raw data of that connection.
 func (p *Provider) PortForward(ctx context.Context, namespace, name string, port int32, stream io.ReadWriteCloser) error {
+	defer func() { _ = stream.Close() }()
+
 	hostPodName := p.translator.TranslateName(namespace, name)
 
 	logger := p.logger.WithValues("namespace", namespace, "name", name, "pod", hostPodName, "port", port)
@@ -362,25 +365,101 @@ func (p *Provider) PortForward(ctx context.Context, namespace, name string, port
 	}
 
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, req.URL())
-	portAsString := strconv.Itoa(int(port))
-	readyChannel := make(chan struct{})
-	stopChannel := make(chan struct{}, 1)
 
-	// Today this doesn't work properly. When the port ward is supposed to stop, the caller (this provider)
-	// should send a value on stopChannel so that the PortForward is stopped. However, we only have a ReadWriteCloser
-	// so more work is needed to detect a close and handle that appropriately.
-	fw, err := portforward.New(dialer, []string{portAsString}, stopChannel, readyChannel, stream, stream)
+	conn, _, err := dialer.Dial(portforward.PortForwardProtocolV1Name)
 	if err != nil {
-		logger.Error(err, "Error creating new PortForward")
+		logger.Error(err, "Error dialing PortForward connection")
+		return err
+	}
+	defer func() { _ = conn.Close() }()
+
+	// create the error stream, we're not writing to it
+	headers := http.Header{}
+	headers.Set(corev1.StreamType, corev1.StreamTypeError)
+	headers.Set(corev1.PortHeader, strconv.Itoa(int(port)))
+	headers.Set(corev1.PortForwardRequestIDHeader, "0")
+
+	errorStream, err := conn.CreateStream(headers)
+	if err != nil {
+		logger.Error(err, "Error creating error stream")
 		return err
 	}
 
-	if err := fw.ForwardPorts(); err != nil {
-		logger.Error(err, "Error forwarding ports")
+	_ = errorStream.Close()
+
+	type readAllResult struct {
+		message []byte
+		err     error
+	}
+
+	errorChan := make(chan readAllResult, 1)
+
+	go func() {
+		message, err := io.ReadAll(errorStream)
+		errorChan <- readAllResult{message: message, err: err}
+	}()
+
+	// create the data stream
+	headers.Set(corev1.StreamType, corev1.StreamTypeData)
+
+	dataStream, err := conn.CreateStream(headers)
+	if err != nil {
+		logger.Error(err, "Error creating data stream")
+		return err
+	}
+
+	localError := make(chan struct{})
+	remoteDone := make(chan struct{})
+
+	go func() {
+		// copy from the host pod to the virtual cluster client
+		if _, err := io.Copy(stream, dataStream); err != nil && !isClosedConnError(err) {
+			logger.Error(err, "Error copying from host pod to client stream")
+		}
+
+		close(remoteDone)
+	}()
+
+	go func() {
+		// inform the host pod we're not sending any more data after the copy unblocks
+		defer func() { _ = dataStream.Close() }()
+
+		// copy from the virtual cluster client to the host pod
+		if _, err := io.Copy(dataStream, stream); err != nil && !isClosedConnError(err) {
+			logger.Error(err, "Error copying from client stream to host pod")
+			close(localError)
+		}
+	}()
+
+	select {
+	case <-remoteDone:
+	case <-localError:
+	case <-ctx.Done():
+		_ = dataStream.Reset()
+		return ctx.Err()
+	}
+
+	// reset the dataStream to discard any unsent data, otherwise reading the errorStream could block
+	_ = dataStream.Reset()
+
+	errResult := <-errorChan
+
+	switch {
+	case errResult.err != nil:
+		logger.Error(errResult.err, "Error reading from error stream")
+		return errResult.err
+	case len(errResult.message) > 0:
+		err := errors.New(string(errResult.message))
+		logger.Error(err, "Error forwarding port")
+
 		return err
 	}
 
 	return nil
+}
+
+func isClosedConnError(err error) bool {
+	return strings.Contains(strings.ToLower(err.Error()), "use of closed network connection")
 }
 
 // CreatePod executes createPod with retry

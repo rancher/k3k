@@ -3,6 +3,8 @@ package e2e_test
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -648,6 +650,41 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 				WithPolling(time.Second).
 				WithTimeout(time.Minute).
 				Should(Succeed())
+		})
+	})
+
+	When("port forwarding to a Pod", func() {
+		It("should serve the nginx default page", func(ctx context.Context) {
+			nginxPod, _ := virtualCluster.NewNginxPod("")
+
+			By("Port forwarding to the nginx Pod")
+
+			localPort := virtualCluster.PortForward(nginxPod, 80)
+			url := fmt.Sprintf("http://127.0.0.1:%d", localPort)
+
+			By("Checking the nginx default page is served through the port forward")
+
+			// do multiple requests, since each one is forwarded with a different connection
+			for range 3 {
+				Eventually(func(g Gomega) {
+					req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+					g.Expect(err).To(Not(HaveOccurred()))
+
+					resp, err := http.DefaultClient.Do(req)
+					g.Expect(err).To(Not(HaveOccurred()))
+
+					defer func() { _ = resp.Body.Close() }()
+
+					body, err := io.ReadAll(resp.Body)
+					g.Expect(err).To(Not(HaveOccurred()))
+
+					g.Expect(resp.StatusCode).To(Equal(http.StatusOK))
+					g.Expect(string(body)).To(ContainSubstring("Welcome to nginx!"))
+				}).
+					WithPolling(time.Second).
+					WithTimeout(time.Second * 30).
+					Should(Succeed())
+			}
 		})
 	})
 })

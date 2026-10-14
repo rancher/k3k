@@ -103,6 +103,36 @@ func TestService(t *testing.T) {
 				},
 			},
 		},
+		"expose load balancer with load balancer class": {
+			clusterOpts: []func(*v1beta1.Cluster){
+				func(c *v1beta1.Cluster) {
+					c.Spec.Expose = &v1beta1.ExposeConfig{
+						LoadBalancer: &v1beta1.LoadBalancerConfig{
+							LoadBalancerClass: new(string("example.com/internal-vip")),
+						},
+					}
+				},
+			},
+			serviceOpts: []func(*corev1.Service){
+				func(s *corev1.Service) {
+					s.Spec.Type = corev1.ServiceTypeLoadBalancer
+					s.Spec.LoadBalancerClass = new(string("example.com/internal-vip"))
+					s.Spec.Ports = []corev1.ServicePort{
+						{
+							Name:       "k3s-server-port",
+							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							TargetPort: intstr.FromInt(6443),
+						},
+						{
+							Name:     "k3s-etcd-port",
+							Protocol: corev1.ProtocolTCP,
+							Port:     int32(2379),
+						},
+					}
+				},
+			},
+		},
 		"expose node port": {
 			clusterOpts: []func(*v1beta1.Cluster){
 				func(c *v1beta1.Cluster) {

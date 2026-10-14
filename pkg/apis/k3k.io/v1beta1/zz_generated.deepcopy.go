@@ -75,8 +75,8 @@ func (in *AppliedPolicy) DeepCopyInto(out *AppliedPolicy) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.AllowedSchedulers != nil {
-		in, out := &in.AllowedSchedulers, &out.AllowedSchedulers
+	if in.AllowedHostSchedulers != nil {
+		in, out := &in.AllowedHostSchedulers, &out.AllowedHostSchedulers
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -287,8 +287,8 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.AllowedSchedulers != nil {
-		in, out := &in.AllowedSchedulers, &out.AllowedSchedulers
+	if in.AllowedHostSchedulers != nil {
+		in, out := &in.AllowedHostSchedulers, &out.AllowedHostSchedulers
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -930,8 +930,8 @@ func (in *VirtualClusterPolicySpec) DeepCopyInto(out *VirtualClusterPolicySpec) 
 		*out = new(bool)
 		**out = **in
 	}
-	if in.AllowedSchedulers != nil {
-		in, out := &in.AllowedSchedulers, &out.AllowedSchedulers
+	if in.AllowedHostSchedulers != nil {
+		in, out := &in.AllowedHostSchedulers, &out.AllowedHostSchedulers
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

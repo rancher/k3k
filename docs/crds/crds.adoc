@@ -78,10 +78,12 @@ to the agent and server containers of the cluster in virtual or shared mode. + |
 If set to true or not present, the pod will be run in the host user namespace. +
 When set to false, a new userns is created for the pod. +
 This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. + |  | 
-| *`allowedSchedulers`* __string array__ | AllowedSchedulers is the list of host cluster schedulers that workloads can request +
+| *`allowedHostSchedulers`* __string array__ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request +
 with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode, +
 where the requested scheduler is set on the Pod synced to the host cluster. +
-Pods requesting a scheduler that is not in this list are not synced. + |  | 
+Pods requesting a scheduler that is not in this list are not synced. +
+This list is only checked against the annotation and has nothing to do with the +
+Pod's spec.schedulerName field, which is still handled by the virtual cluster. + |  | 
 |===
 
 
@@ -246,10 +248,12 @@ agent and server pods of the cluster in virtual or shared mode. + |  |
 If set to true or not present, the pod will be run in the host user namespace. +
 When set to false, a new userns is created for the pod. +
 This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. + |  | 
-| *`allowedSchedulers`* __string array__ | AllowedSchedulers is the list of host cluster schedulers that workloads can request +
+| *`allowedHostSchedulers`* __string array__ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request +
 with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode, +
 where the requested scheduler is set on the Pod synced to the host cluster. +
-Pods requesting a scheduler that is not in this list are not synced. + |  | 
+Pods requesting a scheduler that is not in this list are not synced. +
+This list is only checked against the annotation and has nothing to do with the +
+Pod's spec.schedulerName field, which is still handled by the virtual cluster. + |  | 
 |===
 
 
@@ -927,10 +931,12 @@ agent and server pods of the cluster in virtual or shared mode. + |  |
 If set to true or not present, the pod will be run in the host user namespace. +
 When set to false, a new userns is created for the pod. +
 This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. + |  | 
-| *`allowedSchedulers`* __string array__ | AllowedSchedulers is the list of host cluster schedulers that workloads can request +
+| *`allowedHostSchedulers`* __string array__ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request +
 with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode, +
 where the requested scheduler is set on the Pod synced to the host cluster. +
-Pods requesting a scheduler that is not in this list are not synced. + |  | 
+Pods requesting a scheduler that is not in this list are not synced. +
+This list is only checked against the annotation and has nothing to do with the +
+Pod's spec.schedulerName field, which is still handled by the virtual cluster. + |  | 
 |===
 
 

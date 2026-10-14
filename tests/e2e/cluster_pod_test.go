@@ -31,7 +31,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 
 	BeforeAll(func() {
 		virtualCluster = NewVirtualClusterWithOpts(func(c *v1beta1.Cluster) {
-			c.Spec.AllowedSchedulers = []string{"custom-scheduler"}
+			c.Spec.AllowedHostSchedulers = []string{"custom-scheduler"}
 		})
 		translator = translate.NewHostTranslator(virtualCluster.Cluster)
 

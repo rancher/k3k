@@ -493,12 +493,12 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 
 	// if custom scheduler annotation is present then we check for allowed scheduler and then add it to the host pod
 	if schedulerName, ok := virtualPod.Annotations[customSchedulerAnnotation]; ok && schedulerName != "" {
-		allowedSchedulers := cluster.Spec.AllowedSchedulers
-		if cluster.Status.Policy != nil && cluster.Status.Policy.AllowedSchedulers != nil {
-			allowedSchedulers = cluster.Status.Policy.AllowedSchedulers
+		allowedHostSchedulers := cluster.Spec.AllowedHostSchedulers
+		if cluster.Status.Policy != nil && cluster.Status.Policy.AllowedHostSchedulers != nil {
+			allowedHostSchedulers = cluster.Status.Policy.AllowedHostSchedulers
 		}
 
-		if !slices.Contains(allowedSchedulers, schedulerName) {
+		if !slices.Contains(allowedHostSchedulers, schedulerName) {
 			// if the scheduler is not listed in the allowed schedulers then we should return an error
 			return fmt.Errorf("scheduler %s is not allowed to be used for this cluster", schedulerName)
 		}

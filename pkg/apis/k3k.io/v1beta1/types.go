@@ -241,13 +241,15 @@ type ClusterSpec struct {
 	// +optional
 	HostUsers *bool `json:"hostUsers,omitempty"`
 
-	// AllowedSchedulers is the list of host cluster schedulers that workloads can request
+	// AllowedHostSchedulers is the list of host cluster schedulers that workloads can request
 	// with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,
 	// where the requested scheduler is set on the Pod synced to the host cluster.
 	// Pods requesting a scheduler that is not in this list are not synced.
+	// This list is only checked against the annotation and has nothing to do with the
+	// Pod's spec.schedulerName field, which is still handled by the virtual cluster.
 	//
 	// +optional
-	AllowedSchedulers []string `json:"allowedSchedulers,omitempty"`
+	AllowedHostSchedulers []string `json:"allowedHostSchedulers,omitempty"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,
@@ -724,13 +726,15 @@ type AppliedPolicy struct {
 	// +optional
 	HostUsers *bool `json:"hostUsers,omitempty"`
 
-	// AllowedSchedulers is the list of host cluster schedulers that workloads can request
+	// AllowedHostSchedulers is the list of host cluster schedulers that workloads can request
 	// with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,
 	// where the requested scheduler is set on the Pod synced to the host cluster.
 	// Pods requesting a scheduler that is not in this list are not synced.
+	// This list is only checked against the annotation and has nothing to do with the
+	// Pod's spec.schedulerName field, which is still handled by the virtual cluster.
 	//
 	// +optional
-	AllowedSchedulers []string `json:"allowedSchedulers,omitempty"`
+	AllowedHostSchedulers []string `json:"allowedHostSchedulers,omitempty"`
 }
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.
@@ -862,13 +866,15 @@ type VirtualClusterPolicySpec struct {
 	// +optional
 	HostUsers *bool `json:"hostUsers,omitempty"`
 
-	// AllowedSchedulers is the list of host cluster schedulers that workloads can request
+	// AllowedHostSchedulers is the list of host cluster schedulers that workloads can request
 	// with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,
 	// where the requested scheduler is set on the Pod synced to the host cluster.
 	// Pods requesting a scheduler that is not in this list are not synced.
+	// This list is only checked against the annotation and has nothing to do with the
+	// Pod's spec.schedulerName field, which is still handled by the virtual cluster.
 	//
 	// +optional
-	AllowedSchedulers []string `json:"allowedSchedulers,omitempty"`
+	AllowedHostSchedulers []string `json:"allowedHostSchedulers,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

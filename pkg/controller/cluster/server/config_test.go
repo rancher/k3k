@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -35,6 +36,7 @@ func Test_buildServerConfig(t *testing.T) {
 		name       string
 		cluster    *v1beta1.Cluster
 		initServer bool
+		lbIngress  []corev1.LoadBalancerIngress
 		expected   serverConfig
 	}{
 		{
@@ -224,11 +226,60 @@ func Test_buildServerConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "init server with expose SANs merged and sorted",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testClusterName,
+					Namespace: testClusterNamespace,
+				},
+				Spec: v1beta1.ClusterSpec{
+					Mode:    v1beta1.VirtualClusterMode,
+					TLSSANs: []string{"10.0.0.1"},
+				},
+				Status: v1beta1.ClusterStatus{
+					ClusterCIDR: defaultVirtualClusterCIDR,
+					ServiceCIDR: defaultVirtualServiceCIDR,
+				},
+			},
+			initServer: true,
+			lbIngress: []corev1.LoadBalancerIngress{
+				{IP: "172.18.0.100"},
+				{Hostname: "lb.example.com"},
+				{IP: "10.0.0.1"},
+			},
+			expected: serverConfig{
+				ClusterInit: true,
+				ClusterCIDR: defaultVirtualClusterCIDR,
+				ServiceCIDR: defaultVirtualServiceCIDR,
+				Token:       testToken,
+				TLSSAN: []string{
+					testServiceIP,
+					"10.0.0.1",
+					"172.18.0.100",
+					ServiceName(testClusterName),
+					fmt.Sprintf("%s.%s", ServiceName(testClusterName), testClusterNamespace),
+					"lb.example.com",
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := buildServerConfig(tt.cluster, tt.initServer, testServiceIP, testToken)
+			service := &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeClusterIP,
+					ClusterIP: testServiceIP,
+				},
+			}
+
+			if len(tt.lbIngress) > 0 {
+				service.Spec.Type = corev1.ServiceTypeLoadBalancer
+				service.Status.LoadBalancer.Ingress = tt.lbIngress
+			}
+
+			config := buildServerConfig(tt.cluster, tt.initServer, service, testToken)
 			assert.Equal(t, tt.expected, config)
 		})
 	}
@@ -250,7 +301,9 @@ func Test_buildServerConfig_TLSSANs(t *testing.T) {
 		},
 	}
 
-	config := buildServerConfig(cluster, true, testServiceIP, testToken, "10.0.0.2", "10.0.0.1")
+	service := &corev1.Service{Spec: corev1.ServiceSpec{ClusterIP: testServiceIP}}
+
+	config := buildServerConfig(cluster, true, service, testToken, "10.0.0.2", "10.0.0.1")
 
 	expected := []string{
 		testServiceIP,

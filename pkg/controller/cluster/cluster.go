@@ -444,11 +444,18 @@ func (c *Reconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) er
 
 	serviceIP := service.Spec.ClusterIP
 
-	if err := c.ensureClusterConfigs(ctx, cluster, s, serviceIP); err != nil {
+	// The LoadBalancer addresses are added to the server TLS SANs: wait for them before configuring
+	// the servers, to avoid restarting them (and losing the data of ephemeral clusters) once assigned.
+	exposeSANs := server.LoadBalancerSANs(service)
+	if service.Spec.Type == corev1.ServiceTypeLoadBalancer && len(exposeSANs) == 0 {
+		return fmt.Errorf("%w: waiting for the LoadBalancer address of the cluster service", k3s.ErrServerNotReady)
+	}
+
+	if err := c.ensureClusterConfigs(ctx, cluster, s, service); err != nil {
 		return err
 	}
 
-	if err := c.server(ctx, cluster, s); err != nil {
+	if err := c.server(ctx, cluster, s, exposeSANs); err != nil {
 		return err
 	}
 
@@ -552,7 +559,7 @@ func (c *Reconciler) ensureKubeconfigSecret(ctx context.Context, cluster *v1beta
 	return err
 }
 
-func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, serviceIP string) error {
+func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, service *corev1.Service) error {
 	// In HCP mode the agents reach the servers through the host node IPs,
 	// so these have to be valid for the server certificate.
 	var nodeSANs []string
@@ -565,7 +572,7 @@ func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.
 	}
 
 	// init node config
-	initServerConfig, err := server.Config(true, serviceIP, nodeSANs...)
+	initServerConfig, err := server.Config(true, service, nodeSANs...)
 	if err != nil {
 		return err
 	}
@@ -584,7 +591,7 @@ func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.
 	}
 
 	// servers configuration
-	serverConfig, err := server.Config(false, serviceIP, nodeSANs...)
+	serverConfig, err := server.Config(false, service, nodeSANs...)
 	if err != nil {
 		return err
 	}
@@ -905,7 +912,7 @@ func (c *Reconciler) ensureStorageClasses(ctx context.Context, cluster *v1beta1.
 	return nil
 }
 
-func (c *Reconciler) server(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server) error {
+func (c *Reconciler) server(ctx context.Context, cluster *v1beta1.Cluster, server *server.Server, exposeSANs []string) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	// create headless service for the statefulset
@@ -920,7 +927,7 @@ func (c *Reconciler) server(ctx context.Context, cluster *v1beta1.Cluster, serve
 		}
 	}
 
-	expectedServerStatefulSet, err := server.StatefulServer(ctx)
+	expectedServerStatefulSet, err := server.StatefulServer(ctx, exposeSANs)
 	if err != nil {
 		return err
 	}

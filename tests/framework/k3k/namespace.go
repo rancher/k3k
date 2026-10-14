@@ -41,8 +41,13 @@ func CreateNamespace(clientset kubernetes.Interface) *corev1.Namespace {
 // DeleteNamespaces deletes the specified namespaces in parallel.
 // If the KEEP_NAMESPACES environment variable is set, namespaces are preserved instead.
 // This is useful for debugging test failures.
+// If the current spec failed, the namespaces are dumped to /tmp/e2e-failure-logs before being deleted.
 func DeleteNamespaces(clientset kubernetes.Interface, names ...string) {
 	GinkgoHelper()
+
+	for _, name := range names {
+		dumpFailedSpecNamespace(clientset, name)
+	}
 
 	if _, found := os.LookupEnv("KEEP_NAMESPACES"); found {
 		By(fmt.Sprintf("Keeping namespaces %v", names))

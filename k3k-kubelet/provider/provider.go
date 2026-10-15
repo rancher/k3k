@@ -10,6 +10,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +43,10 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
+
+// HostSchedulerNameAnnotation is the annotation to be used when specifying a custom scheduler
+// for the virtual pod when synced on the host cluster.
+const HostSchedulerNameAnnotation = "k3k.io/host-scheduler-name"
 
 // check at compile time if the Provider implements the nodeutil.Provider interface
 var _ nodeutil.Provider = (*Provider)(nil)
@@ -486,6 +491,30 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	// if the priority class is set we need to remove the priority
 	if hostPod.Spec.PriorityClassName != "" {
 		hostPod.Spec.Priority = nil
+	}
+
+	allowedHostSchedulers := cluster.Spec.AllowedHostSchedulers
+	if cluster.Status.Policy != nil && cluster.Status.Policy.AllowedHostSchedulers != nil {
+		allowedHostSchedulers = cluster.Status.Policy.AllowedHostSchedulers
+	}
+
+	// if custom scheduler annotation is present then we check for allowed scheduler and then add it to the host pod
+	if schedulerName, ok := virtualPod.Annotations[HostSchedulerNameAnnotation]; ok && schedulerName != "" {
+		if !slices.Contains(allowedHostSchedulers, schedulerName) {
+			// if the scheduler is not listed in the allowed schedulers then we should return an error
+			return fmt.Errorf("scheduler %s is not allowed to be used for this cluster", schedulerName)
+		}
+
+		hostPod.Spec.SchedulerName = schedulerName
+	}
+
+	// also checking SchedulerName in case of a deployed custom scheduler in the virtual cluster
+	if virtualPod.Spec.SchedulerName != "" && virtualPod.Spec.SchedulerName != corev1.DefaultSchedulerName {
+		// check if this custom scheduler is in the allow list, if not then
+		// clear the scheduler Name when syncing the pod
+		if !slices.Contains(allowedHostSchedulers, virtualPod.Spec.SchedulerName) {
+			return fmt.Errorf("scheduler %s is not allowed to be used for this cluster", virtualPod.Spec.SchedulerName)
+		}
 	}
 
 	p.configurePodEnvs(hostPod, &virtualPod)

@@ -1161,6 +1161,17 @@ spec:
                 x-kubernetes-validations:
                 - message: invalid value for agents
                   rule: self >= 0
+              allowedHostSchedulers:
+                description: |-
+                  AllowedHostSchedulers is the list of host cluster schedulers that workloads can request
+                  with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,
+                  where the requested scheduler is set on the Pod synced to the host cluster.
+                  Pods requesting a scheduler that is not in this list are not synced.
+                  This list is only checked against the annotation and has nothing to do with the
+                  Pod's spec.schedulerName field, which is still handled by the virtual cluster.
+                items:
+                  type: string
+                type: array
               clusterCIDR:
                 description: |-
                   ClusterCIDR is the CIDR range for pod IPs.
@@ -4376,6 +4387,17 @@ spec:
                             x-kubernetes-list-type: atomic
                         type: object
                     type: object
+                  allowedHostSchedulers:
+                    description: |-
+                      AllowedHostSchedulers is the list of host cluster schedulers that workloads can request
+                      with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,
+                      where the requested scheduler is set on the Pod synced to the host cluster.
+                      Pods requesting a scheduler that is not in this list are not synced.
+                      This list is only checked against the annotation and has nothing to do with the
+                      Pod's spec.schedulerName field, which is still handled by the virtual cluster.
+                    items:
+                      type: string
+                    type: array
                   hostUsers:
                     description: |-
                       HostUsers sets the user namespace for server and agent pods.

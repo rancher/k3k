@@ -10,6 +10,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -659,10 +660,18 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 		newPod := func(ctx context.Context, annotations map[string]string) *corev1.Pod {
 			GinkgoHelper()
 
+			// create a new namespace for each virtual pod
+			ns, err := virtualCluster.Client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "custom-scheduler-",
+				},
+			}, metav1.CreateOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+
 			p := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "nginx-",
-					Namespace:    "default",
+					Namespace:    ns.Name,
 					Annotations:  annotations,
 				},
 				Spec: corev1.PodSpec{
@@ -673,7 +682,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 				},
 			}
 
-			p, err := virtualCluster.Client.CoreV1().Pods(p.Namespace).Create(ctx, p, metav1.CreateOptions{})
+			p, err = virtualCluster.Client.CoreV1().Pods(p.Namespace).Create(ctx, p, metav1.CreateOptions{})
 			Expect(err).To(Not(HaveOccurred()))
 
 			return p
@@ -726,6 +735,39 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 				hostPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(hostPod.Spec.SchedulerName).To(Equal(corev1.DefaultSchedulerName))
+			}).
+				WithPolling(time.Second).
+				WithTimeout(time.Minute).
+				Should(Succeed())
+		})
+
+		It("should not create the host pod when the allowed custom schedulers is empty and the pod is annotated", func(ctx context.Context) {
+			origCluster := virtualCluster.Cluster.DeepCopy()
+			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(origCluster), origCluster)
+			Expect(err).ToNot(HaveOccurred())
+
+			origCluster.Spec.AllowedHostSchedulers = nil
+			err = k8sClient.Update(ctx, origCluster)
+			Expect(err).ToNot(HaveOccurred())
+
+			virtualPod := newPod(ctx, map[string]string{provider.HostSchedulerNameAnnotation: "empty-allowed-schedulers"})
+
+			Eventually(func(g Gomega) {
+				eventList, err := virtualCluster.Client.CoreV1().Events(virtualPod.Namespace).List(ctx, metav1.ListOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(len(eventList.Items) > 0).To(BeTrue())
+
+				var providerFailedEvent *corev1.Event
+
+				for _, event := range eventList.Items {
+					if event.Type == corev1.EventTypeWarning && event.Reason == "ProviderCreateFailed" {
+						providerFailedEvent = &event
+						break
+					}
+				}
+
+				g.Expect(providerFailedEvent).NotTo(BeNil())
+				g.Expect(providerFailedEvent.Message).To(ContainSubstring("scheduler empty-allowed-schedulers is not allowed to be used for this cluster"))
 			}).
 				WithPolling(time.Second).
 				WithTimeout(time.Minute).

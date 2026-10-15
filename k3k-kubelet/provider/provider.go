@@ -44,6 +44,8 @@ import (
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
 
+// HostSchedulerNameAnnotation is the annotation to be used when specifying a custom scheduler
+// for the virtual pod when synced on the host cluster.
 const HostSchedulerNameAnnotation = "k3k.io/host-scheduler-name"
 
 // check at compile time if the Provider implements the nodeutil.Provider interface

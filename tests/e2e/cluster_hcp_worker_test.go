@@ -38,6 +38,7 @@ var _ = When("an external worker joins an HCP cluster", Label(hcpTestsLabel), La
 	BeforeEach(func() {
 		skipWithoutDocker()
 		skipWithSingleHostNode()
+		skipWithoutNodePort()
 
 		namespace := fwk3k.CreateNamespace(k8s)
 
@@ -114,6 +115,14 @@ func skipWithoutDocker() {
 
 	if err := exec.Command("docker", "info").Run(); err != nil {
 		Skip("skipping: no usable docker daemon (" + err.Error() + ")")
+	}
+}
+
+// skipWithoutNodePort skips the spec when the clusters are not exposed through a NodePort:
+// a LoadBalancer is a single front door that cannot address the individual servers.
+func skipWithoutNodePort() {
+	if expose != exposeNodePort {
+		Skip("skipping: the servers are individually addressable only with the nodeport expose type")
 	}
 }
 

@@ -107,9 +107,7 @@ func NewCluster(namespace string, opts ...func(*v1beta1.Cluster)) *v1beta1.Clust
 		},
 		Spec: v1beta1.ClusterSpec{
 			TLSSANs: []string{hostIP},
-			Expose: &v1beta1.ExposeConfig{
-				NodePort: &v1beta1.NodePortConfig{},
-			},
+			Expose:  newExposeConfig(),
 			Persistence: v1beta1.PersistenceConfig{
 				Type: v1beta1.EphemeralPersistenceMode,
 			},
@@ -121,6 +119,19 @@ func NewCluster(namespace string, opts ...func(*v1beta1.Cluster)) *v1beta1.Clust
 	}
 
 	return c
+}
+
+// newExposeConfig returns the ExposeConfig matching the expose type selected for the suite
+func newExposeConfig() *v1beta1.ExposeConfig {
+	if expose == exposeLoadBalancer {
+		return &v1beta1.ExposeConfig{
+			LoadBalancer: &v1beta1.LoadBalancerConfig{},
+		}
+	}
+
+	return &v1beta1.ExposeConfig{
+		NodePort: &v1beta1.NodePortConfig{},
+	}
 }
 
 func CreateCluster(cluster *v1beta1.Cluster) {
@@ -212,32 +223,7 @@ func NewVirtualCtrlClient(restCfg *rest.Config, scheme *runtime.Scheme) client.C
 func NewVirtualK8sClientAndConfig(cluster *v1beta1.Cluster) (*kubernetes.Clientset, *rest.Config) {
 	GinkgoHelper()
 
-	var (
-		err    error
-		config *clientcmdapi.Config
-	)
-
-	ctx := context.Background()
-
-	Eventually(func() error {
-		vKubeconfig := kubeconfig.New()
-		kubeletAltName := fmt.Sprintf("k3k-%s-kubelet", cluster.Name)
-		vKubeconfig.AltNames = certs.AddSANs([]string{hostIP, kubeletAltName})
-		config, err = vKubeconfig.Generate(ctx, k8sClient, cluster, hostIP)
-
-		return err
-	}).
-		WithTimeout(time.Minute * 2).
-		WithPolling(time.Second * 5).
-		Should(BeNil())
-
-	configData, err := clientcmd.Write(*config)
-	Expect(err).To(Not(HaveOccurred()))
-
-	restcfg, err := clientcmd.RESTConfigFromKubeConfig(configData)
-	Expect(err).To(Not(HaveOccurred()))
-	virtualK8sClient, err := kubernetes.NewForConfig(restcfg)
-	Expect(err).To(Not(HaveOccurred()))
+	virtualK8sClient, restcfg, _ := NewVirtualK8sClientAndKubeconfig(cluster)
 
 	return virtualK8sClient, restcfg
 }

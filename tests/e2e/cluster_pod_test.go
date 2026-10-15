@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/rancher/k3k/k3k-kubelet/provider"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -654,9 +655,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 		})
 	})
 
-	When("creating a Pod with the host scheduler annotation", Label("test"), func() {
-		hostSchedulerAnnotation := "k3k.io/host-scheduler-name"
-
+	When("creating a Pod with the host scheduler annotation", func() {
 		newPod := func(ctx context.Context, annotations map[string]string) *corev1.Pod {
 			GinkgoHelper()
 
@@ -681,7 +680,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 		}
 
 		It("should use the annotated scheduler on the host Pod when it is allowed", func(ctx context.Context) {
-			virtualPod := newPod(ctx, map[string]string{hostSchedulerAnnotation: "custom-scheduler"})
+			virtualPod := newPod(ctx, map[string]string{provider.HostSchedulerNameAnnotation: "custom-scheduler"})
 			hostPodName := translator.NamespacedName(virtualPod)
 
 			Eventually(func(g Gomega) {
@@ -695,7 +694,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 		})
 
 		It("should not create the host Pod when the annotated scheduler is not allowed", func(ctx context.Context) {
-			virtualPod := newPod(ctx, map[string]string{hostSchedulerAnnotation: "not-allowed-scheduler"})
+			virtualPod := newPod(ctx, map[string]string{provider.HostSchedulerNameAnnotation: "not-allowed-scheduler"})
 
 			Eventually(func(g Gomega) {
 				eventList, err := virtualCluster.Client.CoreV1().Events(virtualPod.Namespace).List(ctx, metav1.ListOptions{})

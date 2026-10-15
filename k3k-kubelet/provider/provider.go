@@ -44,7 +44,7 @@ import (
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
 
-const customSchedulerAnnotation = "k3k.io/host-scheduler-name"
+const HostSchedulerNameAnnotation = "k3k.io/host-scheduler-name"
 
 // check at compile time if the Provider implements the nodeutil.Provider interface
 var _ nodeutil.Provider = (*Provider)(nil)

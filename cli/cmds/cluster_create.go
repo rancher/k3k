@@ -187,7 +187,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 
 		var kubeconfig *clientcmdapi.Config
 
-		if err := retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
+		err = retry.OnError(availableBackoff, apierrors.IsNotFound, func() error {
 			kubeconfigSecretKey := types.NamespacedName{
 				Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "kubeconfig"),
 				Namespace: cluster.Namespace,
@@ -201,7 +201,8 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			kubeconfig, err = clientcmd.Load(kubeconfigSecret.Data["kubeconfig.yaml"])
 
 			return err
-		}); err != nil {
+		})
+		if err != nil {
 			return err
 		}
 

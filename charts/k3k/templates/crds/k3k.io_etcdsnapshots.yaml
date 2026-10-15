@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.20.0
+    controller-gen.kubebuilder.io/version: v0.22.0
     helm.sh/resource-policy: keep
   name: etcdsnapshots.k3k.io
 spec:
@@ -60,14 +60,14 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
                 x-kubernetes-validations:
-                - message: clusterRef is immutable
+                - message: field is immutable
                   rule: self == oldSelf
               compress:
                 default: false
                 description: Compress specifies if the snapshot should be compressed
                 type: boolean
                 x-kubernetes-validations:
-                - message: compress is immutable
+                - message: field is immutable
                   rule: self == oldSelf
               s3ConfigSecretRef:
                 description: |-
@@ -91,11 +91,16 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
                 x-kubernetes-validations:
-                - message: s3ConfigSecretRef is immutable
+                - message: field is immutable
                   rule: self == oldSelf
             required:
             - clusterRef
             type: object
+            x-kubernetes-validations:
+            - message: field s3ConfigSecretRef is immutable once set
+              rule: '!has(oldSelf.s3ConfigSecretRef) || has(self.s3ConfigSecretRef)'
+            - message: field compress is immutable once set
+              rule: '!has(oldSelf.compress) || has(self.compress)'
           status:
             description: EtcdSnapshotStatus reflects the observed state of an EtcdSnapshot.
             properties:

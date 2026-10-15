@@ -50,7 +50,7 @@ type ClusterSpec struct {
 	//
 	// +kubebuilder:default=shared
 	// +kubebuilder:validation:Enum=shared;virtual;hcp
-	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	Mode ClusterMode `json:"mode,omitempty"`
 
@@ -75,7 +75,7 @@ type ClusterSpec struct {
 	// Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="clusterCIDR is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	ClusterCIDR string `json:"clusterCIDR,omitempty"`
 
@@ -83,7 +83,7 @@ type ClusterSpec struct {
 	// Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="serviceCIDR is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	ServiceCIDR string `json:"serviceCIDR,omitempty"`
 
@@ -91,7 +91,7 @@ type ClusterSpec struct {
 	// Must be within the ServiceCIDR range. Defaults to 10.43.0.10.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="clusterDNS is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	ClusterDNS string `json:"clusterDNS,omitempty"`
 
@@ -482,7 +482,7 @@ type PersistenceConfig struct {
 	// This field is only relevant in "dynamic" mode.
 	//
 	// +kubebuilder:default="2G"
-	// +kubebuilder:validation:XValidation:message="storageRequestSize is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	StorageRequestSize *resource.Quantity `json:"storageRequestSize,omitempty"`
 }
@@ -651,9 +651,14 @@ type ClusterStatus struct {
 	// Phase is a high-level summary of the cluster's current lifecycle state.
 	//
 	// +kubebuilder:default=Unknown
-	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Failed;Terminating;Unknown
+	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Restoring;Failed;Terminating;Unknown
 	// +optional
 	Phase ClusterPhase `json:"phase,omitempty"`
+
+	// ActiveRestoreRef is the reference to the current active restoration object that is being restored.
+	//
+	// +optional
+	ActiveRestoreRef *corev1.LocalObjectReference `json:"activeRestoreRef,omitempty"`
 }
 
 // AppliedPolicy defines the observed state of an applied policy.
@@ -728,6 +733,7 @@ const (
 	ClusterFailed       = ClusterPhase("Failed")
 	ClusterTerminating  = ClusterPhase("Terminating")
 	ClusterUnknown      = ClusterPhase("Unknown")
+	ClusterRestoring    = ClusterPhase("Restoring")
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -806,7 +812,7 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +kubebuilder:default=shared
 	// +kubebuilder:validation:Enum=shared;virtual;hcp
-	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	AllowedMode ClusterMode `json:"allowedMode,omitempty"`
 
@@ -922,9 +928,9 @@ type EtcdSnapshotSpec struct {
 	// ClusterRef is a reference to the cluster where the snapshot will be taken.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="clusterRef is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +required
-	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
+	ClusterRef *corev1.LocalObjectReference `json:"clusterRef"`
 
 	// S3ConfigSecretRef defines the S3 configuration secret that contains all
 	// S3 configuration. The configuration items are expected to match the following:
@@ -935,14 +941,14 @@ type EtcdSnapshotSpec struct {
 	// Setting this will also cause k3s to create a local etcd snapshot on disk and then upload
 	// it to S3. When the request is deleted, both the on-disk and S3 files will be deleted.
 	//
-	// +kubebuilder:validation:XValidation:message="s3ConfigSecretRef is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	S3ConfigSecretRef *corev1.SecretReference `json:"s3ConfigSecretRef,omitempty"`
 
 	// Compress specifies if the snapshot should be compressed
 	//
-	// +kubebuilder:validation:XValidation:message="compress is immutable",rule="self == oldSelf"
 	// +kubebuilder:default=false
+	// +k8s:immutable
 	// +optional
 	Compress bool `json:"compress"`
 }
@@ -970,4 +976,57 @@ type EtcdSnapshotList struct {
 	metav1.TypeMeta `json:",inline"`
 
 	Items []EtcdSnapshot `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="SUCCEEDED",type="string",JSONPath=`.status.conditions[?(@.type=='Succeeded')].status`
+// +kubebuilder:printcolumn:name="REASON",type="string",JSONPath=`.status.conditions[?(@.type=='Succeeded')].reason`
+
+type EtcdRestore struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+
+	// +required
+	Spec EtcdRestoreSpec `json:"spec"`
+
+	// +optional
+	Status EtcdRestoreStatus `json:"status,omitempty"`
+}
+
+// EtcdRestoreSpec defines the desired state of a EtcdRestore.
+type EtcdRestoreSpec struct {
+	// ClusterRef is a reference to the cluster where a snapshot will be restored.
+	// This field is immutable.
+	//
+	// +k8s:immutable
+	// +required
+	ClusterRef *corev1.LocalObjectReference `json:"clusterRef"`
+
+	// SnapshotRef is a reference to the EtcdSnapshot object that will be restored on the cluster.
+	// This field is immutable.
+	//
+	// +k8s:immutable
+	// +required
+	SnapshotRef *corev1.LocalObjectReference `json:"snapshotRef"`
+}
+
+// EtcdRestoreStatus reflects the observed state of a EtcdRestore.
+type EtcdRestoreStatus struct {
+	// Conditions are the individual conditions for the EtcdRestore.
+	//
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+
+// EtcdRestoreList is a list of EtcdRestore resources.
+type EtcdRestoreList struct {
+	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `json:",inline"`
+
+	Items []EtcdRestore `json:"items"`
 }

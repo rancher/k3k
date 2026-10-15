@@ -27,8 +27,11 @@ safe_mode() {
 	# skipping if the node is starting for the first time
 	if [ -d "{{.ETCD_DIR}}" ]; then
 
+		# the safe mode logs are printed only on failure, to keep the container logs clean
+		SAFE_MODE_LOG=/var/log/k3s-safe-mode.log
+
 		info "Starting K3s in Safe Mode (Network Policy Disabled) to patch Node IP from ${CURRENT_IP} to ${POD_IP}"
-		/bin/k3s server --disable-network-policy --config $1 $EXTRA_ARGS > /dev/null 2>&1 &
+		/bin/k3s server --disable-network-policy --config $1 $EXTRA_ARGS > $SAFE_MODE_LOG 2>&1 &
 		PID=$!
 
 		# Start the loop to wait for the nodeIP to change
@@ -36,12 +39,14 @@ safe_mode() {
 		count=0
 		until kubectl get nodes -o wide 2>/dev/null | grep -q "${POD_IP}"; do
 			if ! kill -0 $PID 2>/dev/null; then
+				tail -n 50 $SAFE_MODE_LOG >&2
 				fatal "safe Mode K3s process died unexpectedly!"
 			fi
 			sleep 2
 			count=$((count+1))
 
 			if [ $count -gt 60 ]; then
+				tail -n 50 $SAFE_MODE_LOG >&2
 				fatal "timed out waiting for node to change IP from $CURRENT_IP to $POD_IP"
 			fi
 		done

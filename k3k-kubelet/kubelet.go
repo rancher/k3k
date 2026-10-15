@@ -312,11 +312,12 @@ func virtRestConfig(ctx context.Context, virtualConfigPath string, hostClient ct
 		Namespace: clusterNamespace,
 	}
 
-	if err := retry.OnError(controller.Backoff, func(err error) bool {
+	err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err != nil
 	}, func() error {
 		return hostClient.Get(ctx, kubeconfigSecretName, &clusterKubeConfig)
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("unable to decode bootstrap: %w", err)
 	}
 

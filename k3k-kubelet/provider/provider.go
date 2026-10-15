@@ -192,7 +192,7 @@ func (p *Provider) RunInContainer(ctx context.Context, namespace, name, containe
 		return err
 	}
 
-	if err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  attach.Stdin(),
 		Stdout: attach.Stdout(),
 		Stderr: attach.Stderr(),
@@ -200,7 +200,8 @@ func (p *Provider) RunInContainer(ctx context.Context, namespace, name, containe
 		TerminalSizeQueue: &translatorSizeQueue{
 			resizeChan: attach.Resize(),
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		logger.Error(err, "Error while executing command in container")
 		return err
 	}
@@ -236,7 +237,7 @@ func (p *Provider) AttachToContainer(ctx context.Context, namespace, name, conta
 		return err
 	}
 
-	if err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  attach.Stdin(),
 		Stdout: attach.Stdout(),
 		Stderr: attach.Stderr(),
@@ -244,7 +245,8 @@ func (p *Provider) AttachToContainer(ctx context.Context, namespace, name, conta
 		TerminalSizeQueue: &translatorSizeQueue{
 			resizeChan: attach.Resize(),
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		logger.Error(err, "Error while attaching to container")
 		return err
 	}

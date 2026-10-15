@@ -513,7 +513,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 		// check if this custom scheduler is in the allow list, if not then
 		// clear the scheduler Name when syncing the pod
 		if !slices.Contains(allowedHostSchedulers, virtualPod.Spec.SchedulerName) {
-			hostPod.Spec.SchedulerName = ""
+			return fmt.Errorf("scheduler %s is not allowed to be used for this cluster", virtualPod.Spec.SchedulerName)
 		}
 	}
 

@@ -273,4 +273,46 @@ var ServiceTests = func() {
 			WithTimeout(time.Second * 10).
 			Should(BeTrue())
 	})
+
+	It("syncs the LoadBalancer status of the host service to the virtual service", func() {
+		ctx := context.Background()
+
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{GenerateName: "service-", Namespace: "default"},
+			Spec: corev1.ServiceSpec{
+				Type:  corev1.ServiceTypeLoadBalancer,
+				Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt32(80)}},
+			},
+		}
+		Expect(virtTestEnv.k8sClient.Create(ctx, service)).To(Succeed())
+
+		hostServiceName := translateName(cluster, service.Namespace, service.Name)
+		key := client.ObjectKey{Name: hostServiceName, Namespace: namespace}
+
+		var hostService corev1.Service
+
+		Eventually(func() error {
+			return hostTestEnv.k8sClient.Get(ctx, key, &hostService)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(Succeed())
+
+		// the host load balancer assigns an address
+		hostService.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "203.0.113.10"}}
+		Expect(hostTestEnv.k8sClient.Status().Update(ctx, &hostService)).To(Succeed())
+
+		// no polling: the host watch carries the status change to the virtual service
+		Eventually(func() string {
+			var virtService corev1.Service
+			if err := virtTestEnv.k8sClient.Get(ctx, client.ObjectKeyFromObject(service), &virtService); err != nil || len(virtService.Status.LoadBalancer.Ingress) == 0 {
+				return ""
+			}
+
+			return virtService.Status.LoadBalancer.Ingress[0].IP
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(Equal("203.0.113.10"))
+	})
 }

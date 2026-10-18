@@ -13,6 +13,18 @@ import (
 )
 
 func TestService(t *testing.T) {
+	defaultEctdPort := corev1.ServicePort{
+		Name:     "k3s-etcd-port",
+		Protocol: corev1.ProtocolTCP,
+		Port:     int32(2379),
+	}
+	defaultServerPort := corev1.ServicePort{
+		Name:       "k3s-server-port",
+		Protocol:   corev1.ProtocolTCP,
+		Port:       int32(443),
+		TargetPort: intstr.FromInt(6443),
+	}
+
 	tests := map[string]struct {
 		clusterOpts []func(*v1beta1.Cluster)
 		serviceOpts []func(*corev1.Service)
@@ -22,17 +34,8 @@ func TestService(t *testing.T) {
 				func(s *corev1.Service) {
 					s.Spec.Type = corev1.ServiceTypeClusterIP
 					s.Spec.Ports = []corev1.ServicePort{
-						{
-							Name:       "k3s-server-port",
-							Protocol:   corev1.ProtocolTCP,
-							Port:       int32(443),
-							TargetPort: intstr.FromInt(6443),
-						},
-						{
-							Name:     "k3s-etcd-port",
-							Protocol: corev1.ProtocolTCP,
-							Port:     int32(2379),
-						},
+						defaultServerPort,
+						defaultEctdPort,
 					}
 				},
 			},
@@ -53,23 +56,14 @@ func TestService(t *testing.T) {
 				func(s *corev1.Service) {
 					s.Spec.Type = corev1.ServiceTypeLoadBalancer
 					s.Spec.Ports = []corev1.ServicePort{
-						{
-							Name:       "k3s-server-port",
-							Protocol:   corev1.ProtocolTCP,
-							Port:       int32(443),
-							TargetPort: intstr.FromInt(6443),
-						},
+						defaultServerPort,
 						{
 							Name:       "k3s-server-lb-port",
 							Protocol:   corev1.ProtocolTCP,
 							Port:       int32(9443),
 							TargetPort: intstr.FromInt(6443),
 						},
-						{
-							Name:     "k3s-etcd-port",
-							Protocol: corev1.ProtocolTCP,
-							Port:     int32(2379),
-						},
+						defaultEctdPort,
 					}
 				},
 			},
@@ -94,23 +88,35 @@ func TestService(t *testing.T) {
 					}
 					s.Spec.Type = corev1.ServiceTypeLoadBalancer
 					s.Spec.Ports = []corev1.ServicePort{
-						{
-							Name:       "k3s-server-port",
-							Protocol:   corev1.ProtocolTCP,
-							Port:       int32(443),
-							TargetPort: intstr.FromInt(6443),
-						},
+						defaultServerPort,
 						{
 							Name:       "k3s-server-lb-port",
 							Protocol:   corev1.ProtocolTCP,
 							Port:       int32(9443),
 							TargetPort: intstr.FromInt(6443),
 						},
-						{
-							Name:     "k3s-etcd-port",
-							Protocol: corev1.ProtocolTCP,
-							Port:     int32(2379),
+						defaultEctdPort,
+					}
+				},
+			},
+		},
+		"expose load balancer with load balancer class": {
+			clusterOpts: []func(*v1beta1.Cluster){
+				func(c *v1beta1.Cluster) {
+					c.Spec.Expose = &v1beta1.ExposeConfig{
+						LoadBalancer: &v1beta1.LoadBalancerConfig{
+							LoadBalancerClass: new(string("example.com/internal-vip")),
 						},
+					}
+				},
+			},
+			serviceOpts: []func(*corev1.Service){
+				func(s *corev1.Service) {
+					s.Spec.Type = corev1.ServiceTypeLoadBalancer
+					s.Spec.LoadBalancerClass = new(string("example.com/internal-vip"))
+					s.Spec.Ports = []corev1.ServicePort{
+						defaultServerPort,
+						defaultEctdPort,
 					}
 				},
 			},
@@ -129,17 +135,8 @@ func TestService(t *testing.T) {
 				func(s *corev1.Service) {
 					s.Spec.Type = corev1.ServiceTypeLoadBalancer
 					s.Spec.Ports = []corev1.ServicePort{
-						{
-							Name:       "k3s-server-port",
-							Protocol:   corev1.ProtocolTCP,
-							Port:       int32(443),
-							TargetPort: intstr.FromInt(6443),
-						},
-						{
-							Name:     "k3s-etcd-port",
-							Protocol: corev1.ProtocolTCP,
-							Port:     int32(2379),
-						},
+						defaultServerPort,
+						defaultEctdPort,
 					}
 				},
 			},
@@ -160,12 +157,7 @@ func TestService(t *testing.T) {
 					s.Spec.Type = corev1.ServiceTypeLoadBalancer
 					// the default server port is still needed by the internal components
 					s.Spec.Ports = []corev1.ServicePort{
-						{
-							Name:       "k3s-server-port",
-							Protocol:   corev1.ProtocolTCP,
-							Port:       int32(443),
-							TargetPort: intstr.FromInt(6443),
-						},
+						defaultServerPort,
 					}
 				},
 			},
@@ -184,11 +176,7 @@ func TestService(t *testing.T) {
 				func(s *corev1.Service) {
 					s.Spec.Type = corev1.ServiceTypeNodePort
 					s.Spec.Ports = []corev1.ServicePort{
-						{
-							Name:     "k3s-etcd-port",
-							Protocol: corev1.ProtocolTCP,
-							Port:     int32(2379),
-						},
+						defaultEctdPort,
 					}
 				},
 			},
@@ -207,17 +195,8 @@ func TestService(t *testing.T) {
 					s.Spec.Type = corev1.ServiceTypeLoadBalancer
 					s.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyLocal
 					s.Spec.Ports = []corev1.ServicePort{
-						{
-							Name:       "k3s-server-port",
-							Protocol:   corev1.ProtocolTCP,
-							Port:       int32(443),
-							TargetPort: intstr.FromInt(6443),
-						},
-						{
-							Name:     "k3s-etcd-port",
-							Protocol: corev1.ProtocolTCP,
-							Port:     int32(2379),
-						},
+						defaultServerPort,
+						defaultEctdPort,
 					}
 				},
 			},
@@ -245,11 +224,7 @@ func TestService(t *testing.T) {
 							TargetPort: intstr.FromInt(6443),
 							NodePort:   int32(30443),
 						},
-						{
-							Name:     "k3s-etcd-port",
-							Protocol: corev1.ProtocolTCP,
-							Port:     int32(2379),
-						},
+						defaultEctdPort,
 					}
 				},
 			},
@@ -267,17 +242,8 @@ func TestService(t *testing.T) {
 				func(s *corev1.Service) {
 					s.Spec.Type = corev1.ServiceTypeClusterIP
 					s.Spec.Ports = []corev1.ServicePort{
-						{
-							Name:       "k3s-server-port",
-							Protocol:   corev1.ProtocolTCP,
-							Port:       int32(443),
-							TargetPort: intstr.FromInt(6443),
-						},
-						{
-							Name:     "k3s-etcd-port",
-							Protocol: corev1.ProtocolTCP,
-							Port:     int32(2379),
-						},
+						defaultServerPort,
+						defaultEctdPort,
 					}
 				},
 			},

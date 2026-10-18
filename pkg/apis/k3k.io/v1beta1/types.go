@@ -549,6 +549,14 @@ type LoadBalancerConfig struct {
 	//
 	// +optional
 	EtcdPort *int32 `json:"etcdPort,omitempty"`
+
+	// LoadBalancerClass specifies the class of the load-balancer implementation for the exposed Service.
+	// If not specified, the host cluster's default load-balancer implementation is used.
+	// Once set, Kubernetes does not allow the Service's loadBalancerClass to change while its type remains LoadBalancer.
+	//
+	// +optional
+	// +k8s:immutable
+	LoadBalancerClass *string `json:"loadBalancerClass,omitempty"`
 }
 
 // NodePortConfig specifies options for exposing the API server through NodePort.

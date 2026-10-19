@@ -161,15 +161,17 @@ func restorePodCommand(snapshotPath string, serverIndex int) []string {
 		return []string{
 			"/bin/sh",
 			"-cx",
-			"if [ -d /var/lib/rancher/k3s/server/db ]; then mv /var/lib/rancher/k3s/server/db /var/lib/rancher/k3s/server/db-old-$(date +%Y%m%d_%H%M%S); fi",
+			"rm -rf /var/lib/rancher/k3s/server/tls/* && if [ -d /var/lib/rancher/k3s/server/db ]; then mv /var/lib/rancher/k3s/server/db /var/lib/rancher/k3s/server/db-old-$(date +%Y%m%d_%H%M%S); fi",
 		}
 	}
 
 	return []string{
 		"/bin/sh",
 		"-c",
-		"k3s server -c /opt/rancher/k3s/server/config.yaml --disable-agent --cluster-reset --cluster-reset-restore-path " + snapshotPath +
-			" && touch /var/lib/rancher/k3s/server/db/restore-flag && rm /var/lib/rancher/k3s/server/db/reset-flag",
+		"rm -rf /var/lib/rancher/k3s/server/tls/*" +
+			" && k3s server -c /opt/rancher/k3s/server/config.yaml --disable-agent --cluster-reset --cluster-reset-restore-path " + snapshotPath +
+			" && touch /var/lib/rancher/k3s/server/db/restore-flag" +
+			" && rm /var/lib/rancher/k3s/server/db/reset-flag",
 	}
 }
 

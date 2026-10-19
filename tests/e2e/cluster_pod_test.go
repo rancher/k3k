@@ -720,7 +720,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 				}
 
 				g.Expect(providerFailedEvent).NotTo(BeNil())
-				g.Expect(providerFailedEvent.Message).To(ContainSubstring("scheduler not-allowed-scheduler is not allowed to be used for this cluster"))
+				g.Expect(providerFailedEvent.Message).To(ContainSubstring(`scheduler "not-allowed-scheduler" is not allowed for this cluster`))
 			}).
 				WithPolling(time.Second).
 				WithTimeout(time.Minute).
@@ -767,7 +767,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 				}
 
 				g.Expect(providerFailedEvent).NotTo(BeNil())
-				g.Expect(providerFailedEvent.Message).To(ContainSubstring("scheduler empty-allowed-schedulers is not allowed to be used for this cluster"))
+				g.Expect(providerFailedEvent.Message).To(ContainSubstring(`scheduler "empty-allowed-schedulers" is not allowed for this cluster`))
 			}).
 				WithPolling(time.Second).
 				WithTimeout(time.Minute).

@@ -499,10 +499,10 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	// if custom scheduler annotation is present then we check for allowed scheduler and then add it to the host pod
-	if schedulerName, ok := virtualPod.Annotations[HostSchedulerNameAnnotation]; ok && schedulerName != "" {
+	if schedulerName := virtualPod.Annotations[HostSchedulerNameAnnotation]; schedulerName != "" {
 		if !slices.Contains(allowedHostSchedulers, schedulerName) {
-			// if the scheduler is not listed in the allowed schedulers then we should return an error
-			return fmt.Errorf("scheduler %s is not allowed to be used for this cluster", schedulerName)
+			// Return an error if the scheduler is not allowed for this cluster.
+			return fmt.Errorf("scheduler %q is not allowed for this cluster", schedulerName)
 		}
 
 		hostPod.Spec.SchedulerName = schedulerName
@@ -510,10 +510,9 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 
 	// also checking SchedulerName in case of a deployed custom scheduler in the virtual cluster
 	if virtualPod.Spec.SchedulerName != "" && virtualPod.Spec.SchedulerName != corev1.DefaultSchedulerName {
-		// check if this custom scheduler is in the allow list, if not then
-		// clear the scheduler Name when syncing the pod
+		// Return an error if the scheduler is not allowed for this cluster.
 		if !slices.Contains(allowedHostSchedulers, virtualPod.Spec.SchedulerName) {
-			return fmt.Errorf("scheduler %s is not allowed to be used for this cluster", virtualPod.Spec.SchedulerName)
+			return fmt.Errorf("scheduler %q is not allowed for this cluster", virtualPod.Spec.SchedulerName)
 		}
 	}
 

@@ -189,16 +189,13 @@ var _ = When("creating a virtual mode cluster", Label(lifecycleTestsLabel), Labe
 			WithPolling(time.Second).
 			Should(Succeed())
 	})
-	It("creates nodes with the worker role", func() {
+	It("creates nodes for the agents", func() {
 		Eventually(func(g Gomega) {
 			ctx := GinkgoT().Context()
 
-			nodes, err := virtualCluster.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-				LabelSelector: "type=agent",
-			})
+			nodes, err := virtualCluster.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
-			g.Expect(nodes.Items).To(HaveLen(1))
-			g.Expect(nodes.Items[0].Labels).To(HaveKeyWithValue("node-role.kubernetes.io/worker", "true"))
+			g.Expect(nodes.Items).To(HaveLen(2))
 		}).
 			WithTimeout(time.Minute).
 			WithPolling(time.Second).

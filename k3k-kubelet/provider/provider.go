@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net"
 	"net/http"
 	"slices"
 	"strconv"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/transport/spdy"
+	"k8s.io/streaming/pkg/httpstream"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -347,8 +349,13 @@ func (p *Provider) GetMetricsResource(ctx context.Context) ([]*dto.MetricFamily,
 	return metricFamily, nil
 }
 
-// PortForward forwards the data of a single port-forward connection to a port on the host pod.
-// It's called once per forwarded connection, with stream carrying the raw data of that connection.
+// PortForward forwards a single port-forward connection of the virtual cluster to a port on the host pod.
+//
+// It's called by the virtual-kubelet once per forwarded connection, with stream carrying the raw data
+// of that connection. For each call a new portforward connection is opened to the host pod, with its
+// own data and error streams. The data is then copied in both directions between stream and the
+// host data stream, and any error reported by the host on the error stream is returned to the
+// virtual-kubelet, that will send it back to the client.
 func (p *Provider) PortForward(ctx context.Context, namespace, name string, port int32, stream io.ReadWriteCloser) error {
 	defer func() { _ = stream.Close() }()
 
@@ -369,27 +376,25 @@ func (p *Provider) PortForward(ctx context.Context, namespace, name string, port
 		return err
 	}
 
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, req.URL())
+	dialer := spdy.NewDialerForStreaming(upgrader, &http.Client{Transport: transport}, http.MethodPost, req.URL())
 
 	conn, _, err := dialer.Dial(portforward.PortForwardProtocolV1Name)
 	if err != nil {
 		logger.Error(err, "Error dialing PortForward connection")
 		return err
 	}
+
+	// closing the connection also resets any stream still open on it
 	defer func() { _ = conn.Close() }()
 
-	// create the error stream, we're not writing to it
-	headers := http.Header{}
-	headers.Set(corev1.StreamType, corev1.StreamTypeError)
-	headers.Set(corev1.PortHeader, strconv.Itoa(int(port)))
-	headers.Set(corev1.PortForwardRequestIDHeader, "0")
-
-	errorStream, err := conn.CreateStream(headers)
+	errorStream, err := createPortForwardStream(conn, corev1.StreamTypeError, port)
 	if err != nil {
 		logger.Error(err, "Error creating error stream")
 		return err
 	}
 
+	// the error stream is only written by the host kubelet, so we close our write side
+	// right away and keep reading from it until the remote side closes it as well
 	_ = errorStream.Close()
 
 	type readAllResult struct {
@@ -404,10 +409,7 @@ func (p *Provider) PortForward(ctx context.Context, namespace, name string, port
 		errorChan <- readAllResult{message: message, err: err}
 	}()
 
-	// create the data stream
-	headers.Set(corev1.StreamType, corev1.StreamTypeData)
-
-	dataStream, err := conn.CreateStream(headers)
+	dataStream, err := createPortForwardStream(conn, corev1.StreamTypeData, port)
 	if err != nil {
 		logger.Error(err, "Error creating data stream")
 		return err
@@ -418,7 +420,7 @@ func (p *Provider) PortForward(ctx context.Context, namespace, name string, port
 
 	go func() {
 		// copy from the host pod to the virtual cluster client
-		if _, err := io.Copy(stream, dataStream); err != nil && !isClosedConnError(err) {
+		if _, err := io.Copy(stream, dataStream); err != nil && !errors.Is(err, net.ErrClosed) {
 			logger.Error(err, "Error copying from host pod to client stream")
 		}
 
@@ -430,7 +432,7 @@ func (p *Provider) PortForward(ctx context.Context, namespace, name string, port
 		defer func() { _ = dataStream.Close() }()
 
 		// copy from the virtual cluster client to the host pod
-		if _, err := io.Copy(dataStream, stream); err != nil && !isClosedConnError(err) {
+		if _, err := io.Copy(dataStream, stream); err != nil && !errors.Is(err, net.ErrClosed) {
 			logger.Error(err, "Error copying from client stream to host pod")
 			close(localError)
 		}
@@ -463,8 +465,15 @@ func (p *Provider) PortForward(ctx context.Context, namespace, name string, port
 	return nil
 }
 
-func isClosedConnError(err error) bool {
-	return strings.Contains(strings.ToLower(err.Error()), "use of closed network connection")
+// createPortForwardStream creates a portforward stream of the given type (data or error) for the port.
+// Since every connection forwards a single port, all the streams share the same request ID.
+func createPortForwardStream(conn httpstream.Connection, streamType string, port int32) (httpstream.Stream, error) {
+	headers := http.Header{}
+	headers.Set(corev1.StreamType, streamType)
+	headers.Set(corev1.PortHeader, strconv.Itoa(int(port)))
+	headers.Set(corev1.PortForwardRequestIDHeader, "0")
+
+	return conn.CreateStream(headers)
 }
 
 // CreatePod executes createPod with retry

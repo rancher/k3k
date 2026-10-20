@@ -797,7 +797,9 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 					resp, err := http.DefaultClient.Do(req)
 					g.Expect(err).To(Not(HaveOccurred()))
 
-					defer func() { _ = resp.Body.Close() }()
+					defer func() {
+						g.Expect(resp.Body.Close()).To(Succeed())
+					}()
 
 					body, err := io.ReadAll(resp.Body)
 					g.Expect(err).To(Not(HaveOccurred()))

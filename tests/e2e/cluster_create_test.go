@@ -8,6 +8,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -173,10 +174,15 @@ var _ = When("creating a virtual mode cluster", Label(lifecycleTestsLabel), Labe
 		Eventually(func(g Gomega) {
 			ctx := GinkgoT().Context()
 
+			var ss appsv1.StatefulSet
+
 			name := controller.SafeConcatNameWithPrefix(virtualCluster.Cluster.Name, "agent")
-			ss, err := virtualCluster.Client.AppsV1().StatefulSets(virtualCluster.Cluster.Namespace).Get(ctx, name, metav1.GetOptions{})
+			err := k8sClient.Get(ctx, types.NamespacedName{
+				Name:      name,
+				Namespace: virtualCluster.Cluster.Namespace,
+			}, &ss)
 			g.Expect(err).To(Not(HaveOccurred()))
-			g.Expect(ss.Spec.Replicas).To(Equal(1))
+			g.Expect(*ss.Spec.Replicas).To(Equal(int32(1)))
 			g.Expect(ss.Spec.PodManagementPolicy).To(Equal(appsv1.ParallelPodManagement))
 		}).
 			WithTimeout(time.Minute).
@@ -187,7 +193,9 @@ var _ = When("creating a virtual mode cluster", Label(lifecycleTestsLabel), Labe
 		Eventually(func(g Gomega) {
 			ctx := GinkgoT().Context()
 
-			nodes, err := virtualCluster.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+			nodes, err := virtualCluster.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{
+				LabelSelector: "type=agent",
+			})
 			g.Expect(err).To(Not(HaveOccurred()))
 			g.Expect(nodes.Items).To(HaveLen(1))
 			g.Expect(nodes.Items[0].Labels).To(HaveKeyWithValue("node-role.kubernetes.io/worker", "true"))

@@ -405,3 +405,108 @@ func TestUpdateMetadata(t *testing.T) {
 	assert.Equal(t, "my-pod", hostPod.Annotations[translate.ResourceNameAnnotation])
 	assert.Equal(t, "default", hostPod.Annotations[translate.ResourceNamespaceAnnotation])
 }
+
+func Test_configureDNS(t *testing.T) {
+	const dnsIP = "10.197.77.73"
+
+	vcSearches := []string{"tenant.svc.cluster.local", "svc.cluster.local", "cluster.local"}
+	ndots := func(v string) corev1.PodDNSConfigOption {
+		return corev1.PodDNSConfigOption{Name: "ndots", Value: new(v)}
+	}
+	pod := func(policy corev1.DNSPolicy, cfg *corev1.PodDNSConfig) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "tenant"},
+			Spec:       corev1.PodSpec{DNSPolicy: policy, DNSConfig: cfg},
+		}
+	}
+
+	tests := []struct {
+		name       string
+		virtualPod *corev1.Pod
+		wantPolicy corev1.DNSPolicy
+		wantConfig *corev1.PodDNSConfig
+	}{
+		{
+			name:       "no dnsConfig gets the virtual cluster DNS",
+			virtualPod: pod(corev1.DNSClusterFirst, nil),
+			wantPolicy: corev1.DNSNone,
+			wantConfig: &corev1.PodDNSConfig{
+				Nameservers: []string{dnsIP},
+				Searches:    vcSearches,
+				Options:     []corev1.PodDNSConfigOption{ndots("5")},
+			},
+		},
+		{
+			name: "dnsConfig with options only keeps the options and still gets the virtual cluster DNS",
+			virtualPod: pod(corev1.DNSClusterFirst, &corev1.PodDNSConfig{
+				Options: []corev1.PodDNSConfigOption{ndots("1")},
+			}),
+			wantPolicy: corev1.DNSNone,
+			wantConfig: &corev1.PodDNSConfig{
+				Nameservers: []string{dnsIP},
+				Searches:    vcSearches,
+				Options:     []corev1.PodDNSConfigOption{ndots("1")},
+			},
+		},
+		{
+			name: "extra nameservers and searches are appended after the virtual cluster ones",
+			virtualPod: pod(corev1.DNSClusterFirst, &corev1.PodDNSConfig{
+				Nameservers: []string{"192.0.2.53", dnsIP},
+				Searches:    []string{"example.internal", "svc.cluster.local"},
+				Options:     []corev1.PodDNSConfigOption{{Name: "timeout", Value: new("2")}},
+			}),
+			wantPolicy: corev1.DNSNone,
+			wantConfig: &corev1.PodDNSConfig{
+				Nameservers: []string{dnsIP, "192.0.2.53"},
+				Searches:    append(vcSearches, "example.internal"),
+				Options:     []corev1.PodDNSConfigOption{{Name: "timeout", Value: new("2")}, ndots("5")},
+			},
+		},
+		{
+			name: "nameservers are capped at three",
+			virtualPod: pod(corev1.DNSClusterFirst, &corev1.PodDNSConfig{
+				Nameservers: []string{"192.0.2.1", "192.0.2.2", "192.0.2.3"},
+			}),
+			wantPolicy: corev1.DNSNone,
+			wantConfig: &corev1.PodDNSConfig{
+				Nameservers: []string{dnsIP, "192.0.2.1", "192.0.2.2"},
+				Searches:    vcSearches,
+				Options:     []corev1.PodDNSConfigOption{ndots("5")},
+			},
+		},
+		{
+			name: "dnsPolicy None is left untouched",
+			virtualPod: pod(corev1.DNSNone, &corev1.PodDNSConfig{
+				Nameservers: []string{"192.0.2.53"},
+			}),
+			wantPolicy: corev1.DNSNone,
+			wantConfig: &corev1.PodDNSConfig{
+				Nameservers: []string{"192.0.2.53"},
+			},
+		},
+		{
+			name: "the coredns pod is left untouched",
+			virtualPod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "coredns",
+					Namespace: metav1.NamespaceSystem,
+					Labels:    map[string]string{"k8s-app": "kube-dns"},
+				},
+				Spec: corev1.PodSpec{DNSPolicy: corev1.DNSDefault},
+			},
+			wantPolicy: corev1.DNSDefault,
+			wantConfig: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hostPod := tt.virtualPod.DeepCopy()
+
+			configureDNS(hostPod, tt.virtualPod, dnsIP)
+
+			assert.Equal(t, tt.wantPolicy, hostPod.Spec.DNSPolicy)
+			assert.Equal(t, tt.wantConfig, hostPod.Spec.DNSConfig)
+		})
+	}
+}

@@ -1,7 +1,7 @@
 // Package main runs the k3k controller, which reconciles the Cluster,
 // VirtualClusterPolicy and EtcdSnapshot resources into virtual clusters.
 //
-//go:generate ./scripts/generate
+//go:generate go tool controller-gen crd object paths=./pkg/apis/... output:crd:dir=./charts/k3k/templates/crds
 package main
 
 import (

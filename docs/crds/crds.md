@@ -47,17 +47,17 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | name is the name of the VirtualClusterPolicy currently applied to this cluster. |  | MinLength: 1 <br /> |
-| `priorityClass` _string_ | priorityClass is the priority class enforced by the active VirtualClusterPolicy. |  |  |
-| `nodeSelector` _object (keys:string, values:string)_ | nodeSelector is a node selector enforced by the active VirtualClusterPolicy. |  |  |
-| `serverAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
-| `agentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
-| `sync` _[SyncConfig](#syncconfig)_ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. |  |  |
-| `runtimeClassName` _string_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
-| `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podsecuritycontext-v1-core)_ | PodSecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  |  |
-| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | SecurityContext specifies custom container SecurityContext to be added<br />to the agent and server containers of the cluster in virtual or shared mode. |  |  |
-| `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
-| `allowedHostSchedulers` _string array_ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced.<br />This list is only checked against the annotation and has nothing to do with the<br />Pod's spec.schedulerName field, which is still handled by the virtual cluster. |  |  |
+| `name` _string_ | name is the name of the VirtualClusterPolicy currently applied to this cluster. |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `priorityClass` _string_ | priorityClass is the priority class enforced by the active VirtualClusterPolicy. |  | Optional: \{\} <br /> |
+| `nodeSelector` _object (keys:string, values:string)_ | nodeSelector is a node selector enforced by the active VirtualClusterPolicy. |  | Optional: \{\} <br /> |
+| `serverAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  | Optional: \{\} <br /> |
+| `agentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  | Optional: \{\} <br /> |
+| `sync` _[SyncConfig](#syncconfig)_ | sync is the SyncConfig enforced by the active VirtualClusterPolicy. |  | Optional: \{\} <br /> |
+| `runtimeClassName` _string_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
+| `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podsecuritycontext-v1-core)_ | PodSecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | SecurityContext specifies custom container SecurityContext to be added<br />to the agent and server containers of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
+| `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  | Optional: \{\} <br /> |
+| `allowedHostSchedulers` _string array_ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced.<br />This list is only checked against the annotation and has nothing to do with the<br />Pod's spec.schedulerName field, which is still handled by the virtual cluster. |  | Optional: \{\} <br /> |
 
 
 #### Cluster
@@ -78,8 +78,8 @@ _Appears in:_
 | `apiVersion` _string_ | `k3k.io/v1beta1` | | |
 | `kind` _string_ | `Cluster` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[ClusterSpec](#clusterspec)_ | Spec defines the desired state of the Cluster. | \{  \} |  |
-| `status` _[ClusterStatus](#clusterstatus)_ | Status reflects the observed state of the Cluster. | \{  \} |  |
+| `spec` _[ClusterSpec](#clusterspec)_ | Spec defines the desired state of the Cluster. | \{  \} | Optional: \{\} <br /> |
+| `status` _[ClusterStatus](#clusterstatus)_ | Status reflects the observed state of the Cluster. | \{  \} | Optional: \{\} <br /> |
 
 
 #### ClusterList
@@ -142,39 +142,39 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `version` _string_ | Version is the K3s version to use for the virtual nodes.<br />It should follow the K3s versioning convention (e.g., v1.28.2-k3s1).<br />If not specified, the Kubernetes version of the host node will be used. |  |  |
-| `mode` _[ClusterMode](#clustermode)_ | Mode specifies the cluster provisioning mode. This field is immutable. | shared | Enum: [shared virtual hcp] <br /> |
-| `servers` _integer_ | Servers specifies the number of K3s pods to run in server (control plane) mode.<br />Must be at least 1. Defaults to 1. | 1 |  |
-| `agents` _integer_ | Agents specifies the number of K3s pods to run in agent (worker) mode.<br />Must be 0 or greater. Defaults to 0.<br />This field is ignored in "shared" mode. | 0 |  |
-| `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for pod IPs.<br />Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.<br />This field is immutable. |  |  |
-| `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for service IPs.<br />Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.<br />This field is immutable. |  |  |
-| `clusterDNS` _string_ | ClusterDNS is the IP address for the CoreDNS service.<br />Must be within the ServiceCIDR range. Defaults to 10.43.0.10.<br />This field is immutable. |  |  |
-| `persistence` _[PersistenceConfig](#persistenceconfig)_ | Persistence specifies options for persisting etcd data.<br />Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.<br />A default StorageClass is required for dynamic persistence. |  |  |
-| `expose` _[ExposeConfig](#exposeconfig)_ | Expose specifies options for exposing the API server.<br />By default, it's only exposed as a ClusterIP. |  |  |
-| `nodeSelector` _object (keys:string, values:string)_ | NodeSelector specifies node labels to constrain where server/agent pods are scheduled.<br />In "shared" mode, this also applies to workloads. |  |  |
-| `priorityClass` _string_ | PriorityClass specifies the priorityClassName for server/agent pods.<br />In "shared" mode, this also applies to workloads. |  |  |
-| `tokenSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | TokenSecretRef is a Secret reference containing the token used by worker nodes to join the cluster.<br />The Secret must have a "token" field in its data. |  |  |
-| `tlsSANs` _string array_ | TLSSANs specifies subject alternative names for the K3s server certificate. |  |  |
-| `serverArgs` _string array_ | ServerArgs specifies ordered key-value pairs for K3s server pods.<br />Example: ["--tls-san=example.com"] |  |  |
-| `agentArgs` _string array_ | AgentArgs specifies ordered key-value pairs for K3s agent pods.<br />Example: ["--node-name=my-agent-node"] |  |  |
-| `serverEnvs` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core) array_ | ServerEnvs specifies list of environment variables to set in the server pod. |  |  |
-| `agentEnvs` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core) array_ | AgentEnvs specifies list of environment variables to set in the agent pod. |  |  |
-| `addons` _[Addon](#addon) array_ | Addons specifies secrets containing raw YAML to deploy on cluster startup. |  |  |
-| `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit specifies resource limits for server nodes. |  |  |
-| `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  |  |
-| `serverResources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core)_ | ServerResources specifies resources limits and requests for server nodes. |  |  |
-| `workerResources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core)_ | WorkerResources specifies resources limits and requests for worker nodes. |  |  |
-| `serverAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | ServerAffinity specifies the affinity rules for server pods.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
-| `agentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | AgentAffinity specifies the affinity rules for agent pods.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
-| `mirrorHostNodes` _boolean_ | MirrorHostNodes controls whether node objects from the host cluster<br />are mirrored into the virtual cluster. |  |  |
-| `customCAs` _[CustomCAs](#customcas)_ | CustomCAs specifies the cert/key pairs for custom CA certificates. |  |  |
-| `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |
-| `secretMounts` _[SecretMount](#secretmount) array_ | SecretMounts specifies a list of secrets to mount into server and agent pods.<br />Each entry defines a secret and its mount path within the pods. |  |  |
-| `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podsecuritycontext-v1-core)_ | PodSecurityContext specifies custom PodSecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  |  |
-| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | SecurityContext specifies custom container SecurityContext to be added<br />to the agent and server containers of the cluster in virtual or shared mode.<br />This option will override the SecurityContext set by default for virtual mode. |  |  |
-| `runtimeClassName` _string_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
-| `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
-| `allowedHostSchedulers` _string array_ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced.<br />This list is only checked against the annotation and has nothing to do with the<br />Pod's spec.schedulerName field, which is still handled by the virtual cluster. |  |  |
+| `version` _string_ | Version is the K3s version to use for the virtual nodes.<br />It should follow the K3s versioning convention (e.g., v1.28.2-k3s1).<br />If not specified, the Kubernetes version of the host node will be used. |  | Optional: \{\} <br /> |
+| `mode` _[ClusterMode](#clustermode)_ | Mode specifies the cluster provisioning mode. This field is immutable. | shared | Enum: [shared virtual hcp] <br />Optional: \{\} <br /> |
+| `servers` _integer_ | Servers specifies the number of K3s pods to run in server (control plane) mode.<br />Must be at least 1. Defaults to 1. | 1 | Optional: \{\} <br /> |
+| `agents` _integer_ | Agents specifies the number of K3s pods to run in agent (worker) mode.<br />Must be 0 or greater. Defaults to 0.<br />This field is ignored in "shared" mode. | 0 | Optional: \{\} <br /> |
+| `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for pod IPs.<br />Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.<br />This field is immutable. |  | Optional: \{\} <br /> |
+| `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for service IPs.<br />Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.<br />This field is immutable. |  | Optional: \{\} <br /> |
+| `clusterDNS` _string_ | ClusterDNS is the IP address for the CoreDNS service.<br />Must be within the ServiceCIDR range. Defaults to 10.43.0.10.<br />This field is immutable. |  | Optional: \{\} <br /> |
+| `persistence` _[PersistenceConfig](#persistenceconfig)_ | Persistence specifies options for persisting etcd data.<br />Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.<br />A default StorageClass is required for dynamic persistence. |  | Optional: \{\} <br /> |
+| `expose` _[ExposeConfig](#exposeconfig)_ | Expose specifies options for exposing the API server.<br />By default, it's only exposed as a ClusterIP. |  | Optional: \{\} <br /> |
+| `nodeSelector` _object (keys:string, values:string)_ | NodeSelector specifies node labels to constrain where server/agent pods are scheduled.<br />In "shared" mode, this also applies to workloads. |  | Optional: \{\} <br /> |
+| `priorityClass` _string_ | PriorityClass specifies the priorityClassName for server/agent pods.<br />In "shared" mode, this also applies to workloads. |  | Optional: \{\} <br /> |
+| `tokenSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | TokenSecretRef is a Secret reference containing the token used by worker nodes to join the cluster.<br />The Secret must have a "token" field in its data. |  | Optional: \{\} <br /> |
+| `tlsSANs` _string array_ | TLSSANs specifies subject alternative names for the K3s server certificate. |  | Optional: \{\} <br /> |
+| `serverArgs` _string array_ | ServerArgs specifies ordered key-value pairs for K3s server pods.<br />Example: ["--tls-san=example.com"] |  | Optional: \{\} <br /> |
+| `agentArgs` _string array_ | AgentArgs specifies ordered key-value pairs for K3s agent pods.<br />Example: ["--node-name=my-agent-node"] |  | Optional: \{\} <br /> |
+| `serverEnvs` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core) array_ | ServerEnvs specifies list of environment variables to set in the server pod. |  | Optional: \{\} <br /> |
+| `agentEnvs` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core) array_ | AgentEnvs specifies list of environment variables to set in the agent pod. |  | Optional: \{\} <br /> |
+| `addons` _[Addon](#addon) array_ | Addons specifies secrets containing raw YAML to deploy on cluster startup. |  | Optional: \{\} <br /> |
+| `serverLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | ServerLimit specifies resource limits for server nodes. |  | Optional: \{\} <br /> |
+| `workerLimit` _[ResourceList](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcelist-v1-core)_ | WorkerLimit specifies resource limits for agent nodes. |  | Optional: \{\} <br /> |
+| `serverResources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core)_ | ServerResources specifies resources limits and requests for server nodes. |  | Optional: \{\} <br /> |
+| `workerResources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcerequirements-v1-core)_ | WorkerResources specifies resources limits and requests for worker nodes. |  | Optional: \{\} <br /> |
+| `serverAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | ServerAffinity specifies the affinity rules for server pods.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  | Optional: \{\} <br /> |
+| `agentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | AgentAffinity specifies the affinity rules for agent pods.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  | Optional: \{\} <br /> |
+| `mirrorHostNodes` _boolean_ | MirrorHostNodes controls whether node objects from the host cluster<br />are mirrored into the virtual cluster. |  | Optional: \{\} <br /> |
+| `customCAs` _[CustomCAs](#customcas)_ | CustomCAs specifies the cert/key pairs for custom CA certificates. |  | Optional: \{\} <br /> |
+| `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} | Optional: \{\} <br /> |
+| `secretMounts` _[SecretMount](#secretmount) array_ | SecretMounts specifies a list of secrets to mount into server and agent pods.<br />Each entry defines a secret and its mount path within the pods. |  | Optional: \{\} <br /> |
+| `podSecurityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podsecuritycontext-v1-core)_ | PodSecurityContext specifies custom PodSecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | SecurityContext specifies custom container SecurityContext to be added<br />to the agent and server containers of the cluster in virtual or shared mode.<br />This option will override the SecurityContext set by default for virtual mode. |  | Optional: \{\} <br /> |
+| `runtimeClassName` _string_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
+| `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  | Optional: \{\} <br /> |
+| `allowedHostSchedulers` _string array_ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced.<br />This list is only checked against the annotation and has nothing to do with the<br />Pod's spec.schedulerName field, which is still handled by the virtual cluster. |  | Optional: \{\} <br /> |
 
 
 #### ClusterStatus
@@ -190,16 +190,16 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `hostVersion` _string_ | HostVersion is the Kubernetes version of the host node. |  |  |
-| `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for pod IPs. |  |  |
-| `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for service IPs. |  |  |
-| `clusterDNS` _string_ | ClusterDNS is the IP address for the CoreDNS service. |  |  |
-| `tlsSANs` _string array_ | TLSSANs specifies subject alternative names for the K3s server certificate. |  |  |
-| `policyName` _string_ | PolicyName specifies the virtual cluster policy name bound to the virtual cluster. |  |  |
-| `policy` _[AppliedPolicy](#appliedpolicy)_ | policy represents the status of the policy applied to this cluster.<br />This field is set by the VirtualClusterPolicy controller. |  |  |
-| `kubeletPort` _integer_ | KubeletPort specefies the port used by k3k-kubelet in shared mode. |  |  |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the cluster set. |  |  |
-| `phase` _[ClusterPhase](#clusterphase)_ | Phase is a high-level summary of the cluster's current lifecycle state. | Unknown | Enum: [Pending Provisioning Ready Failed Terminating Unknown] <br /> |
+| `hostVersion` _string_ | HostVersion is the Kubernetes version of the host node. |  | Optional: \{\} <br /> |
+| `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for pod IPs. |  | Optional: \{\} <br /> |
+| `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for service IPs. |  | Optional: \{\} <br /> |
+| `clusterDNS` _string_ | ClusterDNS is the IP address for the CoreDNS service. |  | Optional: \{\} <br /> |
+| `tlsSANs` _string array_ | TLSSANs specifies subject alternative names for the K3s server certificate. |  | Optional: \{\} <br /> |
+| `policyName` _string_ | PolicyName specifies the virtual cluster policy name bound to the virtual cluster. |  | Optional: \{\} <br /> |
+| `policy` _[AppliedPolicy](#appliedpolicy)_ | policy represents the status of the policy applied to this cluster.<br />This field is set by the VirtualClusterPolicy controller. |  | Optional: \{\} <br /> |
+| `kubeletPort` _integer_ | KubeletPort specefies the port used by k3k-kubelet in shared mode. |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the cluster set. |  | Optional: \{\} <br /> |
+| `phase` _[ClusterPhase](#clusterphase)_ | Phase is a high-level summary of the cluster's current lifecycle state. | Unknown | Enum: [Pending Provisioning Ready Failed Terminating Unknown] <br />Optional: \{\} <br /> |
 
 
 #### ConfigMapSyncConfig
@@ -215,8 +215,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true | Required: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### CredentialSource
@@ -291,8 +291,8 @@ _Appears in:_
 | `apiVersion` _string_ | `k3k.io/v1beta1` | | |
 | `kind` _string_ | `EtcdSnapshot` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[EtcdSnapshotSpec](#etcdsnapshotspec)_ |  |  |  |
-| `status` _[EtcdSnapshotStatus](#etcdsnapshotstatus)_ |  |  |  |
+| `spec` _[EtcdSnapshotSpec](#etcdsnapshotspec)_ |  |  | Required: \{\} <br /> |
+| `status` _[EtcdSnapshotStatus](#etcdsnapshotstatus)_ |  |  | Optional: \{\} <br /> |
 
 
 #### EtcdSnapshotList
@@ -326,9 +326,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `clusterRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | ClusterRef is a reference to the cluster where the snapshot will be taken.<br />This field is immutable. |  |  |
-| `s3ConfigSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | S3ConfigSecretRef defines the S3 configuration secret that contains all<br />S3 configuration. The configuration items are expected to match the following:<br />https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support<br />This field is immutable to avoid inconsistencies after snapshot creation.<br />Setting this will also cause k3s to create a local etcd snapshot on disk and then upload<br />it to S3. When the request is deleted, both the on-disk and S3 files will be deleted. |  |  |
-| `compress` _boolean_ | Compress specifies if the snapshot should be compressed | false |  |
+| `clusterRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#localobjectreference-v1-core)_ | ClusterRef is a reference to the cluster where the snapshot will be taken.<br />This field is immutable. |  | Required: \{\} <br /> |
+| `s3ConfigSecretRef` _[SecretReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretreference-v1-core)_ | S3ConfigSecretRef defines the S3 configuration secret that contains all<br />S3 configuration. The configuration items are expected to match the following:<br />https://docs.k3s.io/cli/etcd-snapshot?_highlight=snapshot#s3-compatible-object-store-support<br />This field is immutable to avoid inconsistencies after snapshot creation.<br />Setting this will also cause k3s to create a local etcd snapshot on disk and then upload<br />it to S3. When the request is deleted, both the on-disk and S3 files will be deleted. |  | Optional: \{\} <br /> |
+| `compress` _boolean_ | Compress specifies if the snapshot should be compressed | false | Optional: \{\} <br /> |
 
 
 #### EtcdSnapshotStatus
@@ -344,8 +344,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `filename` _string_ | Filename is the name of the snapshot file created in<br />the virtual cluster |  |  |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the snapshot. |  |  |
+| `filename` _string_ | Filename is the name of the snapshot file created in<br />the virtual cluster |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the snapshot. |  | Optional: \{\} <br /> |
 
 
 #### ExposeConfig
@@ -361,10 +361,10 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `ingress` _[IngressConfig](#ingressconfig)_ | Ingress specifies options for exposing the API server through an Ingress. |  |  |
-| `loadBalancer` _[LoadBalancerConfig](#loadbalancerconfig)_ | LoadBalancer specifies options for exposing the API server through a LoadBalancer service. |  |  |
-| `nodePort` _[NodePortConfig](#nodeportconfig)_ | NodePort specifies options for exposing the API server through NodePort. |  |  |
-| `annotations` _object (keys:string, values:string)_ | Annotations specifies annotations to add to the generated Service. |  |  |
+| `ingress` _[IngressConfig](#ingressconfig)_ | Ingress specifies options for exposing the API server through an Ingress. |  | Optional: \{\} <br /> |
+| `loadBalancer` _[LoadBalancerConfig](#loadbalancerconfig)_ | LoadBalancer specifies options for exposing the API server through a LoadBalancer service. |  | Optional: \{\} <br /> |
+| `nodePort` _[NodePortConfig](#nodeportconfig)_ | NodePort specifies options for exposing the API server through NodePort. |  | Optional: \{\} <br /> |
+| `annotations` _object (keys:string, values:string)_ | Annotations specifies annotations to add to the generated Service. |  | Optional: \{\} <br /> |
 
 
 #### IngressConfig
@@ -380,8 +380,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `annotations` _object (keys:string, values:string)_ | Annotations specifies annotations to add to the Ingress. |  |  |
-| `ingressClassName` _string_ | IngressClassName specifies the IngressClass to use for the Ingress. |  |  |
+| `annotations` _object (keys:string, values:string)_ | Annotations specifies annotations to add to the Ingress. |  | Optional: \{\} <br /> |
+| `ingressClassName` _string_ | IngressClassName specifies the IngressClass to use for the Ingress. |  | Optional: \{\} <br /> |
 
 
 #### IngressSyncConfig
@@ -397,9 +397,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
-| `disableTLSSecretTranslation` _boolean_ | DisableTLSSecretTranslation is an on/off switch for translating TLS secrets<br />from virtual cluster to host cluster | false |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false | Required: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+| `disableTLSSecretTranslation` _boolean_ | DisableTLSSecretTranslation is an on/off switch for translating TLS secrets<br />from virtual cluster to host cluster | false | Optional: \{\} <br /> |
 
 
 #### LoadBalancerConfig
@@ -415,8 +415,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />The default https 443 port is always allocated, since it's used by the internal components<br />to reach the server: if specified, the ServerPort is allocated as an additional port.<br />If 0 or negative, only the default https 443 port will be allocated. |  |  |
-| `etcdPort` _integer_ | EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  |  |
+| `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />The default https 443 port is always allocated, since it's used by the internal components<br />to reach the server: if specified, the ServerPort is allocated as an additional port.<br />If 0 or negative, only the default https 443 port will be allocated. |  | Optional: \{\} <br /> |
+| `etcdPort` _integer_ | EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  | Optional: \{\} <br /> |
 
 
 #### NodePortConfig
@@ -432,8 +432,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `serverPort` _integer_ | ServerPort is the port on each node on which the K3s server is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
-| `etcdPort` _integer_ | EtcdPort is the port on each node on which the Etcd service is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  |  |
+| `serverPort` _integer_ | ServerPort is the port on each node on which the K3s server is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  | Optional: \{\} <br /> |
+| `etcdPort` _integer_ | EtcdPort is the port on each node on which the Etcd service is exposed when type is NodePort.<br />If not specified, a random port between 30000-32767 will be allocated.<br />If out of range, the port will not be exposed. |  | Optional: \{\} <br /> |
 
 
 #### PersistenceConfig
@@ -450,8 +450,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `type` _[PersistenceMode](#persistencemode)_ | Type specifies the persistence mode. | dynamic |  |
-| `storageClassName` _string_ | StorageClassName is the name of the StorageClass to use for the PVC.<br />This field is only relevant in "dynamic" mode. |  |  |
-| `storageRequestSize` _[Quantity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#quantity-resource-api)_ | StorageRequestSize is the requested size for the PVC.<br />This field is only relevant in "dynamic" mode. | 2G |  |
+| `storageClassName` _string_ | StorageClassName is the name of the StorageClass to use for the PVC.<br />This field is only relevant in "dynamic" mode. |  | Optional: \{\} <br /> |
+| `storageRequestSize` _[Quantity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#quantity-resource-api)_ | StorageRequestSize is the requested size for the PVC.<br />This field is only relevant in "dynamic" mode. | 2G | Optional: \{\} <br /> |
 
 
 #### PersistenceMode
@@ -480,8 +480,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true | Required: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### PodSecurityAdmissionLevel
@@ -512,8 +512,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false | Required: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### SecretMount
@@ -530,15 +530,15 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `secretName` _string_ | secretName is the name of the secret in the pod's namespace to use.<br />More info: https://kubernetes.io/docs/concepts/storage/volumes#secret |  |  |
-| `items` _[KeyToPath](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#keytopath-v1-core) array_ | items If unspecified, each key-value pair in the Data field of the referenced<br />Secret will be projected into the volume as a file whose name is the<br />key and content is the value. If specified, the listed keys will be<br />projected into the specified paths, and unlisted keys will not be<br />present. If a key is specified which is not present in the Secret,<br />the volume setup will error unless it is marked optional. Paths must be<br />relative and may not contain the '..' path or start with '..'. |  |  |
-| `defaultMode` _integer_ | defaultMode is Optional: mode bits used to set permissions on created files by default.<br />Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.<br />YAML accepts both octal and decimal values, JSON requires decimal values<br />for mode bits. Defaults to 0644.<br />Directories within the path are not affected by this setting.<br />This might be in conflict with other options that affect the file<br />mode, like fsGroup, and the result can be other mode bits set. |  |  |
-| `optional` _boolean_ | optional field specify whether the Secret or its keys must be defined |  |  |
-| `defaultUser` _integer_ | defaultUser is Optional: The owner UID of the created files by default.<br />The defaultUser field is only used as a fallback when the item-level user field is unset.<br />(Alpha) This field requires the AtomicWriteVolumeUserFields feature gate to be enabled. |  |  |
-| `name` _string_ | Name is the name of the secret mount volume that will be used<br />as the name of volume and volume mount for the server or agent pod<br />if empty then the secret name will be used instead. |  | MaxLength: 63 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br /> |
-| `mountPath` _string_ | MountPath is the path within server and agent pods where the<br />secret contents will be mounted. |  |  |
-| `subPath` _string_ | SubPath is an optional path within the secret to mount instead of the root.<br />When specified, only the specified key from the secret will be mounted as a file<br />at MountPath, keeping the parent directory writable. |  |  |
-| `role` _string_ | Role is the type of the k3k pod that will be used to mount the secret. |  | Enum: [server agent all] <br /> |
+| `secretName` _string_ | secretName is the name of the secret in the pod's namespace to use.<br />More info: https://kubernetes.io/docs/concepts/storage/volumes#secret |  | Optional: \{\} <br /> |
+| `items` _[KeyToPath](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#keytopath-v1-core) array_ | items If unspecified, each key-value pair in the Data field of the referenced<br />Secret will be projected into the volume as a file whose name is the<br />key and content is the value. If specified, the listed keys will be<br />projected into the specified paths, and unlisted keys will not be<br />present. If a key is specified which is not present in the Secret,<br />the volume setup will error unless it is marked optional. Paths must be<br />relative and may not contain the '..' path or start with '..'. |  | Optional: \{\} <br /> |
+| `defaultMode` _integer_ | defaultMode is Optional: mode bits used to set permissions on created files by default.<br />Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.<br />YAML accepts both octal and decimal values, JSON requires decimal values<br />for mode bits. Defaults to 0644.<br />Directories within the path are not affected by this setting.<br />This might be in conflict with other options that affect the file<br />mode, like fsGroup, and the result can be other mode bits set. |  | Optional: \{\} <br /> |
+| `optional` _boolean_ | optional field specify whether the Secret or its keys must be defined |  | Optional: \{\} <br /> |
+| `defaultUser` _integer_ | defaultUser is Optional: The owner UID of the created files by default.<br />The defaultUser field is only used as a fallback when the item-level user field is unset.<br />(Alpha) This field requires the AtomicWriteVolumeUserFields feature gate to be enabled. |  | Optional: \{\} <br /> |
+| `name` _string_ | Name is the name of the secret mount volume that will be used<br />as the name of volume and volume mount for the server or agent pod<br />if empty then the secret name will be used instead. |  | MaxLength: 63 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Optional: \{\} <br /> |
+| `mountPath` _string_ | MountPath is the path within server and agent pods where the<br />secret contents will be mounted. |  | Optional: \{\} <br /> |
+| `subPath` _string_ | SubPath is an optional path within the secret to mount instead of the root.<br />When specified, only the specified key from the secret will be mounted as a file<br />at MountPath, keeping the parent directory writable. |  | Optional: \{\} <br /> |
+| `role` _string_ | Role is the type of the k3k pod that will be used to mount the secret. |  | Enum: [server agent all] <br />Optional: \{\} <br /> |
 
 
 #### SecretSyncConfig
@@ -554,8 +554,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true | Optional: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### ServiceSyncConfig
@@ -571,8 +571,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true | Required: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### StorageClassSyncConfig
@@ -588,8 +588,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false |  |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  |  |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false | Required: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### SyncConfig
@@ -607,13 +607,13 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `services` _[ServiceSyncConfig](#servicesyncconfig)_ | Services resources sync configuration. | \{ enabled:true \} |  |
-| `configMaps` _[ConfigMapSyncConfig](#configmapsyncconfig)_ | ConfigMaps resources sync configuration. | \{ enabled:true \} |  |
-| `secrets` _[SecretSyncConfig](#secretsyncconfig)_ | Secrets resources sync configuration. | \{ enabled:true \} |  |
-| `ingresses` _[IngressSyncConfig](#ingresssyncconfig)_ | Ingresses resources sync configuration. | \{ enabled:false \} |  |
-| `persistentVolumeClaims` _[PersistentVolumeClaimSyncConfig](#persistentvolumeclaimsyncconfig)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:true \} |  |
-| `priorityClasses` _[PriorityClassSyncConfig](#priorityclasssyncconfig)_ | PriorityClasses resources sync configuration. | \{ enabled:false \} |  |
-| `storageClasses` _[StorageClassSyncConfig](#storageclasssyncconfig)_ | StorageClasses resources sync configuration. | \{ enabled:false \} |  |
+| `services` _[ServiceSyncConfig](#servicesyncconfig)_ | Services resources sync configuration. | \{ enabled:true \} | Optional: \{\} <br /> |
+| `configMaps` _[ConfigMapSyncConfig](#configmapsyncconfig)_ | ConfigMaps resources sync configuration. | \{ enabled:true \} | Optional: \{\} <br /> |
+| `secrets` _[SecretSyncConfig](#secretsyncconfig)_ | Secrets resources sync configuration. | \{ enabled:true \} | Optional: \{\} <br /> |
+| `ingresses` _[IngressSyncConfig](#ingresssyncconfig)_ | Ingresses resources sync configuration. | \{ enabled:false \} | Optional: \{\} <br /> |
+| `persistentVolumeClaims` _[PersistentVolumeClaimSyncConfig](#persistentvolumeclaimsyncconfig)_ | PersistentVolumeClaims resources sync configuration. | \{ enabled:true \} | Optional: \{\} <br /> |
+| `priorityClasses` _[PriorityClassSyncConfig](#priorityclasssyncconfig)_ | PriorityClasses resources sync configuration. | \{ enabled:false \} | Optional: \{\} <br /> |
+| `storageClasses` _[StorageClassSyncConfig](#storageclasssyncconfig)_ | StorageClasses resources sync configuration. | \{ enabled:false \} | Optional: \{\} <br /> |
 
 
 #### VirtualClusterPolicy
@@ -634,7 +634,7 @@ _Appears in:_
 | `kind` _string_ | `VirtualClusterPolicy` | | |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[VirtualClusterPolicySpec](#virtualclusterpolicyspec)_ | Spec defines the desired state of the VirtualClusterPolicy. | \{  \} |  |
-| `status` _[VirtualClusterPolicyStatus](#virtualclusterpolicystatus)_ | Status reflects the observed state of the VirtualClusterPolicy. |  |  |
+| `status` _[VirtualClusterPolicyStatus](#virtualclusterpolicystatus)_ | Status reflects the observed state of the VirtualClusterPolicy. |  | Optional: \{\} <br /> |
 
 
 #### VirtualClusterPolicyList
@@ -668,20 +668,20 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `quota` _[ResourceQuotaSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcequotaspec-v1-core)_ | Quota specifies the resource limits for clusters within a clusterpolicy. |  |  |
-| `limit` _[LimitRangeSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#limitrangespec-v1-core)_ | Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy<br />to set defaults and constraints (min/max) |  |  |
-| `defaultNodeSelector` _object (keys:string, values:string)_ | DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace. |  |  |
-| `defaultPriorityClass` _string_ | DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace. |  |  |
-| `defaultServerAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
-| `defaultAgentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  |  |
-| `allowedMode` _[ClusterMode](#clustermode)_ | AllowedMode specifies the allowed cluster provisioning mode. | shared | Enum: [shared virtual hcp] <br /> |
-| `disableNetworkPolicy` _boolean_ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. |  |  |
-| `podSecurityAdmissionLevel` _[PodSecurityAdmissionLevel](#podsecurityadmissionlevel)_ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. |  | Enum: [privileged baseline restricted] <br /> |
-| `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} |  |
-| `runtimeClassName` _string_ | SecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  |  |
-| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  |  |
-| `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  |  |
-| `allowedHostSchedulers` _string array_ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced.<br />This list is only checked against the annotation and has nothing to do with the<br />Pod's spec.schedulerName field, which is still handled by the virtual cluster. |  |  |
+| `quota` _[ResourceQuotaSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#resourcequotaspec-v1-core)_ | Quota specifies the resource limits for clusters within a clusterpolicy. |  | Optional: \{\} <br /> |
+| `limit` _[LimitRangeSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#limitrangespec-v1-core)_ | Limit specifies the LimitRange that will be applied to all pods within the VirtualClusterPolicy<br />to set defaults and constraints (min/max) |  | Optional: \{\} <br /> |
+| `defaultNodeSelector` _object (keys:string, values:string)_ | DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace. |  | Optional: \{\} <br /> |
+| `defaultPriorityClass` _string_ | DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace. |  | Optional: \{\} <br /> |
+| `defaultServerAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  | Optional: \{\} <br /> |
+| `defaultAgentAffinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ | DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace.<br />This includes both node affinity and pod affinity/anti-affinity rules. |  | Optional: \{\} <br /> |
+| `allowedMode` _[ClusterMode](#clustermode)_ | AllowedMode specifies the allowed cluster provisioning mode. | shared | Enum: [shared virtual hcp] <br />Optional: \{\} <br /> |
+| `disableNetworkPolicy` _boolean_ | DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation. |  | Optional: \{\} <br /> |
+| `podSecurityAdmissionLevel` _[PodSecurityAdmissionLevel](#podsecurityadmissionlevel)_ | PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace. |  | Enum: [privileged baseline restricted] <br />Optional: \{\} <br /> |
+| `sync` _[SyncConfig](#syncconfig)_ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. | \{  \} | Optional: \{\} <br /> |
+| `runtimeClassName` _string_ | SecurityContext specifies custom SecurityContext to be added<br />to the agent and server pods of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
+| `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
+| `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  | Optional: \{\} <br /> |
+| `allowedHostSchedulers` _string array_ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced.<br />This list is only checked against the annotation and has nothing to do with the<br />Pod's spec.schedulerName field, which is still handled by the virtual cluster. |  | Optional: \{\} <br /> |
 
 
 #### VirtualClusterPolicyStatus
@@ -697,9 +697,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `observedGeneration` _integer_ | ObservedGeneration was the generation at the time the status was updated. |  |  |
-| `lastUpdateTime` _string_ | LastUpdate is the timestamp when the status was last updated. |  |  |
-| `summary` _string_ | Summary is a summary of the status. |  |  |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the cluster set. |  |  |
+| `observedGeneration` _integer_ | ObservedGeneration was the generation at the time the status was updated. |  | Optional: \{\} <br /> |
+| `lastUpdateTime` _string_ | LastUpdate is the timestamp when the status was last updated. |  | Optional: \{\} <br /> |
+| `summary` _string_ | Summary is a summary of the status. |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#condition-v1-meta) array_ | Conditions are the individual conditions for the cluster set. |  | Optional: \{\} <br /> |
 
 

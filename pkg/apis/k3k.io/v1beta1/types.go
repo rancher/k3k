@@ -50,7 +50,7 @@ type ClusterSpec struct {
 	//
 	// +kubebuilder:default=shared
 	// +kubebuilder:validation:Enum=shared;virtual;hcp
-	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	Mode ClusterMode `json:"mode,omitempty"`
 
@@ -75,7 +75,7 @@ type ClusterSpec struct {
 	// Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="clusterCIDR is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	ClusterCIDR string `json:"clusterCIDR,omitempty"`
 
@@ -83,7 +83,7 @@ type ClusterSpec struct {
 	// Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="serviceCIDR is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	ServiceCIDR string `json:"serviceCIDR,omitempty"`
 
@@ -91,7 +91,7 @@ type ClusterSpec struct {
 	// Must be within the ServiceCIDR range. Defaults to 10.43.0.10.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="clusterDNS is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	ClusterDNS string `json:"clusterDNS,omitempty"`
 
@@ -492,7 +492,7 @@ type PersistenceConfig struct {
 	// This field is only relevant in "dynamic" mode.
 	//
 	// +kubebuilder:default="2G"
-	// +kubebuilder:validation:XValidation:message="storageRequestSize is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	StorageRequestSize *resource.Quantity `json:"storageRequestSize,omitempty"`
 }
@@ -826,7 +826,7 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +kubebuilder:default=shared
 	// +kubebuilder:validation:Enum=shared;virtual;hcp
-	// +kubebuilder:validation:XValidation:message="mode is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	AllowedMode ClusterMode `json:"allowedMode,omitempty"`
 
@@ -952,7 +952,7 @@ type EtcdSnapshotSpec struct {
 	// ClusterRef is a reference to the cluster where the snapshot will be taken.
 	// This field is immutable.
 	//
-	// +kubebuilder:validation:XValidation:message="clusterRef is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +required
 	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
 
@@ -965,13 +965,13 @@ type EtcdSnapshotSpec struct {
 	// Setting this will also cause k3s to create a local etcd snapshot on disk and then upload
 	// it to S3. When the request is deleted, both the on-disk and S3 files will be deleted.
 	//
-	// +kubebuilder:validation:XValidation:message="s3ConfigSecretRef is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +optional
 	S3ConfigSecretRef *corev1.SecretReference `json:"s3ConfigSecretRef,omitempty"`
 
 	// Compress specifies if the snapshot should be compressed
 	//
-	// +kubebuilder:validation:XValidation:message="compress is immutable",rule="self == oldSelf"
+	// +k8s:immutable
 	// +kubebuilder:default=false
 	// +optional
 	Compress bool `json:"compress"`

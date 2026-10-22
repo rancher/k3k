@@ -196,10 +196,12 @@ func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, projec
 	p.translator.TranslateTo(hostSecret)
 
 	data := hostSecret.Data
-	if _, err := controllerutil.CreateOrUpdate(ctx, p.host.Client, hostSecret, func() error {
+
+	_, err := controllerutil.CreateOrUpdate(ctx, p.host.Client, hostSecret, func() error {
 		hostSecret.Data = data
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 

@@ -204,7 +204,7 @@ func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1
 
 	var b *k3s.BootstrapData
 
-	if err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
+	err := retry.OnError(k3kcontroller.Backoff, func(err error) bool {
 		return true
 	}, func() error {
 		var err error
@@ -212,7 +212,8 @@ func (p *StatefulSetReconciler) getETCDTLS(ctx context.Context, cluster *v1beta1
 		b, err = bootstrap.LoadFromSecret(ctx, p.Client, cluster)
 
 		return err
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 

@@ -547,7 +547,7 @@ func (s *Server) setupStartCommand() (string, error) {
 		return "", err
 	}
 
-	if err := tmplCmd.Execute(&output, map[string]string{
+	err = tmplCmd.Execute(&output, map[string]string{
 		"ETCD_DIR":      k3sEtcdDataDir,
 		"INIT_CONFIG":   filepath.Join(k3sInitConfigDir, "config.yaml"),
 		"SERVER_CONFIG": filepath.Join(k3sConfigDir, "config.yaml"),
@@ -555,7 +555,8 @@ func (s *Server) setupStartCommand() (string, error) {
 		"K3K_MODE":      string(s.cluster.Spec.Mode),
 		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
 		"RUNTIME_CLASS": runtimeClass,
-	}); err != nil {
+	})
+	if err != nil {
 		return "", err
 	}
 
@@ -686,9 +687,10 @@ func (s *Server) buildAddonsVolumes(ctx context.Context) ([]corev1.Volume, []cor
 				Data: addons.Data,
 			}
 
-			if _, err := controllerutil.CreateOrUpdate(ctx, s.client, &clusterAddons, func() error {
+			_, err := controllerutil.CreateOrUpdate(ctx, s.client, &clusterAddons, func() error {
 				return controllerutil.SetOwnerReference(s.cluster, &clusterAddons, s.client.Scheme())
-			}); err != nil {
+			})
+			if err != nil {
 				return nil, nil, err
 			}
 		}

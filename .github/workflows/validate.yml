@@ -31,7 +31,6 @@ jobs:
       with:
         version: v2.14.0
         args: -v
-        only-new-issues: true
         skip-cache: false
 
     - name: Run formatters

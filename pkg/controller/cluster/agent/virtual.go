@@ -62,10 +62,11 @@ func (v *VirtualAgent) Name() string {
 // EnsureResources creates or updates every resource a virtual mode agent needs, and
 // reports all the failures together.
 func (v *VirtualAgent) EnsureResources(ctx context.Context) error {
-	if err := errors.Join(
+	err := errors.Join(
 		v.config(ctx),
 		v.deployment(ctx),
-	); err != nil {
+	)
+	if err != nil {
 		return fmt.Errorf("failed to ensure some resources: %w", err)
 	}
 

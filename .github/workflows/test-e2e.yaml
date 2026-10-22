@@ -54,9 +54,6 @@ jobs:
       with:
         go-version-file: go.mod
 
-    - name: Install Ginkgo
-      run: go install github.com/onsi/ginkgo/v2/ginkgo@f2d0f65b6d1e99c58d1f9a31b41c53a2754a6c2c # v2.32.1
-
     - name: Setup environment
       run: |
         mkdir ${{ github.workspace }}/covdata

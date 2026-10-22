@@ -8,7 +8,6 @@ IMAGE_ARCHIVE ?= k3k-images.tar
 ## Dependencies
 
 GOLANGCI_LINT_VERSION := v2.14.0
-GINKGO_VERSION ?= v2.32.1
 GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
 ENVTEST_K8S_VERSION := 1.31.0
@@ -21,7 +20,7 @@ GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$
 YAMLLINT ?= yamllint
 # shellcheck ships as a binary; install it from your package manager (it is preinstalled on GitHub runners)
 SHELLCHECK ?= shellcheck
-GINKGO ?= go run github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
+GINKGO ?= go tool ginkgo
 CRD_REF_DOCS := go run github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VER)
 PANDOC := $(shell which pandoc 2> /dev/null)
 

@@ -41,6 +41,8 @@ func NewClusterUpdateCmd(appCtx *AppContext) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 	}
 
+	cmd.ValidArgsFunction = completeClusterNames
+
 	CobraFlagNamespace(appCtx, cmd, completeClusterNamespaces)
 
 	updateFlags(cmd, updateConfig)
@@ -62,20 +64,22 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 		ctx := cmd.Context()
 
 		client := appCtx.Client
-		name := args[0]
+
+		namespace, name, err := resolveClusterArg(appCtx, args[0])
+		if err != nil {
+			return err
+		}
 
 		if name == k3kcluster.ClusterInvalidName {
 			return errors.New("invalid cluster name")
 		}
 
-		namespace := appCtx.Namespace(name)
-
 		var virtualCluster v1beta1.Cluster
 
-		clusterKey := types.NamespacedName{Name: name, Namespace: appCtx.namespace}
-		if err := appCtx.Client.Get(ctx, clusterKey, &virtualCluster); err != nil {
+		clusterKey := types.NamespacedName{Name: name, Namespace: namespace}
+		if err := client.Get(ctx, clusterKey, &virtualCluster); err != nil {
 			if apierrors.IsNotFound(err) {
-				return fmt.Errorf("cluster %s not found in namespace %s", name, appCtx.namespace)
+				return fmt.Errorf("cluster %s not found in namespace %s", name, namespace)
 			}
 
 			return fmt.Errorf("failed to fetch cluster: %w", err)
@@ -109,7 +113,7 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 		if cmd.Flags().Changed("servers") {
 			var oldServers int32
-			if virtualCluster.Spec.Agents != nil {
+			if virtualCluster.Spec.Servers != nil {
 				oldServers = *virtualCluster.Spec.Servers
 			}
 

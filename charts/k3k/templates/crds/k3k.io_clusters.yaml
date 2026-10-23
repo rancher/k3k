@@ -1327,6 +1327,15 @@ spec:
                           If 0 or negative, the port will not be exposed.
                         format: int32
                         type: integer
+                      loadBalancerClass:
+                        description: |-
+                          LoadBalancerClass specifies the class of the load-balancer implementation for the exposed Service.
+                          If not specified, the host cluster's default load-balancer implementation is used.
+                          Once set, Kubernetes does not allow the Service's loadBalancerClass to change while its type remains LoadBalancer.
+                        type: string
+                        x-kubernetes-validations:
+                        - message: field is immutable
+                          rule: self == oldSelf
                       serverPort:
                         description: |-
                           ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.
@@ -1336,6 +1345,9 @@ spec:
                         format: int32
                         type: integer
                     type: object
+                    x-kubernetes-validations:
+                    - message: field loadBalancerClass is immutable once set
+                      rule: '!has(oldSelf.loadBalancerClass) || has(self.loadBalancerClass)'
                   nodePort:
                     description: NodePort specifies options for exposing the API server
                       through NodePort.

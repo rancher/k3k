@@ -646,6 +646,10 @@ If 0 or negative, only the default https 443 port will be allocated. + |  | Opti
 If not specified, the default etcd 2379 port will be allocated. +
 If 0 or negative, the port will not be exposed. + |  | Optional: \{} +
 
+| *`loadBalancerClass`* __string__ | LoadBalancerClass specifies the class of the load-balancer implementation for the exposed Service. +
+If not specified, the host cluster's default load-balancer implementation is used. +
+Once set, Kubernetes does not allow the Service's loadBalancerClass to change while its type remains LoadBalancer. + |  | Optional: \{} +
+
 |===
 
 

@@ -1,0 +1,50 @@
+# API design proposal only: workload PVC fallback is not implemented.
+# Cluster/policy precedence is not yet defined; these independent examples
+# intentionally do not configure both defaults on the same Cluster.
+# Replace "workload-storage" with a StorageClass name in the host cluster.
+# This concerns workload PVCs, not server persistence.
+
+# Example 1: a Cluster-level default, without a namespace policy.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: storage-cluster-example
+---
+apiVersion: k3k.io/v1beta1
+kind: Cluster
+metadata:
+  name: cluster-storage-default
+  namespace: storage-cluster-example
+spec:
+  mode: shared
+  servers: 1
+  storage:
+    defaultStorageClassName: workload-storage
+---
+# Example 2: a policy-level default selected by a host Namespace label.
+# VirtualClusterPolicy is cluster-scoped; the Cluster below deliberately
+# omits spec.storage so this example does not imply precedence.
+apiVersion: k3k.io/v1beta1
+kind: VirtualClusterPolicy
+metadata:
+  name: workload-storage-policy
+spec:
+  allowedMode: shared
+  storage:
+    defaultStorageClassName: workload-storage
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: storage-policy-example
+  labels:
+    policy.k3k.io/policy-name: workload-storage-policy
+---
+apiVersion: k3k.io/v1beta1
+kind: Cluster
+metadata:
+  name: policy-storage-default
+  namespace: storage-policy-example
+spec:
+  mode: shared
+  servers: 1

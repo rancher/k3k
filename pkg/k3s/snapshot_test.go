@@ -34,7 +34,7 @@ func Test_SaveSnapshot(t *testing.T) {
 			Name: "test-snapshot",
 		},
 		Spec: v1beta1.EtcdSnapshotSpec{
-			ClusterRef: corev1.LocalObjectReference{Name: "test-cluster"},
+			ClusterRef: &corev1.LocalObjectReference{Name: "test-cluster"},
 			Compress:   true,
 		},
 	}
@@ -95,7 +95,7 @@ func Test_DeleteSnapshot(t *testing.T) {
 			Name: "test-snapshot",
 		},
 		Spec: v1beta1.EtcdSnapshotSpec{
-			ClusterRef: corev1.LocalObjectReference{Name: "test-cluster"},
+			ClusterRef: &corev1.LocalObjectReference{Name: "test-cluster"},
 			Compress:   true,
 		},
 		Status: v1beta1.EtcdSnapshotStatus{

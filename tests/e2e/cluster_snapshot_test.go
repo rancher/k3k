@@ -5,14 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k3sv1 "github.com/k3s-io/api/k3s.cattle.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
-	k3ksnapshot "github.com/rancher/k3k/pkg/controller/snapshot"
 	fwclient "github.com/rancher/k3k/tests/framework/client"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
@@ -37,34 +34,8 @@ var _ = When("Creating Etcd snapshots for shared mode cluster", Ordered, Label(s
 	})
 
 	When("Local Etcd snapshot object is created", func() {
-		var snapshot *v1beta1.EtcdSnapshot
-
-		BeforeAll(func() {
-			ctx := GinkgoT().Context()
-
-			snapshot = newSnapshot(virtualCluster.Cluster.Name, virtualCluster.Cluster.Namespace, "")
-
-			err := k8sClient.Create(ctx, snapshot)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
 		It("local snapshot will be created locally and snapshot status updated", func() {
-			ctx := GinkgoT().Context()
-
-			Eventually(func(g Gomega) {
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(snapshot), snapshot)
-				g.Expect(err).ToNot(HaveOccurred())
-				g.Expect(snapshot.Status.Filename).ToNot(BeEmpty())
-
-				cond := meta.FindStatusCondition(snapshot.Status.Conditions, k3ksnapshot.ConditionReady)
-				g.Expect(cond).NotTo(BeNil())
-				g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-				g.Expect(cond.Reason).To(Equal(k3ksnapshot.SuccessfulCreateSnapshotReason))
-				g.Expect(cond.Message).To(ContainSubstring(`Snapshot was created`))
-			}).
-				WithTimeout(time.Minute).
-				WithPolling(time.Second).
-				Should(Succeed())
+			newSnapshot(virtualCluster.Cluster.Name, virtualCluster.Cluster.Namespace, "")
 		})
 	})
 
@@ -85,30 +56,10 @@ var _ = When("Creating Etcd snapshots for shared mode cluster", Ordered, Label(s
 			secret := newS3ConfigSecret(s3ConfigSecretName, namespace, endpoint)
 			err := k8sClient.Create(ctx, secret)
 			Expect(err).ToNot(HaveOccurred())
-
-			snapshot = newSnapshot(virtualCluster.Cluster.Name, namespace, s3ConfigSecretName)
-
-			err = k8sClient.Create(ctx, snapshot)
-			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("S3 snapshot will be created and snapshot status updated", func() {
-			ctx := GinkgoT().Context()
-
-			Eventually(func(g Gomega) {
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(snapshot), snapshot)
-				g.Expect(err).ToNot(HaveOccurred())
-				g.Expect(snapshot.Status.Filename).ToNot(BeEmpty())
-
-				cond := meta.FindStatusCondition(snapshot.Status.Conditions, k3ksnapshot.ConditionReady)
-				g.Expect(cond).NotTo(BeNil())
-				g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-				g.Expect(cond.Reason).To(Equal(k3ksnapshot.SuccessfulCreateSnapshotReason))
-				g.Expect(cond.Message).To(ContainSubstring(`Snapshot was created`))
-			}).
-				WithTimeout(time.Minute * 3).
-				WithPolling(time.Second * 2).
-				Should(Succeed())
+			snapshot = newSnapshot(virtualCluster.Cluster.Name, virtualCluster.Cluster.Namespace, s3ConfigSecretName)
 		})
 
 		It("S3 snapshot will be uploaded to the S3 bucket", func() {
@@ -202,34 +153,8 @@ var _ = When("Creating Etcd snapshots for virtual mode cluster", Ordered, Label(
 	})
 
 	When("Local Etcd snapshot object is created", func() {
-		var snapshot *v1beta1.EtcdSnapshot
-
-		BeforeAll(func() {
-			ctx := GinkgoT().Context()
-
-			snapshot = newSnapshot(virtualCluster.Cluster.Name, virtualCluster.Cluster.Namespace, "")
-
-			err := k8sClient.Create(ctx, snapshot)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
 		It("local snapshot will be created locally and snapshot status updated", func() {
-			ctx := GinkgoT().Context()
-
-			Eventually(func(g Gomega) {
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(snapshot), snapshot)
-				g.Expect(err).ToNot(HaveOccurred())
-				g.Expect(snapshot.Status.Filename).ToNot(BeEmpty())
-
-				cond := meta.FindStatusCondition(snapshot.Status.Conditions, k3ksnapshot.ConditionReady)
-				g.Expect(cond).NotTo(BeNil())
-				g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-				g.Expect(cond.Reason).To(Equal(k3ksnapshot.SuccessfulCreateSnapshotReason))
-				g.Expect(cond.Message).To(ContainSubstring(`Snapshot was created`))
-			}).
-				WithTimeout(time.Minute).
-				WithPolling(time.Second).
-				Should(Succeed())
+			newSnapshot(virtualCluster.Cluster.Name, virtualCluster.Cluster.Namespace, "")
 		})
 	})
 
@@ -250,30 +175,10 @@ var _ = When("Creating Etcd snapshots for virtual mode cluster", Ordered, Label(
 			secret := newS3ConfigSecret(s3ConfigSecretName, namespace, endpoint)
 			err := k8sClient.Create(ctx, secret)
 			Expect(err).ToNot(HaveOccurred())
-
-			snapshot = newSnapshot(virtualCluster.Cluster.Name, namespace, s3ConfigSecretName)
-
-			err = k8sClient.Create(ctx, snapshot)
-			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("S3 snapshot will be created and snapshot status updated", func() {
-			ctx := GinkgoT().Context()
-
-			Eventually(func(g Gomega) {
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(snapshot), snapshot)
-				g.Expect(err).ToNot(HaveOccurred())
-				g.Expect(snapshot.Status.Filename).ToNot(BeEmpty())
-
-				cond := meta.FindStatusCondition(snapshot.Status.Conditions, k3ksnapshot.ConditionReady)
-				g.Expect(cond).NotTo(BeNil())
-				g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-				g.Expect(cond.Reason).To(Equal(k3ksnapshot.SuccessfulCreateSnapshotReason))
-				g.Expect(cond.Message).To(ContainSubstring(`Snapshot was created`))
-			}).
-				WithTimeout(time.Minute * 3).
-				WithPolling(time.Second * 2).
-				Should(Succeed())
+			snapshot = newSnapshot(virtualCluster.Cluster.Name, virtualCluster.Cluster.Namespace, s3ConfigSecretName)
 		})
 
 		It("S3 snapshot will be uploaded to the S3 bucket", func() {

@@ -9,8 +9,7 @@ IMAGE_ARCHIVE ?= k3k-images.tar
 
 GOLANGCI_LINT_VERSION := v2.14.0
 GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
-ENVTEST_VERSION ?= v0.0.0-20250505003155-b6c5897febe5
-ENVTEST_K8S_VERSION := 1.31.0
+ENVTEST_K8S_VERSION := 1.37.0
 CRD_REF_DOCS_VER ?= v0.3.0
 YAMLLINT_VERSION ?= 1.38.0
 FLAKE_ATTEMPTS ?= 3
@@ -24,7 +23,7 @@ GINKGO ?= go tool ginkgo
 CRD_REF_DOCS := go run github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VER)
 PANDOC := $(shell which pandoc 2> /dev/null)
 
-ENVTEST ?= go run sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
+ENVTEST ?= go tool setup-envtest
 ENVTEST_DIR ?= $(shell pwd)/.envtest
 
 E2E_LABEL_FILTER ?=

@@ -755,9 +755,8 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					err = k8sClient.Get(ctx, key, cluster)
 					g.Expect(err).To(Not(HaveOccurred()))
 
-					g.Expect(cluster.Status.PolicyName).To(Equal(vcp.Name))
-
 					g.Expect(cluster.Status.Policy).To(Not(BeNil()))
+					g.Expect(cluster.Status.Policy.Name).To(Equal(vcp.Name))
 					g.Expect(cluster.Status.Policy.PriorityClass).To(Not(BeNil()))
 					g.Expect(*cluster.Status.Policy.PriorityClass).To(Equal("test-priority"))
 				}).
@@ -791,7 +790,6 @@ var _ = Describe("VirtualClusterPolicy Controller", Label("controller"), Label("
 					err = k8sClient.Get(ctx, key, cluster)
 					g.Expect(err).To(Not(HaveOccurred()))
 
-					g.Expect(cluster.Status.PolicyName).To(BeEmpty())
 					g.Expect(cluster.Status.Policy).To(BeNil())
 				}).
 					WithTimeout(time.Second * 10).

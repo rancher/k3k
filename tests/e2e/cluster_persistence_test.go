@@ -18,10 +18,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = When("an ephemeral cluster is installed", Label(persistenceTestsLabel), Label(slowTestsLabel), func() {
+var _ = When("an ephemeral cluster is installed", Ordered, Label(persistenceTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 
-	BeforeEach(func() {
+	BeforeAll(func() {
 		virtualCluster = NewVirtualCluster()
 
 		DeferCleanup(func() {
@@ -110,19 +110,40 @@ var _ = When("an ephemeral cluster is installed", Label(persistenceTestsLabel), 
 	})
 })
 
-var _ = When("a dynamic cluster is installed", Label(persistenceTestsLabel), Label(slowTestsLabel), func() {
+var _ = When("a dynamic cluster is installed", Ordered, Label(persistenceTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 
-	BeforeEach(func() {
+	BeforeAll(func() {
 		virtualCluster = NewVirtualClusterWithType(v1beta1.DynamicPersistenceMode)
-	})
 
-	AfterEach(func() {
-		fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
+		DeferCleanup(func() {
+			fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
+		})
 	})
 
 	It("can create a nginx pod", func() {
 		_, _ = virtualCluster.NewNginxPod("")
+	})
+
+	It("uses the same bootstrap secret after a restart", func() {
+		ctx := context.Background()
+
+		_, err := virtualCluster.Client.ServerVersion()
+		Expect(err).To(Not(HaveOccurred()))
+
+		restartServerPod(ctx, virtualCluster)
+
+		By("Server pod up and running again")
+
+		By("Using old k8s client configuration should succeed")
+
+		Eventually(func() error {
+			_, err = virtualCluster.Client.DiscoveryClient.ServerVersion()
+			return err
+		}).
+			WithTimeout(2 * time.Minute).
+			WithPolling(time.Second * 5).
+			Should(BeNil())
 	})
 
 	It("can delete the cluster", func() {
@@ -154,7 +175,7 @@ var _ = When("a dynamic cluster is installed", Label(persistenceTestsLabel), Lab
 		namespace := fwk3k.CreateNamespace(k8s)
 
 		DeferCleanup(func() {
-			fwk3k.DeleteNamespaces(k8s, virtualCluster.Cluster.Namespace)
+			fwk3k.DeleteNamespaces(k8s, namespace.Name)
 		})
 
 		cluster := NewCluster(namespace.Name)
@@ -189,26 +210,5 @@ var _ = When("a dynamic cluster is installed", Label(persistenceTestsLabel), Lab
 			WithTimeout(time.Minute * 3).
 			WithPolling(time.Second).
 			Should(BeEmpty())
-	})
-
-	It("uses the same bootstrap secret after a restart", func() {
-		ctx := context.Background()
-
-		_, err := virtualCluster.Client.ServerVersion()
-		Expect(err).To(Not(HaveOccurred()))
-
-		restartServerPod(ctx, virtualCluster)
-
-		By("Server pod up and running again")
-
-		By("Using old k8s client configuration should succeed")
-
-		Eventually(func() error {
-			_, err = virtualCluster.Client.DiscoveryClient.ServerVersion()
-			return err
-		}).
-			WithTimeout(2 * time.Minute).
-			WithPolling(time.Second * 5).
-			Should(BeNil())
 	})
 })

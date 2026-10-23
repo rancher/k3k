@@ -41,7 +41,7 @@ var _ = Context("In a shared cluster", Label(appTestsLabel), Ordered, func() {
 			namespace = "default"
 		)
 
-		BeforeEach(func() {
+		BeforeAll(func() {
 			var err error
 
 			ctx := context.Background()
@@ -204,7 +204,7 @@ var _ = Context("In a shared cluster", Label(appTestsLabel), Ordered, func() {
 			namespace = "default"
 		)
 
-		BeforeEach(func() {
+		BeforeAll(func() {
 			var err error
 
 			ctx := context.Background()

@@ -15,20 +15,20 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = When("two virtual clusters are installed", Label(networkingTestsLabel), Label(slowTestsLabel), func() {
+var _ = When("two virtual clusters are installed", Ordered, Label(networkingTestsLabel), Label(slowTestsLabel), func() {
 	var (
 		cluster1 *VirtualCluster
 		cluster2 *VirtualCluster
 	)
 
-	BeforeEach(func() {
+	BeforeAll(func() {
 		clusters := NewVirtualClusters(2)
 		cluster1 = clusters[0]
 		cluster2 = clusters[1]
-	})
 
-	AfterEach(func() {
-		fwk3k.DeleteNamespaces(k8s, cluster1.Cluster.Namespace, cluster2.Cluster.Namespace)
+		DeferCleanup(func() {
+			fwk3k.DeleteNamespaces(k8s, cluster1.Cluster.Namespace, cluster2.Cluster.Namespace)
+		})
 	})
 
 	It("can create pods in each of them that are isolated", func() {

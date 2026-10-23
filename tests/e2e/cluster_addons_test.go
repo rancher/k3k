@@ -21,10 +21,10 @@ const (
 	addonManifestMountPath       = "/var/lib/rancher/k3s/server/manifests/k3s-addons/nginx.yaml"
 )
 
-var _ = When("a cluster with secretMounts configuration is used to load addons", Label(addonsTestsLabel), func() {
+var _ = When("a cluster with secretMounts configuration is used to load addons", Ordered, Label(addonsTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 
-	BeforeEach(func() {
+	BeforeAll(func() {
 		ctx := context.Background()
 
 		namespace := fwk3k.CreateNamespace(k8s)

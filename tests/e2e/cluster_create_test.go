@@ -17,10 +17,10 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 )
 
-var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label(slowTestsLabel), func() {
+var _ = When("creating a shared mode cluster", Ordered, Label(lifecycleTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 
-	BeforeEach(func() {
+	BeforeAll(func() {
 		namespace := fwk3k.CreateNamespace(k8s)
 
 		DeferCleanup(func() {
@@ -139,10 +139,10 @@ var _ = When("creating a shared mode cluster", Label(lifecycleTestsLabel), Label
 	})
 })
 
-var _ = When("creating an HCP mode cluster", Label(lifecycleTestsLabel), Label(slowTestsLabel), func() {
+var _ = When("creating an HCP mode cluster", Ordered, Label(lifecycleTestsLabel), Label(slowTestsLabel), func() {
 	var virtualCluster *VirtualCluster
 
-	BeforeEach(func() {
+	BeforeAll(func() {
 		namespace := fwk3k.CreateNamespace(k8s)
 
 		DeferCleanup(func() {

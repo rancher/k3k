@@ -102,6 +102,11 @@ type ClusterSpec struct {
 	// +optional
 	Persistence PersistenceConfig `json:"persistence"`
 
+	// Storage specifies storage configuration for workloads in the virtual cluster.
+	//
+	// +optional
+	Storage *StorageConfig `json:"storage,omitempty"`
+
 	// Expose specifies options for exposing the API server.
 	// By default, it's only exposed as a ClusterIP.
 	//
@@ -497,6 +502,18 @@ type PersistenceConfig struct {
 	StorageRequestSize *resource.Quantity `json:"storageRequestSize,omitempty"`
 }
 
+// StorageConfig specifies storage options for workloads in the virtual cluster.
+type StorageConfig struct {
+	// DefaultStorageClassName names the host StorageClass to use as a fallback for
+	// workload PersistentVolumeClaims synced to the host cluster
+	// when their storageClassName is omitted. Explicitly empty or named PVC
+	// storageClassName values are unchanged.
+	// If omitted, the host cluster's default StorageClass is used.
+	//
+	// +optional
+	DefaultStorageClassName string `json:"defaultStorageClassName,omitempty"`
+}
+
 // ExposeConfig specifies options for exposing the API server.
 type ExposeConfig struct {
 	// Ingress specifies options for exposing the API server through an Ingress.
@@ -709,6 +726,11 @@ type AppliedPolicy struct {
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
 
+	// Storage represents the storage configuration applied by the active VirtualClusterPolicy.
+	//
+	// +optional
+	Storage *StorageConfig `json:"storage,omitempty"`
+
 	// RuntimeClassName specifies alternative runtime class for the
 	// agent and server pods of the cluster in virtual or shared mode.
 	//
@@ -854,6 +876,11 @@ type VirtualClusterPolicySpec struct {
 	// +kubebuilder:default={}
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
+
+	// Storage specifies storage configuration for workloads in the virtual clusters.
+	//
+	// +optional
+	Storage *StorageConfig `json:"storage,omitempty"`
 
 	// SecurityContext specifies custom SecurityContext to be added
 	// to the agent and server pods of the cluster in virtual or shared mode.

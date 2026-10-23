@@ -3149,6 +3149,19 @@ spec:
                 x-kubernetes-validations:
                 - message: field is immutable
                   rule: self == oldSelf
+              storage:
+                description: Storage specifies storage configuration for workloads
+                  in the virtual cluster.
+                properties:
+                  defaultStorageClassName:
+                    description: |-
+                      DefaultStorageClassName names the host StorageClass to use as a fallback for
+                      workload PersistentVolumeClaims synced to the host cluster
+                      when their storageClassName is omitted. Explicitly empty or named PVC
+                      storageClassName values are unchanged.
+                      If omitted, the host cluster's default StorageClass is used.
+                    type: string
+                type: object
               sync:
                 default: {}
                 description: Sync specifies the resources types that will be synced
@@ -5793,6 +5806,19 @@ spec:
                             type: array
                             x-kubernetes-list-type: atomic
                         type: object
+                    type: object
+                  storage:
+                    description: Storage represents the storage configuration applied
+                      by the active VirtualClusterPolicy.
+                    properties:
+                      defaultStorageClassName:
+                        description: |-
+                          DefaultStorageClassName names the host StorageClass to use as a fallback for
+                          workload PersistentVolumeClaims synced to the host cluster
+                          when their storageClassName is omitted. Explicitly empty or named PVC
+                          storageClassName values are unchanged.
+                          If omitted, the host cluster's default StorageClass is used.
+                        type: string
                     type: object
                   sync:
                     description: sync is the SyncConfig enforced by the active VirtualClusterPolicy.

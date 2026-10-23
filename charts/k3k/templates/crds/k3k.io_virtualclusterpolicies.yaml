@@ -2269,6 +2269,19 @@ spec:
                         type: string
                     type: object
                 type: object
+              storage:
+                description: Storage specifies storage configuration for workloads
+                  in the virtual clusters.
+                properties:
+                  defaultStorageClassName:
+                    description: |-
+                      DefaultStorageClassName names the host StorageClass to use as a fallback for
+                      workload PersistentVolumeClaims synced to the host cluster
+                      when their storageClassName is omitted. Explicitly empty or named PVC
+                      storageClassName values are unchanged.
+                      If omitted, the host cluster's default StorageClass is used.
+                    type: string
+                type: object
               sync:
                 default: {}
                 description: Sync specifies the resources types that will be synced

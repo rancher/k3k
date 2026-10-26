@@ -404,7 +404,36 @@ func (c *Reconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) er
 
 	s := server.New(cluster, c.Client, token, c.K3SServerImage, c.K3SServerImagePullPolicy, c.ServerImagePullSecrets)
 
-	c.setClusterCIDRs(ctx, cluster)
+	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
+	if cluster.Status.ClusterCIDR == "" {
+		cluster.Status.ClusterCIDR = defaultVirtualClusterCIDR
+		if cluster.Spec.Mode == v1beta1.SharedClusterMode {
+			cluster.Status.ClusterCIDR = defaultSharedClusterCIDR
+		}
+	}
+
+	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
+	if cluster.Status.ServiceCIDR == "" {
+		// in shared mode try to lookup the serviceCIDR
+		if cluster.Spec.Mode == v1beta1.SharedClusterMode {
+			log.V(1).Info("Looking up Service CIDR for shared mode")
+
+			cluster.Status.ServiceCIDR, err = c.lookupServiceCIDR(ctx)
+			if err != nil {
+				log.Error(err, "error while looking up Cluster Service CIDR")
+
+				cluster.Status.ServiceCIDR = defaultSharedServiceCIDR
+			}
+		}
+
+		// virtual and hcp modes both run a self-contained K3s control plane and
+		// need their own pod/service CIDR independent of the host cluster.
+		if cluster.Spec.Mode == v1beta1.VirtualClusterMode || cluster.Spec.Mode == v1beta1.HCPClusterMode {
+			log.V(1).Info("assign default service CIDR", "mode", cluster.Spec.Mode)
+
+			cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
+		}
+	}
 
 	if err := c.ensureNetworkPolicy(ctx, cluster); err != nil {
 		return err
@@ -473,45 +502,6 @@ func (c *Reconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) er
 	// this needs to be done AFTER he kubeconfig has been generated
 
 	return c.ensureStorageClasses(ctx, cluster)
-}
-
-// setClusterCIDRs sets the cluster and service CIDRs in the status, from the spec or with the
-// defaults of the cluster mode.
-func (c *Reconciler) setClusterCIDRs(ctx context.Context, cluster *v1beta1.Cluster) {
-	log := ctrl.LoggerFrom(ctx)
-
-	cluster.Status.ClusterCIDR = cluster.Spec.ClusterCIDR
-	if cluster.Status.ClusterCIDR == "" {
-		cluster.Status.ClusterCIDR = defaultVirtualClusterCIDR
-		if cluster.Spec.Mode == v1beta1.SharedClusterMode {
-			cluster.Status.ClusterCIDR = defaultSharedClusterCIDR
-		}
-	}
-
-	cluster.Status.ServiceCIDR = cluster.Spec.ServiceCIDR
-	if cluster.Status.ServiceCIDR == "" {
-		// in shared mode try to lookup the serviceCIDR
-		if cluster.Spec.Mode == v1beta1.SharedClusterMode {
-			log.V(1).Info("Looking up Service CIDR for shared mode")
-
-			serviceCIDR, err := c.lookupServiceCIDR(ctx)
-			if err != nil {
-				log.Error(err, "error while looking up Cluster Service CIDR")
-
-				serviceCIDR = defaultSharedServiceCIDR
-			}
-
-			cluster.Status.ServiceCIDR = serviceCIDR
-		}
-
-		// virtual and hcp modes both run a self-contained K3s control plane and
-		// need their own pod/service CIDR independent of the host cluster.
-		if cluster.Spec.Mode == v1beta1.VirtualClusterMode || cluster.Spec.Mode == v1beta1.HCPClusterMode {
-			log.V(1).Info("assign default service CIDR", "mode", cluster.Spec.Mode)
-
-			cluster.Status.ServiceCIDR = defaultVirtualServiceCIDR
-		}
-	}
 }
 
 // ensureBootstrapSecret will create or update the Secret containing the bootstrap data from the k3s server

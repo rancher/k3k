@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	certutil "github.com/rancher/dynamiclistener/cert"
@@ -55,7 +56,7 @@ func AddStatefulSetController(ctx context.Context, mgr manager.Manager, maxConcu
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appsv1.StatefulSet{}).
-		WithEventFilter(newClusterPredicate()).
+		WithEventFilter(predicate.And(newClusterPredicate(), newServerPredicate())).
 		Owns(&corev1.Pod{}).
 		Named(statefulsetController).
 		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).

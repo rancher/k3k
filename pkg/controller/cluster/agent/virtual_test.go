@@ -183,8 +183,9 @@ func kataVirtualAgentPodSpec(v VirtualAgent) corev1.PodSpec {
 
 func Test_virtualAgentData(t *testing.T) {
 	type args struct {
-		serviceIP string
-		token     string
+		serviceIP  string
+		token      string
+		withNodeID bool
 	}
 
 	tests := []struct {
@@ -195,20 +196,21 @@ func Test_virtualAgentData(t *testing.T) {
 		{
 			name: "simple config",
 			args: args{
-				serviceIP: "10.0.0.21",
-				token:     "dnjklsdjnksd892389238",
+				serviceIP:  "10.0.0.21",
+				token:      "dnjklsdjnksd892389238",
+				withNodeID: false,
 			},
 			expectedData: map[string]string{
 				"server":       "https://10.0.0.21",
 				"token":        "dnjklsdjnksd892389238",
-				"with-node-id": "true",
+				"with-node-id": "false",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config, err := virtualAgentData(tt.args.serviceIP, tt.args.token)
+			config, err := virtualAgentData(tt.args.serviceIP, tt.args.token, tt.args.withNodeID)
 			assert.NoError(t, err)
 
 			data := make(map[string]string)

@@ -5,11 +5,14 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	"github.com/rancher/k3k/pkg/controller"
 	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
+	"github.com/rancher/k3k/pkg/controller/cluster/agent"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -46,10 +49,24 @@ var _ = When("creating a shared mode cluster", Ordered, Label(lifecycleTestsLabe
 		Eventually(func(g Gomega) {
 			ctx := GinkgoT().Context()
 
+			// the agent DaemonSet registers a virtual node for each host node it is scheduled on
+			cluster := virtualCluster.Cluster
+			agentKey := client.ObjectKey{
+				Name:      controller.SafeConcatNameWithPrefix(cluster.Name, agent.SharedNodeAgentName),
+				Namespace: cluster.Namespace,
+			}
+
+			var agentDaemonSet appsv1.DaemonSet
+			g.Expect(k8sClient.Get(ctx, agentKey, &agentDaemonSet)).To(Succeed())
+			g.Expect(agentDaemonSet.Status.DesiredNumberScheduled).To(BeNumerically(">", 0))
+
 			nodes, err := virtualCluster.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 			g.Expect(err).To(Not(HaveOccurred()))
-			g.Expect(nodes.Items).To(HaveLen(1))
-			g.Expect(nodes.Items[0].Labels).To(HaveKeyWithValue("node-role.kubernetes.io/worker", "true"))
+			g.Expect(nodes.Items).To(HaveLen(int(agentDaemonSet.Status.DesiredNumberScheduled)))
+
+			for _, node := range nodes.Items {
+				g.Expect(node.Labels).To(HaveKeyWithValue("node-role.kubernetes.io/worker", "true"))
+			}
 		}).
 			WithTimeout(time.Minute).
 			WithPolling(time.Second).

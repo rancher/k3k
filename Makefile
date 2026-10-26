@@ -21,7 +21,8 @@ YAMLLINT ?= yamllint
 SHELLCHECK ?= shellcheck
 GINKGO ?= go tool ginkgo
 CRD_REF_DOCS := go run github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VER)
-PANDOC := $(shell which pandoc 2> /dev/null)
+DOCKER := $(shell which docker 2> /dev/null)
+PANDOC_IMAGE ?= pandoc/core:3.7
 
 ENVTEST ?= go tool setup-envtest
 ENVTEST_DIR ?= $(shell pwd)/.envtest
@@ -127,11 +128,11 @@ docs-crds:	## Build the CRDs docs
 		--output-path=./docs/crds/crds.adoc
 
 .PHONY: docs-cli
-docs-cli:	## Build the CLI docs
-ifeq (, $(PANDOC))
-	$(error "pandoc not found in PATH.")
+docs-cli:	## Build the CLI docs, running pandoc in a container
+ifeq (, $(DOCKER))
+	$(error "docker not found in PATH.")
 endif
-	@./scripts/generate-cli-docs
+	@PANDOC_IMAGE=$(PANDOC_IMAGE) ./scripts/generate-cli-docs
 
 .PHONY: lint
 lint:	## Find any linting issues in the project

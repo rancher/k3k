@@ -120,6 +120,13 @@ We are using Kubebuilder and `controller-gen` to build the needed CRDs. To gener
 
 Remember also to update the CRDs documentation running the `make docs` command.
 
+## Generating the CLI docs
+
+The CLI docs are converted to asciidoc with [pandoc](https://pandoc.org), which
+`make docs-cli` runs in a container (so Docker is required, but a local pandoc
+install isn't). The image can be overridden with `PANDOC_IMAGE`, e.g.
+`make docs-cli PANDOC_IMAGE=pandoc/core:3.7`.
+
 ## How to install k3k on k3d
 
 This document provides a guide on how to install k3k on [k3d](https://k3d.io).

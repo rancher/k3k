@@ -7,7 +7,7 @@ IMAGE_ARCHIVE ?= k3k-images.tar
 
 ## Dependencies
 
-GOLANGCI_LINT_VERSION := v2.14.0
+GOLANGCI_LINT_VERSION := v2.15.0
 GINKGO_FLAGS ?= -v -r --coverprofile=cover.out --coverpkg=./...
 ENVTEST_K8S_VERSION := 1.37.0
 CRD_REF_DOCS_VER ?= v0.3.0

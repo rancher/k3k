@@ -14,11 +14,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	k3kcluster "github.com/rancher/k3k/pkg/controller/cluster"
 	"github.com/rancher/k3k/pkg/controller/policy"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
@@ -261,6 +264,85 @@ var _ = When("using the k3kcli", Label("cli"), func() {
 				"2001:db8::1",
 				"[2001:db8::1]:6443",
 			))
+		})
+
+		It("deletes the custom token secret with the cluster", func() {
+			var (
+				stderr string
+				err    error
+			)
+
+			ctx := context.Background()
+
+			clusterName := "cluster-" + rand.String(5)
+			namespace := fwk3k.CreateNamespace(k8s)
+			clusterNamespace := namespace.Name
+
+			DeferCleanup(func() {
+				fwk3k.DeleteNamespaces(k8s, clusterNamespace)
+			})
+
+			tokenSecretKey := types.NamespacedName{Name: k3kcluster.TokenSecretName(clusterName), Namespace: clusterNamespace}
+
+			By("Creating the cluster with a custom token")
+
+			_, stderr, err = K3kcli("cluster", "create", "--no-out", "--token", "mytoken", "--namespace", clusterNamespace, clusterName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
+
+			var cluster v1beta1.Cluster
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &cluster)
+			Expect(err).To(Not(HaveOccurred()))
+
+			var tokenSecret corev1.Secret
+
+			err = k8sClient.Get(ctx, tokenSecretKey, &tokenSecret)
+			Expect(err).To(Not(HaveOccurred()))
+			Expect(tokenSecret.OwnerReferences).To(ConsistOf(
+				HaveField("UID", cluster.UID),
+			))
+
+			By("Deleting the cluster")
+
+			_, stderr, err = K3kcli("cluster", "delete", "--namespace", clusterNamespace, clusterName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+
+			By("Checking that the token secret was deleted")
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, tokenSecretKey, &corev1.Secret{})
+				return apierrors.IsNotFound(err)
+			}).
+				WithTimeout(time.Minute).
+				WithPolling(time.Second * 2).
+				Should(BeTrue())
+
+			By("Waiting for the deleted cluster, its pods and volumes to be removed")
+
+			// a new cluster with the same name could collide with the old Cluster object
+			// or reach the old server while it terminates
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}, &v1beta1.Cluster{})
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue(), "cluster still exists: %v", err)
+
+				var pods corev1.PodList
+				g.Expect(k8sClient.List(ctx, &pods, client.InNamespace(clusterNamespace))).To(Succeed())
+				g.Expect(pods.Items).To(BeEmpty())
+
+				var pvcs corev1.PersistentVolumeClaimList
+				g.Expect(k8sClient.List(ctx, &pvcs, client.InNamespace(clusterNamespace))).To(Succeed())
+				g.Expect(pvcs.Items).To(BeEmpty())
+			}).
+				WithTimeout(time.Minute * 2).
+				WithPolling(time.Second * 2).
+				Should(Succeed())
+
+			By("Creating the cluster again with the same name")
+
+			_, stderr, err = K3kcli("cluster", "create", "--no-out", "--token", "mytoken", "--namespace", clusterNamespace, clusterName)
+			Expect(err).To(Not(HaveOccurred()), string(stderr))
+			Expect(stderr).To(ContainSubstring("You can start using the cluster"))
 		})
 	})
 

@@ -7,6 +7,9 @@ package policy_test
 // 1. --cluster-cidr override: when set, it's used as-is and Nodes are never consulted.
 // 2. Node-based detection: falls back to collecting Spec.PodCIDRs/Spec.PodCIDR from live Nodes.
 // 3. Can't-determine fallback: returns an empty list (fail-open) when neither is available.
+//
+// It also pins the spec produced by IsolationNetworkPolicySpec(), shared by standalone
+// clusters and namespaces bound to a VirtualClusterPolicy.
 
 import (
 	"testing"
@@ -18,8 +21,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/controller/policy"
 )
 
@@ -93,6 +98,42 @@ func TestFindPodCIDRs_CannotDetermine(t *testing.T) {
 	cidrs, err := policy.FindPodCIDRs(t.Context(), cl, "")
 	require.NoError(t, err)
 	assert.Empty(t, cidrs)
+}
+
+func TestIsolationNetworkPolicySpec(t *testing.T) {
+	spec := policy.IsolationNetworkPolicySpec("my-ns", []string{"10.42.0.0/16"})
+
+	// only synced workload pods are selected, leaving the k3k infra pods unrestricted
+	assert.Equal(t, []metav1.LabelSelectorRequirement{
+		{Key: translate.ClusterNameLabel, Operator: metav1.LabelSelectorOpExists},
+	}, spec.PodSelector.MatchExpressions)
+
+	assert.ElementsMatch(t, []networkingv1.PolicyType{
+		networkingv1.PolicyTypeIngress,
+		networkingv1.PolicyTypeEgress,
+	}, spec.PolicyTypes)
+
+	assert.Equal(t, []networkingv1.NetworkPolicyIngressRule{{}}, spec.Ingress)
+
+	require.Len(t, spec.Egress, 1)
+	assert.ElementsMatch(t, []networkingv1.NetworkPolicyPeer{
+		{
+			IPBlock: &networkingv1.IPBlock{CIDR: "0.0.0.0/0", Except: []string{"10.42.0.0/16"}},
+		},
+		{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"kubernetes.io/metadata.name": "my-ns"},
+			},
+		},
+		{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"kubernetes.io/metadata.name": metav1.NamespaceSystem},
+			},
+			PodSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"k8s-app": "kube-dns"},
+			},
+		},
+	}, spec.Egress[0].To)
 }
 
 func createFakeClient(t *testing.T, objs ...client.Object) client.Client {

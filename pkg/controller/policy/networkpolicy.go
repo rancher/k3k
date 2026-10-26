@@ -111,49 +111,59 @@ func networkPolicy(namespaceName string, policy *v1beta1.VirtualClusterPolicy, c
 				PolicyNameLabelKey: policy.Name,
 			},
 		},
-		Spec: networkingv1.NetworkPolicySpec{
-			// Isolate synced workload pods
-			PodSelector: metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
-					{
-						Key:      translate.ClusterNameLabel,
-						Operator: metav1.LabelSelectorOpExists,
-					},
+		Spec: IsolationNetworkPolicySpec(namespaceName, cidrList),
+	}
+}
+
+// IsolationNetworkPolicySpec returns the spec of the default NetworkPolicy that isolates the synced
+// workload pods of the virtual clusters in a namespace. It's shared by standalone clusters and
+// namespaces bound to a VirtualClusterPolicy.
+//
+// Egress is allowed everywhere except the host pod network (podCIDRs), plus the namespace itself
+// and the host kube-dns.
+func IsolationNetworkPolicySpec(namespaceName string, podCIDRs []string) networkingv1.NetworkPolicySpec {
+	return networkingv1.NetworkPolicySpec{
+		// Isolate synced workload pods
+		PodSelector: metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      translate.ClusterNameLabel,
+					Operator: metav1.LabelSelectorOpExists,
 				},
 			},
-			PolicyTypes: []networkingv1.PolicyType{
-				networkingv1.PolicyTypeIngress,
-				networkingv1.PolicyTypeEgress,
-			},
-			Ingress: []networkingv1.NetworkPolicyIngressRule{
-				{},
-			},
-			Egress: []networkingv1.NetworkPolicyEgressRule{
-				{
-					To: []networkingv1.NetworkPolicyPeer{
-						{
-							IPBlock: &networkingv1.IPBlock{
-								CIDR:   "0.0.0.0/0",
-								Except: cidrList,
+		},
+		PolicyTypes: []networkingv1.PolicyType{
+			networkingv1.PolicyTypeIngress,
+			networkingv1.PolicyTypeEgress,
+		},
+		Ingress: []networkingv1.NetworkPolicyIngressRule{
+			{},
+		},
+		Egress: []networkingv1.NetworkPolicyEgressRule{
+			{
+				To: []networkingv1.NetworkPolicyPeer{
+					{
+						IPBlock: &networkingv1.IPBlock{
+							CIDR:   "0.0.0.0/0",
+							Except: podCIDRs,
+						},
+					},
+					{
+						NamespaceSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"kubernetes.io/metadata.name": namespaceName,
 							},
 						},
-						{
-							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"kubernetes.io/metadata.name": namespaceName,
-								},
+					},
+					{
+						NamespaceSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"kubernetes.io/metadata.name": metav1.NamespaceSystem,
 							},
 						},
-						{
-							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"kubernetes.io/metadata.name": metav1.NamespaceSystem,
-								},
-							},
-							PodSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"k8s-app": "kube-dns",
-								},
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"k8s-app": "kube-dns",
 							},
 						},
 					},

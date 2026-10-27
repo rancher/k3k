@@ -669,9 +669,14 @@ type ClusterStatus struct {
 	// Phase is a high-level summary of the cluster's current lifecycle state.
 	//
 	// +kubebuilder:default=Unknown
-	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Failed;Terminating;Unknown
+	// +kubebuilder:validation:Enum=Pending;Provisioning;Ready;Restoring;Failed;Terminating;Unknown
 	// +optional
 	Phase ClusterPhase `json:"phase,omitempty"`
+
+	// ActiveRestoreRef is the reference to the current active restoration object that is being restored.
+	//
+	// +optional
+	ActiveRestoreRef *corev1.LocalObjectReference `json:"activeRestoreRef,omitempty"`
 }
 
 // AppliedPolicy defines the observed state of an applied policy.
@@ -756,6 +761,7 @@ const (
 	ClusterFailed       = ClusterPhase("Failed")
 	ClusterTerminating  = ClusterPhase("Terminating")
 	ClusterUnknown      = ClusterPhase("Unknown")
+	ClusterRestoring    = ClusterPhase("Restoring")
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -962,7 +968,7 @@ type EtcdSnapshotSpec struct {
 	//
 	// +k8s:immutable
 	// +required
-	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
+	ClusterRef *corev1.LocalObjectReference `json:"clusterRef"`
 
 	// S3ConfigSecretRef defines the S3 configuration secret that contains all
 	// S3 configuration. The configuration items are expected to match the following:
@@ -979,8 +985,8 @@ type EtcdSnapshotSpec struct {
 
 	// Compress specifies if the snapshot should be compressed
 	//
-	// +k8s:immutable
 	// +kubebuilder:default=false
+	// +k8s:immutable
 	// +optional
 	Compress bool `json:"compress"`
 }
@@ -1008,4 +1014,57 @@ type EtcdSnapshotList struct {
 	metav1.TypeMeta `json:",inline"`
 
 	Items []EtcdSnapshot `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="SUCCEEDED",type="string",JSONPath=`.status.conditions[?(@.type=='Succeeded')].status`
+// +kubebuilder:printcolumn:name="REASON",type="string",JSONPath=`.status.conditions[?(@.type=='Succeeded')].reason`
+
+type EtcdRestore struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+
+	// +required
+	Spec EtcdRestoreSpec `json:"spec"`
+
+	// +optional
+	Status EtcdRestoreStatus `json:"status,omitempty"`
+}
+
+// EtcdRestoreSpec defines the desired state of a EtcdRestore.
+type EtcdRestoreSpec struct {
+	// ClusterRef is a reference to the cluster where a snapshot will be restored.
+	// This field is immutable.
+	//
+	// +k8s:immutable
+	// +required
+	ClusterRef *corev1.LocalObjectReference `json:"clusterRef"`
+
+	// SnapshotRef is a reference to the EtcdSnapshot object that will be restored on the cluster.
+	// This field is immutable.
+	//
+	// +k8s:immutable
+	// +required
+	SnapshotRef *corev1.LocalObjectReference `json:"snapshotRef"`
+}
+
+// EtcdRestoreStatus reflects the observed state of a EtcdRestore.
+type EtcdRestoreStatus struct {
+	// Conditions are the individual conditions for the EtcdRestore.
+	//
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+
+// EtcdRestoreList is a list of EtcdRestore resources.
+type EtcdRestoreList struct {
+	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `json:",inline"`
+
+	Items []EtcdRestore `json:"items"`
 }

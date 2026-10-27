@@ -125,6 +125,10 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger log
 		agentHostname:    config.AgentHostname,
 	}
 
+	if err := hostMgr.Add(&tokenRefresher{provider: &p}); err != nil {
+		return nil, err
+	}
+
 	return &p, nil
 }
 

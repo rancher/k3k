@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
@@ -53,6 +54,7 @@ func newTokenTestProvider(t *testing.T, requests *[]*authv1.TokenRequest) *Provi
 		}
 
 		req.Status.Token = fmt.Sprintf("%s/%s/%d", req.Spec.BoundObjectRef.Name, audience, exp)
+		req.Status.ExpirationTimestamp = metav1.NewTime(time.Now().Add(time.Duration(exp) * time.Second))
 
 		return true, req, nil
 	})
@@ -554,4 +556,117 @@ func Test_generateTokenSecretName(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func Test_tokenRefreshAfter(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// refreshed at 80% of the lifetime
+	assert.Equal(t, now.Add(8*time.Minute), tokenRefreshAfter(now, now.Add(10*time.Minute)))
+	assert.Equal(t, now.Add(48*time.Minute), tokenRefreshAfter(now, now.Add(time.Hour)))
+
+	// or after 24 hours for long lived tokens
+	assert.Equal(t, now.Add(24*time.Hour), tokenRefreshAfter(now, now.Add(365*24*time.Hour)))
+
+	// expired tokens are refreshed straight away
+	assert.False(t, tokenRefreshAfter(now, now.Add(-time.Minute)).After(now))
+}
+
+func Test_tokenRefreshDue(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	secretWithAnnotation := func(value string) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{tokenRefreshAfterAnnotation: value},
+			},
+		}
+	}
+
+	assert.True(t, tokenRefreshDue(&corev1.Secret{}, now), "missing annotation")
+	assert.True(t, tokenRefreshDue(secretWithAnnotation("invalid"), now), "invalid annotation")
+	assert.True(t, tokenRefreshDue(secretWithAnnotation("2025-12-31T23:59:00Z"), now), "refresh time passed")
+	assert.True(t, tokenRefreshDue(secretWithAnnotation("2026-01-01T00:00:00Z"), now), "refresh time reached")
+	assert.False(t, tokenRefreshDue(secretWithAnnotation("2026-01-01T00:01:00Z"), now), "refresh time not reached")
+}
+
+func Test_refreshPodTokens(t *testing.T) {
+	ctx := context.Background()
+
+	var requests []*authv1.TokenRequest
+
+	p := newTokenTestProvider(t, &requests)
+	p.clusterNamespace = "ns-test"
+
+	virtualPod := newTokenTestPod("pod-a")
+	hostPod := virtualPod.DeepCopy()
+
+	_, err := p.transformTokens(ctx, virtualPod, hostPod)
+	require.NoError(t, err)
+
+	hostSecretKey := func(volume corev1.Volume) types.NamespacedName {
+		name := ""
+		if volume.Secret != nil {
+			name = volume.Secret.SecretName
+		} else {
+			name = volume.Projected.Sources[0].Secret.Name
+		}
+
+		return types.NamespacedName{Name: name, Namespace: "ns-test"}
+	}
+
+	vaultKey := hostSecretKey(hostPod.Spec.Volumes[0])
+	kubeAccessKey := hostSecretKey(hostPod.Spec.Volumes[1])
+
+	getHostSecret := func(t *testing.T, key types.NamespacedName) *corev1.Secret {
+		t.Helper()
+
+		var secret corev1.Secret
+		require.NoError(t, p.host.Client.Get(ctx, key, &secret))
+
+		return &secret
+	}
+
+	t.Run("host secrets record when to refresh the tokens", func(t *testing.T) {
+		for _, key := range []types.NamespacedName{vaultKey, kubeAccessKey} {
+			secret := getHostSecret(t, key)
+
+			refreshAfter, err := time.Parse(time.RFC3339, secret.Annotations[tokenRefreshAfterAnnotation])
+			require.NoError(t, err)
+			assert.True(t, refreshAfter.After(time.Now()), "secret %s", key.Name)
+		}
+	})
+
+	t.Run("tokens not due are not refreshed", func(t *testing.T) {
+		requests = nil
+
+		require.NoError(t, p.refreshPodTokens(ctx, virtualPod))
+		assert.Empty(t, requests)
+	})
+
+	t.Run("tokens due are refreshed", func(t *testing.T) {
+		secret := getHostSecret(t, vaultKey)
+		secret.Annotations[tokenRefreshAfterAnnotation] = time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
+		secret.Data["token"] = []byte("expired")
+		require.NoError(t, p.host.Client.Update(ctx, secret))
+
+		requests = nil
+
+		require.NoError(t, p.refreshPodTokens(ctx, virtualPod))
+
+		// only the vault token was due
+		require.Len(t, requests, 1)
+		assert.Equal(t, []string{"vault"}, requests[0].Spec.Audiences)
+
+		secret = getHostSecret(t, vaultKey)
+		assert.Equal(t, []byte("pod-a/vault/600"), secret.Data["token"])
+		assert.False(t, tokenRefreshDue(secret, time.Now()))
+	})
+
+	t.Run("pods without token secrets are skipped", func(t *testing.T) {
+		requests = nil
+
+		require.NoError(t, p.refreshPodTokens(ctx, newTokenTestPod("pod-without-secrets")))
+		assert.Empty(t, requests)
+	})
 }

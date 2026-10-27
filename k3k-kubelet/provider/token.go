@@ -6,18 +6,23 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/rancher/k3k/k3k-kubelet/translate"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 )
 
@@ -29,6 +34,13 @@ const (
 	// kubeAccessTokenExpirationSeconds is the expiration requested by the kubelet for the kube-api-access token.
 	// The API server extends it to a year if --service-account-extend-token-expiration is enabled (the default).
 	kubeAccessTokenExpirationSeconds = 3607
+
+	// tokenRefreshAfterAnnotation records on the host secrets when the token they hold has to be refreshed.
+	tokenRefreshAfterAnnotation = translate.MetadataPrefix + "token-refresh-after"
+	// tokenRefreshInterval is how often the tokens of the pods are checked for refresh.
+	tokenRefreshInterval = 30 * time.Second
+	// maxTokenRefreshPeriod is the maximum age of a token before it is refreshed, as in the kubelet.
+	maxTokenRefreshPeriod = 24 * time.Hour
 )
 
 // transformTokens requests bound serviceaccount tokens for the virtualPod from the virtual cluster, stores them in
@@ -110,8 +122,9 @@ func (p *Provider) kubeAccessTokenSecret(ctx context.Context, virtualPod *corev1
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      kubeAccessTokenSecretName(virtualPod.Name),
-			Namespace: virtualPod.Namespace,
+			Name:        kubeAccessTokenSecretName(virtualPod.Name),
+			Namespace:   virtualPod.Namespace,
+			Annotations: tokenSecretAnnotations(tokenResp, time.Now()),
 		},
 		Data: map[string][]byte{
 			corev1.ServiceAccountTokenKey:     []byte(tokenResp.Status.Token),
@@ -175,8 +188,9 @@ func (p *Provider) projectedTokenSecret(ctx context.Context, token *corev1.Servi
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateTokenSecretName(virtualPod.Name, token),
-			Namespace: virtualPod.Namespace,
+			Name:        generateTokenSecretName(virtualPod.Name, token),
+			Namespace:   virtualPod.Namespace,
+			Annotations: tokenSecretAnnotations(tokenResp, time.Now()),
 		},
 		Data: map[string][]byte{
 			token.Path: []byte(tokenResp.Status.Token),
@@ -214,24 +228,185 @@ func (p *Provider) requestToken(ctx context.Context, virtualPod *corev1.Pod, aud
 	return p.virtual.CoreClient.ServiceAccounts(namespace).CreateToken(ctx, serviceAccountName, tokenRequest, metav1.CreateOptions{})
 }
 
-func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, projectedToken *corev1.Secret) (*corev1.Secret, error) {
-	hostSecret := projectedToken.DeepCopy()
+// tokenSecretAnnotations returns the annotations of a secret holding the token issued at now.
+func tokenSecretAnnotations(tokenResp *authv1.TokenRequest, now time.Time) map[string]string {
+	refreshAfter := tokenRefreshAfter(now, tokenResp.Status.ExpirationTimestamp.Time)
+
+	return map[string]string{
+		tokenRefreshAfterAnnotation: refreshAfter.UTC().Format(time.RFC3339),
+	}
+}
+
+// tokenRefreshAfter returns when a token issued at now, and expiring at expiration, has to be refreshed.
+// As in the kubelet, this is when it reaches 80% of its lifetime, or is older than 24 hours.
+func tokenRefreshAfter(now, expiration time.Time) time.Time {
+	refreshPeriod := min(expiration.Sub(now)*8/10, maxTokenRefreshPeriod)
+
+	return now.Add(refreshPeriod)
+}
+
+// tokenRefreshDue returns true if the token held by the host secret has to be refreshed.
+func tokenRefreshDue(hostSecret *corev1.Secret, now time.Time) bool {
+	refreshAfter, err := time.Parse(time.RFC3339, hostSecret.Annotations[tokenRefreshAfterAnnotation])
+	if err != nil {
+		return true
+	}
+
+	return !now.Before(refreshAfter)
+}
+
+func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, virtualSecret *corev1.Secret) (*corev1.Secret, error) {
+	hostSecret := virtualSecret.DeepCopy()
 	hostSecret.Type = ""
-	hostSecret.Annotations = make(map[string]string)
 
 	p.translator.TranslateTo(hostSecret)
 
 	data := hostSecret.Data
+	annotations := hostSecret.Annotations
 
-	_, err := controllerutil.CreateOrUpdate(ctx, p.host.Client, hostSecret, func() error {
+	mutate := func() error {
 		hostSecret.Data = data
+
+		if hostSecret.Annotations == nil {
+			hostSecret.Annotations = make(map[string]string)
+		}
+
+		maps.Copy(hostSecret.Annotations, annotations)
+
 		return nil
-	})
-	if err != nil {
+	}
+
+	if _, err := controllerutil.CreateOrUpdate(ctx, p.host.Client, hostSecret, mutate); err != nil {
 		return nil, err
 	}
 
 	return hostSecret, nil
+}
+
+// tokenRefresher periodically refreshes the tokens of the pods synced by this agent before they expire.
+type tokenRefresher struct {
+	provider *Provider
+}
+
+// Start is an implementation of manager.Runnable.
+//
+// It starts the token refresher, executing until the context is closed.
+func (r *tokenRefresher) Start(ctx context.Context) error {
+	wait.UntilWithContext(ctx, r.provider.refreshTokens, tokenRefreshInterval)
+
+	return nil
+}
+
+// NeedLeaderElection is an implementation of manager.LeaderElectionRunnable.
+//
+// NeedLeaderElection returns false, as every agent has to refresh the tokens of its own pods.
+func (*tokenRefresher) NeedLeaderElection() bool {
+	return false
+}
+
+// refreshTokens refreshes the tokens of the running pods synced by this agent.
+func (p *Provider) refreshTokens(ctx context.Context) {
+	pods, err := p.GetPods(ctx)
+	if err != nil {
+		p.logger.Error(err, "Unable to list pods to refresh tokens")
+		return
+	}
+
+	for _, pod := range pods {
+		if pod.DeletionTimestamp != nil || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			continue
+		}
+
+		logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name)
+
+		var virtualPod corev1.Pod
+
+		key := types.NamespacedName{
+			Name:      pod.Name,
+			Namespace: pod.Namespace,
+		}
+		if err := p.virtual.Client.Get(ctx, key, &virtualPod); err != nil {
+			if !apierrors.IsNotFound(err) {
+				logger.Error(err, "Unable to get virtual pod to refresh tokens")
+			}
+
+			continue
+		}
+
+		if virtualPod.DeletionTimestamp != nil {
+			continue
+		}
+
+		if err := p.refreshPodTokens(ctx, &virtualPod); err != nil {
+			logger.Error(err, "Unable to refresh tokens")
+		}
+	}
+}
+
+// refreshPodTokens refreshes the tokens mounted in the virtualPod that are due for refresh.
+func (p *Provider) refreshPodTokens(ctx context.Context, virtualPod *corev1.Pod) error {
+	var errs []error
+
+	if hasKubeAccessVolume(virtualPod) {
+		name := kubeAccessTokenSecretName(virtualPod.Name)
+
+		errs = append(errs, p.refreshToken(ctx, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
+			return p.kubeAccessTokenSecret(ctx, virtualPod)
+		}))
+	}
+
+	for _, volume := range virtualPod.Spec.Volumes {
+		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) || volume.Projected == nil {
+			continue
+		}
+
+		for _, source := range volume.Projected.Sources {
+			token := source.ServiceAccountToken
+			if token == nil {
+				continue
+			}
+
+			name := generateTokenSecretName(virtualPod.Name, token)
+
+			errs = append(errs, p.refreshToken(ctx, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
+				return p.projectedTokenSecret(ctx, token, virtualPod)
+			}))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// refreshToken updates the host secret of the virtual token secret with name and namespace
+// with a new token from tokenSecret, if it is due for refresh.
+func (p *Provider) refreshToken(ctx context.Context, namespace, name string, tokenSecret func() (*corev1.Secret, error)) error {
+	var hostSecret corev1.Secret
+
+	key := types.NamespacedName{
+		Name:      p.translator.TranslateName(namespace, name),
+		Namespace: p.clusterNamespace,
+	}
+	if err := p.host.Client.Get(ctx, key, &hostSecret); err != nil {
+		// the pods created by previous versions of k3k don't have a secret to refresh
+		return client.IgnoreNotFound(err)
+	}
+
+	if !tokenRefreshDue(&hostSecret, time.Now()) {
+		return nil
+	}
+
+	virtualSecret, err := tokenSecret()
+	if err != nil {
+		return err
+	}
+
+	if _, err := p.translateAndCreateHostTokenSecret(ctx, virtualSecret); err != nil {
+		return err
+	}
+
+	p.logger.V(1).Info("Refreshed token", "namespace", namespace, "name", name, "hostSecret", hostSecret.Name)
+
+	return nil
 }
 
 // setTokenSecretsOwner sets the hostPod as owner of the host secrets holding its tokens,

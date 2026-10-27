@@ -50,11 +50,9 @@ func DeleteNamespaces(clientset kubernetes.Interface, names ...string) {
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(len(names))
 
 	for _, name := range names {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer GinkgoRecover()
 
 			By(fmt.Sprintf("Deleting namespace %s", name))
@@ -63,7 +61,7 @@ func DeleteNamespaces(clientset kubernetes.Interface, names ...string) {
 				GracePeriodSeconds: new(int64(0)),
 			})
 			Expect(client.IgnoreNotFound(err)).To(Not(HaveOccurred()))
-		}()
+		})
 	}
 
 	wg.Wait()

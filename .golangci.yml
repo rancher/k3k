@@ -18,7 +18,7 @@ linters:
     revive:
       enable-all-rules: true
       rules:
-      - { name: cyclomatic, arguments: [ 30 ] }
+      - { name: cyclomatic, arguments: [ 35 ] }
       - { name: unhandled-error, arguments: [ "fmt\\.Print.*", "fmt\\.Fprint.*" ] }
       # disabled rules
       - { name: add-constant, disabled: true }

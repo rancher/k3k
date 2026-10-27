@@ -79,7 +79,7 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 
 	var tlsCrt *tls.Certificate
 
-	if err := retry.OnError(controller.Backoff, func(err error) bool {
+	err := retry.OnError(controller.Backoff, func(err error) bool {
 		return err == k3s.ErrServerNotReady
 	}, func() error {
 		var err error
@@ -87,7 +87,8 @@ func loadTLSConfig(cfg config, token, agentIP, podIP string) (*tls.Config, error
 		tlsCrt, err = client.GetServingKubeletCrt()
 
 		return err
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("unable to request serving kubelet certificate: %w", err)
 	}
 
@@ -104,6 +105,6 @@ func readyz(serverIP string) http.Handler {
 			return
 		}
 
-		w.Write([]byte("ok")) //nolint:errcheck
+		_, _ = w.Write([]byte("ok"))
 	})
 }

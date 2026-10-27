@@ -160,10 +160,11 @@ func generate(appCtx *AppContext, cfg *GenerateKubeconfigConfig) func(cmd *cobra
 
 		var kubeConfig *clientcmdapi.Config
 
-		if err := retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
+		err = retry.OnError(controller.Backoff, apierrors.IsNotFound, func() error {
 			kubeConfig, err = kubeCfg.Generate(ctx, client, &cluster, host)
 			return err
-		}); err != nil {
+		})
+		if err != nil {
 			return err
 		}
 

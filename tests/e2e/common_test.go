@@ -86,15 +86,13 @@ func NewVirtualClusters(n int) []*VirtualCluster {
 	var clusters []*VirtualCluster
 
 	wg := sync.WaitGroup{}
-	wg.Add(n)
 
 	for range n {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer GinkgoRecover()
 
 			clusters = append(clusters, NewVirtualCluster())
-		}()
+		})
 	}
 
 	wg.Wait()

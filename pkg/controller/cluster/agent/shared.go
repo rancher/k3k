@@ -72,7 +72,7 @@ func (s *SharedAgent) Name() string {
 // EnsureResources creates or updates every resource a shared mode agent needs, and
 // reports all the failures together.
 func (s *SharedAgent) EnsureResources(ctx context.Context) error {
-	if err := errors.Join(
+	err := errors.Join(
 		s.config(ctx),
 		s.serviceAccount(ctx),
 		s.role(ctx),
@@ -80,7 +80,8 @@ func (s *SharedAgent) EnsureResources(ctx context.Context) error {
 		s.service(ctx),
 		s.daemonset(ctx),
 		s.dnsService(ctx),
-	); err != nil {
+	)
+	if err != nil {
 		return fmt.Errorf("failed to ensure some resources: %w", err)
 	}
 

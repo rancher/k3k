@@ -289,7 +289,8 @@ func (c *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{Requeue: true}, nil
+		// the update of the Cluster triggers a new reconciliation
+		return reconcile.Result{}, nil
 	}
 
 	// add finalizer
@@ -300,7 +301,8 @@ func (c *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{Requeue: true}, nil
+		// the update of the Cluster triggers a new reconciliation
+		return reconcile.Result{}, nil
 	}
 
 	orig := cluster.DeepCopy()
@@ -577,7 +579,8 @@ func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.
 	}
 
 	currentInitServerConfig := initServerConfig.DeepCopy()
-	if _, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentInitServerConfig, func() error {
+
+	_, err = controllerutil.CreateOrUpdate(ctx, c.Client, currentInitServerConfig, func() error {
 		if err := controllerutil.SetControllerReference(cluster, currentInitServerConfig, c.Client.Scheme()); err != nil {
 			return err
 		}
@@ -585,7 +588,8 @@ func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.
 		currentInitServerConfig.Data = initServerConfig.Data
 
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 
@@ -596,7 +600,8 @@ func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.
 	}
 
 	currentServerConfig := serverConfig.DeepCopy()
-	if _, err := controllerutil.CreateOrUpdate(ctx, c.Client, currentServerConfig, func() error {
+
+	_, err = controllerutil.CreateOrUpdate(ctx, c.Client, currentServerConfig, func() error {
 		if err := controllerutil.SetControllerReference(cluster, currentServerConfig, c.Client.Scheme()); err != nil {
 			return err
 		}
@@ -604,7 +609,8 @@ func (c *Reconciler) ensureClusterConfigs(ctx context.Context, cluster *v1beta1.
 		currentServerConfig.Data = serverConfig.Data
 
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 

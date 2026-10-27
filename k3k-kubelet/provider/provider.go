@@ -613,7 +613,8 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	p.transformVolumes(pod.Namespace, hostPod.Spec.Volumes)
 
 	// sync serviceaccount token to a the host cluster
-	if err := p.transformTokens(ctx, &virtualPod, hostPod); err != nil {
+	tokenSecretNames, err := p.transformTokens(ctx, &virtualPod, hostPod)
+	if err != nil {
 		logger.Error(err, "Unable to transform tokens for pod")
 		return err
 	}
@@ -642,6 +643,12 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	logger.Info("Pod created on host cluster")
+
+	// the token secrets are created before the pod, so the pod can only be set as their owner now.
+	// The pod is already created, so failing here would make the retries fail as well.
+	if err := p.setTokenSecretsOwner(ctx, hostPod, tokenSecretNames); err != nil {
+		logger.Error(err, "Unable to set owner reference for token secrets")
+	}
 
 	return nil
 }

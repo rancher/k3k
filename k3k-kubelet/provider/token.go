@@ -4,17 +4,18 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
@@ -23,11 +24,17 @@ import (
 const (
 	kubeAPIAccessPrefix          = "kube-api-access"
 	serviceAccountTokenMountPath = "/var/run/secrets/kubernetes.io/serviceaccount"
+	kubeRootCAConfigMapName      = "kube-root-ca.crt"
+
+	// kubeAccessTokenExpirationSeconds is the expiration requested by the kubelet for the kube-api-access token.
+	// The API server extends it to a year if --service-account-extend-token-expiration is enabled (the default).
+	kubeAccessTokenExpirationSeconds = 3607
 )
 
-// transformTokens copies the serviceaccount tokens used by virtualPod's serviceaccount to a secret on the host cluster and mount it
-// to look like the serviceaccount token
-func (p *Provider) transformTokens(ctx context.Context, virtualPod, hostPod *corev1.Pod) error {
+// transformTokens requests bound serviceaccount tokens for the virtualPod from the virtual cluster, stores them in
+// secrets on the host cluster and mounts them in the hostPod in place of the serviceaccount token volumes.
+// It returns the names of the host secrets holding the tokens.
+func (p *Provider) transformTokens(ctx context.Context, virtualPod, hostPod *corev1.Pod) ([]string, error) {
 	logger := p.logger.WithValues("namespace", virtualPod.Namespace, "name", virtualPod.Name, "serviceAccountName", virtualPod.Spec.ServiceAccountName)
 	logger.V(1).Info("Transforming service account tokens")
 
@@ -36,59 +43,90 @@ func (p *Provider) transformTokens(ctx context.Context, virtualPod, hostPod *cor
 	hostPod.Spec.AutomountServiceAccountToken = new(false)
 
 	// transform projected service account token
-	if err := p.transformProjectedTokens(ctx, virtualPod, hostPod); err != nil {
-		return err
+	hostSecretNames, err := p.transformProjectedTokens(ctx, virtualPod, hostPod)
+	if err != nil {
+		return nil, err
 	}
 
 	// transform kube-api-access token for all containers in virtualPod
-	return p.transformKubeAccessToken(ctx, virtualPod, hostPod)
+	hostSecretName, err := p.transformKubeAccessToken(ctx, virtualPod, hostPod)
+	if err != nil {
+		return nil, err
+	}
+
+	if hostSecretName != "" {
+		hostSecretNames = append(hostSecretNames, hostSecretName)
+	}
+
+	return hostSecretNames, nil
 }
 
-func (p *Provider) transformKubeAccessToken(ctx context.Context, virtualPod, hostPod *corev1.Pod) error {
+func (p *Provider) transformKubeAccessToken(ctx context.Context, virtualPod, hostPod *corev1.Pod) (string, error) {
 	// skip this process if the kube-api-access is already removed from the pod
 	// this is needed in case users already adds their own custom tokens like in rancher imported clusters
 	if !hasKubeAccessVolume(virtualPod) {
-		return nil
+		return "", nil
 	}
 
-	virtualSecretName := k3kcontroller.SafeConcatNameWithPrefix(virtualPod.Spec.ServiceAccountName, "token")
-
-	virtualSecret := virtualSecret(virtualSecretName, virtualPod.Namespace, virtualPod.Spec.ServiceAccountName)
-	if err := p.virtual.Client.Create(ctx, virtualSecret); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-
-	// extracting the tokens data from the secret we just created
-	virtualSecretKey := types.NamespacedName{
-		Name:      virtualSecret.Name,
-		Namespace: virtualSecret.Namespace,
-	}
-	if err := p.virtual.Client.Get(ctx, virtualSecretKey, virtualSecret); err != nil {
-		return err
-	}
-	// To avoid race conditions we need to check if the secret's data has been populated
-	// including the token, ca.crt and namespace
-	if len(virtualSecret.Data) < 3 {
-		return fmt.Errorf("token secret %s/%s data is empty", virtualSecret.Namespace, virtualSecret.Name)
+	virtualSecret, err := p.kubeAccessTokenSecret(ctx, virtualPod)
+	if err != nil {
+		return "", err
 	}
 
 	hostSecret, err := p.translateAndCreateHostTokenSecret(ctx, virtualSecret)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	removeKubeAccessVolume(hostPod)
 	addKubeAccessVolume(hostPod, hostSecret.Name)
 
-	return nil
+	return hostSecret.Name, nil
+}
+
+// kubeAccessTokenSecret returns a secret with the same content as the kube-api-access projected volume
+// that is injected in the pods: a token bound to the virtualPod, the virtual cluster CA and the namespace.
+func (p *Provider) kubeAccessTokenSecret(ctx context.Context, virtualPod *corev1.Pod) (*corev1.Secret, error) {
+	var rootCA corev1.ConfigMap
+
+	rootCAKey := types.NamespacedName{
+		Name:      kubeRootCAConfigMapName,
+		Namespace: virtualPod.Namespace,
+	}
+	if err := p.virtual.Client.Get(ctx, rootCAKey, &rootCA); err != nil {
+		return nil, err
+	}
+
+	caCert, found := rootCA.Data[corev1.ServiceAccountRootCAKey]
+	if !found {
+		return nil, fmt.Errorf("configmap %s/%s has no %s", rootCA.Namespace, rootCA.Name, corev1.ServiceAccountRootCAKey)
+	}
+
+	// same expiration requested by the kubelet for the kube-api-access token
+	tokenResp, err := p.requestToken(ctx, virtualPod, "", new(int64(kubeAccessTokenExpirationSeconds)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      kubeAccessTokenSecretName(virtualPod.Name),
+			Namespace: virtualPod.Namespace,
+		},
+		Data: map[string][]byte{
+			corev1.ServiceAccountTokenKey:     []byte(tokenResp.Status.Token),
+			corev1.ServiceAccountRootCAKey:    []byte(caCert),
+			corev1.ServiceAccountNamespaceKey: []byte(virtualPod.Namespace),
+		},
+	}, nil
 }
 
 // transformProjectedTokens will iterate over the host pod projected volume sources
 // and transform projected tokens to use a requested token secret from the virtual cluster
 // instead the automatically generated secret on the host cluster.
-func (p *Provider) transformProjectedTokens(ctx context.Context, virtualPod, hostPod *corev1.Pod) error {
+func (p *Provider) transformProjectedTokens(ctx context.Context, virtualPod, hostPod *corev1.Pod) ([]string, error) {
+	var hostSecretNames []string
+
 	for i, volume := range hostPod.Spec.Volumes {
 		if strings.HasPrefix(volume.Name, kubeAPIAccessPrefix) {
 			continue
@@ -103,14 +141,14 @@ func (p *Provider) transformProjectedTokens(ctx context.Context, virtualPod, hos
 				continue
 			}
 
-			projectedSecret, err := p.requestTokenSecret(ctx, source.ServiceAccountToken, virtualPod)
+			projectedSecret, err := p.projectedTokenSecret(ctx, source.ServiceAccountToken, virtualPod)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			hostSecret, err := p.translateAndCreateHostTokenSecret(ctx, projectedSecret)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			// replace the projected token volume with a projected secret
 			hostPod.Spec.Volumes[i].Projected.Sources[j].ServiceAccountToken = nil
@@ -119,19 +157,41 @@ func (p *Provider) transformProjectedTokens(ctx context.Context, virtualPod, hos
 					Name: hostSecret.Name,
 				},
 			}
+
+			hostSecretNames = append(hostSecretNames, hostSecret.Name)
 		}
 	}
 
-	return nil
+	return hostSecretNames, nil
 }
 
-func (p *Provider) requestTokenSecret(ctx context.Context, token *corev1.ServiceAccountTokenProjection, virtualPod *corev1.Pod) (*corev1.Secret, error) {
+// projectedTokenSecret returns a secret holding a token bound to the virtualPod, requested with the
+// attributes of the projected token.
+func (p *Provider) projectedTokenSecret(ctx context.Context, token *corev1.ServiceAccountTokenProjection, virtualPod *corev1.Pod) (*corev1.Secret, error) {
+	tokenResp, err := p.requestToken(ctx, virtualPod, token.Audience, token.ExpirationSeconds)
+	if err != nil {
+		return nil, err
+	}
+
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateTokenSecretName(virtualPod.Name, token),
+			Namespace: virtualPod.Namespace,
+		},
+		Data: map[string][]byte{
+			token.Path: []byte(tokenResp.Status.Token),
+		},
+	}, nil
+}
+
+// requestToken requests a token for the serviceaccount of the virtualPod, bound to the virtualPod.
+func (p *Provider) requestToken(ctx context.Context, virtualPod *corev1.Pod, audience string, expirationSeconds *int64) (*authv1.TokenRequest, error) {
 	namespace := virtualPod.Namespace
 	serviceAccountName := virtualPod.Spec.ServiceAccountName
 
 	var audiences []string
-	if token.Audience != "" {
-		audiences = []string{token.Audience}
+	if audience != "" {
+		audiences = []string{audience}
 	}
 
 	tokenRequest := &authv1.TokenRequest{
@@ -141,7 +201,7 @@ func (p *Provider) requestTokenSecret(ctx context.Context, token *corev1.Service
 		},
 		Spec: authv1.TokenRequestSpec{
 			Audiences:         audiences,
-			ExpirationSeconds: token.ExpirationSeconds,
+			ExpirationSeconds: expirationSeconds,
 			BoundObjectRef: &authv1.BoundObjectReference{
 				Name:       virtualPod.Name,
 				UID:        virtualPod.UID,
@@ -151,41 +211,7 @@ func (p *Provider) requestTokenSecret(ctx context.Context, token *corev1.Service
 		},
 	}
 
-	tokenResp, err := p.virtual.CoreClient.ServiceAccounts(namespace).CreateToken(ctx, serviceAccountName, tokenRequest, metav1.CreateOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	// create a virtual secret with that token
-	virtualSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			// creating unique name for the virtual secret based on the request attributes
-			Name:      generateTokenSecretName(serviceAccountName, token.Path, tokenResp),
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			token.Path: []byte(tokenResp.Status.Token),
-		},
-	}
-
-	return virtualSecret, nil
-}
-
-func virtualSecret(name, namespace, serviceAccountName string) *corev1.Secret {
-	return &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Annotations: map[string]string{
-				corev1.ServiceAccountNameKey: serviceAccountName,
-			},
-		},
-		Type: corev1.SecretTypeServiceAccountToken,
-	}
+	return p.virtual.CoreClient.ServiceAccounts(namespace).CreateToken(ctx, serviceAccountName, tokenRequest, metav1.CreateOptions{})
 }
 
 func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, projectedToken *corev1.Secret) (*corev1.Secret, error) {
@@ -206,6 +232,38 @@ func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, projec
 	}
 
 	return hostSecret, nil
+}
+
+// setTokenSecretsOwner sets the hostPod as owner of the host secrets holding its tokens,
+// so they are garbage collected with the pod.
+func (p *Provider) setTokenSecretsOwner(ctx context.Context, hostPod *corev1.Pod, hostSecretNames []string) error {
+	var errs []error
+
+	for _, name := range hostSecretNames {
+		var hostSecret corev1.Secret
+
+		key := types.NamespacedName{
+			Name:      name,
+			Namespace: hostPod.Namespace,
+		}
+		if err := p.host.Client.Get(ctx, key, &hostSecret); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		patch := client.MergeFrom(hostSecret.DeepCopy())
+
+		if err := controllerutil.SetOwnerReference(hostPod, &hostSecret, p.host.Client.Scheme()); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		if err := p.host.Client.Patch(ctx, &hostSecret, patch); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 func hasKubeAccessVolume(pod *corev1.Pod) bool {
@@ -289,19 +347,23 @@ func addKubeAccessVolume(pod *corev1.Pod, hostSecretName string) {
 	}
 }
 
-func generateTokenSecretName(serviceAccountName, tokenPath string, tokenReq *authv1.TokenRequest) string {
-	nameComponents := []string{serviceAccountName}
+func kubeAccessTokenSecretName(podName string) string {
+	return k3kcontroller.SafeConcatNameWithPrefix(podName, kubeAPIAccessPrefix)
+}
 
-	for _, aud := range tokenReq.Spec.Audiences {
-		nameComponents = append(nameComponents, sanitizeNameComponent(aud))
+func generateTokenSecretName(podName string, token *corev1.ServiceAccountTokenProjection) string {
+	nameComponents := []string{podName}
+
+	if token.Audience != "" {
+		nameComponents = append(nameComponents, sanitizeNameComponent(token.Audience))
 	}
 
-	if exp := tokenReq.Spec.ExpirationSeconds; exp != nil {
+	if exp := token.ExpirationSeconds; exp != nil {
 		nameComponents = append(nameComponents, strconv.FormatInt(*exp, 10))
 	}
 
-	if tokenPath != "" {
-		nameComponents = append(nameComponents, sanitizeNameComponent(tokenPath))
+	if token.Path != "" {
+		nameComponents = append(nameComponents, sanitizeNameComponent(token.Path))
 	}
 
 	return k3kcontroller.SafeConcatNameWithPrefix(nameComponents...)

@@ -2,12 +2,15 @@ package e2e_test
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
@@ -627,7 +630,7 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 
 				// there is no way to get the result of the token request from the API, so the
 				// name of the secret holding it has to be rebuilt the same way the provider does
-				virtualSecretName := controller.SafeConcatNameWithPrefix([]string{serviceAccountName, serviceAccountTokenSanitizedAudience, strconv.FormatInt(serviceAccountTokenExp, 10), serviceAccountTokenPath}...)
+				virtualSecretName := controller.SafeConcatNameWithPrefix([]string{pod.Name, serviceAccountTokenSanitizedAudience, strconv.FormatInt(serviceAccountTokenExp, 10), serviceAccountTokenPath}...)
 				hostSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      virtualSecretName,
@@ -655,6 +658,85 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 				WithPolling(time.Second).
 				WithTimeout(time.Minute).
 				Should(Succeed())
+		})
+	})
+
+	When("creating a Pod with the default serviceaccount token", func() {
+		var virtualPod *corev1.Pod
+
+		BeforeAll(func(ctx context.Context) {
+			var err error
+
+			virtualPod = &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "nginx-",
+					Namespace:    "default",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "nginx",
+						Image: "nginx",
+					}},
+				},
+			}
+
+			virtualPod, err = virtualCluster.Client.CoreV1().Pods(virtualPod.Namespace).Create(ctx, virtualPod, metav1.CreateOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+		})
+
+		It("should mount a token bound to the virtual Pod", func(ctx context.Context) {
+			hostPodName := translator.NamespacedName(virtualPod)
+
+			Eventually(func(g Gomega) {
+				hostPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+
+				var hostSecretName string
+
+				for _, volume := range hostPod.Spec.Volumes {
+					if strings.HasPrefix(volume.Name, controller.SafeConcatNameWithPrefix("kube-api-access")) && volume.Secret != nil {
+						hostSecretName = volume.Secret.SecretName
+					}
+				}
+
+				g.Expect(hostSecretName).NotTo(BeEmpty())
+
+				hostSecret, err := k8s.CoreV1().Secrets(hostPodName.Namespace).Get(ctx, hostSecretName, metav1.GetOptions{})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(hostSecret.Data).To(HaveKey("ca.crt"))
+				g.Expect(hostSecret.Data).To(HaveKeyWithValue("namespace", []byte(virtualPod.Namespace)))
+
+				// the secret is garbage collected with the host pod
+				g.Expect(hostSecret.OwnerReferences).To(ContainElement(HaveField("UID", hostPod.UID)))
+
+				// a bound token has an expiration, an audience and a reference to the pod
+				tokenParts := strings.Split(string(hostSecret.Data["token"]), ".")
+				g.Expect(tokenParts).To(HaveLen(3))
+
+				payload, err := base64.RawURLEncoding.DecodeString(tokenParts[1])
+				g.Expect(err).NotTo(HaveOccurred())
+
+				var claims map[string]any
+
+				g.Expect(json.Unmarshal(payload, &claims)).To(Succeed())
+				g.Expect(claims).To(HaveKey("exp"))
+				g.Expect(claims).To(HaveKeyWithValue("aud", Not(BeEmpty())))
+				g.Expect(claims).To(HaveKeyWithValue("kubernetes.io", HaveKeyWithValue("pod", And(
+					HaveKeyWithValue("name", virtualPod.Name),
+					HaveKeyWithValue("uid", string(virtualPod.UID)),
+				))))
+			}).
+				WithPolling(time.Second).
+				WithTimeout(time.Minute).
+				Should(Succeed())
+		})
+
+		It("should not create a legacy serviceaccount token secret", func(ctx context.Context) {
+			secrets, err := virtualCluster.Client.CoreV1().Secrets(virtualPod.Namespace).List(ctx, metav1.ListOptions{
+				FieldSelector: "type=" + string(corev1.SecretTypeServiceAccountToken),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(secrets.Items).To(BeEmpty())
 		})
 	})
 

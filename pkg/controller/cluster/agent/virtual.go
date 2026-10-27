@@ -2,12 +2,18 @@ package agent
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 
 	"go.yaml.in/yaml/v4"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/events"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	cryptorand "crypto/rand"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,9 +26,13 @@ import (
 
 const (
 	// VirtualNodeMode is the agent mode where a cluster runs its own k3s agents.
-	VirtualNodeMode      = "virtual"
-	virtualNodeAgentName = "agent"
+	VirtualNodeMode          = "virtual"
+	virtualNodeAgentName     = "agent"
+	deploymentDetectedReason = "DeploymentDetected"
+	reconcilingAction        = "Reconciling"
 )
+
+const deprecationWarning = "Using Deployments for virtual mode agents is deprecated and will be replaced with StatefulSets"
 
 // VirtualAgent runs a virtual cluster in virtual mode, where its workloads run on k3s
 // agents dedicated to that cluster.
@@ -34,6 +44,8 @@ type VirtualAgent struct {
 	ImagePullPolicy  string
 	ImageRegistry    string
 	imagePullSecrets []string
+
+	events.EventRecorder
 }
 
 type virtualAgentConfig struct {
@@ -43,7 +55,7 @@ type virtualAgentConfig struct {
 }
 
 // NewVirtualAgent returns a VirtualAgent for the cluster in config.
-func NewVirtualAgent(config *Config, serviceIP, token, image, imagePullPolicy string, imagePullSecrets []string) *VirtualAgent {
+func NewVirtualAgent(config *Config, serviceIP, token, image, imagePullPolicy string, imagePullSecrets []string, eventRecorder events.EventRecorder) *VirtualAgent {
 	return &VirtualAgent{
 		Config:           config,
 		serviceIP:        serviceIP,
@@ -51,6 +63,7 @@ func NewVirtualAgent(config *Config, serviceIP, token, image, imagePullPolicy st
 		Image:            image,
 		ImagePullPolicy:  imagePullPolicy,
 		imagePullSecrets: imagePullSecrets,
+		EventRecorder:    eventRecorder,
 	}
 }
 
@@ -62,23 +75,51 @@ func (v *VirtualAgent) Name() string {
 // EnsureResources creates or updates every resource a virtual mode agent needs, and
 // reports all the failures together.
 func (v *VirtualAgent) EnsureResources(ctx context.Context) error {
-	err := errors.Join(
-		v.config(ctx),
-		v.deployment(ctx),
-	)
+	dep, err := v.deprecatedDeployment(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to ensure some resources: %w", err)
+		return err
+	}
+
+	var allErrs error
+	if dep != nil {
+		allErrs = errors.Join(
+			v.config(ctx, true),
+			v.deployment(ctx),
+		)
+	} else {
+		allErrs = errors.Join(
+			v.config(ctx, false),
+			v.nodePassword(ctx),
+			v.headlessService(ctx),
+			v.statefulset(ctx),
+		)
+	}
+
+	if allErrs != nil {
+		return fmt.Errorf("failed to ensure some resources: %w", allErrs)
 	}
 
 	return nil
+}
+
+func (v *VirtualAgent) deprecatedDeployment(ctx context.Context) (*appsv1.Deployment, error) {
+	var dep appsv1.Deployment
+	if err := v.client.Get(ctx, types.NamespacedName{Name: v.Name(), Namespace: v.cluster.Namespace}, &dep); err != nil {
+		return nil, ctrlruntimeclient.IgnoreNotFound(err)
+	}
+
+	// emit warning event to users for deployment deprecation
+	v.Eventf(v.cluster, &dep, corev1.EventTypeWarning, deploymentDetectedReason, reconcilingAction, deprecationWarning)
+
+	return &dep, nil
 }
 
 func (v *VirtualAgent) ensureObject(ctx context.Context, obj ctrlruntimeclient.Object) error {
 	return ensureObject(ctx, v.Config, obj)
 }
 
-func (v *VirtualAgent) config(ctx context.Context) error {
-	config, err := virtualAgentData(v.serviceIP, v.token)
+func (v *VirtualAgent) config(ctx context.Context, withNodeID bool) error {
+	config, err := virtualAgentData(v.serviceIP, v.token, withNodeID)
 	if err != nil {
 		return err
 	}
@@ -100,11 +141,11 @@ func (v *VirtualAgent) config(ctx context.Context) error {
 	return v.ensureObject(ctx, configSecret)
 }
 
-func virtualAgentData(serviceIP, token string) ([]byte, error) {
+func virtualAgentData(serviceIP, token string, withNodeID bool) ([]byte, error) {
 	agentConfig := virtualAgentConfig{
 		Server:     "https://" + serviceIP,
 		Token:      token,
-		WithNodeID: true,
+		WithNodeID: withNodeID,
 	}
 
 	return yaml.Marshal(agentConfig)
@@ -155,6 +196,101 @@ func (v *VirtualAgent) deployment(ctx context.Context) error {
 	}
 
 	return v.ensureObject(ctx, deployment)
+}
+
+func (v *VirtualAgent) headlessService(ctx context.Context) error {
+	headlessService := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      v.Name(),
+			Namespace: v.cluster.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:      corev1.ServiceTypeClusterIP,
+			ClusterIP: corev1.ClusterIPNone,
+			Selector: map[string]string{
+				"cluster": v.cluster.Name,
+				"type":    "agent",
+				"mode":    "virtual",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "k3s-kubelet-port",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       10250,
+					TargetPort: intstr.FromInt(10250),
+				},
+			},
+		},
+	}
+
+	return v.ensureObject(ctx, headlessService)
+}
+
+func (v *VirtualAgent) statefulset(ctx context.Context) error {
+	image := controller.K3SImage(v.cluster, v.Image)
+
+	const name = "k3k-agent"
+
+	selector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"cluster": v.cluster.Name,
+			"type":    "agent",
+			"mode":    "virtual",
+		},
+	}
+	podSpec := v.podSpec(ctx, image, name)
+
+	if len(v.cluster.Spec.SecretMounts) > 0 {
+		vols, volMounts := mounts.BuildSecretsMountsVolumes(v.cluster.Spec.SecretMounts, "agent")
+
+		podSpec.Volumes = append(podSpec.Volumes, vols...)
+
+		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volMounts...)
+	}
+
+	// adding node password mounts
+	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+		Name: "node-password",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: controller.SafeConcatNameWithPrefix(v.cluster.Name, virtualNodeAgentName, "node", "password"),
+			},
+		},
+	})
+
+	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		Name:      "node-password",
+		MountPath: "/etc/rancher/node/",
+	})
+
+	ss := &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "StatefulSet",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      v.Name(),
+			Namespace: v.cluster.Namespace,
+			Labels:    selector.MatchLabels,
+		},
+		Spec: appsv1.StatefulSetSpec{
+			Replicas:            v.cluster.Spec.Agents,
+			Selector:            &selector,
+			PodManagementPolicy: appsv1.ParallelPodManagement,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector.MatchLabels,
+				},
+				Spec: podSpec,
+			},
+		},
+	}
+
+	return v.ensureObject(ctx, ss)
 }
 
 func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.PodSpec {
@@ -355,4 +491,28 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 	}
 
 	return podSpec
+}
+
+func (v *VirtualAgent) nodePassword(ctx context.Context) error {
+	password := make([]byte, 16)
+	if _, err := cryptorand.Read(password); err != nil {
+		return err
+	}
+
+	nodePasswordSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      controller.SafeConcatNameWithPrefix(v.cluster.Name, virtualNodeAgentName, "node", "password"),
+			Namespace: v.cluster.Namespace,
+		},
+		Data: map[string][]byte{
+			"password": []byte(hex.EncodeToString(password)),
+		},
+	}
+
+	// calling create directly to avoid updates from ensureObject
+	if err := controllerutil.SetControllerReference(v.cluster, &nodePasswordSecret, v.scheme); err != nil {
+		return err
+	}
+
+	return ctrlruntimeclient.IgnoreAlreadyExists(v.client.Create(ctx, &nodePasswordSecret))
 }

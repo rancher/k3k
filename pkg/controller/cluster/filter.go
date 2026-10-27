@@ -21,6 +21,12 @@ func newClusterPredicate() predicate.Predicate {
 	})
 }
 
+func newServerPredicate() predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(object client.Object) bool {
+		return object.GetLabels()["role"] == "server"
+	})
+}
+
 func clusterNamespacedName(object client.Object) types.NamespacedName {
 	var clusterName string
 

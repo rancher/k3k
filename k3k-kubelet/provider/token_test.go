@@ -666,7 +666,7 @@ func Test_refreshPodTokens(t *testing.T) {
 	t.Run("tokens not due are not refreshed", func(t *testing.T) {
 		requests = nil
 
-		require.NoError(t, p.refreshPodTokens(ctx, virtualPod, hostPod))
+		require.NoError(t, p.refreshPodTokens(ctx, p.logger, virtualPod, hostPod))
 		assert.Empty(t, requests)
 	})
 
@@ -678,7 +678,7 @@ func Test_refreshPodTokens(t *testing.T) {
 
 		requests = nil
 
-		require.NoError(t, p.refreshPodTokens(ctx, virtualPod, hostPod))
+		require.NoError(t, p.refreshPodTokens(ctx, p.logger, virtualPod, hostPod))
 
 		// only the vault token was due
 		require.Len(t, requests, 1)
@@ -696,7 +696,7 @@ func Test_refreshPodTokens(t *testing.T) {
 
 		requests = nil
 
-		require.NoError(t, p.refreshPodTokens(ctx, virtualPod, hostPod))
+		require.NoError(t, p.refreshPodTokens(ctx, p.logger, virtualPod, hostPod))
 		assert.Empty(t, requests, "tokens not due are not refreshed")
 
 		secret = getHostSecret(t, kubeAccessKey)
@@ -709,7 +709,7 @@ func Test_refreshPodTokens(t *testing.T) {
 		secret.Annotations[tokenRefreshAfterAnnotation] = time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
 		require.NoError(t, p.host.Client.Update(ctx, secret))
 
-		require.NoError(t, p.refreshPodTokens(ctx, virtualPod, hostPod))
+		require.NoError(t, p.refreshPodTokens(ctx, p.logger, virtualPod, hostPod))
 
 		secret = getHostSecret(t, vaultKey)
 		assert.False(t, tokenRefreshDue(secret, time.Now()))
@@ -720,7 +720,7 @@ func Test_refreshPodTokens(t *testing.T) {
 	t.Run("pods without token secrets are skipped", func(t *testing.T) {
 		requests = nil
 
-		require.NoError(t, p.refreshPodTokens(ctx, newTokenTestPod("pod-without-secrets"), hostPod))
+		require.NoError(t, p.refreshPodTokens(ctx, p.logger, newTokenTestPod("pod-without-secrets"), hostPod))
 		assert.Empty(t, requests)
 	})
 }

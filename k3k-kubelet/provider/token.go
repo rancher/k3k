@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -294,7 +295,11 @@ type tokenRefresher struct {
 //
 // It starts the token refresher, executing until the context is closed.
 func (r *tokenRefresher) Start(ctx context.Context) error {
+	r.provider.logger.Info("Starting token refresher", "interval", tokenRefreshInterval)
+
 	wait.UntilWithContext(ctx, r.provider.refreshTokens, tokenRefreshInterval)
+
+	r.provider.logger.Info("Stopping token refresher")
 
 	return nil
 }
@@ -314,6 +319,8 @@ func (p *Provider) refreshTokens(ctx context.Context) {
 		return
 	}
 
+	p.logger.V(1).Info("Checking tokens for refresh", "pods", len(hostPods.Items))
+
 	for i := range hostPods.Items {
 		hostPod := &hostPods.Items[i]
 		if hostPod.DeletionTimestamp != nil || hostPod.Status.Phase == corev1.PodSucceeded || hostPod.Status.Phase == corev1.PodFailed {
@@ -323,7 +330,7 @@ func (p *Provider) refreshTokens(ctx context.Context) {
 		pod := hostPod.DeepCopy()
 		p.translator.TranslateFrom(pod)
 
-		logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name)
+		logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name, "hostPod", hostPod.Name)
 
 		var virtualPod corev1.Pod
 
@@ -343,7 +350,7 @@ func (p *Provider) refreshTokens(ctx context.Context) {
 			continue
 		}
 
-		if err := p.refreshPodTokens(ctx, &virtualPod, hostPod); err != nil {
+		if err := p.refreshPodTokens(ctx, logger, &virtualPod, hostPod); err != nil {
 			logger.Error(err, "Unable to refresh tokens")
 		}
 	}
@@ -351,13 +358,13 @@ func (p *Provider) refreshTokens(ctx context.Context) {
 
 // refreshPodTokens refreshes the tokens mounted in the virtualPod that are due for refresh, and ensures
 // the hostPod owns the host secrets holding them.
-func (p *Provider) refreshPodTokens(ctx context.Context, virtualPod, hostPod *corev1.Pod) error {
+func (p *Provider) refreshPodTokens(ctx context.Context, logger logr.Logger, virtualPod, hostPod *corev1.Pod) error {
 	var errs []error
 
 	if hasKubeAccessVolume(virtualPod) {
 		name := kubeAccessTokenSecretName(virtualPod.Name)
 
-		errs = append(errs, p.refreshToken(ctx, hostPod, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
+		errs = append(errs, p.refreshToken(ctx, logger, hostPod, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
 			return p.kubeAccessTokenSecret(ctx, virtualPod)
 		}))
 	}
@@ -375,7 +382,7 @@ func (p *Provider) refreshPodTokens(ctx context.Context, virtualPod, hostPod *co
 
 			name := generateTokenSecretName(virtualPod.Name, token)
 
-			errs = append(errs, p.refreshToken(ctx, hostPod, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
+			errs = append(errs, p.refreshToken(ctx, logger, hostPod, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
 				return p.projectedTokenSecret(ctx, token, virtualPod)
 			}))
 		}
@@ -387,16 +394,23 @@ func (p *Provider) refreshPodTokens(ctx context.Context, virtualPod, hostPod *co
 // refreshToken updates the host secret of the virtual token secret with name and namespace
 // with a new token from tokenSecret, if it is due for refresh.
 // It also sets the hostPod as owner of the host secret, in case it failed when the pod was created.
-func (p *Provider) refreshToken(ctx context.Context, hostPod *corev1.Pod, namespace, name string, tokenSecret func() (*corev1.Secret, error)) error {
+func (p *Provider) refreshToken(ctx context.Context, logger logr.Logger, hostPod *corev1.Pod, namespace, name string, tokenSecret func() (*corev1.Secret, error)) error {
 	var hostSecret corev1.Secret
 
 	key := types.NamespacedName{
 		Name:      p.translator.TranslateName(namespace, name),
 		Namespace: p.clusterNamespace,
 	}
+	logger = logger.WithValues("secret", name, "hostSecret", key.Name)
+
 	if err := p.host.Client.Get(ctx, key, &hostSecret); err != nil {
-		// the pods created by previous versions of k3k don't have a secret to refresh
-		return client.IgnoreNotFound(err)
+		if apierrors.IsNotFound(err) {
+			// the pods created by previous versions of k3k don't have a secret to refresh
+			logger.V(1).Info("Token secret not found on host cluster, skipping refresh")
+			return nil
+		}
+
+		return err
 	}
 
 	var errs []error
@@ -405,6 +419,8 @@ func (p *Provider) refreshToken(ctx context.Context, hostPod *corev1.Pod, namesp
 		return ref.UID == hostPod.UID
 	})
 	if !ownedByPod {
+		logger.Info("Setting missing owner reference on token secret")
+
 		errs = append(errs, p.setTokenSecretOwner(ctx, hostPod, hostSecret.Name))
 	}
 
@@ -417,11 +433,12 @@ func (p *Provider) refreshToken(ctx context.Context, hostPod *corev1.Pod, namesp
 		return errors.Join(append(errs, err)...)
 	}
 
-	if _, err := p.translateAndCreateHostTokenSecret(ctx, virtualSecret); err != nil {
+	refreshedSecret, err := p.translateAndCreateHostTokenSecret(ctx, virtualSecret)
+	if err != nil {
 		return errors.Join(append(errs, err)...)
 	}
 
-	p.logger.V(1).Info("Refreshed token", "namespace", namespace, "name", name, "hostSecret", hostSecret.Name)
+	logger.V(1).Info("Refreshed token", "refreshAfter", refreshedSecret.Annotations[tokenRefreshAfterAnnotation])
 
 	return errors.Join(errs...)
 }

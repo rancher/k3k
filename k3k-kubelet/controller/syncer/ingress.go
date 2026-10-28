@@ -3,12 +3,16 @@ package syncer
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -46,11 +50,44 @@ func AddIngressSyncer(ctx context.Context, virtMgr, hostMgr manager.Manager, clu
 
 	name := reconciler.Translator.TranslateName(clusterNamespace, ingressControllerName)
 
+	// watch the synced Ingresses on the host cluster, so that status changes made by
+	// the host ingress controller are propagated back to the virtual cluster
+	hostIngressSource := source.Kind(
+		hostMgr.GetCache(),
+		&networkingv1.Ingress{},
+		handler.TypedEnqueueRequestsFromMapFunc(reconciler.virtualIngressRequest),
+		predicate.NewTypedPredicateFuncs(reconciler.filterHostIngress),
+	)
+
 	return ctrl.NewControllerManagedBy(virtMgr).
 		Named(name).
-		For(&networkingv1.Ingress{}).
-		WithEventFilter(predicate.NewPredicateFuncs(reconciler.filterResources)).
+		For(&networkingv1.Ingress{}, builder.WithPredicates(predicate.NewPredicateFuncs(reconciler.filterResources))).
+		WatchesRawSource(hostIngressSource).
 		Complete(&reconciler)
+}
+
+// filterHostIngress only accepts host Ingresses that were synced from this virtual cluster
+// and that still match the sync configuration.
+func (r *IngressReconciler) filterHostIngress(object *networkingv1.Ingress) bool {
+	if object.GetLabels()[translate.ClusterNameLabel] != r.ClusterName {
+		return false
+	}
+
+	return r.filterResources(object)
+}
+
+// virtualIngressRequest maps a host Ingress to the virtual Ingress it was synced from.
+func (*IngressReconciler) virtualIngressRequest(_ context.Context, object *networkingv1.Ingress) []reconcile.Request {
+	annotations := object.GetAnnotations()
+
+	name := annotations[translate.ResourceNameAnnotation]
+	namespace := annotations[translate.ResourceNamespaceAnnotation]
+
+	if name == "" || namespace == "" {
+		return nil
+	}
+
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: name, Namespace: namespace}}}
 }
 
 func (r *IngressReconciler) filterResources(object ctrlruntimeclient.Object) bool {
@@ -149,9 +186,27 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, err
 	}
 
-	log.Info("updating ingress on the host cluster")
+	ctrl.LoggerFrom(ctx).V(1).Info("updating ingress status on the host cluster")
 
-	return reconcile.Result{}, r.HostClient.Update(ctx, syncedIngress)
+	if err := r.HostClient.Update(ctx, syncedIngress); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, r.syncStatus(ctx, &virtIngress, &hostIngress)
+}
+
+// syncStatus copies the load balancer status of the host Ingress to the virtual Ingress.
+func (r *IngressReconciler) syncStatus(ctx context.Context, virtIngress, hostIngress *networkingv1.Ingress) error {
+	if equality.Semantic.DeepEqual(virtIngress.Status.LoadBalancer, hostIngress.Status.LoadBalancer) {
+		return nil
+	}
+
+	ctrl.LoggerFrom(ctx).V(1).Info("updating ingress status in the virtual cluster")
+
+	orig := virtIngress.DeepCopy()
+	virtIngress.Status.LoadBalancer = hostIngress.Status.LoadBalancer
+
+	return r.VirtualClient.Status().Patch(ctx, virtIngress, ctrlruntimeclient.MergeFrom(orig))
 }
 
 func (r *IngressReconciler) ingress(obj *networkingv1.Ingress, disableTLSSecretTranslation bool) *networkingv1.Ingress {

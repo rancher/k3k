@@ -219,6 +219,86 @@ var IngressTests = func() {
 			Should(Equal(translateName(cluster, ingress.Namespace, "test-service-updated")))
 	})
 
+	It("syncs the Ingress status from the host cluster", func() {
+		ctx := context.Background()
+
+		ingress := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "ingress-",
+				Namespace:    "default",
+			},
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{
+					{
+						Host: "test.com",
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
+									{
+										Path:     "/",
+										PathType: new(networkingv1.PathTypePrefix),
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "test-service",
+												Port: networkingv1.ServiceBackendPort{
+													Name: "test-port",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err := virtTestEnv.k8sClient.Create(ctx, ingress)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Created Ingress %s in virtual cluster", ingress.Name))
+
+		var hostIngress networkingv1.Ingress
+
+		hostIngressName := translateName(cluster, ingress.Namespace, ingress.Name)
+
+		Eventually(func() error {
+			key := client.ObjectKey{Name: hostIngressName, Namespace: namespace}
+			return hostTestEnv.k8sClient.Get(ctx, key, &hostIngress)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeNil())
+
+		By(fmt.Sprintf("Created Ingress %s in host cluster", hostIngressName))
+
+		// simulate the host ingress controller populating the status
+		expectedStatus := networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
+				{IP: "10.0.0.1"},
+				{Hostname: "lb.example.com"},
+			},
+		}
+
+		hostIngress.Status.LoadBalancer = expectedStatus
+		err = hostTestEnv.k8sClient.Status().Update(ctx, &hostIngress)
+		Expect(err).NotTo(HaveOccurred())
+
+		By(fmt.Sprintf("Updated status of Ingress %s in host cluster", hostIngressName))
+
+		Eventually(func() networkingv1.IngressLoadBalancerStatus {
+			key := client.ObjectKeyFromObject(ingress)
+			err := virtTestEnv.k8sClient.Get(ctx, key, ingress)
+			Expect(err).NotTo(HaveOccurred())
+
+			return ingress.Status.LoadBalancer
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(Equal(expectedStatus))
+	})
+
 	It("deletes a Ingress on the host cluster", func() {
 		ctx := context.Background()
 

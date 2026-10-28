@@ -128,16 +128,7 @@ func Add(ctx context.Context, mgr manager.Manager, config *Config, maxConcurrent
 		RestCfg:         mgr.GetConfig(),
 		EventRecorder:   mgr.GetEventRecorder(clusterController),
 		PortAllocator:   portAllocator,
-		Config: Config{
-			SharedAgentImage:            config.SharedAgentImage,
-			SharedAgentImagePullPolicy:  config.SharedAgentImagePullPolicy,
-			VirtualAgentImage:           config.VirtualAgentImage,
-			VirtualAgentImagePullPolicy: config.VirtualAgentImagePullPolicy,
-			K3SServerImage:              config.K3SServerImage,
-			K3SServerImagePullPolicy:    config.K3SServerImagePullPolicy,
-			ServerImagePullSecrets:      config.ServerImagePullSecrets,
-			AgentImagePullSecrets:       config.AgentImagePullSecrets,
-		},
+		Config:          *config,
 	}
 
 	// index the 'spec.sync.storageClasses.enabled' field

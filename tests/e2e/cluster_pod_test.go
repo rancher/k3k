@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
@@ -561,12 +560,11 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 
 	When("creating a Pod with a projected serviceaccount token", func() {
 		var (
-			pod                                  *corev1.Pod
-			serviceAccountName                   = "sa-nginx"
-			serviceAccountTokenExp               = int64(3600)
-			serviceAccountTokenPath              = "token"
-			serviceAccountTokenAudience          = "https://kubernetes.default.svc.cluster.local"
-			serviceAccountTokenSanitizedAudience = "https-kubernetes.default.svc.cluster.local-4f3059"
+			pod                         *corev1.Pod
+			serviceAccountName          = "sa-nginx"
+			serviceAccountTokenExp      = int64(3600)
+			serviceAccountTokenPath     = "token"
+			serviceAccountTokenAudience = "https://kubernetes.default.svc.cluster.local"
 		)
 
 		BeforeAll(func(ctx context.Context) {
@@ -628,17 +626,6 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 			Eventually(func(g Gomega) {
 				hostPodName := translator.NamespacedName(pod)
 
-				// there is no way to get the result of the token request from the API, so the
-				// name of the secret holding it has to be rebuilt the same way the provider does
-				virtualSecretName := controller.SafeConcatNameWithPrefix([]string{pod.Name, serviceAccountTokenSanitizedAudience, strconv.FormatInt(serviceAccountTokenExp, 10), serviceAccountTokenPath}...)
-				hostSecret := &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      virtualSecretName,
-						Namespace: pod.Namespace,
-					},
-				}
-				translator.TranslateTo(hostSecret)
-
 				hostPod, err := k8s.CoreV1().Pods(hostPodName.Namespace).Get(ctx, hostPodName.Name, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(hostPod.Spec.Volumes).To(HaveLen(1))
@@ -647,10 +634,10 @@ var _ = Context("In a shared cluster", Label(podTestsLabel), Ordered, func() {
 				g.Expect(hostPod.Spec.Volumes[0].Projected.Sources).To(HaveLen(1))
 				g.Expect(hostPod.Spec.Volumes[0].Projected.Sources[0].Secret).To(Not(BeNil()))
 				g.Expect(hostPod.Spec.Volumes[0].Projected.Sources[0].ServiceAccountToken).To(BeNil())
-				g.Expect(hostPod.Spec.Volumes[0].Projected.Sources[0].Secret.Name).To(Equal(hostSecret.Name))
 
 				// verifying that the secret is created on the host cluster
-				hostSecret, err = k8s.CoreV1().Secrets(hostPodName.Namespace).Get(ctx, hostSecret.Name, metav1.GetOptions{})
+				hostSecretName := hostPod.Spec.Volumes[0].Projected.Sources[0].Secret.Name
+				hostSecret, err := k8s.CoreV1().Secrets(hostPodName.Namespace).Get(ctx, hostSecretName, metav1.GetOptions{})
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(hostSecret.Data).NotTo(BeNil())
 				g.Expect(hostSecret.Data[serviceAccountTokenPath]).NotTo(BeEmpty())

@@ -559,6 +559,11 @@ func kubeAccessTokenSecretName(podName string) string {
 	return k3kcontroller.SafeConcatNameWithPrefix(podName, kubeAPIAccessPrefix)
 }
 
+// generateTokenSecretName returns the name of the secret holding the projected token of the pod with podName.
+// The name is made of the token attributes, for readability, and a digest of the pod name and the token
+// attributes, as joining them with "-" is ambiguous: the pods "app" and "app-vault" would otherwise get the same
+// name for tokens with and without the "vault" audience. The digest also keeps the name distinct from
+// the kube-api-access secret name.
 func generateTokenSecretName(podName string, token *corev1.ServiceAccountTokenProjection) string {
 	nameComponents := []string{podName}
 
@@ -566,13 +571,21 @@ func generateTokenSecretName(podName string, token *corev1.ServiceAccountTokenPr
 		nameComponents = append(nameComponents, sanitizeNameComponent(token.Audience))
 	}
 
+	expiration := ""
 	if exp := token.ExpirationSeconds; exp != nil {
-		nameComponents = append(nameComponents, strconv.FormatInt(*exp, 10))
+		expiration = strconv.FormatInt(*exp, 10)
+		nameComponents = append(nameComponents, expiration)
 	}
 
 	if token.Path != "" {
 		nameComponents = append(nameComponents, sanitizeNameComponent(token.Path))
 	}
+
+	// quoted, so that the encoding of the attributes is unambiguous
+	attributes := fmt.Sprintf("%q/%q/%q/%q", podName, token.Audience, expiration, token.Path)
+	digest := sha256.Sum256([]byte(attributes))
+
+	nameComponents = append(nameComponents, hex.EncodeToString(digest[:])[:6])
 
 	return k3kcontroller.SafeConcatNameWithPrefix(nameComponents...)
 }
@@ -580,16 +593,7 @@ func generateTokenSecretName(podName string, token *corev1.ServiceAccountTokenPr
 var invalidNameChars = regexp.MustCompile(`[^a-z0-9.-]+`)
 
 // sanitizeNameComponent lowercases s and replaces any character that is invalid in a Kubernetes
-// name with "-". If the result is identical to s it is returned as is, otherwise a 6 character
-// sha256 digest of the original is appended to keep distinct inputs distinct, in the form
-// <sanitized-string>-<digest>.
+// name with "-".
 func sanitizeNameComponent(s string) string {
-	sanitized := strings.Trim(invalidNameChars.ReplaceAllString(strings.ToLower(s), "-"), "-.")
-	if sanitized == s {
-		return sanitized
-	}
-
-	digest := sha256.Sum256([]byte(s))
-
-	return sanitized + "-" + hex.EncodeToString(digest[:])[:6]
+	return strings.Trim(invalidNameChars.ReplaceAllString(strings.ToLower(s), "-"), "-.")
 }

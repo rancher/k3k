@@ -486,7 +486,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 			name:    "empty token projection",
 			podName: "my-pod",
 			token:   &corev1.ServiceAccountTokenProjection{},
-			want:    "k3k-my-pod",
+			want:    "k3k-my-pod-a3e070",
 		},
 		{
 			name:    "with expiration",
@@ -494,7 +494,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 			token: &corev1.ServiceAccountTokenProjection{
 				ExpirationSeconds: new(int64(3600)),
 			},
-			want: "k3k-my-pod-3600",
+			want: "k3k-my-pod-3600-31989f",
 		},
 		{
 			name:    "with audience",
@@ -502,7 +502,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 			token: &corev1.ServiceAccountTokenProjection{
 				Audience: "vault",
 			},
-			want: "k3k-my-pod-vault",
+			want: "k3k-my-pod-vault-bc1ddb",
 		},
 		{
 			name:    "with unsanitized audience",
@@ -510,7 +510,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 			token: &corev1.ServiceAccountTokenProjection{
 				Audience: "https://unsanitized-audience",
 			},
-			want: "k3k-my-pod-https-unsanitized-audience-23d739",
+			want: "k3k-my-pod-https-unsanitized-audience-596ff3",
 		},
 		{
 			name:    "with uppercase audience",
@@ -518,7 +518,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 			token: &corev1.ServiceAccountTokenProjection{
 				Audience: "MyAudience",
 			},
-			want: "k3k-my-pod-myaudience-753a30",
+			want: "k3k-my-pod-myaudience-f73055",
 		},
 		{
 			name:    "with path",
@@ -526,7 +526,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 			token: &corev1.ServiceAccountTokenProjection{
 				Path: "token",
 			},
-			want: "k3k-my-pod-token",
+			want: "k3k-my-pod-token-7c40c3",
 		},
 		{
 			name:    "with unsanitized path",
@@ -534,7 +534,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 			token: &corev1.ServiceAccountTokenProjection{
 				Path: "other-path/..",
 			},
-			want: "k3k-my-pod-other-path-0e329c",
+			want: "k3k-my-pod-other-path-f33213",
 		},
 		{
 			name:    "with expiration, audience and path",
@@ -544,7 +544,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 				Audience:          "vault",
 				Path:              "token",
 			},
-			want: "k3k-my-pod-vault-3600-token",
+			want: "k3k-my-pod-vault-3600-token-bec46c",
 		},
 		{
 			name:    "different pods get different names",
@@ -554,7 +554,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 				Audience:          "vault",
 				Path:              "token",
 			},
-			want: "k3k-my-other-pod-vault-3600-token",
+			want: "k3k-my-other-pod-vault-3600-token-adcdd4",
 		},
 		{
 			name:    "with expiration, unsanitized audience and unsanitized path",
@@ -566,7 +566,7 @@ func Test_generateTokenSecretName(t *testing.T) {
 			},
 			// since the full name is longer than 63 characters, SafeConcatName() will truncate the
 			// name and append the first 5 characters of the sha256-encoded full name
-			want: "k3k-my-serviceaccount-https-unsanitized-audience-23d739-3-39d9d",
+			want: "k3k-my-serviceaccount-https-unsanitized-audience-3600-oth-5db1a",
 		},
 	}
 
@@ -576,6 +576,33 @@ func Test_generateTokenSecretName(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+
+	t.Run("pod names containing token attributes get different names", func(t *testing.T) {
+		withAudience := generateTokenSecretName("app", &corev1.ServiceAccountTokenProjection{
+			Audience:          "vault",
+			ExpirationSeconds: new(int64(3600)),
+			Path:              "token",
+		})
+		withoutAudience := generateTokenSecretName("app-vault", &corev1.ServiceAccountTokenProjection{
+			ExpirationSeconds: new(int64(3600)),
+			Path:              "token",
+		})
+
+		assert.NotEqual(t, withAudience, withoutAudience)
+	})
+
+	t.Run("attributes differing only before sanitization get different names", func(t *testing.T) {
+		lowercase := generateTokenSecretName("my-pod", &corev1.ServiceAccountTokenProjection{Audience: "vault", Path: "token"})
+		uppercase := generateTokenSecretName("my-pod", &corev1.ServiceAccountTokenProjection{Audience: "Vault", Path: "token"})
+
+		assert.NotEqual(t, lowercase, uppercase)
+	})
+
+	t.Run("projected token named like the kube-api-access token gets a different name", func(t *testing.T) {
+		got := generateTokenSecretName("my-pod", &corev1.ServiceAccountTokenProjection{Path: kubeAPIAccessPrefix})
+
+		assert.NotEqual(t, kubeAccessTokenSecretName("my-pod"), got)
+	})
 }
 
 func Test_tokenRefreshAfter(t *testing.T) {

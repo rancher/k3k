@@ -1000,10 +1000,36 @@ func validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) er
 }
 
 // lookupServiceCIDR attempts to determine the cluster's service CIDR.
-// It first attempts to create a failing Service (with an invalid cluster IP)and extracts the expected CIDR from the resulting error.
-// If that fails, it searches the 'kube-apiserver' Pod's arguments for the --service-cluster-ip-range flag.
+// It first reads the default 'kubernetes' ServiceCIDR object (Kubernetes 1.33+).
+// If that fails, it attempts to create a failing Service (with an invalid cluster IP) and extracts the expected CIDR from the resulting error.
+// If that fails too, it searches the 'kube-apiserver' Pod's arguments for the --service-cluster-ip-range flag.
 func (c *Reconciler) lookupServiceCIDR(ctx context.Context) (string, error) {
 	log := ctrl.LoggerFrom(ctx)
+
+	// The apiserver publishes its --service-cluster-ip-range as the default ServiceCIDR, named 'kubernetes'.
+	// With the IPAddress allocator (default since 1.33) the failing Service error doesn't report the valid range anymore.
+
+	log.V(1).Info("Looking up Service CIDR from the default ServiceCIDR")
+
+	var defaultServiceCIDR networkingv1.ServiceCIDR
+
+	err := c.Client.Get(ctx, types.NamespacedName{Name: "kubernetes"}, &defaultServiceCIDR)
+	if err != nil {
+		log.V(1).Info("Default ServiceCIDR not available: " + err.Error())
+	}
+
+	if err == nil && len(defaultServiceCIDR.Spec.CIDRs) > 0 {
+		// on dual-stack hosts the first CIDR is the primary IP family
+		serviceCIDR := defaultServiceCIDR.Spec.CIDRs[0]
+		log.V(1).Info("Found Service CIDR from the default ServiceCIDR: " + serviceCIDR)
+
+		_, serviceCIDRAddr, err := net.ParseCIDR(serviceCIDR)
+		if err != nil {
+			return "", err
+		}
+
+		return serviceCIDRAddr.String(), nil
+	}
 
 	// Try to look for the serviceCIDR creating a failing service.
 	// The error should contain the expected serviceCIDR

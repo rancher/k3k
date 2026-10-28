@@ -13,9 +13,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clienttesting "k8s.io/client-go/testing"
 	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -230,15 +232,33 @@ func Test_setTokenSecretsOwner(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "host-secret", Namespace: "ns-test"},
 	}
 
+	// the secret is patched without being read, as it could be missing from the cache if it was just created
+	hostClient := ctrlfake.NewClientBuilder().
+		WithObjects(hostSecret).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				if _, ok := obj.(*corev1.Secret); ok {
+					return apierrors.NewNotFound(corev1.Resource("secrets"), key.Name)
+				}
+
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+
 	p := &Provider{
 		host: ClusterContext{
-			Client: ctrlfake.NewClientBuilder().WithObjects(hostSecret).Build(),
+			Client: hostClient,
 		},
 	}
 
 	require.NoError(t, p.setTokenSecretsOwner(ctx, hostPod, []string{"host-secret"}))
 
-	require.NoError(t, p.host.Client.Get(ctx, client.ObjectKeyFromObject(hostSecret), hostSecret))
+	var secrets corev1.SecretList
+	require.NoError(t, p.host.Client.List(ctx, &secrets))
+	require.Len(t, secrets.Items, 1)
+
+	hostSecret = &secrets.Items[0]
 	require.Len(t, hostSecret.OwnerReferences, 1)
 	assert.Equal(t, "Pod", hostSecret.OwnerReferences[0].Kind)
 	assert.Equal(t, "host-pod", hostSecret.OwnerReferences[0].Name)
@@ -601,8 +621,14 @@ func Test_refreshPodTokens(t *testing.T) {
 	virtualPod := newTokenTestPod("pod-a")
 	hostPod := virtualPod.DeepCopy()
 
-	_, err := p.transformTokens(ctx, virtualPod, hostPod)
+	hostSecretNames, err := p.transformTokens(ctx, virtualPod, hostPod)
 	require.NoError(t, err)
+
+	hostPod.Name = "host-pod"
+	hostPod.Namespace = "ns-test"
+	hostPod.UID = "host-pod-uid"
+
+	require.NoError(t, p.setTokenSecretsOwner(ctx, hostPod, hostSecretNames))
 
 	hostSecretKey := func(volume corev1.Volume) types.NamespacedName {
 		name := ""
@@ -640,7 +666,7 @@ func Test_refreshPodTokens(t *testing.T) {
 	t.Run("tokens not due are not refreshed", func(t *testing.T) {
 		requests = nil
 
-		require.NoError(t, p.refreshPodTokens(ctx, virtualPod))
+		require.NoError(t, p.refreshPodTokens(ctx, virtualPod, hostPod))
 		assert.Empty(t, requests)
 	})
 
@@ -652,7 +678,7 @@ func Test_refreshPodTokens(t *testing.T) {
 
 		requests = nil
 
-		require.NoError(t, p.refreshPodTokens(ctx, virtualPod))
+		require.NoError(t, p.refreshPodTokens(ctx, virtualPod, hostPod))
 
 		// only the vault token was due
 		require.Len(t, requests, 1)
@@ -663,10 +689,38 @@ func Test_refreshPodTokens(t *testing.T) {
 		assert.False(t, tokenRefreshDue(secret, time.Now()))
 	})
 
+	t.Run("missing owner references are set", func(t *testing.T) {
+		secret := getHostSecret(t, kubeAccessKey)
+		secret.OwnerReferences = nil
+		require.NoError(t, p.host.Client.Update(ctx, secret))
+
+		requests = nil
+
+		require.NoError(t, p.refreshPodTokens(ctx, virtualPod, hostPod))
+		assert.Empty(t, requests, "tokens not due are not refreshed")
+
+		secret = getHostSecret(t, kubeAccessKey)
+		require.Len(t, secret.OwnerReferences, 1)
+		assert.Equal(t, types.UID("host-pod-uid"), secret.OwnerReferences[0].UID)
+	})
+
+	t.Run("owner references are kept on refresh", func(t *testing.T) {
+		secret := getHostSecret(t, vaultKey)
+		secret.Annotations[tokenRefreshAfterAnnotation] = time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
+		require.NoError(t, p.host.Client.Update(ctx, secret))
+
+		require.NoError(t, p.refreshPodTokens(ctx, virtualPod, hostPod))
+
+		secret = getHostSecret(t, vaultKey)
+		assert.False(t, tokenRefreshDue(secret, time.Now()))
+		require.Len(t, secret.OwnerReferences, 1)
+		assert.Equal(t, types.UID("host-pod-uid"), secret.OwnerReferences[0].UID)
+	})
+
 	t.Run("pods without token secrets are skipped", func(t *testing.T) {
 		requests = nil
 
-		require.NoError(t, p.refreshPodTokens(ctx, newTokenTestPod("pod-without-secrets")))
+		require.NoError(t, p.refreshPodTokens(ctx, newTokenTestPod("pod-without-secrets"), hostPod))
 		assert.Empty(t, requests)
 	})
 }

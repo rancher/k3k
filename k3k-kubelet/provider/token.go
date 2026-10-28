@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -261,8 +262,9 @@ func (p *Provider) translateAndCreateHostTokenSecret(ctx context.Context, virtua
 
 	p.translator.TranslateTo(hostSecret)
 
-	data := hostSecret.Data
-	annotations := hostSecret.Annotations
+	// cloned, so that reading the existing secret into hostSecret can't modify them
+	data := maps.Clone(hostSecret.Data)
+	annotations := maps.Clone(hostSecret.Annotations)
 
 	mutate := func() error {
 		hostSecret.Data = data
@@ -306,16 +308,20 @@ func (*tokenRefresher) NeedLeaderElection() bool {
 
 // refreshTokens refreshes the tokens of the running pods synced by this agent.
 func (p *Provider) refreshTokens(ctx context.Context) {
-	pods, err := p.GetPods(ctx)
+	hostPods, err := p.listHostPods(ctx)
 	if err != nil {
 		p.logger.Error(err, "Unable to list pods to refresh tokens")
 		return
 	}
 
-	for _, pod := range pods {
-		if pod.DeletionTimestamp != nil || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+	for i := range hostPods.Items {
+		hostPod := &hostPods.Items[i]
+		if hostPod.DeletionTimestamp != nil || hostPod.Status.Phase == corev1.PodSucceeded || hostPod.Status.Phase == corev1.PodFailed {
 			continue
 		}
+
+		pod := hostPod.DeepCopy()
+		p.translator.TranslateFrom(pod)
 
 		logger := p.logger.WithValues("namespace", pod.Namespace, "name", pod.Name)
 
@@ -337,20 +343,21 @@ func (p *Provider) refreshTokens(ctx context.Context) {
 			continue
 		}
 
-		if err := p.refreshPodTokens(ctx, &virtualPod); err != nil {
+		if err := p.refreshPodTokens(ctx, &virtualPod, hostPod); err != nil {
 			logger.Error(err, "Unable to refresh tokens")
 		}
 	}
 }
 
-// refreshPodTokens refreshes the tokens mounted in the virtualPod that are due for refresh.
-func (p *Provider) refreshPodTokens(ctx context.Context, virtualPod *corev1.Pod) error {
+// refreshPodTokens refreshes the tokens mounted in the virtualPod that are due for refresh, and ensures
+// the hostPod owns the host secrets holding them.
+func (p *Provider) refreshPodTokens(ctx context.Context, virtualPod, hostPod *corev1.Pod) error {
 	var errs []error
 
 	if hasKubeAccessVolume(virtualPod) {
 		name := kubeAccessTokenSecretName(virtualPod.Name)
 
-		errs = append(errs, p.refreshToken(ctx, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
+		errs = append(errs, p.refreshToken(ctx, hostPod, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
 			return p.kubeAccessTokenSecret(ctx, virtualPod)
 		}))
 	}
@@ -368,7 +375,7 @@ func (p *Provider) refreshPodTokens(ctx context.Context, virtualPod *corev1.Pod)
 
 			name := generateTokenSecretName(virtualPod.Name, token)
 
-			errs = append(errs, p.refreshToken(ctx, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
+			errs = append(errs, p.refreshToken(ctx, hostPod, virtualPod.Namespace, name, func() (*corev1.Secret, error) {
 				return p.projectedTokenSecret(ctx, token, virtualPod)
 			}))
 		}
@@ -379,7 +386,8 @@ func (p *Provider) refreshPodTokens(ctx context.Context, virtualPod *corev1.Pod)
 
 // refreshToken updates the host secret of the virtual token secret with name and namespace
 // with a new token from tokenSecret, if it is due for refresh.
-func (p *Provider) refreshToken(ctx context.Context, namespace, name string, tokenSecret func() (*corev1.Secret, error)) error {
+// It also sets the hostPod as owner of the host secret, in case it failed when the pod was created.
+func (p *Provider) refreshToken(ctx context.Context, hostPod *corev1.Pod, namespace, name string, tokenSecret func() (*corev1.Secret, error)) error {
 	var hostSecret corev1.Secret
 
 	key := types.NamespacedName{
@@ -391,22 +399,31 @@ func (p *Provider) refreshToken(ctx context.Context, namespace, name string, tok
 		return client.IgnoreNotFound(err)
 	}
 
+	var errs []error
+
+	ownedByPod := slices.ContainsFunc(hostSecret.OwnerReferences, func(ref metav1.OwnerReference) bool {
+		return ref.UID == hostPod.UID
+	})
+	if !ownedByPod {
+		errs = append(errs, p.setTokenSecretOwner(ctx, hostPod, hostSecret.Name))
+	}
+
 	if !tokenRefreshDue(&hostSecret, time.Now()) {
-		return nil
+		return errors.Join(errs...)
 	}
 
 	virtualSecret, err := tokenSecret()
 	if err != nil {
-		return err
+		return errors.Join(append(errs, err)...)
 	}
 
 	if _, err := p.translateAndCreateHostTokenSecret(ctx, virtualSecret); err != nil {
-		return err
+		return errors.Join(append(errs, err)...)
 	}
 
 	p.logger.V(1).Info("Refreshed token", "namespace", namespace, "name", name, "hostSecret", hostSecret.Name)
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // setTokenSecretsOwner sets the hostPod as owner of the host secrets holding its tokens,
@@ -415,30 +432,29 @@ func (p *Provider) setTokenSecretsOwner(ctx context.Context, hostPod *corev1.Pod
 	var errs []error
 
 	for _, name := range hostSecretNames {
-		var hostSecret corev1.Secret
-
-		key := types.NamespacedName{
-			Name:      name,
-			Namespace: hostPod.Namespace,
-		}
-		if err := p.host.Client.Get(ctx, key, &hostSecret); err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		patch := client.MergeFrom(hostSecret.DeepCopy())
-
-		if err := controllerutil.SetOwnerReference(hostPod, &hostSecret, p.host.Client.Scheme()); err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		if err := p.host.Client.Patch(ctx, &hostSecret, patch); err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, p.setTokenSecretOwner(ctx, hostPod, name))
 	}
 
 	return errors.Join(errs...)
+}
+
+// setTokenSecretOwner sets the hostPod as owner of the host secret with name.
+// The secret is patched without being read first, as it could be missing from the cache if it was just created.
+func (p *Provider) setTokenSecretOwner(ctx context.Context, hostPod *corev1.Pod, name string) error {
+	hostSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: hostPod.Namespace,
+		},
+	}
+
+	patch := client.StrategicMergeFrom(hostSecret.DeepCopy())
+
+	if err := controllerutil.SetOwnerReference(hostPod, hostSecret, p.host.Client.Scheme()); err != nil {
+		return err
+	}
+
+	return p.host.Client.Patch(ctx, hostSecret, patch)
 }
 
 func hasKubeAccessVolume(pod *corev1.Pod) bool {

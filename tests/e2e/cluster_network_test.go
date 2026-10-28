@@ -2,9 +2,11 @@ package e2e_test
 
 import (
 	"context"
+	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	appsv1 "k8s.io/api/apps/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
@@ -102,10 +104,10 @@ var _ = When("two virtual clusters are installed", Ordered, Label(networkingTest
 	})
 
 	It("excludes the real host pod CIDR from the isolation NetworkPolicy, not a hardcoded guess", func(ctx context.Context) {
-		// compute the same value the controller should have derived from the live host
-		// Nodes, so this assertion doesn't rely on the host's real pod CIDR coincidentally
-		// matching a hardcoded constant
-		expectedCIDRs, err := policy.FindPodCIDRs(ctx, k8sClient, "")
+		// compute the same value the controller should have derived from its --cluster-cidr flag
+		// or from the live host Nodes, so this assertion doesn't rely on the host's real pod CIDR
+		// coincidentally matching a hardcoded constant
+		expectedCIDRs, err := policy.FindPodCIDRs(ctx, k8sClient, controllerClusterCIDR(ctx))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(expectedCIDRs).NotTo(BeEmpty())
 
@@ -128,3 +130,18 @@ var _ = When("two virtual clusters are installed", Ordered, Label(networkingTest
 		}
 	})
 })
+
+// controllerClusterCIDR returns the value of the --cluster-cidr flag of the K3k controller, if set.
+func controllerClusterCIDR(ctx context.Context) string {
+	var deployments appsv1.DeploymentList
+	Expect(k8sClient.List(ctx, &deployments, client.InNamespace(k3kNamespace))).To(Succeed())
+	Expect(deployments.Items).To(HaveLen(1))
+
+	for _, arg := range deployments.Items[0].Spec.Template.Spec.Containers[0].Args {
+		if clusterCIDR, found := strings.CutPrefix(arg, "--cluster-cidr="); found {
+			return clusterCIDR
+		}
+	}
+
+	return ""
+}

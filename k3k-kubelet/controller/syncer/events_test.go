@@ -11,9 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
@@ -176,6 +178,26 @@ func TestEventSyncerReconcile(t *testing.T) {
 			// wantEvent is nil: non-Pod InvolvedObject is skipped
 			wantEvent: nil,
 		},
+		"deleted host pod skips event emission": {
+			receivedEvent: &corev1.Event{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nginx-test-mycluster-6e67696e782b746573742b6d79636c7573746572.18b194827e6b49da",
+					Namespace: "k3k-mycluster",
+				},
+				InvolvedObject: corev1.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Name:       "nginx-test-mycluster-6e67696e782b746573742b6d79636c7573746572",
+					Namespace:  "k3k-mycluster",
+				},
+				Type:    corev1.EventTypeNormal,
+				Reason:  "Killing",
+				Message: "Stopping container nginx",
+			},
+			// hostObj is nil: the pod was deleted before its event was reconciled
+			virtualObj: virtualPod("nginx", "test"),
+			wantEvent:  nil,
+		},
 		"non-reversible translated name skips event emission": {
 			receivedEvent: &corev1.Event{
 				ObjectMeta: metav1.ObjectMeta{
@@ -300,6 +322,63 @@ func TestEventSyncerReconcileNotFound(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 
+	assert.Empty(t, recorder.events)
+}
+
+func TestEventSyncerReconcileHostPodError(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	event := &corev1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-event",
+			Namespace: "k3k-mycluster",
+		},
+		InvolvedObject: corev1.ObjectReference{
+			APIVersion: "v1",
+			Kind:       "Pod",
+			Name:       "nginx-test-mycluster-6e67696e782b746573742b6d79636c7573746572",
+			Namespace:  "k3k-mycluster",
+		},
+	}
+
+	hostFakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(event).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				if _, ok := obj.(*corev1.Pod); ok {
+					return apierrors.NewServiceUnavailable("host cluster unavailable")
+				}
+
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+
+	recorder := &fakeEventRecorder{}
+
+	syncer := &EventSyncer{
+		virtEventRecorder: recorder,
+		Context: &Context{
+			HostClient:    hostFakeClient,
+			VirtualClient: fake.NewClientBuilder().WithScheme(scheme).Build(),
+			Translator: translate.ToHostTranslator{
+				ClusterName:      "mycluster",
+				ClusterNamespace: "k3k-mycluster",
+			},
+			ClusterName:      "mycluster",
+			ClusterNamespace: "k3k-mycluster",
+		},
+	}
+
+	_, err := syncer.Reconcile(context.Background(), reconcile.Request{
+		NamespacedName: client.ObjectKeyFromObject(event),
+	})
+
+	// errors other than not found have to be retried
+	require.Error(t, err)
+	assert.True(t, apierrors.IsServiceUnavailable(err))
 	assert.Empty(t, recorder.events)
 }
 

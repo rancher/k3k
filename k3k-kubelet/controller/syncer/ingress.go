@@ -186,7 +186,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, err
 	}
 
-	log.Info("updating ingress on the host cluster")
+	ctrl.LoggerFrom(ctx).V(1).Info("updating ingress status on the host cluster")
 
 	if err := r.HostClient.Update(ctx, syncedIngress); err != nil {
 		return reconcile.Result{}, err
@@ -201,7 +201,7 @@ func (r *IngressReconciler) syncStatus(ctx context.Context, virtIngress, hostIng
 		return nil
 	}
 
-	ctrl.LoggerFrom(ctx).Info("updating ingress status in the virtual cluster")
+	ctrl.LoggerFrom(ctx).V(1).Info("updating ingress status in the virtual cluster")
 
 	orig := virtIngress.DeepCopy()
 	virtIngress.Status.LoadBalancer = hostIngress.Status.LoadBalancer

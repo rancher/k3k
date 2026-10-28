@@ -577,6 +577,23 @@ func privateRegistry(ctx context.Context, namespace string) error {
 }
 
 func buildRegistryNetPolicy(ctx context.Context, namespace string) error {
+	// the server reaches DNS and the registry through their Services, and the host Service CIDR
+	// can be outside of 10.0.0.0/8 (i.e. 172.20.0.0/16 on EKS)
+	var hostServiceCIDR networkingv1.ServiceCIDR
+	if err := k8sClient.Get(ctx, client.ObjectKey{Name: "kubernetes"}, &hostServiceCIDR); err != nil {
+		return err
+	}
+
+	peers := []networkingv1.NetworkPolicyPeer{{
+		IPBlock: &networkingv1.IPBlock{CIDR: "10.0.0.0/8"},
+	}}
+
+	for _, cidr := range hostServiceCIDR.Spec.CIDRs {
+		peers = append(peers, networkingv1.NetworkPolicyPeer{
+			IPBlock: &networkingv1.IPBlock{CIDR: cidr},
+		})
+	}
+
 	np := networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "private-registry-test-netpol",
@@ -592,15 +609,7 @@ func buildRegistryNetPolicy(ctx context.Context, namespace string) error {
 				networkingv1.PolicyTypeEgress,
 			},
 			Egress: []networkingv1.NetworkPolicyEgressRule{
-				{
-					To: []networkingv1.NetworkPolicyPeer{
-						{
-							IPBlock: &networkingv1.IPBlock{
-								CIDR: "10.0.0.0/8",
-							},
-						},
-					},
-				},
+				{To: peers},
 			},
 		},
 	}

@@ -109,6 +109,12 @@ KEEP_NAMESPACES=true make test-e2e
 
 The e2e and cli tests run against the cluster configured in your KUBECONFIG environment variable. Make sure K3k is installed on that cluster (e.g. with `make install`) before running them.
 
+The whole e2e suite has a timeout of 1h. If it takes longer (i.e. on slower clusters, or when retrying flaky tests) you can increase it with the `E2E_TIMEOUT` variable:
+
+```
+E2E_TIMEOUT=2h make test-e2e
+```
+
 We use [Ginkgo](https://onsi.github.io/ginkgo/), and [`envtest`](https://book.kubebuilder.io/reference/envtest) for testing the controllers.
 
 The required binaries for `envtest` are installed with [`setup-envtest`](https://pkg.go.dev/sigs.k8s.io/controller-runtime/tools/setup-envtest), in the `.envtest` folder.

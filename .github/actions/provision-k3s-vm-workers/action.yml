@@ -189,6 +189,10 @@ runs:
       for i in $(seq 1 ${{ inputs.worker-count }}); do
         IP="${CIDR_PREFIX}.1${i}"
         echo "Registering Worker ${i} (k3s ${{ inputs.k3s-version }})..."
+        # Download the install script before running it: piping a failed download into sh
+        # runs an empty script, and the step succeeds without installing k3s on the worker.
         ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
-          "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${{ inputs.k3s-version }} K3S_URL=${{ inputs.k3s-url }} K3S_TOKEN=${{ inputs.k3s-token }} sh -"
+          "set -euo pipefail
+           curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 -o /tmp/k3s-install.sh https://get.k3s.io
+           INSTALL_K3S_VERSION=${{ inputs.k3s-version }} K3S_URL=${{ inputs.k3s-url }} K3S_TOKEN=${{ inputs.k3s-token }} sh /tmp/k3s-install.sh"
       done

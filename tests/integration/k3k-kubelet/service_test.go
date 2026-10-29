@@ -230,6 +230,74 @@ var ServiceTests = func() {
 			Should(BeTrue())
 	})
 
+	It("removes the finalizer when the host service is already deleted", func() {
+		ctx := context.Background()
+
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "service-",
+				Namespace:    "default",
+			},
+			Spec: corev1.ServiceSpec{
+				Type: corev1.ServiceTypeNodePort,
+				Ports: []corev1.ServicePort{
+					{
+						Name:       "test-port",
+						Port:       8888,
+						TargetPort: intstr.FromInt32(8888),
+					},
+				},
+			},
+		}
+
+		err := virtTestEnv.k8sClient.Create(ctx, service)
+		Expect(err).NotTo(HaveOccurred())
+
+		hostServiceName := translateName(cluster, service.Namespace, service.Name)
+		hostKey := client.ObjectKey{Name: hostServiceName, Namespace: namespace}
+
+		var hostService corev1.Service
+
+		Eventually(func() error {
+			return hostTestEnv.k8sClient.Get(ctx, hostKey, &hostService)
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(Succeed())
+
+		Eventually(func() []string {
+			var virtService corev1.Service
+			Expect(virtTestEnv.k8sClient.Get(ctx, client.ObjectKeyFromObject(service), &virtService)).To(Succeed())
+
+			return virtService.Finalizers
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(ContainElement("service.k3k.io/finalizer"))
+
+		// Simulate an earlier reconcile that deleted the host copy but failed to
+		// remove the finalizer from the virtual service.
+		err = hostTestEnv.k8sClient.Delete(ctx, &hostService)
+		Expect(err).NotTo(HaveOccurred())
+
+		Consistently(func() bool {
+			return apierrors.IsNotFound(hostTestEnv.k8sClient.Get(ctx, hostKey, &corev1.Service{}))
+		}).
+			WithPolling(time.Millisecond * 100).
+			WithTimeout(time.Second).
+			Should(BeTrue())
+
+		err = virtTestEnv.k8sClient.Delete(ctx, service)
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func() bool {
+			return apierrors.IsNotFound(virtTestEnv.k8sClient.Get(ctx, client.ObjectKeyFromObject(service), &corev1.Service{}))
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeTrue())
+	})
+
 	It("will not create a service on the host cluster if disabled", func() {
 		ctx := context.Background()
 

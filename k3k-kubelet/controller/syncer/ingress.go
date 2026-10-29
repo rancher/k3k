@@ -152,12 +152,12 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	// handle deletion
 	if !virtIngress.DeletionTimestamp.IsZero() {
-		// deleting the synced service if exists
-		if err := r.HostClient.Delete(ctx, syncedIngress); err != nil {
-			return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+		// deleting the synced ingress if exists
+		if err := r.HostClient.Delete(ctx, syncedIngress); err != nil && !apierrors.IsNotFound(err) {
+			return reconcile.Result{}, err
 		}
 
-		// remove the finalizer after cleaning up the synced service
+		// remove the finalizer after cleaning up the synced ingress
 		if controllerutil.RemoveFinalizer(&virtIngress, ingressFinalizerName) {
 			if err := r.VirtualClient.Update(ctx, &virtIngress); err != nil {
 				return reconcile.Result{}, err

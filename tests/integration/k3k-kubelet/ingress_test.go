@@ -67,9 +67,7 @@ var IngressTests = func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	It("creates a Ingress on the host cluster", func() {
-		ctx := context.Background()
-
+	It("creates a Ingress on the host cluster", func(ctx context.Context) {
 		ingress := &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "ingress-",
@@ -133,9 +131,7 @@ var IngressTests = func() {
 		GinkgoWriter.Printf("labels: %v\n", hostIngress.Labels)
 	})
 
-	It("updates a Ingress on the host cluster", func() {
-		ctx := context.Background()
-
+	It("updates a Ingress on the host cluster", func(ctx context.Context) {
 		ingress := &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "ingress-",
@@ -219,9 +215,7 @@ var IngressTests = func() {
 			Should(Equal(translateName(cluster, ingress.Namespace, "test-service-updated")))
 	})
 
-	It("syncs the Ingress status from the host cluster", func() {
-		ctx := context.Background()
-
+	It("syncs the Ingress status from the host cluster", func(ctx context.Context) {
 		ingress := &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "ingress-",
@@ -299,9 +293,7 @@ var IngressTests = func() {
 			Should(Equal(expectedStatus))
 	})
 
-	It("deletes a Ingress on the host cluster", func() {
-		ctx := context.Background()
-
+	It("deletes a Ingress on the host cluster", func(ctx context.Context) {
 		ingress := &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "ingress-",
@@ -376,8 +368,7 @@ var IngressTests = func() {
 			Should(BeTrue())
 	})
 
-	It("will sync an Ingress with a TLS secret", func() {
-		ctx := context.Background()
+	It("will sync an Ingress with a TLS secret", func(ctx context.Context) {
 		ingressSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "ingress-secret-",
@@ -467,9 +458,7 @@ var IngressTests = func() {
 		Expect(hostIngress.Spec.TLS[0].SecretName).To(Equal(hostSecretName))
 	})
 
-	It("will not sync an Ingress with a TLS secret", func() {
-		ctx := context.Background()
-
+	It("will not sync an Ingress with a TLS secret", func(ctx context.Context) {
 		cluster.Spec.Sync.Ingresses.DisableTLSSecretTranslation = true
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())
@@ -564,9 +553,49 @@ var IngressTests = func() {
 		Expect(hostIngress.Spec.TLS[0].SecretName).To(Equal(ingressSecret.Name))
 	})
 
-	It("will not sync an Ingress if disabled", func() {
-		ctx := context.Background()
+	It("removes the finalizer when the host Ingress does not exist", func(ctx context.Context) {
+		// With syncing disabled only deletions are reconciled, so the host copy
+		// is never created and the deletion reconcile gets a NotFound from the host.
+		cluster.Spec.Sync.Ingresses.Enabled = false
+		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
+		Expect(err).NotTo(HaveOccurred())
 
+		Eventually(func() bool {
+			var cached v1beta1.Cluster
+			Expect(hostManager.GetClient().Get(ctx, client.ObjectKeyFromObject(&cluster), &cached)).To(Succeed())
+
+			return cached.Spec.Sync.Ingresses.Enabled
+		}).
+			WithPolling(time.Millisecond * 100).
+			WithTimeout(time.Second * 10).
+			Should(BeFalse())
+
+		ingress := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "ingress-",
+				Namespace:    "default",
+				Finalizers:   []string{"ingress.k3k.io/finalizer"},
+			},
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{{Host: "test.com"}},
+			},
+		}
+
+		err = virtTestEnv.k8sClient.Create(ctx, ingress)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = virtTestEnv.k8sClient.Delete(ctx, ingress)
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func() bool {
+			return apierrors.IsNotFound(virtTestEnv.k8sClient.Get(ctx, client.ObjectKeyFromObject(ingress), &networkingv1.Ingress{}))
+		}).
+			WithPolling(time.Millisecond * 300).
+			WithTimeout(time.Second * 10).
+			Should(BeTrue())
+	})
+
+	It("will not sync an Ingress if disabled", func(ctx context.Context) {
 		cluster.Spec.Sync.Ingresses.Enabled = false
 		err := hostTestEnv.k8sClient.Update(ctx, &cluster)
 		Expect(err).NotTo(HaveOccurred())

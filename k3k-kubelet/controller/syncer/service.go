@@ -86,8 +86,8 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	// handle deletion
 	if !virtService.DeletionTimestamp.IsZero() {
 		// deleting the synced service if exists
-		if err := r.HostClient.Delete(ctx, syncedService); err != nil {
-			return reconcile.Result{}, ctrlruntimeclient.IgnoreNotFound(err)
+		if err := r.HostClient.Delete(ctx, syncedService); err != nil && !apierrors.IsNotFound(err) {
+			return reconcile.Result{}, err
 		}
 
 		// remove the finalizer after cleaning up the synced service

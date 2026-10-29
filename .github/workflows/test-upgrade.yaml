@@ -66,7 +66,7 @@ jobs:
         kubectl get nodes
 
         timeout 180s bash -c '
-          until [ $(kubectl get nodes --no-headers 2>/dev/null | grep -c "Ready") -eq 3 ]; do
+          until [ $(kubectl get nodes --no-headers 2>/dev/null | grep -cw "Ready") -eq 3 ]; do
             echo "Waiting for all 3 nodes to show Ready..."
             kubectl get nodes || true
             sleep 5
@@ -111,6 +111,13 @@ jobs:
           IP="192.168.100.1${i}"
           ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
             "sudo journalctl -u k3s-agent -o cat --no-pager" > /tmp/worker-${i}.log || true
+
+          # the k3s-agent logs are empty if k3s was never installed on the worker
+          ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
+            "sudo systemctl status k3s-agent --no-pager; \
+             sudo cat /var/log/cloud-init-output.log; \
+             resolvectl status; \
+             curl -sSI --max-time 10 https://get.k3s.io" > /tmp/worker-${i}-diagnostics.log 2>&1 || true
         done
 
     - name: Archive k3s logs

@@ -70,7 +70,7 @@ func TestPriorityClassSyncerFilterResources(t *testing.T) {
 			name: "enabled matching selector",
 			syncConfig: v1beta1.PriorityClassSyncConfig{
 				Enabled:  true,
-				Selector: map[string]string{"environment": "production"},
+				Selector: map[string]string{"environment": "production"}, //nolint:staticcheck
 			},
 			object:   priorityClass,
 			filtered: true,
@@ -79,7 +79,7 @@ func TestPriorityClassSyncerFilterResources(t *testing.T) {
 			name: "enabled non-matching selector",
 			syncConfig: v1beta1.PriorityClassSyncConfig{
 				Enabled:  true,
-				Selector: map[string]string{"environment": "staging"},
+				Selector: map[string]string{"environment": "staging"}, //nolint:staticcheck
 			},
 			object:   priorityClass,
 			filtered: false,

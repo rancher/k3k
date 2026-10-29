@@ -1,11 +1,16 @@
 package cluster
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -120,5 +125,80 @@ func newTestPolicy(allowedMode v1beta1.ClusterMode) *v1beta1.VirtualClusterPolic
 	return &v1beta1.VirtualClusterPolicy{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
 		Spec:       v1beta1.VirtualClusterPolicySpec{AllowedMode: allowedMode},
+	}
+}
+
+func Test_lookupServiceCIDR(t *testing.T) {
+	defaultServiceCIDR := func(cidrs ...string) *networkingv1.ServiceCIDR {
+		return &networkingv1.ServiceCIDR{
+			ObjectMeta: metav1.ObjectMeta{Name: "kubernetes"},
+			Spec:       networkingv1.ServiceCIDRSpec{CIDRs: cidrs},
+		}
+	}
+
+	apiServerPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kube-apiserver",
+			Namespace: "kube-system",
+			Labels:    map[string]string{"component": "kube-apiserver", "tier": "control-plane"},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name: "kube-apiserver",
+				Args: []string{"--service-cluster-ip-range=10.96.0.0/12"},
+			}},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		objs    []client.Object
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "from the default ServiceCIDR",
+			objs: []client.Object{defaultServiceCIDR("172.20.0.0/16")},
+			want: "172.20.0.0/16",
+		},
+		{
+			name: "dual-stack ServiceCIDR returns the primary family",
+			objs: []client.Object{defaultServiceCIDR("fd00:10:96::/112", "10.96.0.0/16")},
+			want: "fd00:10:96::/112",
+		},
+		{
+			name: "ServiceCIDR takes precedence over the kube-apiserver pod",
+			objs: []client.Object{defaultServiceCIDR("172.20.0.0/16"), apiServerPod},
+			want: "172.20.0.0/16",
+		},
+		{
+			name: "falls back to the kube-apiserver pod without a ServiceCIDR",
+			objs: []client.Object{apiServerPod},
+			want: "10.96.0.0/12",
+		},
+		{
+			name:    "invalid ServiceCIDR",
+			objs:    []client.Object{defaultServiceCIDR("not-a-cidr")},
+			wantErr: true,
+		},
+		{
+			name: "nothing found",
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Reconciler{Client: newTestClient(t, tt.objs...)}
+
+			got, err := r.lookupServiceCIDR(context.Background())
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
 	}
 }

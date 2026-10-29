@@ -4,7 +4,10 @@ import (
 	"context"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -88,10 +91,18 @@ var _ = When("a shared mode cluster is created", Ordered, Label(syncTestsLabel),
 		It("is replicated in the host cluster", func() {
 			ctx := GinkgoT().Context()
 
+			// the synced Service keeps its virtual ClusterIP, so it must be in the host Service CIDR
+			var hostServiceCIDR networkingv1.ServiceCIDR
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: "kubernetes"}, &hostServiceCIDR)).To(Succeed())
+			Expect(hostServiceCIDR.Spec.CIDRs).NotTo(BeEmpty())
+
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(virtualCluster.Cluster), virtualCluster.Cluster)).To(Succeed())
+			Expect(virtualCluster.Cluster.Status.ServiceCIDR).To(Equal(hostServiceCIDR.Spec.CIDRs[0]))
+
 			hostTranslator := translate.NewHostTranslator(virtualCluster.Cluster)
 			namespacedName := hostTranslator.NamespacedName(virtualService)
 
-			// check that the ConfigMap is synced in the host cluster
+			// check that the Service is synced in the host cluster
 			Eventually(func(g Gomega) {
 				_, err := k8s.CoreV1().Services(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
 				g.Expect(err).To(Not(HaveOccurred()))

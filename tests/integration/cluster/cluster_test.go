@@ -89,6 +89,20 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					WithPolling(time.Second).
 					Should(Equal(serverVersion.GitVersion))
 
+				// the shared mode Service CIDR is the one of the host
+				var hostServiceCIDR networkingv1.ServiceCIDR
+
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: "kubernetes"}, &hostServiceCIDR)).To(Succeed())
+					g.Expect(hostServiceCIDR.Spec.CIDRs).NotTo(BeEmpty())
+
+					g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)).To(Succeed())
+					g.Expect(cluster.Status.ServiceCIDR).To(Equal(hostServiceCIDR.Spec.CIDRs[0]))
+				}).
+					WithTimeout(time.Second * 30).
+					WithPolling(time.Second).
+					Should(Succeed())
+
 				// check NetworkPolicy
 				expectedNetworkPolicy := &networkingv1.NetworkPolicy{
 					ObjectMeta: metav1.ObjectMeta{

@@ -779,7 +779,11 @@ func (c *Reconciler) ensureStorageClasses(ctx context.Context, cluster *v1beta1.
 
 		// if selector doesn't match -> continue
 		// an empty selector matche everything
-		selector := labels.SelectorFromSet(appliedSync.StorageClasses.Selector)
+		selector, err := controller.SyncSelector(appliedSync.StorageClasses.Selector, appliedSync.StorageClasses.LabelSelector)
+		if err != nil {
+			return fmt.Errorf("invalid storageclass sync selector: %w", err)
+		}
+
 		if !selector.Matches(labels.Set(sc.Labels)) {
 			log.V(1).Info("selector not matching", "sc-name", sc.Name)
 			continue

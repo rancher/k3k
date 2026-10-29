@@ -17,6 +17,7 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	"github.com/rancher/k3k/pkg/controller"
 )
 
 const (
@@ -140,7 +141,11 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 		return object.GetDeletionTimestamp() != nil
 	}
 
-	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
+	labelSelector, err := controller.SyncSelector(syncConfig.Selector, syncConfig.LabelSelector)
+	if err != nil {
+		return false
+	}
+
 	if labelSelector.Empty() {
 		return true
 	}

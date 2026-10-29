@@ -10,7 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -110,4 +113,23 @@ func SafeConcatName(name ...string) string {
 	}
 
 	return fullPath[0:56] + "-" + hex.EncodeToString(digest[0:])[0:6]
+}
+
+// SyncSelector returns the selector matching the resources to sync, combining the equality-based
+// set with the set-based label selector. A resource must match both to be selected.
+func SyncSelector(set map[string]string, labelSelector *metav1.LabelSelector) (labels.Selector, error) {
+	selector := labels.SelectorFromSet(set)
+
+	if labelSelector == nil {
+		return selector, nil
+	}
+
+	setBased, err := metav1.LabelSelectorAsSelector(labelSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	requirements, _ := setBased.Requirements()
+
+	return selector.Add(requirements...), nil
 }

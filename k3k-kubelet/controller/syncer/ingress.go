@@ -108,7 +108,11 @@ func (r *IngressReconciler) filterResources(object ctrlruntimeclient.Object) boo
 		return object.GetDeletionTimestamp() != nil
 	}
 
-	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
+	labelSelector, err := controller.SyncSelector(syncConfig.Selector, syncConfig.LabelSelector)
+	if err != nil {
+		return false
+	}
+
 	if labelSelector.Empty() {
 		return true
 	}

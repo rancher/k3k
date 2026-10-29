@@ -95,7 +95,11 @@ func (r *PriorityClassSyncer) filterResources(object ctrlruntimeclient.Object) b
 		return object.GetDeletionTimestamp() != nil
 	}
 
-	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
+	labelSelector, err := controller.SyncSelector(syncConfig.Selector, syncConfig.LabelSelector)
+	if err != nil {
+		return false
+	}
+
 	if labelSelector.Empty() {
 		return true
 	}

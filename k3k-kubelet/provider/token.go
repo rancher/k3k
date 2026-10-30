@@ -16,6 +16,7 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/controller/certificates/rootcacertpublisher"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -31,7 +32,6 @@ import (
 const (
 	kubeAPIAccessPrefix          = "kube-api-access"
 	serviceAccountTokenMountPath = "/var/run/secrets/kubernetes.io/serviceaccount"
-	kubeRootCAConfigMapName      = "kube-root-ca.crt"
 
 	// kubeAccessTokenExpirationSeconds is the expiration requested by the kubelet for the kube-api-access token.
 	// The API server extends it to a year if --service-account-extend-token-expiration is enabled (the default).
@@ -104,7 +104,7 @@ func (p *Provider) kubeAccessTokenSecret(ctx context.Context, virtualPod *corev1
 	var rootCA corev1.ConfigMap
 
 	rootCAKey := types.NamespacedName{
-		Name:      kubeRootCAConfigMapName,
+		Name:      rootcacertpublisher.RootCACertConfigMapName,
 		Namespace: virtualPod.Namespace,
 	}
 	if err := p.virtual.Client.Get(ctx, rootCAKey, &rootCA); err != nil {

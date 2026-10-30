@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/kubernetes/pkg/controller/certificates/rootcacertpublisher"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
@@ -32,7 +33,7 @@ func newTokenTestProvider(t *testing.T, requests *[]*authv1.TokenRequest) *Provi
 	t.Helper()
 
 	rootCA := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: kubeRootCAConfigMapName, Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: rootcacertpublisher.RootCACertConfigMapName, Namespace: "default"},
 		Data:       map[string]string{corev1.ServiceAccountRootCAKey: "virtual-ca"},
 	}
 

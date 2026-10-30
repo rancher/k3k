@@ -3,7 +3,6 @@ package syncer
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/component-helpers/storage/volume"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -74,16 +73,7 @@ func (r *PVCReconciler) filterResources(object ctrlruntimeclient.Object) bool {
 		return object.GetDeletionTimestamp() != nil
 	}
 
-	labelSelector, err := controller.SyncSelector(syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
-	if err != nil {
-		return false
-	}
-
-	if labelSelector.Empty() {
-		return true
-	}
-
-	return labelSelector.Matches(labels.Set(object.GetLabels()))
+	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 
 // Reconcile creates, updates or deletes the host PersistentVolumeClaim matching a virtual one.

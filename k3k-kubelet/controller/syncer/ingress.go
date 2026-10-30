@@ -3,8 +3,6 @@ package syncer
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -19,6 +17,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/k3s-io/kubernetes/staging/src/k8s.io/apimachinery/pkg/api/equality"
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -108,16 +107,7 @@ func (r *IngressReconciler) filterResources(object ctrlruntimeclient.Object) boo
 		return object.GetDeletionTimestamp() != nil
 	}
 
-	labelSelector, err := controller.SyncSelector(syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
-	if err != nil {
-		return false
-	}
-
-	if labelSelector.Empty() {
-		return true
-	}
-
-	return labelSelector.Matches(labels.Set(object.GetLabels()))
+	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 
 // Reconcile creates, updates or deletes the host Ingress matching a virtual one.

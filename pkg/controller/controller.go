@@ -3,6 +3,7 @@
 package controller
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"net"
@@ -12,8 +13,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -115,9 +118,31 @@ func SafeConcatName(name ...string) string {
 	return fullPath[0:56] + "-" + hex.EncodeToString(digest[0:])[0:6]
 }
 
-// SyncSelector returns the selector matching the resources to sync, combining the equality-based
+// FilterResources determines whether a given Kubernetes object should be included based on the provided
+// enabled flag, equality based Selector and set based LabelSelector
+//
+// It returns true if the object matches the criteria or if the selector is empty, and false otherwise.
+// If the resource is not enabled, it only returns true if the object has a deletion timestamp.
+// Errors from parsed selectors are logged and ignored
+func FilterResources(ctx context.Context, object client.Object, enabled bool, selector map[string]string, labelSelector *metav1.LabelSelector) bool {
+	log := ctrl.LoggerFrom(ctx)
+	// If syncing is disabled, only process deletions to allow for cleanup.
+	if !enabled {
+		return object.GetDeletionTimestamp() != nil
+	}
+
+	parsedSelector, err := buildSelector(selector, labelSelector)
+	if err != nil {
+		log.Error(err, "failed to parse selector")
+		return false
+	}
+
+	return parsedSelector.Empty() || parsedSelector.Matches(labels.Set(object.GetLabels()))
+}
+
+// buildSelector returns the parsed selector matching the resources to sync, combining the equality-based
 // set with the set-based label selector. A resource must match both to be selected.
-func SyncSelector(set map[string]string, labelSelector *metav1.LabelSelector) (labels.Selector, error) {
+func buildSelector(set map[string]string, labelSelector *metav1.LabelSelector) (labels.Selector, error) {
 	selector := labels.SelectorFromSet(set)
 
 	if labelSelector == nil {

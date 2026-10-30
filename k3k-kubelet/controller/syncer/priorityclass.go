@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -20,6 +19,7 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	"github.com/rancher/k3k/pkg/controller"
 )
 
 const (
@@ -88,18 +88,11 @@ func (r *PriorityClassSyncer) filterResources(object ctrlruntimeclient.Object) b
 
 	// check for priorityClassConfig
 	syncConfig := cluster.Spec.Sync.PriorityClasses
-
-	// If syncing is disabled, only process deletions to allow for cleanup.
-	if !syncConfig.Enabled {
-		return object.GetDeletionTimestamp() != nil
+	if cluster.Status.Policy != nil && cluster.Status.Policy.Sync != nil {
+		syncConfig = cluster.Status.Policy.Sync.PriorityClasses
 	}
 
-	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
-	if labelSelector.Empty() {
-		return true
-	}
-
-	return labelSelector.Matches(labels.Set(object.GetLabels()))
+	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 
 // Reconcile creates, updates or deletes the host PriorityClass matching a virtual one.

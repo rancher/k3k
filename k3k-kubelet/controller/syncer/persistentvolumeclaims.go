@@ -3,7 +3,6 @@ package syncer
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/component-helpers/storage/volume"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	"github.com/rancher/k3k/pkg/controller"
 )
 
 const (
@@ -67,18 +67,11 @@ func (r *PVCReconciler) filterResources(object ctrlruntimeclient.Object) bool {
 
 	// check for pvc config
 	syncConfig := cluster.Spec.Sync.PersistentVolumeClaims
-
-	// If syncing is disabled, only process deletions to allow for cleanup.
-	if !syncConfig.Enabled {
-		return object.GetDeletionTimestamp() != nil
+	if cluster.Status.Policy != nil && cluster.Status.Policy.Sync != nil {
+		syncConfig = cluster.Status.Policy.Sync.PersistentVolumeClaims
 	}
 
-	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
-	if labelSelector.Empty() {
-		return true
-	}
-
-	return labelSelector.Matches(labels.Set(object.GetLabels()))
+	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 
 // Reconcile creates, updates or deletes the host PersistentVolumeClaim matching a virtual one.

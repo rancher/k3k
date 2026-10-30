@@ -125,6 +125,10 @@ func New(hostConfig rest.Config, hostMgr, virtualMgr manager.Manager, logger log
 		agentHostname:    config.AgentHostname,
 	}
 
+	if err := hostMgr.Add(&tokenRefresher{provider: &p}); err != nil {
+		return nil, err
+	}
+
 	return &p, nil
 }
 
@@ -613,7 +617,8 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	p.transformVolumes(pod.Namespace, hostPod.Spec.Volumes)
 
 	// sync serviceaccount token to a the host cluster
-	if err := p.transformTokens(ctx, &virtualPod, hostPod); err != nil {
+	tokenSecretNames, err := p.transformTokens(ctx, &virtualPod, hostPod)
+	if err != nil {
 		logger.Error(err, "Unable to transform tokens for pod")
 		return err
 	}
@@ -642,6 +647,13 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 
 	logger.Info("Pod created on host cluster")
+
+	// the token secrets are created before the pod, so the pod can only be set as their owner now.
+	// The pod is already created, so failing here would make the retries fail as well:
+	// the token refresher sets the missing owner references instead.
+	if err := p.setTokenSecretsOwner(ctx, hostPod, tokenSecretNames); err != nil {
+		logger.Error(err, "Unable to set owner reference for token secrets")
+	}
 
 	return nil
 }
@@ -955,17 +967,8 @@ func (p *Provider) getPodFromHostCluster(ctx context.Context, hostPodName string
 func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	p.logger.V(1).Info("GetPods")
 
-	var hostPods corev1.PodList
-
-	listOpts := []client.ListOption{
-		client.InNamespace(p.clusterNamespace),
-		client.MatchingLabels{
-			translate.ClusterNameLabel: p.clusterName,
-			translate.AgentNameLabel:   p.agentHostname,
-		},
-	}
-
-	if err := p.host.Client.List(ctx, &hostPods, listOpts...); err != nil {
+	hostPods, err := p.listHostPods(ctx)
+	if err != nil {
 		p.logger.Error(err, "Error listing pods from host cluster")
 		return nil, err
 	}
@@ -978,6 +981,25 @@ func (p *Provider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	}
 
 	return retPods, nil
+}
+
+// listHostPods lists the pods synced by this agent on the host cluster.
+func (p *Provider) listHostPods(ctx context.Context) (*corev1.PodList, error) {
+	var hostPods corev1.PodList
+
+	listOpts := []client.ListOption{
+		client.InNamespace(p.clusterNamespace),
+		client.MatchingLabels{
+			translate.ClusterNameLabel: p.clusterName,
+			translate.AgentNameLabel:   p.agentHostname,
+		},
+	}
+
+	if err := p.host.Client.List(ctx, &hostPods, listOpts...); err != nil {
+		return nil, err
+	}
+
+	return &hostPods, nil
 }
 
 const nobodyUID = int64(65534)

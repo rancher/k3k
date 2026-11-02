@@ -58,6 +58,13 @@ runs:
       sudo iptables -A FORWARD -i k3kbr0 -j ACCEPT
       sudo iptables -A FORWARD -o k3kbr0 -j ACCEPT
 
+      # Expose the host's systemd-resolved stub on the bridge, so the VMs resolve through the
+      # same upstream as the host. On some runners DNS queries forwarded through the NAT to
+      # public resolvers (8.8.8.8, 1.1.1.1) time out for the whole job.
+      sudo mkdir -p /etc/systemd/resolved.conf.d
+      printf '[Resolve]\nDNSStubListenerExtra=%s.1\n' "${CIDR_PREFIX}" | sudo tee /etc/systemd/resolved.conf.d/k3kbr0.conf
+      sudo systemctl restart systemd-resolved
+
       # One TAP per VM, attached to the bridge.
       for i in $(seq 1 ${{ inputs.worker-count }}); do
         sudo ip tuntap add tap-w${i} mode tap
@@ -123,8 +130,9 @@ runs:
                   routes:
                     - to: default
                       via: ${CIDR_PREFIX}.1
+                  # The host's resolver first, public resolvers only as a fallback.
                   nameservers:
-                    addresses: [8.8.8.8, 1.1.1.1]
+                    addresses: [${CIDR_PREFIX}.1, 8.8.8.8, 1.1.1.1]
       runcmd:
         - netplan apply
       EOF

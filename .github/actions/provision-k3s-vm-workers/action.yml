@@ -204,3 +204,41 @@ runs:
            curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 -o /tmp/k3s-install.sh https://get.k3s.io
            INSTALL_K3S_VERSION=${{ inputs.k3s-version }} K3S_URL=${{ inputs.k3s-url }} K3S_TOKEN=${{ inputs.k3s-token }} sh /tmp/k3s-install.sh"
       done
+
+  - name: Network Diagnostics
+    if: failure()
+    shell: bash
+    run: |
+      # On some runners the VMs can reach the host but not the internet through the NAT.
+      # Check the egress from the VMs first, so the host counters below include those attempts.
+      set +e
+      for i in $(seq 1 ${{ inputs.worker-count }}); do
+        IP="${CIDR_PREFIX}.1${i}"
+        echo "::group::Worker ${i} (${IP})"
+        ssh -i ./id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=5 ubuntu@${IP} \
+          "resolvectl status; \
+           ip route; \
+           curl -sSI --max-time 10 https://1.1.1.1; \
+           curl -sSI --max-time 10 https://get.k3s.io"
+        echo "::endgroup::"
+      done
+
+      echo "::group::Host network"
+      sysctl net.ipv4.ip_forward
+      ip -4 addr
+      ip route
+      resolvectl status
+      echo "::endgroup::"
+
+      echo "::group::Host iptables"
+      sudo iptables -L FORWARD -nv --line-numbers
+      sudo iptables -t nat -L POSTROUTING -nv --line-numbers
+      echo "::endgroup::"
+
+      echo "::group::Host iptables-legacy"
+      sudo iptables-legacy-save
+      echo "::endgroup::"
+
+      echo "::group::Host nftables"
+      sudo nft list ruleset
+      echo "::endgroup::"

@@ -813,7 +813,8 @@ type VirtualClusterPolicySpec struct {
 	// +optional
 	DefaultNodeSelector map[string]string `json:"defaultNodeSelector,omitempty"`
 
-	// DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace.
+	// DefaultPriorityClass specifies the priorityClassName applied to the clusters in the target Namespace.
+	// When set, it overrides the priorityClass of the Cluster for server and agent pods and, in "shared" mode, for workloads.
 	//
 	// +optional
 	DefaultPriorityClass string `json:"defaultPriorityClass,omitempty"`
@@ -855,14 +856,14 @@ type VirtualClusterPolicySpec struct {
 	// +optional
 	Sync *SyncConfig `json:"sync,omitempty"`
 
-	// SecurityContext specifies custom SecurityContext to be added
-	// to the agent and server pods of the cluster in virtual or shared mode.
+	// RuntimeClassName specifies alternative runtime class for the
+	// agent and server pods of the cluster.
 	//
 	// +optional
 	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 
-	// RuntimeClassName specifies alternative runtime class for the
-	// agent and server pods of the cluster in virtual or shared mode.
+	// SecurityContext specifies custom SecurityContext to be added
+	// to the agent and server pods of the cluster.
 	//
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`

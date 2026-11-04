@@ -205,6 +205,7 @@ func (s *SharedAgent) podSpec(ctx context.Context) corev1.PodSpec {
 		DNSPolicy:          dnsPolicy,
 		ServiceAccountName: s.Name(),
 		NodeSelector:       nodeSelector,
+		PriorityClassName:  controller.PriorityClassName(s.cluster),
 		Volumes: []corev1.Volume{
 			{
 				Name: "config",

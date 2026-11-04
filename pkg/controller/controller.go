@@ -74,6 +74,17 @@ func K3SImage(cluster *v1beta1.Cluster, k3SImage string) string {
 	return k3SImage + ":" + k3sVersion.ImageTag()
 }
 
+// PriorityClassName returns the priority class of the cluster pods: the one from the
+// policy status if set and not empty, otherwise the one from the spec.
+func PriorityClassName(cluster *v1beta1.Cluster) string {
+	priorityClassName := cluster.Spec.PriorityClass
+	if cluster.Status.Policy != nil && cluster.Status.Policy.PriorityClass != nil && *cluster.Status.Policy.PriorityClass != "" {
+		priorityClassName = *cluster.Status.Policy.PriorityClass
+	}
+
+	return priorityClassName
+}
+
 // FilterDNSNames returns only the DNS names of the given list, dropping the IP addresses.
 // It is useful for the fields that cannot hold an IP, like the hosts of an Ingress.
 func FilterDNSNames(names []string) []string {

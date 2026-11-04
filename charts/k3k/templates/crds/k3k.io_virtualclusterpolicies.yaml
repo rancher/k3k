@@ -993,8 +993,9 @@ spec:
                   applies to all clusters (server + agent) in the target Namespace.
                 type: object
               defaultPriorityClass:
-                description: DefaultPriorityClass specifies the priorityClassName
-                  applied to all pods of all clusters in the target Namespace.
+                description: |-
+                  DefaultPriorityClass specifies the priorityClassName applied to the clusters in the target Namespace.
+                  When set, it overrides the priorityClass of the Cluster for server and agent pods and, in "shared" mode, for workloads.
                 type: string
               defaultServerAffinity:
                 description: |-
@@ -2075,13 +2076,13 @@ spec:
                 type: object
               runtimeClassName:
                 description: |-
-                  SecurityContext specifies custom SecurityContext to be added
-                  to the agent and server pods of the cluster in virtual or shared mode.
+                  RuntimeClassName specifies alternative runtime class for the
+                  agent and server pods of the cluster.
                 type: string
               securityContext:
                 description: |-
-                  RuntimeClassName specifies alternative runtime class for the
-                  agent and server pods of the cluster in virtual or shared mode.
+                  SecurityContext specifies custom SecurityContext to be added
+                  to the agent and server pods of the cluster.
                 properties:
                   allowPrivilegeEscalation:
                     description: |-

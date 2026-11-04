@@ -32,6 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -488,6 +489,19 @@ func (c *Reconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) er
 
 	if err := validate(cluster, vcp); err != nil {
 		return err
+	}
+
+	// A missing PriorityClass would make the server and agent pods fail admission on the next rollout,
+	// so they are not touched until it exists.
+	if priorityClassName := controller.PriorityClassName(cluster); priorityClassName != "" {
+		var priorityClass schedulingv1.PriorityClass
+		if err := c.Client.Get(ctx, client.ObjectKey{Name: priorityClassName}, &priorityClass); err != nil {
+			if apierrors.IsNotFound(err) {
+				return fmt.Errorf("%w: priorityClass %q not found", ErrClusterValidation, priorityClassName)
+			}
+
+			return err
+		}
 	}
 
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.

@@ -100,7 +100,7 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	podSpec := corev1.PodSpec{
 		Affinity:          serverAffinity,
 		NodeSelector:      NodeSelector(s.cluster),
-		PriorityClassName: s.cluster.Spec.PriorityClass,
+		PriorityClassName: controller.PriorityClassName(s.cluster),
 		Volumes: []corev1.Volume{
 			{
 				Name: "init-config",

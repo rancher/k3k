@@ -1,5 +1,8 @@
 version: 2
 
+# explicit so forks with a different repo name still produce k3k artifacts
+project_name: k3k
+
 release:
   draft: true
   replace_existing_draft: true
@@ -12,6 +15,7 @@ before:
 
 builds:
   - id: k3k
+    binary: k3k
     env:
       - CGO_ENABLED=0
     goos:
@@ -65,8 +69,9 @@ archives:
 # For the image_templates we are using the following expression to build images for the correct registry
 #    {{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}
 #
-# REGISTRY=        -> rancher/k3k:vX.Y.Z
-# REGISTRY=ghcr.io -> ghcr.io/rancher/k3k:latest:vX.Y.Z
+# REPO_OWNER is the owner only and IMAGE_NAME the image name (k3k), so forks with another repo name still publish k3k images
+# REGISTRY=        REPO_OWNER=rancher IMAGE_NAME=k3k -> rancher/k3k:vX.Y.Z
+# REGISTRY=ghcr.io REPO_OWNER=rancher IMAGE_NAME=k3k -> ghcr.io/rancher/k3k:vX.Y.Z
 #
 dockers_v2:
   # k3k
@@ -76,7 +81,7 @@ dockers_v2:
       - k3kcli
     dockerfile: "package/Dockerfile.k3k"
     images:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}"
+      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO_OWNER }}/{{ .Env.IMAGE_NAME }}"
     tags:
       - "{{ .Tag }}"
     platforms:
@@ -94,7 +99,7 @@ dockers_v2:
       - k3k-kubelet
     dockerfile: "package/Dockerfile.k3k-kubelet"
     images:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet"
+      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO_OWNER }}/{{ .Env.IMAGE_NAME }}-kubelet"
     tags:
       - "{{ .Tag }}"
     platforms:

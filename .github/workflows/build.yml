@@ -13,6 +13,7 @@ permissions:
   contents: read
 
 env:
+  IMAGE_NAME: k3k # fixed so forks with another repo name still produce k3k images
   GORELEASER_VERSION: v2.17.0
   GORELEASER_CHECKSUM_x86_64: dde10e2d5a13cef969c0eec00c74f359c0ac306d702b1bd291ad9337b4e54c1d
 
@@ -49,7 +50,7 @@ jobs:
 
     - name: Run GoReleaser
       env:
-        REPO: ${{ github.repository }}
+        REPO_OWNER: ${{ github.repository_owner }}
         REGISTRY: ""
       run: |-
         goreleaser --clean --snapshot
@@ -89,7 +90,7 @@ jobs:
         ignore-unfixed: true
         severity: 'MEDIUM,HIGH,CRITICAL'
         scan-type: 'image'
-        scan-ref: '${{ github.repository }}:v0.0.0-amd64'
+        scan-ref: '${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:v0.0.0-amd64'
         format: 'sarif'
         output: 'trivy-results-k3k.sarif'
 
@@ -105,7 +106,7 @@ jobs:
         ignore-unfixed: true
         severity: 'MEDIUM,HIGH,CRITICAL'
         scan-type: 'image'
-        scan-ref: '${{ github.repository }}-kubelet:v0.0.0-amd64'
+        scan-ref: '${{ github.repository_owner }}/${{ env.IMAGE_NAME }}-kubelet:v0.0.0-amd64'
         format: 'sarif'
         output: 'trivy-results-k3k-kubelet.sarif'
 

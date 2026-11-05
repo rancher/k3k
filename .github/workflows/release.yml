@@ -16,6 +16,7 @@ permissions:
   id-token: write
 
 env:
+  IMAGE_NAME: k3k # fixed so forks with another repo name still produce k3k images
   GORELEASER_VERSION: v2.17.0
   GORELEASER_CHECKSUM_x86_64: dde10e2d5a13cef969c0eec00c74f359c0ac306d702b1bd291ad9337b4e54c1d
 
@@ -51,7 +52,7 @@ jobs:
 
     - name: "Read secrets"
       uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
-      if: github.repository_owner == 'rancher'
+      if: github.repository == 'rancher/k3k'
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
@@ -59,7 +60,7 @@ jobs:
 
     # Manually dispatched workflows (or forks) will use ghcr.io
     - name: Setup ghcr.io
-      if: github.event_name == 'workflow_dispatch' || github.repository_owner != 'rancher'
+      if: github.event_name == 'workflow_dispatch' || github.repository != 'rancher/k3k'
       run: |
         echo "REGISTRY=ghcr.io"                     >> $GITHUB_ENV
         echo "DOCKER_USERNAME=${{ github.actor }}"  >> $GITHUB_ENV
@@ -104,7 +105,7 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
         GORELEASER_CURRENT_TAG: ${{ steps.release-tag.outputs.CURRENT_TAG }}
         REGISTRY: ${{ env.REGISTRY }}
-        REPO: ${{ github.repository }}
+        REPO_OWNER: ${{ github.repository_owner }}
       run: |-
         goreleaser --clean
 

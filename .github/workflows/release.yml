@@ -16,7 +16,6 @@ permissions:
   id-token: write
 
 env:
-  IMAGE_NAME: k3k # fixed so forks with another repo name still produce k3k images
   GORELEASER_VERSION: v2.17.0
   GORELEASER_CHECKSUM_x86_64: dde10e2d5a13cef969c0eec00c74f359c0ac306d702b1bd291ad9337b4e54c1d
 
@@ -105,7 +104,7 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
         GORELEASER_CURRENT_TAG: ${{ steps.release-tag.outputs.CURRENT_TAG }}
         REGISTRY: ${{ env.REGISTRY }}
-        REPO_OWNER: ${{ github.repository_owner }}
+        REPO: ${{ github.repository }}
       run: |-
         goreleaser --clean
 

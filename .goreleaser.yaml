@@ -69,9 +69,8 @@ archives:
 # For the image_templates we are using the following expression to build images for the correct registry
 #    {{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}
 #
-# REPO_OWNER is the owner only and IMAGE_NAME the image name (k3k), so forks with another repo name still publish k3k images
-# REGISTRY=        REPO_OWNER=rancher IMAGE_NAME=k3k -> rancher/k3k:vX.Y.Z
-# REGISTRY=ghcr.io REPO_OWNER=rancher IMAGE_NAME=k3k -> ghcr.io/rancher/k3k:vX.Y.Z
+# REGISTRY=        -> rancher/k3k:vX.Y.Z
+# REGISTRY=ghcr.io -> ghcr.io/rancher/k3k:latest:vX.Y.Z
 #
 dockers_v2:
   # k3k
@@ -81,7 +80,7 @@ dockers_v2:
       - k3kcli
     dockerfile: "package/Dockerfile.k3k"
     images:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO_OWNER }}/{{ .Env.IMAGE_NAME }}"
+      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}"
     tags:
       - "{{ .Tag }}"
     platforms:
@@ -99,7 +98,7 @@ dockers_v2:
       - k3k-kubelet
     dockerfile: "package/Dockerfile.k3k-kubelet"
     images:
-      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO_OWNER }}/{{ .Env.IMAGE_NAME }}-kubelet"
+      - "{{- if .Env.REGISTRY }}{{ .Env.REGISTRY }}/{{ end }}{{ .Env.REPO }}-kubelet"
     tags:
       - "{{ .Tag }}"
     platforms:

@@ -51,11 +51,11 @@ jobs:
 
     - name: "Read secrets"
       uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
-      if: github.repository_owner == 'rancher'
+      if: github.repository == 'rancher/k3k'
       with:
         secrets: |
-          secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
-          secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials password | DOCKER_PASSWORD ;
+          secret/data/github/repo/rancher/k3k/dockerhub/rancher/credentials username | DOCKER_USERNAME ;
+          secret/data/github/repo/rancher/k3k/dockerhub/rancher/credentials password | DOCKER_PASSWORD ;
 
     # Manually dispatched workflows (or forks) will use ghcr.io
     - name: Setup ghcr.io

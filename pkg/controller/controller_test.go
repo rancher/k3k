@@ -116,3 +116,43 @@ func Test_K3S_Image(t *testing.T) {
 		})
 	}
 }
+
+func Test_PriorityClassName(t *testing.T) {
+	tests := map[string]struct {
+		spec   string
+		policy *v1beta1.AppliedPolicy
+		want   string
+	}{
+		"no priority class": {},
+		"priority class from the spec": {
+			spec: "from-spec",
+			want: "from-spec",
+		},
+		"priority class from the policy takes precedence": {
+			spec:   "from-spec",
+			policy: &v1beta1.AppliedPolicy{PriorityClass: new("from-policy")},
+			want:   "from-policy",
+		},
+		"policy with an empty priority class falls back to the spec": {
+			spec:   "from-spec",
+			policy: &v1beta1.AppliedPolicy{PriorityClass: new("")},
+			want:   "from-spec",
+		},
+		"policy without a priority class falls back to the spec": {
+			spec:   "from-spec",
+			policy: &v1beta1.AppliedPolicy{},
+			want:   "from-spec",
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			cluster := &v1beta1.Cluster{
+				Spec:   v1beta1.ClusterSpec{PriorityClass: tt.spec},
+				Status: v1beta1.ClusterStatus{Policy: tt.policy},
+			}
+
+			assert.Equal(t, tt.want, PriorityClassName(cluster))
+		})
+	}
+}

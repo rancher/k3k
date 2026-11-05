@@ -320,8 +320,9 @@ func (v *VirtualAgent) podSpec(ctx context.Context, image, name string) corev1.P
 	}
 
 	podSpec := corev1.PodSpec{
-		Affinity:     agentAffinity,
-		NodeSelector: nodeSelector,
+		Affinity:          agentAffinity,
+		NodeSelector:      nodeSelector,
+		PriorityClassName: controller.PriorityClassName(v.cluster),
 		Volumes: []corev1.Volume{
 			{
 				Name: "config",

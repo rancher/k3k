@@ -356,6 +356,34 @@ func Test_virtualAgentPodSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "priority class from policy overrides spec",
+			virtualAgent: VirtualAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "vc-priorityclass-policy",
+							Namespace: "virtual-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							PriorityClass: "spec-pc",
+						},
+						Status: v1beta1.ClusterStatus{
+							Policy: &v1beta1.AppliedPolicy{
+								PriorityClass: new("policy-pc"),
+							},
+						},
+					},
+				},
+				Image: "rancher/k3k:latest",
+			},
+			expectedPodSpec: func(sa VirtualAgent) corev1.PodSpec {
+				spec := baseVirtualAgentPodSpec(sa)
+				spec.PriorityClassName = "policy-pc"
+
+				return spec
+			},
+		},
+		{
 			name: "agent args from spec are appended to default args",
 			virtualAgent: VirtualAgent{
 				Config: &Config{

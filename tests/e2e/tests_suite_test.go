@@ -15,7 +15,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -26,6 +25,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -246,42 +246,60 @@ var _ = AfterSuite(func() {
 	dumpK3kCoverageData(ctx, goCoverDir)
 })
 
-// dumpK3kCoverageData will kill the K3k controller container to force it to dump the coverage data.
+// dumpK3kCoverageData restarts the K3k controller to make it write its coverage data to the coverage PVC.
 // It will then download the files with kubectl cp into the specified folder. If the folder doesn't exists it will be created.
 func dumpK3kCoverageData(ctx context.Context, folder string) {
 	By("Restarting k3k controller")
 
+	deployments, err := k8s.AppsV1().Deployments(k3kNamespace).List(ctx, metav1.ListOptions{})
+	Expect(err).To(Not(HaveOccurred()))
+	Expect(deployments.Items).To(HaveLen(1))
+
+	k3kDeployment := deployments.Items[0]
+
 	var podList corev1.PodList
 
-	err := k8sClient.List(ctx, &podList, &client.ListOptions{Namespace: k3kNamespace})
+	err = k8sClient.List(ctx, &podList, client.InNamespace(k3kNamespace), client.MatchingLabels(k3kDeployment.Spec.Selector.MatchLabels))
 	Expect(err).To(Not(HaveOccurred()))
-	Expect(podList.Items).NotTo(BeEmpty())
+	Expect(podList.Items).To(HaveLen(1))
 
 	k3kPod := podList.Items[0]
-	k3kContainerName := k3kPod.Spec.Containers[0].Name
 
-	By("Restarting k3k controller " + k3kPod.Name + "/" + k3kContainerName)
+	// Deleting the pod makes the kubelet stop the controller with a SIGTERM: it shuts down gracefully,
+	// writing the coverage data on exit. Sending the signal from a "kubectl exec" shell ("kill 1") is
+	// denied by the containerd AppArmor profile of the newer Ubuntu runner images.
+	By("Deleting k3k controller pod " + k3kPod.Name)
 
-	cmd := exec.Command("kubectl", "exec", "-n", k3kNamespace, k3kPod.Name, "-c", k3kContainerName, "--", "/bin/sh", "-c", "kill 1")
-	output, err := cmd.CombinedOutput()
-	Expect(err).NotTo(HaveOccurred(), string(output))
+	Expect(k8sClient.Delete(ctx, &k3kPod)).To(Succeed())
 
-	By("Waiting to be ready again")
+	By("Waiting for the controller pod to be deleted")
 
 	Eventually(func(g Gomega) {
-		key := types.NamespacedName{
-			Namespace: k3kNamespace,
-			Name:      k3kPod.Name,
-		}
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&k3kPod), &corev1.Pod{})
+		g.Expect(apierrors.IsNotFound(err)).To(BeTrue(), "pod %s is not deleted yet: %v", k3kPod.Name, err)
+	}).
+		WithPolling(time.Second * 2).
+		WithTimeout(time.Minute * 2).
+		Should(Succeed())
 
-		var controllerPod corev1.Pod
+	By("Waiting for the new controller pod to be ready")
 
-		err = k8sClient.Get(ctx, key, &controllerPod)
+	// Check the replacement pod itself rather than the Deployment status, which is updated
+	// asynchronously and could still count the deleted pod as ready.
+	Eventually(func(g Gomega) {
+		var newPodList corev1.PodList
+
+		err := k8sClient.List(ctx, &newPodList, client.InNamespace(k3kNamespace), client.MatchingLabels(k3kDeployment.Spec.Selector.MatchLabels))
 		g.Expect(err).To(Not(HaveOccurred()))
+		g.Expect(newPodList.Items).To(HaveLen(1))
 
-		_, cond := pod.GetPodCondition(&controllerPod.Status, corev1.PodReady)
+		newPod := newPodList.Items[0]
+		g.Expect(newPod.UID).NotTo(Equal(k3kPod.UID))
+		g.Expect(newPod.DeletionTimestamp).To(BeNil())
+
+		_, cond := pod.GetPodCondition(&newPod.Status, corev1.PodReady)
 		g.Expect(cond).NotTo(BeNil())
-		g.Expect(cond.Status).To(BeEquivalentTo(metav1.ConditionTrue))
+		g.Expect(cond.Status).To(Equal(corev1.ConditionTrue))
 	}).
 		MustPassRepeatedly(5).
 		WithPolling(time.Second * 2).
@@ -290,7 +308,7 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 
 	By("Controller is ready again, dumping coverage data")
 
-	GinkgoWriter.Printf("Downloading covdata from k3k controller %s/%s to %s\n", k3kNamespace, k3kPod.Name, folder)
+	GinkgoWriter.Printf("Downloading covdata from the coverage PVC in %s to %s\n", k3kNamespace, folder)
 
 	tarPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -337,8 +355,8 @@ func dumpK3kCoverageData(ctx context.Context, folder string) {
 
 	By("Copying covdata from tar pod")
 
-	cmd = exec.Command("kubectl", "cp", fmt.Sprintf("%s/%s:/tmp/covdata", k3kNamespace, tarPod.Name), folder)
-	output, err = cmd.CombinedOutput()
+	cmd := exec.Command("kubectl", "cp", fmt.Sprintf("%s/%s:/tmp/covdata", k3kNamespace, tarPod.Name), folder)
+	output, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred(), string(output))
 
 	Expect(k8sClient.Delete(ctx, tarPod)).To(Succeed())

@@ -20,7 +20,8 @@ jobs:
   # Checks that a k3k installation can be upgraded from the latest released version to the build from source,
   # without breaking the clusters (and the workloads running in them) that were provisioned by the released version.
   tests-upgrade:
-    runs-on: ubuntu-latest
+    # PINNED TO UBUNTU 24.04, like the e2e tests (see test-e2e.yaml).
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Checkout code

@@ -34,7 +34,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
@@ -277,10 +276,8 @@ func TestURLGeneration_TLSSANs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cluster := &v1beta1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cluster",
-					Namespace: "default",
-				},
+				Name:      "test-cluster",
+				Namespace: "default",
 				Spec: v1beta1.ClusterSpec{
 					TLSSANs: tt.specTLSSANs,
 				},
@@ -290,10 +287,8 @@ func TestURLGeneration_TLSSANs(t *testing.T) {
 			}
 
 			svc := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      server.ServiceName("test-cluster"),
-					Namespace: "default",
-				},
+				Name:      server.ServiceName("test-cluster"),
+				Namespace: "default",
 				Spec: corev1.ServiceSpec{
 					Type:      corev1.ServiceTypeClusterIP,
 					ClusterIP: tt.clusterIP,
@@ -316,20 +311,16 @@ func TestURLGeneration_TLSSANs(t *testing.T) {
 // Helper functions to create test objects
 func createClusterIPService(clusterName, namespace string, port int32) (*v1beta1.Cluster, *corev1.Service) {
 	cluster := &v1beta1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterName,
-			Namespace: namespace,
-		},
+		Name:      clusterName,
+		Namespace: namespace,
 		Status: v1beta1.ClusterStatus{
 			TLSSANs: []string{"10.43.0.100"},
 		},
 	}
 
 	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.ServiceName(clusterName),
-			Namespace: namespace,
-		},
+		Name:      server.ServiceName(clusterName),
+		Namespace: namespace,
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: "10.43.0.100",
@@ -344,20 +335,16 @@ func createClusterIPService(clusterName, namespace string, port int32) (*v1beta1
 
 func createNodePortService(clusterName, namespace string, port, nodePort int32) (*v1beta1.Cluster, *corev1.Service) {
 	cluster := &v1beta1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterName,
-			Namespace: namespace,
-		},
+		Name:      clusterName,
+		Namespace: namespace,
 		Status: v1beta1.ClusterStatus{
 			TLSSANs: []string{"10.43.0.100", "192.168.1.100"},
 		},
 	}
 
 	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.ServiceName(clusterName),
-			Namespace: namespace,
-		},
+		Name:      server.ServiceName(clusterName),
+		Namespace: namespace,
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeNodePort,
 			ClusterIP: "10.43.0.100",
@@ -372,20 +359,16 @@ func createNodePortService(clusterName, namespace string, port, nodePort int32) 
 
 func createLoadBalancerService(clusterName, namespace string, port int32, lbIP, lbHostname string) (*v1beta1.Cluster, *corev1.Service) {
 	cluster := &v1beta1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterName,
-			Namespace: namespace,
-		},
+		Name:      clusterName,
+		Namespace: namespace,
 		Status: v1beta1.ClusterStatus{
 			TLSSANs: []string{"10.43.0.100", lbIP, lbHostname},
 		},
 	}
 
 	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.ServiceName(clusterName),
-			Namespace: namespace,
-		},
+		Name:      server.ServiceName(clusterName),
+		Namespace: namespace,
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeLoadBalancer,
 			ClusterIP: "10.43.0.100",
@@ -407,10 +390,8 @@ func createLoadBalancerService(clusterName, namespace string, port int32, lbIP, 
 
 func createIngressService(clusterName, namespace, ingressHost string) (*v1beta1.Cluster, *corev1.Service, *networkingv1.Ingress) {
 	cluster := &v1beta1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterName,
-			Namespace: namespace,
-		},
+		Name:      clusterName,
+		Namespace: namespace,
 		Spec: v1beta1.ClusterSpec{
 			Expose: &v1beta1.ExposeConfig{
 				Ingress: &v1beta1.IngressConfig{},
@@ -422,10 +403,8 @@ func createIngressService(clusterName, namespace, ingressHost string) (*v1beta1.
 	}
 
 	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.ServiceName(clusterName),
-			Namespace: namespace,
-		},
+		Name:      server.ServiceName(clusterName),
+		Namespace: namespace,
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: "10.43.0.100",
@@ -436,10 +415,8 @@ func createIngressService(clusterName, namespace, ingressHost string) (*v1beta1.
 	}
 
 	ingress := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.IngressName(clusterName),
-			Namespace: namespace,
-		},
+		Name:      server.IngressName(clusterName),
+		Namespace: namespace,
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{
 				{Host: ingressHost},

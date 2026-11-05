@@ -7,7 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -43,14 +42,10 @@ func (s *Server) Config(init bool, service *corev1.Service, extraSANs ...string)
 	}
 
 	return &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: s.cluster.Namespace,
-		},
+		Kind:       "Secret",
+		APIVersion: "v1",
+		Name:       name,
+		Namespace:  s.cluster.Namespace,
 		Data: map[string][]byte{
 			"config.yaml": config,
 		},

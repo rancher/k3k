@@ -77,7 +77,7 @@ start_single_node() {
 	info "Adding pod IP file."
 	echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-	/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
+	/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee {{.LOG_FILE}}
 }
 
 start_ha_node() {
@@ -87,14 +87,14 @@ start_ha_node() {
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.log
+		/bin/k3s server --config {{.INIT_CONFIG}} $EXTRA_ARGS 2>&1 | tee {{.LOG_FILE}}
 	else
 		safe_mode {{.SERVER_CONFIG}}
 
 		info "Adding pod IP file."
 		echo $POD_IP > /var/lib/rancher/k3s/k3k-node-ip
 
-		/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee /var/log/k3s.info
+		/bin/k3s server --config {{.SERVER_CONFIG}} $EXTRA_ARGS 2>&1 | tee {{.LOG_FILE}}
 	fi
 }
 
@@ -148,6 +148,11 @@ configure_mount_propagation() {
 		info "Failed to set root mount propagation to rshared, workloads using mountPropagation may fail to start"
 	fi
 }
+
+# The log volume outlives container restarts. Truncate the k3s log before doing
+# anything else, so the liveness probe cannot match a message left behind by the
+# previous container while this one is still in safe mode or a cluster reset.
+: > {{.LOG_FILE}}
 
 EXTRA_ARGS="{{.EXTRA_ARGS}}"
 configure_cgroups

@@ -2,7 +2,6 @@ package server
 
 import (
 	networkingv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -22,14 +21,10 @@ func IngressName(clusterName string) string {
 // Ingress returns the Ingress exposing a cluster's server and etcd ports.
 func Ingress(cluster *v1beta1.Cluster) networkingv1.Ingress {
 	ingress := networkingv1.Ingress{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Ingress",
-			APIVersion: "networking.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      IngressName(cluster.Name),
-			Namespace: cluster.Namespace,
-		},
+		Kind:       "Ingress",
+		APIVersion: "networking.k8s.io/v1",
+		Name:       IngressName(cluster.Name),
+		Namespace:  cluster.Namespace,
 		Spec: networkingv1.IngressSpec{
 			Rules: ingressRules(cluster),
 		},
@@ -76,10 +71,8 @@ func ingressRules(cluster *v1beta1.Cluster) []networkingv1.IngressRule {
 	for _, host := range hosts {
 		ingressRules = append(ingressRules, networkingv1.IngressRule{
 			Host: host,
-			IngressRuleValue: networkingv1.IngressRuleValue{
-				HTTP: &networkingv1.HTTPIngressRuleValue{
-					Paths: []networkingv1.HTTPIngressPath{path},
-				},
+			HTTP: &networkingv1.HTTPIngressRuleValue{
+				Paths: []networkingv1.HTTPIngressPath{path},
 			},
 		})
 	}

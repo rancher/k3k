@@ -13,7 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -50,10 +49,8 @@ func SaveToSecret(ctx context.Context, c client.Client, cluster *v1beta1.Cluster
 	}
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
-			Namespace: cluster.Namespace,
-		},
+		Name:      controller.SafeConcatNameWithPrefix(cluster.Name, "bootstrap"),
+		Namespace: cluster.Namespace,
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, c, secret, func() error {

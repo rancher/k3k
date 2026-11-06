@@ -40,6 +40,7 @@ const (
 	k3sKubeletDir    = "/var/lib/kubelet"
 	k3sDataDir       = "/var/lib/rancher/k3s"
 	k3sEtcdDataDir   = "/var/lib/rancher/k3s/server/db/etcd"
+	k3sSnapshotDir   = "/var/lib/rancher/k3s/server/db/snapshots"
 	k3sManifestDir   = "/var/lib/rancher/k3s/server/manifests"
 	k3sTLSDir        = "/var/lib/rancher/k3s/server/tls"
 	k3sLogDir        = "/var/log"
@@ -274,6 +275,41 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		}
 	}
 
+	s.applySecuritySettings(ctx, &podSpec)
+
+	// specify resource limits if specified for the servers.
+	if s.cluster.Spec.ServerLimit != nil {
+		podSpec.Containers[0].Resources = corev1.ResourceRequirements{
+			Limits: s.cluster.Spec.ServerLimit,
+		}
+	}
+
+	// specifying ServerResources will take precedence over ServerLimits
+	if s.cluster.Spec.ServerResources != nil {
+		// removing container previous limit
+		podSpec.Containers[0].Resources = corev1.ResourceRequirements{}
+		podSpec.Resources = s.cluster.Spec.ServerResources
+	}
+
+	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, s.cluster.Spec.ServerEnvs...)
+
+	// add image pull secrets
+	for _, imagePullSecret := range s.imagePullSecrets {
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
+	}
+
+	if podSpec.RuntimeClassName != nil && strings.HasPrefix(*podSpec.RuntimeClassName, "kata") {
+		mounts.AddKmsgMount(&podSpec)
+
+		mounts.FilterEmptyDirVolumes(&podSpec)
+	}
+
+	return podSpec
+}
+
+func (s *Server) applySecuritySettings(ctx context.Context, podSpec *corev1.PodSpec) {
+	log := ctrl.LoggerFrom(ctx)
+
 	// pod security context
 	podSecurityContext := s.cluster.Spec.PodSecurityContext
 	if s.cluster.Status.Policy != nil && s.cluster.Status.Policy.PodSecurityContext != nil {
@@ -309,35 +345,6 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	}
 
 	podSpec.HostUsers = hostUsers
-
-	// specify resource limits if specified for the servers.
-	if s.cluster.Spec.ServerLimit != nil {
-		podSpec.Containers[0].Resources = corev1.ResourceRequirements{
-			Limits: s.cluster.Spec.ServerLimit,
-		}
-	}
-
-	// specifying ServerResources will take precedence over ServerLimits
-	if s.cluster.Spec.ServerResources != nil {
-		// removing container previous limit
-		podSpec.Containers[0].Resources = corev1.ResourceRequirements{}
-		podSpec.Resources = s.cluster.Spec.ServerResources
-	}
-
-	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, s.cluster.Spec.ServerEnvs...)
-
-	// add image pull secrets
-	for _, imagePullSecret := range s.imagePullSecrets {
-		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
-	}
-
-	if podSpec.RuntimeClassName != nil && strings.HasPrefix(*podSpec.RuntimeClassName, "kata") {
-		mounts.AddKmsgMount(&podSpec)
-
-		mounts.FilterEmptyDirVolumes(&podSpec)
-	}
-
-	return podSpec
 }
 
 // NodeSelector returns the node selector of the server pods: the one from the policy

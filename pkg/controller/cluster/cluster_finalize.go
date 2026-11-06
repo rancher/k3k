@@ -9,6 +9,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -37,6 +38,11 @@ func (c *Reconciler) finalizeCluster(ctx context.Context, cluster *v1beta1.Clust
 	})
 
 	if err := c.unbindClusterRoles(ctx, cluster); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// remove EtcdRestore Finalizers
+	if err := c.finalizeRestores(ctx, cluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -112,4 +118,27 @@ func (c *Reconciler) unbindClusterRoles(ctx context.Context, cluster *v1beta1.Cl
 	}
 
 	return err
+}
+
+func (c *Reconciler) finalizeRestores(ctx context.Context, cluster *v1beta1.Cluster) error {
+	listOpts := []client.ListOption{
+		client.InNamespace(cluster.Namespace),
+	}
+
+	var restoreList v1beta1.EtcdRestoreList
+	if err := c.Client.List(ctx, &restoreList, listOpts...); err != nil {
+		return err
+	}
+
+	for _, restoreObj := range restoreList.Items {
+		if restoreObj.Spec.ClusterRef != nil && restoreObj.Spec.ClusterRef.Name == cluster.Name {
+			if controllerutil.RemoveFinalizer(&restoreObj, etcdRestoreFinalizerName) {
+				if err := c.Client.Update(ctx, &restoreObj); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }

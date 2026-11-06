@@ -136,6 +136,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.EtcdSnapshot) error {
 	var cluster v1beta1.Cluster
 
+	if snapshot.Spec.ClusterRef == nil {
+		return errors.New("cluster ref is missing")
+	}
+
 	nn := types.NamespacedName{
 		Name:      snapshot.Spec.ClusterRef.Name,
 		Namespace: snapshot.Namespace,
@@ -167,7 +171,7 @@ func (r *Reconciler) reconcileSnapshot(ctx context.Context, snapshot *v1beta1.Et
 	var s3Config *k3s.EtcdS3
 
 	if snapshot.Spec.S3ConfigSecretRef != nil {
-		s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
+		s3Config, err = k3s.GetS3ConfigFromSecret(ctx, r.Client, snapshot)
 		if err != nil {
 			return err
 		}
@@ -243,8 +247,8 @@ func (r *Reconciler) finalizeSnapshot(ctx context.Context, snapshot *v1beta1.Etc
 func (r *Reconciler) deleteSnapshot(ctx context.Context, snapshot *v1beta1.EtcdSnapshot) error {
 	log := log.FromContext(ctx)
 
-	// no op if there is no snapshot file reference
-	if snapshot.Status.Filename == "" {
+	// no op if there is no snapshot file reference or cluster isn't referenced
+	if snapshot.Status.Filename == "" || snapshot.Spec.ClusterRef == nil {
 		return nil
 	}
 
@@ -281,7 +285,7 @@ func (r *Reconciler) deleteSnapshot(ctx context.Context, snapshot *v1beta1.EtcdS
 	var s3Config *k3s.EtcdS3
 
 	if snapshot.Spec.S3ConfigSecretRef != nil {
-		s3Config, err = r.getS3ConfigFromSecret(ctx, snapshot)
+		s3Config, err = k3s.GetS3ConfigFromSecret(ctx, r.Client, snapshot)
 		if err != nil {
 			return err
 		}

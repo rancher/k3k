@@ -15,7 +15,10 @@ env:
 
 jobs:
   tests-e2e:
-    runs-on: ubuntu-latest
+    # PINNED TO UBUNTU 24.04: on the ubuntu-26.04 runner images (from 20261028.624)
+    # the stricter containerd AppArmor profile denies the signals in the containers,
+    # so restarting the controller in the AfterSuite fails with "kill: Permission denied".
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Checkout code
@@ -102,7 +105,8 @@ jobs:
         name: e2e-k3k-logs
         path: /tmp/k3k.log
   tests-e2e-slow:
-    runs-on: ubuntu-latest
+    # PINNED TO UBUNTU 24.04, like tests-e2e.
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Checkout code

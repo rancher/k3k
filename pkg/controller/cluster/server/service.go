@@ -6,7 +6,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	"github.com/rancher/k3k/pkg/controller"
@@ -22,14 +21,10 @@ const lbServerPortName = "k3s-server-lb-port"
 // appropriate ports for k3s server and etcd.
 func Service(cluster *v1beta1.Cluster) *corev1.Service {
 	service := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Service",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ServiceName(cluster.Name),
-			Namespace: cluster.Namespace,
-		},
+		Kind:       "Service",
+		APIVersion: "v1",
+		Name:       ServiceName(cluster.Name),
+		Namespace:  cluster.Namespace,
 		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{
 				"cluster": cluster.Name,
@@ -188,14 +183,10 @@ func addNodePortPorts(service *corev1.Service, nodePortConfig v1beta1.NodePortCo
 // StatefulServerService returns the headless Service backing the server StatefulSet.
 func (s *Server) StatefulServerService() *corev1.Service {
 	return &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Service",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      HeadlessServiceName(s.cluster.Name),
-			Namespace: s.cluster.Namespace,
-		},
+		Kind:       "Service",
+		APIVersion: "v1",
+		Name:       HeadlessServiceName(s.cluster.Name),
+		Namespace:  s.cluster.Namespace,
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: corev1.ClusterIPNone,

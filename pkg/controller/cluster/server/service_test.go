@@ -7,7 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -261,14 +260,10 @@ func TestService(t *testing.T) {
 
 func newTestService(cluster *v1beta1.Cluster, opts ...func(*corev1.Service)) *corev1.Service {
 	svc := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Service",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "k3k-test-cluster-service",
-			Namespace: cluster.Namespace,
-		},
+		Kind:       "Service",
+		APIVersion: "v1",
+		Name:       "k3k-test-cluster-service",
+		Namespace:  cluster.Namespace,
 		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{
 				"cluster": "test-cluster",
@@ -334,11 +329,9 @@ func TestLoadBalancerSANs(t *testing.T) {
 
 func newTestCluster(opts ...func(*v1beta1.Cluster)) *v1beta1.Cluster {
 	cluster := &v1beta1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-cluster",
-			Namespace: "test-namespace",
-		},
-		Spec: v1beta1.ClusterSpec{},
+		Name:      "test-cluster",
+		Namespace: "test-namespace",
+		Spec:      v1beta1.ClusterSpec{},
 	}
 	for _, opt := range opts {
 		opt(cluster)

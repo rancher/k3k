@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	networkingv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
@@ -121,14 +120,10 @@ func TestIngress(t *testing.T) {
 
 func newTestIngress(cluster *v1beta1.Cluster, opts ...func(*networkingv1.Ingress)) *networkingv1.Ingress {
 	ingress := &networkingv1.Ingress{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Ingress",
-			APIVersion: "networking.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "k3k-test-cluster-ingress",
-			Namespace: cluster.Namespace,
-		},
+		Kind:       "Ingress",
+		APIVersion: "networking.k8s.io/v1",
+		Name:       "k3k-test-cluster-ingress",
+		Namespace:  cluster.Namespace,
 	}
 	for _, opt := range opts {
 		opt(ingress)
@@ -140,17 +135,15 @@ func newTestIngress(cluster *v1beta1.Cluster, opts ...func(*networkingv1.Ingress
 func testIngressRule(host string) networkingv1.IngressRule {
 	return networkingv1.IngressRule{
 		Host: host,
-		IngressRuleValue: networkingv1.IngressRuleValue{
-			HTTP: &networkingv1.HTTPIngressRuleValue{
-				Paths: []networkingv1.HTTPIngressPath{
-					{
-						Path:     "/",
-						PathType: new(networkingv1.PathTypePrefix),
-						Backend: networkingv1.IngressBackend{
-							Service: &networkingv1.IngressServiceBackend{
-								Name: "k3k-test-cluster-service",
-								Port: networkingv1.ServiceBackendPort{Number: 443},
-							},
+		HTTP: &networkingv1.HTTPIngressRuleValue{
+			Paths: []networkingv1.HTTPIngressPath{
+				{
+					Path:     "/",
+					PathType: new(networkingv1.PathTypePrefix),
+					Backend: networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: "k3k-test-cluster-service",
+							Port: networkingv1.ServiceBackendPort{Number: 443},
 						},
 					},
 				},

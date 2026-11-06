@@ -43,12 +43,19 @@ const (
 	k3sManifestDir   = "/var/lib/rancher/k3s/server/manifests"
 	k3sTLSDir        = "/var/lib/rancher/k3s/server/tls"
 	k3sLogDir        = "/var/log"
+	k3sLogFile       = k3sLogDir + "/k3s.log"
 	k3sVarRunDir     = "/var/run"
 
 	// exposeSANsHashAnnotation is set on the server pods with a hash of the TLS SANs derived from the
 	// expose configuration. k3s reads the tls-san only at startup, so a change of these SANs
 	// (i.e. a LoadBalancer address being assigned or changed) needs to roll out the server pods.
 	exposeSANsHashAnnotation = "k3k.io/expose-sans-hash"
+
+	// livenessProbeCommand fails the probe once k3s logs that the etcd member of this server was
+	// removed, so the container is restarted and k3s rejoins the cluster. It must not match the
+	// "tombstone file has been detected ... to rejoin the cluster" message that k3s logs during the
+	// rejoin itself, or the probe would restart the server in the middle of rejoining.
+	livenessProbeCommand = `grep -q "removed from the cluster" ` + k3sLogFile + ` && exit 1 || exit 0`
 )
 
 // Server builds the Kubernetes resources that run the k3s servers of a virtual cluster.
@@ -96,61 +103,47 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		Volumes: []corev1.Volume{
 			{
 				Name: "init-config",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: configSecretName(s.cluster.Name, true),
-						Items: []corev1.KeyToPath{
-							{
-								Key:  "config.yaml",
-								Path: "config.yaml",
-							},
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: configSecretName(s.cluster.Name, true),
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "config.yaml",
+							Path: "config.yaml",
 						},
 					},
 				},
 			},
 			{
 				Name: "config",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: configSecretName(s.cluster.Name, false),
-						Items: []corev1.KeyToPath{
-							{
-								Key:  "config.yaml",
-								Path: "config.yaml",
-							},
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: configSecretName(s.cluster.Name, false),
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "config.yaml",
+							Path: "config.yaml",
 						},
 					},
 				},
 			},
 			{
-				Name: "run",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+				Name:     "run",
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 			{
-				Name: "var-run",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+				Name:     "var-run",
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 			{
-				Name: "var-lib-cni",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+				Name:     "var-lib-cni",
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 			{
-				Name: "var-log",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+				Name:     "var-log",
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 			{
-				Name: "var-lib-kubelet",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+				Name:     "var-lib-kubelet",
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		Containers: []corev1.Container{
@@ -231,10 +224,8 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 	podSpec.Containers[0].Command = cmd
 	if !persistent {
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-			Name: "varlibrancherk3s",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
+			Name:     "varlibrancherk3s",
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 		)
 	}
@@ -244,23 +235,19 @@ func (s *Server) podSpec(ctx context.Context, image, name string, persistent boo
 		InitialDelaySeconds: 60,
 		FailureThreshold:    5,
 		TimeoutSeconds:      10,
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(6443),
-			},
+		TCPSocket: &corev1.TCPSocketAction{
+			Port: intstr.FromInt(6443),
 		},
 	}
 	podSpec.Containers[0].LivenessProbe = &corev1.Probe{
 		InitialDelaySeconds: 10,
 		FailureThreshold:    3,
 		PeriodSeconds:       3,
-		ProbeHandler: corev1.ProbeHandler{
-			Exec: &corev1.ExecAction{
-				Command: []string{
-					"sh",
-					"-c",
-					`grep -q "rejoin the cluster" /var/log/k3s.log && exit 1 || exit 0`,
-				},
+		Exec: &corev1.ExecAction{
+			Command: []string{
+				"sh",
+				"-c",
+				livenessProbeCommand,
 			},
 		},
 	}
@@ -458,15 +445,11 @@ func (s *Server) StatefulServer(ctx context.Context, exposeSANs []string) (*apps
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
 
 	ss := &appsv1.StatefulSet{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "StatefulSet",
-			APIVersion: "apps/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: s.cluster.Namespace,
-			Labels:    selector.MatchLabels,
-		},
+		Kind:       "StatefulSet",
+		APIVersion: "apps/v1",
+		Name:       name,
+		Namespace:  s.cluster.Namespace,
+		Labels:     selector.MatchLabels,
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
 			ServiceName: HeadlessServiceName(s.cluster.Name),
@@ -507,14 +490,10 @@ func exposeSANsAnnotations(exposeSANs []string) map[string]string {
 
 func (s *Server) setupDynamicPersistence() corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "PersistentVolumeClaim",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "varlibrancherk3s",
-			Namespace: s.cluster.Namespace,
-		},
+		Kind:       "PersistentVolumeClaim",
+		APIVersion: "v1",
+		Name:       "varlibrancherk3s",
+		Namespace:  s.cluster.Namespace,
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			StorageClassName: s.cluster.Spec.Persistence.StorageClassName,
@@ -555,6 +534,7 @@ func (s *Server) setupStartCommand() (string, error) {
 		"K3K_MODE":      string(s.cluster.Spec.Mode),
 		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
 		"RUNTIME_CLASS": runtimeClass,
+		"LOG_FILE":      k3sLogFile,
 	})
 	if err != nil {
 		return "", err
@@ -620,10 +600,8 @@ func mountCACert(volumeName, certName, secretName string, subPathMount string) (
 
 	// avoid re-adding secretName in case of combined secret
 	volume = &corev1.Volume{
-		Name: volumeName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{SecretName: secretName},
-		},
+		Name:   volumeName,
+		Secret: &corev1.SecretVolumeSource{SecretName: secretName},
 	}
 
 	etcdPrefix := ""
@@ -676,15 +654,11 @@ func (s *Server) buildAddonsVolumes(ctx context.Context) ([]corev1.Volume, []cor
 		// skip creating the addon secret if it already exists and in the same namespace as the cluster
 		if namespace != s.cluster.Namespace {
 			clusterAddons := corev1.Secret{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Secret",
-					APIVersion: "v1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      addons.Name,
-					Namespace: s.cluster.Namespace,
-				},
-				Data: addons.Data,
+				Kind:       "Secret",
+				APIVersion: "v1",
+				Name:       addons.Name,
+				Namespace:  s.cluster.Namespace,
+				Data:       addons.Data,
 			}
 
 			_, err := controllerutil.CreateOrUpdate(ctx, s.client, &clusterAddons, func() error {
@@ -698,10 +672,8 @@ func (s *Server) buildAddonsVolumes(ctx context.Context) ([]corev1.Volume, []cor
 		name := "addon-" + addon.SecretRef
 		volume := corev1.Volume{
 			Name: name,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: addon.SecretRef,
-				},
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: addon.SecretRef,
 			},
 		}
 		volumes = append(volumes, volume)

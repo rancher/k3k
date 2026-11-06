@@ -24,7 +24,7 @@ jobs:
     # signals in the containers (see the provision-k3s-vm-workers action, which
     # pins the worker VMs to 24.04 for the same reason).
     # Before bumping, verify that the datastore tests still pass.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     strategy:
       fail-fast: false

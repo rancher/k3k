@@ -95,6 +95,37 @@ Pods requesting a scheduler that is not in this list are not synced. +
 This list is only checked against the annotation and has nothing to do with the +
 Pod's spec.schedulerName field, which is still handled by the virtual cluster. + |  | Optional: \{} +
 
+| *`audit`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-auditconfig[$$AuditConfig$$]__ | audit is the audit logging configuration enforced by the active VirtualClusterPolicy. + |  | Optional: \{} +
+
+|===
+
+
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-auditconfig"]
+=== AuditConfig
+
+
+
+AuditConfig specifies the audit logging configuration of the K3s servers.
+It uses the standard Kubernetes API server auditing of K3s.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-appliedpolicy[$$AppliedPolicy$$]
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-clusterspec[$$ClusterSpec$$]
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-virtualclusterpolicyspec[$$VirtualClusterPolicySpec$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`enabled`* __boolean__ | Enabled is an on/off switch for audit logging. + |  | Optional: \{} +
+
+| *`policy`* __string__ | Policy is the audit policy (an audit.k8s.io/v1 Policy) in YAML format. +
+If not specified, a default policy logging the metadata of every request +
+is used. +
+See https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#audit-policy. + |  | Optional: \{} +
+
 |===
 
 
@@ -299,6 +330,11 @@ where the requested scheduler is set on the Pod synced to the host cluster. +
 Pods requesting a scheduler that is not in this list are not synced. +
 This list is only checked against the annotation and has nothing to do with the +
 Pod's spec.schedulerName field, which is still handled by the virtual cluster. + |  | Optional: \{} +
+
+| *`audit`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-auditconfig[$$AuditConfig$$]__ | Audit specifies the audit logging configuration of the K3s servers. +
+When enabled, the audit log is streamed to the stdout of the "audit-log" container +
+of the server pods, so that it can be read with "kubectl logs" or collected by +
+the logging stack of the host cluster. + |  | Optional: \{} +
 
 |===
 
@@ -1062,6 +1098,12 @@ where the requested scheduler is set on the Pod synced to the host cluster. +
 Pods requesting a scheduler that is not in this list are not synced. +
 This list is only checked against the annotation and has nothing to do with the +
 Pod's spec.schedulerName field, which is still handled by the virtual cluster. + |  | Optional: \{} +
+
+| *`audit`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-auditconfig[$$AuditConfig$$]__ | Audit specifies the audit logging configuration of the K3s servers of all clusters in the target Namespace. +
+It takes precedence over the audit configuration of the clusters. +
+When enabled, the audit log is streamed to the stdout of the "audit-log" container +
+of the server pods, so that it can be read with "kubectl logs" or collected by +
+the logging stack of the host cluster. + |  | Optional: \{} +
 
 |===
 

@@ -8,7 +8,12 @@ function Header(el)
     end
     -- If we hit any other header, stop deleting
     deleting_see_also = false
-    return el
+
+    -- Forces the section markers. Pandoc >= 3.7 writes one extra '=' than
+    -- previous versions, as it reserves the single '=' for the document title.
+    -- Emitting them ourselves keeps the output stable across pandoc versions.
+    local marker = string.rep("=", el.level)
+    return pandoc.RawBlock('asciidoc', marker .. " " .. pandoc.utils.stringify(el) .. "\n\n")
 end
 
 function BulletList(el)

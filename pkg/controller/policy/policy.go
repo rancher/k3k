@@ -504,6 +504,7 @@ func (c *VirtualClusterPolicyReconciler) reconcileClusters(ctx context.Context, 
 			RuntimeClassName:      policy.Spec.RuntimeClassName,
 			HostUsers:             policy.Spec.HostUsers,
 			AllowedHostSchedulers: policy.Spec.AllowedHostSchedulers,
+			Audit:                 policy.Spec.Audit,
 		}
 
 		if !reflect.DeepEqual(origStatus, &cluster.Status) {

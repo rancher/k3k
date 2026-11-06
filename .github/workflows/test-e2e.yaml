@@ -43,7 +43,7 @@ jobs:
         - name: persistence
           label-filter: "persistence"
         - name: sync
-          label-filter: "pod || app || sync || policy || status"
+          label-filter: "pod || app || sync || policy || status || audit"
         - name: features
           label-filter: "networking || certificates || registry || addons || datastore"
 

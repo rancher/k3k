@@ -19,6 +19,7 @@ import (
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	k3kcontroller "github.com/rancher/k3k/pkg/controller"
 	"github.com/rancher/k3k/pkg/controller/cluster/server"
+	"github.com/rancher/k3k/pkg/controller/policy"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -671,6 +672,92 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(addonMounts[0].MountPath).To(Equal("/var/lib/rancher/k3s/server/manifests/addon-one"))
 					Expect(addonMounts[1].Name).To(Equal("addon-addon-two"))
 					Expect(addonMounts[1].MountPath).To(Equal("/var/lib/rancher/k3s/server/manifests/addon-two"))
+				})
+			})
+
+			When("creating a Cluster in a namespace bound to a policy", func() {
+				It("waits for the policy to be applied before creating the servers", func() {
+					vcp := &v1beta1.VirtualClusterPolicy{
+						ObjectMeta: metav1.ObjectMeta{GenerateName: "policy-"},
+						Spec: v1beta1.VirtualClusterPolicySpec{
+							Audit: &v1beta1.AuditConfig{Enabled: true},
+						},
+					}
+					Expect(k8sClient.Create(ctx, vcp)).To(Succeed())
+
+					DeferCleanup(func() {
+						Expect(k8sClient.Delete(ctx, vcp)).To(Succeed())
+					})
+
+					var ns corev1.Namespace
+					Expect(k8sClient.Get(ctx, client.ObjectKey{Name: namespace}, &ns)).To(Succeed())
+
+					ns.Labels = map[string]string{policy.PolicyNameLabelKey: vcp.Name}
+					Expect(k8sClient.Update(ctx, &ns)).To(Succeed())
+
+					cluster := &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+					}
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+
+					// the policy controller is not running in this suite: the policy is never applied
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)).To(Succeed())
+						g.Expect(cluster.Status.Phase).To(Equal(v1beta1.ClusterProvisioning))
+
+						cond := meta.FindStatusCondition(cluster.Status.Conditions, "Ready")
+						g.Expect(cond).NotTo(BeNil())
+						g.Expect(cond.Message).To(ContainSubstring("waiting for the policy"))
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					statefulSetKey := client.ObjectKey{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(cluster.Name, "server"),
+						Namespace: cluster.Namespace,
+					}
+
+					var statefulSet appsv1.StatefulSet
+
+					Consistently(func() bool {
+						return apierrors.IsNotFound(k8sClient.Get(ctx, statefulSetKey, &statefulSet))
+					}).
+						WithTimeout(time.Second * 5).
+						WithPolling(time.Second).
+						Should(BeTrue())
+
+					// apply the policy, as the policy controller does
+					Eventually(func() error {
+						if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster); err != nil {
+							return err
+						}
+
+						cluster.Status.Policy = &v1beta1.AppliedPolicy{Name: vcp.Name, Audit: vcp.Spec.Audit}
+
+						return k8sClient.Status().Update(ctx, cluster)
+					}).
+						WithTimeout(time.Second * 10).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					// the servers are created with the configuration from the policy from the start
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, statefulSetKey, &statefulSet)).To(Succeed())
+
+						var containerNames []string
+						for _, container := range statefulSet.Spec.Template.Spec.Containers {
+							containerNames = append(containerNames, container.Name)
+						}
+
+						g.Expect(containerNames).To(ContainElement("audit-log"))
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
 				})
 			})
 		})

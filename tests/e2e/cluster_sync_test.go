@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 	fwk3k "github.com/rancher/k3k/tests/framework/k3k"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -108,6 +109,82 @@ var _ = When("a shared mode cluster is created", Ordered, Label(syncTestsLabel),
 				g.Expect(err).To(Not(HaveOccurred()))
 			}).
 				WithTimeout(time.Minute).
+				WithPolling(time.Second).
+				Should(Succeed())
+		})
+	})
+	When("the secrets sync is updated with a set based label selector", func() {
+		BeforeAll(func() {
+			ctx := GinkgoT().Context()
+
+			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(virtualCluster.Cluster), virtualCluster.Cluster)
+			Expect(err).To(Not(HaveOccurred()))
+
+			virtualCluster.Cluster.Spec.Sync.Secrets = v1beta1.SecretSyncConfig{
+				Enabled: true,
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "tier",
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{"frontend", "backend"},
+						},
+					},
+				},
+			}
+			err = k8sClient.Update(ctx, virtualCluster.Cluster)
+			Expect(err).To(Not(HaveOccurred()))
+		})
+		It("sync secrets with labels in set", func() {
+			ctx := GinkgoT().Context()
+			virtualSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret-in-set",
+					Namespace: "default",
+					Labels: map[string]string{
+						"tier": "frontend",
+					},
+				},
+			}
+
+			virtualSecret, err := virtualCluster.Client.CoreV1().Secrets("default").Create(ctx, virtualSecret, metav1.CreateOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+
+			hostTranslator := translate.NewHostTranslator(virtualCluster.Cluster)
+			namespacedName := hostTranslator.NamespacedName(virtualSecret)
+
+			Eventually(func(g Gomega) {
+				_, err := k8s.CoreV1().Secrets(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
+				g.Expect(err).To(Not(HaveOccurred()))
+			}).
+				WithTimeout(time.Minute).
+				WithPolling(time.Second).
+				Should(Succeed())
+		})
+
+		It("will not sync secrets with labels not in set", func() {
+			ctx := GinkgoT().Context()
+			virtualSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret-not-in-set",
+					Namespace: "default",
+					Labels: map[string]string{
+						"tier": "cache",
+					},
+				},
+			}
+
+			virtualSecret, err := virtualCluster.Client.CoreV1().Secrets("default").Create(ctx, virtualSecret, metav1.CreateOptions{})
+			Expect(err).To(Not(HaveOccurred()))
+
+			hostTranslator := translate.NewHostTranslator(virtualCluster.Cluster)
+			namespacedName := hostTranslator.NamespacedName(virtualSecret)
+
+			Consistently(func(g Gomega) {
+				_, err := k8s.CoreV1().Secrets(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}).
+				WithTimeout(time.Second * 15).
 				WithPolling(time.Second).
 				Should(Succeed())
 		})

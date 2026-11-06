@@ -14,7 +14,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
@@ -765,6 +764,10 @@ func (c *Reconciler) ensureStorageClasses(ctx context.Context, cluster *v1beta1.
 		return fmt.Errorf("failed listing host storageclasses: %w", err)
 	}
 
+	if _, err := metav1.LabelSelectorAsSelector(appliedSync.StorageClasses.LabelSelector); err != nil {
+		return fmt.Errorf("invalid storageclass sync selector: %w", err)
+	}
+
 	// filter the StorageClasses disabled for the sync, and the one not matching the selector
 	filteredHostStorageClasses := make(map[string]storagev1.StorageClass)
 
@@ -778,9 +781,8 @@ func (c *Reconciler) ensureStorageClasses(ctx context.Context, cluster *v1beta1.
 		}
 
 		// if selector doesn't match -> continue
-		// an empty selector matche everything
-		selector := labels.SelectorFromSet(appliedSync.StorageClasses.Selector)
-		if !selector.Matches(labels.Set(sc.Labels)) {
+		// an empty selector matches everything
+		if !controller.FilterResources(ctx, &sc, appliedSync.StorageClasses.Enabled, appliedSync.StorageClasses.Selector, appliedSync.StorageClasses.LabelSelector) { //nolint:staticcheck
 			log.V(1).Info("selector not matching", "sc-name", sc.Name)
 			continue
 		}

@@ -1,18 +1,15 @@
 name: 'Provision k3s VM workers'
 description: |
-  Launches real QEMU/KVM worker VMs on a bridged network and joins them as k3s agents to a given
-  k3s server. Used to turn a single-node CI host into a genuine multi-node cluster (unlike
-  container-based nodes, e.g. k3d, these are independent kernels/machines).
+  Launches real QEMU/KVM worker VMs on the bridge created by the setup-k3s-vm-bridge action and
+  joins them as k3s agents to a given k3s server. Used to turn a single-node CI host into a
+  genuine multi-node cluster (unlike container-based nodes, e.g. k3d, these are independent
+  kernels/machines).
 
 inputs:
   worker-count:
     description: 'Number of worker VMs to launch'
     required: false
     default: '2'
-  bridge-cidr-prefix:
-    description: 'First three octets of the bridge subnet the VMs are attached to'
-    required: false
-    default: '192.168.100'
   k3s-url:
     description: 'K3s server URL the workers should join (e.g. https://192.168.100.1:6443)'
     required: true
@@ -30,8 +27,6 @@ runs:
   - name: Install Virtualization Dependencies
     shell: bash
     run: |
-      echo "CIDR_PREFIX=${{ inputs.bridge-cidr-prefix }}" >> "$GITHUB_ENV"
-
       sudo apt-get update
       sudo apt-get install -y --no-install-recommends \
         qemu-system-x86 \
@@ -42,29 +37,9 @@ runs:
 
       kvm-ok
 
-  - name: Set up bridge network for VMs
+  - name: Create TAP devices for VMs
     shell: bash
     run: |
-      # Create a bridge so both VMs share an L2 segment with unique routable IPs.
-      # Required because QEMU `-net user` gives every VM the same 10.0.2.15 NAT
-      # address, which breaks flannel VXLAN between workers.
-      sudo ip link add name k3kbr0 type bridge
-      sudo ip addr add ${CIDR_PREFIX}.1/24 dev k3kbr0
-      sudo ip link set k3kbr0 up
-
-      # NAT outbound so VMs can reach the internet (image pulls etc).
-      sudo sysctl -w net.ipv4.ip_forward=1
-      sudo iptables -t nat -A POSTROUTING -s ${CIDR_PREFIX}.0/24 ! -o k3kbr0 -j MASQUERADE
-      sudo iptables -A FORWARD -i k3kbr0 -j ACCEPT
-      sudo iptables -A FORWARD -o k3kbr0 -j ACCEPT
-
-      # Expose the host's systemd-resolved stub on the bridge, so the VMs resolve through the
-      # same upstream as the host. On some runners DNS queries forwarded through the NAT to
-      # public resolvers (8.8.8.8, 1.1.1.1) time out for the whole job.
-      sudo mkdir -p /etc/systemd/resolved.conf.d
-      printf '[Resolve]\nDNSStubListenerExtra=%s.1\n' "${CIDR_PREFIX}" | sudo tee /etc/systemd/resolved.conf.d/k3kbr0.conf
-      sudo systemctl restart systemd-resolved
-
       # One TAP per VM, attached to the bridge.
       for i in $(seq 1 ${{ inputs.worker-count }}); do
         sudo ip tuntap add tap-w${i} mode tap
@@ -130,9 +105,8 @@ runs:
                   routes:
                     - to: default
                       via: ${CIDR_PREFIX}.1
-                  # The host's resolver first, public resolvers only as a fallback.
                   nameservers:
-                    addresses: [${CIDR_PREFIX}.1, 8.8.8.8, 1.1.1.1]
+                    addresses: [8.8.8.8, 1.1.1.1]
       runcmd:
         - netplan apply
       EOF

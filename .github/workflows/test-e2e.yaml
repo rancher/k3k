@@ -69,6 +69,9 @@ jobs:
         echo "REPO=k3k.local" >> $GITHUB_ENV
         echo "K3S_HOST_VERSION=${{ env.KUBERNETES_VERSION }}+k3s1" >> $GITHUB_ENV
 
+    - name: Set up bridge network for worker VMs
+      uses: ./.github/actions/setup-k3s-vm-bridge
+
     - name: Install k3s
       run: |
         curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_HOST_VERSION} INSTALL_K3S_EXEC="--write-kubeconfig-mode=777" sh -s -

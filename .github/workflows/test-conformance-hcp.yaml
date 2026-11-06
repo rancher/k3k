@@ -79,6 +79,9 @@ jobs:
     - name: Install hydrophone
       run: go install sigs.k8s.io/hydrophone@3de3e886a2f6f09635d8b981c195490af1584d97 # v0.7.0
 
+    - name: Set up bridge network for worker VMs
+      uses: ./.github/actions/setup-k3s-vm-bridge
+
     - name: Install k3s
       env:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml

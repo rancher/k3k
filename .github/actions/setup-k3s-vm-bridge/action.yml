@@ -1,0 +1,37 @@
+name: 'Set up bridge network for k3s VM workers'
+description: |
+  Creates the bridge the worker VMs of the provision-k3s-vm-workers action are attached to, with
+  NAT so they can reach the internet.
+
+  Run it before installing k3s on the host: the k3s network policy controller (kube-router)
+  syncs the filter table with a save and restore of the whole table, dropping the rules added
+  while a sync is in progress, and it runs several syncs while k3s is starting.
+
+inputs:
+  bridge-cidr-prefix:
+    description: 'First three octets of the bridge subnet the VMs are attached to'
+    required: false
+    default: '192.168.100'
+
+runs:
+  using: 'composite'
+
+  steps:
+  - name: Set up bridge network for VMs
+    shell: bash
+    run: |
+      echo "CIDR_PREFIX=${{ inputs.bridge-cidr-prefix }}" >> "$GITHUB_ENV"
+      CIDR_PREFIX=${{ inputs.bridge-cidr-prefix }}
+
+      # Create a bridge so both VMs share an L2 segment with unique routable IPs.
+      # Required because QEMU `-net user` gives every VM the same 10.0.2.15 NAT
+      # address, which breaks flannel VXLAN between workers.
+      sudo ip link add name k3kbr0 type bridge
+      sudo ip addr add ${CIDR_PREFIX}.1/24 dev k3kbr0
+      sudo ip link set k3kbr0 up
+
+      # NAT outbound so VMs can reach the internet (image pulls etc).
+      sudo sysctl -w net.ipv4.ip_forward=1
+      sudo iptables -t nat -A POSTROUTING -s ${CIDR_PREFIX}.0/24 ! -o k3kbr0 -j MASQUERADE
+      sudo iptables -A FORWARD -i k3kbr0 -j ACCEPT
+      sudo iptables -A FORWARD -o k3kbr0 -j ACCEPT

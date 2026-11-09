@@ -42,6 +42,15 @@ func (s *Server) Config(init bool, service *corev1.Service, extraSANs ...string)
 		return nil, err
 	}
 
+	data := map[string][]byte{
+		"config.yaml": config,
+	}
+
+	// the audit policy is mounted from the servers configuration in all the server pods
+	if audit := Audit(s.cluster); audit != nil && !init {
+		data[auditPolicyKey] = []byte(auditPolicy(audit))
+	}
+
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -51,9 +60,7 @@ func (s *Server) Config(init bool, service *corev1.Service, extraSANs ...string)
 			Name:      name,
 			Namespace: s.cluster.Namespace,
 		},
-		Data: map[string][]byte{
-			"config.yaml": config,
-		},
+		Data: data,
 	}, nil
 }
 

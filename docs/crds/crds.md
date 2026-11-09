@@ -58,6 +58,27 @@ _Appears in:_
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | SecurityContext specifies custom container SecurityContext to be added<br />to the agent and server containers of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
 | `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  | Optional: \{\} <br /> |
 | `allowedHostSchedulers` _string array_ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced.<br />This list is only checked against the annotation and has nothing to do with the<br />Pod's spec.schedulerName field, which is still handled by the virtual cluster. |  | Optional: \{\} <br /> |
+| `audit` _[AuditConfig](#auditconfig)_ | audit is the audit logging configuration enforced by the active VirtualClusterPolicy. |  | Optional: \{\} <br /> |
+
+
+#### AuditConfig
+
+
+
+AuditConfig specifies the audit logging configuration of the K3s servers.
+It uses the standard Kubernetes API server auditing of K3s.
+
+
+
+_Appears in:_
+- [AppliedPolicy](#appliedpolicy)
+- [ClusterSpec](#clusterspec)
+- [VirtualClusterPolicySpec](#virtualclusterpolicyspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for audit logging. |  | Optional: \{\} <br /> |
+| `policy` _string_ | Policy is the audit policy (an audit.k8s.io/v1 Policy) in YAML format.<br />If not specified, a default policy logging the metadata of every request<br />is used.<br />See https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#audit-policy. |  | Optional: \{\} <br /> |
 
 
 #### Cluster
@@ -175,6 +196,7 @@ _Appears in:_
 | `runtimeClassName` _string_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
 | `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  | Optional: \{\} <br /> |
 | `allowedHostSchedulers` _string array_ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced.<br />This list is only checked against the annotation and has nothing to do with the<br />Pod's spec.schedulerName field, which is still handled by the virtual cluster. |  | Optional: \{\} <br /> |
+| `audit` _[AuditConfig](#auditconfig)_ | Audit specifies the audit logging configuration of the K3s servers.<br />When enabled, the audit log is streamed to the stdout of the "audit-log" container<br />of the server pods, so that it can be read with "kubectl logs" or collected by<br />the logging stack of the host cluster. |  | Optional: \{\} <br /> |
 
 
 #### ClusterStatus
@@ -683,6 +705,7 @@ _Appears in:_
 | `securityContext` _[SecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core)_ | RuntimeClassName specifies alternative runtime class for the<br />agent and server pods of the cluster in virtual or shared mode. |  | Optional: \{\} <br /> |
 | `hostUsers` _boolean_ | HostUsers sets the user namespace for server and agent pods.<br />If set to true or not present, the pod will be run in the host user namespace.<br />When set to false, a new userns is created for the pod.<br />This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature. |  | Optional: \{\} <br /> |
 | `allowedHostSchedulers` _string array_ | AllowedHostSchedulers is the list of host cluster schedulers that workloads can request<br />with the "k3k.io/host-scheduler-name" annotation. It only applies to shared mode,<br />where the requested scheduler is set on the Pod synced to the host cluster.<br />Pods requesting a scheduler that is not in this list are not synced.<br />This list is only checked against the annotation and has nothing to do with the<br />Pod's spec.schedulerName field, which is still handled by the virtual cluster. |  | Optional: \{\} <br /> |
+| `audit` _[AuditConfig](#auditconfig)_ | Audit specifies the audit logging configuration of the K3s servers of all clusters in the target Namespace.<br />It takes precedence over the audit configuration of the clusters.<br />When enabled, the audit log is streamed to the stdout of the "audit-log" container<br />of the server pods, so that it can be read with "kubectl logs" or collected by<br />the logging stack of the host cluster. |  | Optional: \{\} <br /> |
 
 
 #### VirtualClusterPolicyStatus

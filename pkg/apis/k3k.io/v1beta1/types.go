@@ -250,6 +250,31 @@ type ClusterSpec struct {
 	//
 	// +optional
 	AllowedHostSchedulers []string `json:"allowedHostSchedulers,omitempty"`
+
+	// Audit specifies the audit logging configuration of the K3s servers.
+	// When enabled, the audit log is streamed to the stdout of the "audit-log" container
+	// of the server pods, so that it can be read with "kubectl logs" or collected by
+	// the logging stack of the host cluster.
+	//
+	// +optional
+	Audit *AuditConfig `json:"audit,omitempty"`
+}
+
+// AuditConfig specifies the audit logging configuration of the K3s servers.
+// It uses the standard Kubernetes API server auditing of K3s.
+type AuditConfig struct {
+	// Enabled is an on/off switch for audit logging.
+	//
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Policy is the audit policy (an audit.k8s.io/v1 Policy) in YAML format.
+	// If not specified, a default policy logging the metadata of every request
+	// is used.
+	// See https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#audit-policy.
+	//
+	// +optional
+	Policy string `json:"policy,omitempty"`
 }
 
 // SecretMount defines a secret to be mounted into server or agent pods,
@@ -744,6 +769,11 @@ type AppliedPolicy struct {
 	//
 	// +optional
 	AllowedHostSchedulers []string `json:"allowedHostSchedulers,omitempty"`
+
+	// audit is the audit logging configuration enforced by the active VirtualClusterPolicy.
+	//
+	// +optional
+	Audit *AuditConfig `json:"audit,omitempty"`
 }
 
 // ClusterPhase is a high-level summary of the cluster's current lifecycle state.
@@ -884,6 +914,15 @@ type VirtualClusterPolicySpec struct {
 	//
 	// +optional
 	AllowedHostSchedulers []string `json:"allowedHostSchedulers,omitempty"`
+
+	// Audit specifies the audit logging configuration of the K3s servers of all clusters in the target Namespace.
+	// It takes precedence over the audit configuration of the clusters.
+	// When enabled, the audit log is streamed to the stdout of the "audit-log" container
+	// of the server pods, so that it can be read with "kubectl logs" or collected by
+	// the logging stack of the host cluster.
+	//
+	// +optional
+	Audit *AuditConfig `json:"audit,omitempty"`
 }
 
 // PodSecurityAdmissionLevel is the policy level applied to the pods in the namespace.

@@ -72,6 +72,25 @@ spec:
                 x-kubernetes-validations:
                 - message: field is immutable
                   rule: self == oldSelf
+              audit:
+                description: |-
+                  Audit specifies the audit logging configuration of the K3s servers of all clusters in the target Namespace.
+                  It takes precedence over the audit configuration of the clusters.
+                  When enabled, the audit log is streamed to the stdout of the "audit-log" container
+                  of the server pods, so that it can be read with "kubectl logs" or collected by
+                  the logging stack of the host cluster.
+                properties:
+                  enabled:
+                    description: Enabled is an on/off switch for audit logging.
+                    type: boolean
+                  policy:
+                    description: |-
+                      Policy is the audit policy (an audit.k8s.io/v1 Policy) in YAML format.
+                      If not specified, a default policy logging the metadata of every request
+                      is used.
+                      See https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#audit-policy.
+                    type: string
+                type: object
               defaultAgentAffinity:
                 description: |-
                   DefaultAgentAffinity specifies the affinity rules applied to agent pods of all clusters in the target Namespace.

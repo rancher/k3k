@@ -183,6 +183,44 @@ The `clusterDNS` field specifies the IP address for the CoreDNS service. It need
 
 The `serverArgs` field allows you to specify additional arguments to be passed to the K3s server pods.
 
+### `audit`
+
+The `audit` field turns on the [Kubernetes audit log](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/) of the K3s servers. It works in all the modes (`shared`, `virtual` and `hcp`).
+
+```yaml
+apiVersion: k3k.io/v1beta1
+kind: Cluster
+metadata:
+  name: mycluster
+spec:
+  audit:
+    enabled: true
+    # optional: an audit.k8s.io/v1 Policy. If not set, the metadata of every request is logged.
+    policy: |
+      apiVersion: audit.k8s.io/v1
+      kind: Policy
+      rules:
+        - level: RequestResponse
+          resources:
+            - group: ""
+              resources: ["secrets"]
+        - level: Metadata
+```
+
+When enabled, K3k:
+
+- passes the `--kube-apiserver-arg=audit-*` flags to the K3s servers. You can override the log rotation (`audit-log-maxsize` and `audit-log-maxbackup`) with your own `serverArgs`, i.e. `--kube-apiserver-arg=audit-log-maxbackup=5`. The `audit-log-path` and `audit-policy-file` flags always take precedence over the `serverArgs`, since the `audit-log` sidecar and the policy mount rely on their values.
+- stores the audit policy in the server config Secret and mounts it in the server pods. A change to the policy restarts the server pods.
+- adds an `audit-log` sidecar container to the server pods, which streams the audit log to its stdout. The audit log is then available outside the server pod, both with `kubectl logs` and in the logging stack of the host cluster:
+
+```bash
+kubectl logs -n k3k-mycluster k3k-mycluster-server-0 -c audit-log
+```
+
+The audit log is stored in an `emptyDir` volume and rotated every 100MB, keeping one backup. Collect it from the sidecar stdout if you need to keep it longer.
+
+A [VirtualClusterPolicy](./virtualclusterpolicy.md#6-enforcing-audit-logging-audit) can enforce the audit configuration. When it does, its configuration takes precedence over the one of the clusters: a policy can turn the audit log on, and it can also turn it off (`enabled: false`) even for clusters that enable it.
+
 ## Using the cli
 
 You can check the [k3kcli documentation](./cli/k3kcli.md) for the full specs.

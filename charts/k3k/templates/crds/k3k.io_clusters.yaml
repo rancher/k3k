@@ -1172,6 +1172,24 @@ spec:
                 items:
                   type: string
                 type: array
+              audit:
+                description: |-
+                  Audit specifies the audit logging configuration of the K3s servers.
+                  When enabled, the audit log is streamed to the stdout of the "audit-log" container
+                  of the server pods, so that it can be read with "kubectl logs" or collected by
+                  the logging stack of the host cluster.
+                properties:
+                  enabled:
+                    description: Enabled is an on/off switch for audit logging.
+                    type: boolean
+                  policy:
+                    description: |-
+                      Policy is the audit policy (an audit.k8s.io/v1 Policy) in YAML format.
+                      If not specified, a default policy logging the metadata of every request
+                      is used.
+                      See https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#audit-policy.
+                    type: string
+                type: object
               clusterCIDR:
                 description: |-
                   ClusterCIDR is the CIDR range for pod IPs.
@@ -4422,6 +4440,21 @@ spec:
                     items:
                       type: string
                     type: array
+                  audit:
+                    description: audit is the audit logging configuration enforced
+                      by the active VirtualClusterPolicy.
+                    properties:
+                      enabled:
+                        description: Enabled is an on/off switch for audit logging.
+                        type: boolean
+                      policy:
+                        description: |-
+                          Policy is the audit policy (an audit.k8s.io/v1 Policy) in YAML format.
+                          If not specified, a default policy logging the metadata of every request
+                          is used.
+                          See https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#audit-policy.
+                        type: string
+                    type: object
                   hostUsers:
                     description: |-
                       HostUsers sets the user namespace for server and agent pods.

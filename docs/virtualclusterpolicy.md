@@ -141,6 +141,38 @@ spec:
   podSecurityAdmissionLevel: baseline
 ```
 
+### 6. Enforcing Audit Logging (`audit`)
+
+You can turn on the Kubernetes audit log for all the virtual clusters in the bound Namespaces. The policy's `audit` configuration takes precedence over the `audit` field of the clusters, so cluster owners cannot turn it off. Without a `policy`, the metadata of every request is logged.
+
+The precedence applies in both directions: a policy with `audit.enabled: false` turns the audit log off for all the clusters in the bound Namespaces, even the ones enabling it in their `audit` field. Leave the `audit` field of the policy unset to let each cluster choose.
+
+See [`audit`](./advanced-usage.md#audit) for how the audit log is collected.
+
+**Example:** Enforce the audit log with the default policy.
+
+```yaml
+apiVersion: k3k.io/v1beta1
+kind: VirtualClusterPolicy
+metadata:
+  name: audit-policy
+spec:
+  audit:
+    enabled: true
+```
+
+**Example:** Disable the audit log for all the clusters.
+
+```yaml
+apiVersion: k3k.io/v1beta1
+kind: VirtualClusterPolicy
+metadata:
+  name: no-audit-policy
+spec:
+  audit:
+    enabled: false
+```
+
 ## Further Reading
 
 * For a complete reference of all `VirtualClusterPolicy` spec fields, see the [API Reference for VirtualClusterPolicy](./crds/crds.md#virtualclusterpolicy).

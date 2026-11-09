@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -457,6 +458,18 @@ func (s *Server) StatefulServer(ctx context.Context, exposeSANs []string) (*apps
 	podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
 
+	annotations := exposeSANsAnnotations(exposeSANs)
+
+	if audit := Audit(s.cluster); audit != nil {
+		s.addAuditLog(&podSpec, image)
+
+		if annotations == nil {
+			annotations = map[string]string{}
+		}
+
+		maps.Copy(annotations, auditAnnotations(audit))
+	}
+
 	ss := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "StatefulSet",
@@ -474,7 +487,7 @@ func (s *Server) StatefulServer(ctx context.Context, exposeSANs []string) (*apps
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      selector.MatchLabels,
-					Annotations: exposeSANsAnnotations(exposeSANs),
+					Annotations: annotations,
 				},
 				Spec: podSpec,
 			},
@@ -542,6 +555,11 @@ func (s *Server) setupStartCommand() (string, error) {
 		runtimeClass = *s.cluster.Spec.RuntimeClassName
 	}
 
+	serverArgs := s.cluster.Spec.ServerArgs
+	if Audit(s.cluster) != nil {
+		serverArgs = slices.Concat(auditRotationArgs(), s.cluster.Spec.ServerArgs, auditPathArgs())
+	}
+
 	tmplCmd, err := template.New("").Option("missingkey=error").Parse(tmpl)
 	if err != nil {
 		return "", err
@@ -553,7 +571,7 @@ func (s *Server) setupStartCommand() (string, error) {
 		"SERVER_CONFIG": filepath.Join(k3sConfigDir, "config.yaml"),
 		"CLUSTER_MODE":  mode,
 		"K3K_MODE":      string(s.cluster.Spec.Mode),
-		"EXTRA_ARGS":    strings.Join(s.cluster.Spec.ServerArgs, " "),
+		"EXTRA_ARGS":    strings.Join(serverArgs, " "),
 		"RUNTIME_CLASS": runtimeClass,
 	})
 	if err != nil {

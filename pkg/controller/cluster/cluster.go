@@ -371,6 +371,13 @@ func (c *Reconciler) reconcile(ctx context.Context, cluster *v1beta1.Cluster) er
 		return err
 	}
 
+	// The server and agents configuration depends on the policy applied to the status by the policy
+	// controller: wait for it, to avoid starting the cluster without it (i.e. without the audit log
+	// enforced by the policy), and restarting it (losing the data of ephemeral clusters) once applied.
+	if vcp != nil && (cluster.Status.Policy == nil || cluster.Status.Policy.Name != vcp.Name) {
+		return fmt.Errorf("%w: waiting for the policy %q to be applied", k3s.ErrServerNotReady, vcp.Name)
+	}
+
 	// if the Version is not specified we will try to use the same Kubernetes version of the host.
 	// This version is stored in the Status object, and it will not be updated if already set.
 	if cluster.Status.HostVersion == "" {

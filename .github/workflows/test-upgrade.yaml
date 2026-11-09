@@ -30,6 +30,9 @@ jobs:
         fetch-depth: 0
         fetch-tags: true
 
+    - name: Free disk space
+      uses: ./.github/actions/free-disk-space
+
     - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
       with:
         go-version-file: go.mod

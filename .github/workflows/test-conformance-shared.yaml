@@ -99,18 +99,10 @@ jobs:
         echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
 
     - name: Setup Kubernetes (k3d)
-      env:
-        REPO_NAME: k3k-registry
-        REPO_PORT: 12345
       run: |
-        echo "127.0.0.1 ${REPO_NAME}" | sudo tee -a /etc/hosts
-
-        k3d registry create ${REPO_NAME} --port ${REPO_PORT}
-
         k3d cluster create k3k --servers 2 \
           --image rancher/k3s:${{ env.KUBERNETES_VERSION }}-k3s1 \
-          -p "30000-30010:30000-30010@server:0" \
-          --registry-use k3d-${REPO_NAME}:${REPO_PORT}
+          -p "30000-30010:30000-30010@server:0"
 
         kubectl cluster-info
         kubectl get nodes
@@ -118,13 +110,10 @@ jobs:
     - name: Setup K3k (from source)
       if: inputs.k3k_version == ''
       env:
-        REPO: k3k-registry:12345
+        REPO: k3k.local
       run: |
-        echo "127.0.0.1 k3k-registry" | sudo tee -a /etc/hosts
-
         make build
         make package
-        make push
 
         # add k3kcli to $PATH
         echo "${{ github.workspace }}/bin" >> $GITHUB_PATH

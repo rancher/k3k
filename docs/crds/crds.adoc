@@ -751,6 +751,10 @@ from virtual cluster to host cluster + | false | Optional: \{} +
 
 LoadBalancerConfig specifies options for exposing the API server through a LoadBalancer service.
 
+The validation mirrors the Kubernetes Service rule: the loadBalancerClass can't be added, changed or
+removed while the cluster stays exposed through a LoadBalancer, but it can be set when switching
+from another expose type.
+
 
 
 _Appears In:_
@@ -771,7 +775,8 @@ If 0 or negative, the port will not be exposed. + |  | Optional: \{} +
 
 | *`loadBalancerClass`* __string__ | LoadBalancerClass specifies the class of the load-balancer implementation for the exposed Service. +
 If not specified, the host cluster's default load-balancer implementation is used. +
-Once set, Kubernetes does not allow the Service's loadBalancerClass to change while its type remains LoadBalancer. + |  | Optional: \{} +
+It cannot be added, changed or removed while the cluster remains exposed through a LoadBalancer, +
+since Kubernetes does not allow it on the Service: switch to another expose type first. + |  | Optional: \{} +
 
 |===
 

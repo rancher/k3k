@@ -554,6 +554,12 @@ type IngressConfig struct {
 }
 
 // LoadBalancerConfig specifies options for exposing the API server through a LoadBalancer service.
+//
+// The validation mirrors the Kubernetes Service rule: the loadBalancerClass can't be added, changed or
+// removed while the cluster stays exposed through a LoadBalancer, but it can be set when switching
+// from another expose type.
+//
+// +kubebuilder:validation:XValidation:rule="has(oldSelf.loadBalancerClass) == has(self.loadBalancerClass) && (!has(self.loadBalancerClass) || self.loadBalancerClass == oldSelf.loadBalancerClass)",message="loadBalancerClass cannot be added, changed or removed while the cluster is exposed through a LoadBalancer"
 type LoadBalancerConfig struct {
 	// ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.
 	// The default https 443 port is always allocated, since it's used by the internal components
@@ -572,10 +578,10 @@ type LoadBalancerConfig struct {
 
 	// LoadBalancerClass specifies the class of the load-balancer implementation for the exposed Service.
 	// If not specified, the host cluster's default load-balancer implementation is used.
-	// Once set, Kubernetes does not allow the Service's loadBalancerClass to change while its type remains LoadBalancer.
+	// It cannot be added, changed or removed while the cluster remains exposed through a LoadBalancer,
+	// since Kubernetes does not allow it on the Service: switch to another expose type first.
 	//
 	// +optional
-	// +k8s:immutable
 	LoadBalancerClass *string `json:"loadBalancerClass,omitempty"`
 }
 

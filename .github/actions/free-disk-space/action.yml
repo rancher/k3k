@@ -1,0 +1,31 @@
+name: 'Free disk space'
+description: |
+  Removes heavy preinstalled runtimes and SDKs and prunes the Docker cache on the runner.
+
+  Run it before actions/setup-go: it removes /opt/hostedtoolcache, where setup-go installs Go.
+
+runs:
+  using: 'composite'
+
+  steps:
+  - name: Clean up unused tools and free disk space
+    shell: bash
+    run: |
+      echo "=== Disk space before cleanup ==="
+      df -h /
+
+      # Remove heavy preinstalled runtimes and SDKs
+      sudo rm -rf /usr/share/dotnet
+      sudo rm -rf /usr/local/.ghcup
+      sudo rm -rf /usr/local/lib/android
+      sudo rm -rf /usr/local/share/powershell
+      sudo rm -rf /usr/lib/jvm
+      sudo rm -rf /usr/share/swift
+      sudo rm -rf /opt/ghc
+      sudo rm -rf /opt/hostedtoolcache
+
+      # Prune Docker system cache
+      sudo docker system prune -af || true
+
+      echo "=== Disk space after cleanup ==="
+      df -h /

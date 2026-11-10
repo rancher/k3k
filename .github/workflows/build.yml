@@ -81,6 +81,7 @@ jobs:
         output: 'trivy-results-k3kcli.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab (k3kcli)
+      if: github.repository == 'rancher/k3k'
       uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
       with:
         sarif_file: trivy-results-k3kcli.sarif
@@ -97,6 +98,7 @@ jobs:
         output: 'trivy-results-k3k.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab (k3k)
+      if: github.repository == 'rancher/k3k'
       uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
       with:
         sarif_file: trivy-results-k3k.sarif
@@ -113,6 +115,7 @@ jobs:
         output: 'trivy-results-k3k-kubelet.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab (k3k-kubelet)
+      if: github.repository == 'rancher/k3k'
       uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
       with:
         sarif_file: trivy-results-k3k-kubelet.sarif

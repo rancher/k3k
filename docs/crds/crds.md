@@ -526,7 +526,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `type` _[PersistenceMode](#persistencemode)_ | Type specifies the persistence mode. | dynamic |  |
 | `storageClassName` _string_ | StorageClassName is the name of the StorageClass to use for the PVC.<br />This field is only relevant in "dynamic" mode. |  | Optional: \{\} <br /> |
-| `storageRequestSize` _[Quantity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#quantity-resource-api)_ | StorageRequestSize is the requested size for the PVC.<br />This field is only relevant in "dynamic" mode. | 2G | Optional: \{\} <br /> |
+| `storageRequestSize` _[Quantity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#quantity-resource-api)_ | StorageRequestSize is the requested size for the PVC.<br />This field is only relevant in "dynamic" mode.<br />It must be greater than zero. | 2G | Optional: \{\} <br /> |
 
 
 #### PersistenceMode

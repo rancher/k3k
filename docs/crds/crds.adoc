@@ -800,7 +800,8 @@ _Appears In:_
 This field is only relevant in "dynamic" mode. + |  | Optional: \{} +
 
 | *`storageRequestSize`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#quantity-resource-api[$$Quantity$$]__ | StorageRequestSize is the requested size for the PVC. +
-This field is only relevant in "dynamic" mode. + | 2G | Optional: \{} +
+This field is only relevant in "dynamic" mode. +
+It must be greater than zero. + | 2G | Optional: \{} +
 
 |===
 

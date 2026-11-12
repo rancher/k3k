@@ -490,8 +490,10 @@ type PersistenceConfig struct {
 
 	// StorageRequestSize is the requested size for the PVC.
 	// This field is only relevant in "dynamic" mode.
+	// It must be greater than zero.
 	//
 	// +kubebuilder:default="2G"
+	// +kubebuilder:validation:XValidation:message="storageRequestSize must be greater than zero",rule="quantity(string(self)).isGreaterThan(quantity('0'))"
 	// +k8s:immutable
 	// +optional
 	StorageRequestSize *resource.Quantity `json:"storageRequestSize,omitempty"`

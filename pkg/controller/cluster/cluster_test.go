@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +24,7 @@ func Test_validate(t *testing.T) {
 		mode        v1beta1.ClusterMode
 		tlsSANs     []string
 		expose      *v1beta1.ExposeConfig
+		storageSize string
 		policy      *v1beta1.VirtualClusterPolicy
 		wantErr     string
 	}{
@@ -82,6 +84,27 @@ func Test_validate(t *testing.T) {
 			tlsSANs: []string{"10.0.0.5"},
 			expose:  &v1beta1.ExposeConfig{LoadBalancer: &v1beta1.LoadBalancerConfig{}},
 		},
+		{
+			name:        "positive storage size",
+			storageSize: "2G",
+		},
+		{
+			// the storage size check does not depend on the policy
+			name:        "negative storage size without a policy",
+			storageSize: "-1G",
+			wantErr:     "storageRequestSize must be greater than zero",
+		},
+		{
+			name:        "negative storage size with a policy",
+			storageSize: "-1G",
+			policy:      newTestPolicy(v1beta1.SharedClusterMode),
+			wantErr:     "storageRequestSize must be greater than zero",
+		},
+		{
+			name:        "zero storage size",
+			storageSize: "0",
+			wantErr:     "storageRequestSize must be greater than zero",
+		},
 	}
 
 	for _, tt := range tests {
@@ -103,6 +126,11 @@ func Test_validate(t *testing.T) {
 					TLSSANs: tt.tlsSANs,
 					Expose:  tt.expose,
 				},
+			}
+
+			if tt.storageSize != "" {
+				size := resource.MustParse(tt.storageSize)
+				cluster.Spec.Persistence.StorageRequestSize = &size
 			}
 
 			err := validate(cluster, tt.policy)

@@ -7,6 +7,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -504,6 +505,66 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(err).To(HaveOccurred())
 				})
 			})
+
+			When("setting the persistence storageRequestSize", func() {
+				DescribeTable("validates the size is greater than zero",
+					func(size string, wantErr bool) {
+						storageRequestSize := resource.MustParse(size)
+
+						cluster := &v1beta1.Cluster{
+							ObjectMeta: metav1.ObjectMeta{
+								GenerateName: "cluster-",
+								Namespace:    namespace,
+							},
+							Spec: v1beta1.ClusterSpec{
+								Persistence: v1beta1.PersistenceConfig{
+									Type:               v1beta1.DynamicPersistenceMode,
+									StorageRequestSize: &storageRequestSize,
+								},
+							},
+						}
+
+						err := k8sClient.Create(ctx, cluster)
+						if !wantErr {
+							Expect(err).To(Not(HaveOccurred()))
+							return
+						}
+
+						Expect(apierrors.IsInvalid(err)).To(BeTrue())
+						Expect(err.Error()).To(ContainSubstring("storageRequestSize must be greater than zero"))
+					},
+					Entry("a positive size is accepted", "2G", false),
+					Entry("a fractional size is accepted", "0.5Gi", false),
+					Entry("a negative size is rejected", "-1G", true),
+					Entry("a zero size is rejected", "0", true),
+				)
+
+				// storageRequestSize is an int-or-string field, so the rule must also handle integer values.
+				DescribeTable("validates integer sizes",
+					func(size int64, wantErr bool) {
+						cluster := &unstructured.Unstructured{}
+						cluster.SetGroupVersionKind(v1beta1.SchemeGroupVersion.WithKind("Cluster"))
+						cluster.SetGenerateName("cluster-")
+						cluster.SetNamespace(namespace)
+
+						err := unstructured.SetNestedField(cluster.Object, size, "spec", "persistence", "storageRequestSize")
+						Expect(err).To(Not(HaveOccurred()))
+
+						err = k8sClient.Create(ctx, cluster)
+						if !wantErr {
+							Expect(err).To(Not(HaveOccurred()))
+							return
+						}
+
+						Expect(apierrors.IsInvalid(err)).To(BeTrue())
+						Expect(err.Error()).To(ContainSubstring("storageRequestSize must be greater than zero"))
+					},
+					Entry("a positive integer is accepted", int64(2000000000), false),
+					Entry("a negative integer is rejected", int64(-1), true),
+					Entry("a zero integer is rejected", int64(0), true),
+				)
+			})
+
 			When("adding addons to the cluster", func() {
 				It("will create a statefulset with the correct addon volumes and volume mounts", func() {
 					// Create the addon secret first

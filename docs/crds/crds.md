@@ -219,7 +219,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true | Required: \{\} <br /> |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced.<br />Deprecated: use LabelSelector instead. |  | Optional: \{\} <br /> |
+| `labelSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#labelselector-v1-meta)_ | LabelSelector is a set-based label selector of the resources that will be synced.<br />It is combined with Selector, and resources must match both to be synced.<br />If empty then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### CredentialSource
@@ -472,7 +473,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false | Required: \{\} <br /> |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced.<br />Deprecated: use LabelSelector instead. |  | Optional: \{\} <br /> |
+| `labelSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#labelselector-v1-meta)_ | LabelSelector is a set-based label selector of the resources that will be synced.<br />It is combined with Selector, and resources must match both to be synced.<br />If empty then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 | `disableTLSSecretTranslation` _boolean_ | DisableTLSSecretTranslation is an on/off switch for translating TLS secrets<br />from virtual cluster to host cluster | false | Optional: \{\} <br /> |
 
 
@@ -556,7 +558,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true | Required: \{\} <br /> |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced.<br />Deprecated: use LabelSelector instead. |  | Optional: \{\} <br /> |
+| `labelSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#labelselector-v1-meta)_ | LabelSelector is a set-based label selector of the resources that will be synced.<br />It is combined with Selector, and resources must match both to be synced.<br />If empty then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### PodSecurityAdmissionLevel
@@ -588,7 +591,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false | Required: \{\} <br /> |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced.<br />Deprecated: use LabelSelector instead. |  | Optional: \{\} <br /> |
+| `labelSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#labelselector-v1-meta)_ | LabelSelector is a set-based label selector of the resources that will be synced.<br />It is combined with Selector, and resources must match both to be synced.<br />If empty then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### SecretMount
@@ -630,7 +634,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true | Optional: \{\} <br /> |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced.<br />Deprecated: use LabelSelector instead. |  | Optional: \{\} <br /> |
+| `labelSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#labelselector-v1-meta)_ | LabelSelector is a set-based label selector of the resources that will be synced.<br />It is combined with Selector, and resources must match both to be synced.<br />If empty then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### ServiceSyncConfig
@@ -647,7 +652,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | true | Required: \{\} <br /> |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced.<br />Deprecated: use LabelSelector instead. |  | Optional: \{\} <br /> |
+| `labelSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#labelselector-v1-meta)_ | LabelSelector is a set-based label selector of the resources that will be synced.<br />It is combined with Selector, and resources must match both to be synced.<br />If empty then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### StorageClassSyncConfig
@@ -664,7 +670,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false | Required: \{\} <br /> |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced.<br />Deprecated: use LabelSelector instead. |  | Optional: \{\} <br /> |
+| `labelSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#labelselector-v1-meta)_ | LabelSelector is a set-based label selector of the resources that will be synced.<br />It is combined with Selector, and resources must match both to be synced.<br />If empty then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### SyncConfig

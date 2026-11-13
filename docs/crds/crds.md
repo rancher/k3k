@@ -499,6 +499,10 @@ _Appears in:_
 
 LoadBalancerConfig specifies options for exposing the API server through a LoadBalancer service.
 
+The validation mirrors the Kubernetes Service rule: the loadBalancerClass can't be added, changed or
+removed while the cluster stays exposed through a LoadBalancer, but it can be set when switching
+from another expose type.
+
 
 
 _Appears in:_
@@ -508,7 +512,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `serverPort` _integer_ | ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.<br />The default https 443 port is always allocated, since it's used by the internal components<br />to reach the server: if specified, the ServerPort is allocated as an additional port.<br />If 0 or negative, only the default https 443 port will be allocated. |  | Optional: \{\} <br /> |
 | `etcdPort` _integer_ | EtcdPort is the port on which the Etcd service is exposed when type is LoadBalancer.<br />If not specified, the default etcd 2379 port will be allocated.<br />If 0 or negative, the port will not be exposed. |  | Optional: \{\} <br /> |
-| `loadBalancerClass` _string_ | LoadBalancerClass specifies the class of the load-balancer implementation for the exposed Service.<br />If not specified, the host cluster's default load-balancer implementation is used.<br />Once set, Kubernetes does not allow the Service's loadBalancerClass to change while its type remains LoadBalancer. |  | Optional: \{\} <br /> |
+| `loadBalancerClass` _string_ | LoadBalancerClass specifies the class of the load-balancer implementation for the exposed Service.<br />If not specified, the host cluster's default load-balancer implementation is used.<br />It cannot be added, changed or removed while the cluster remains exposed through a LoadBalancer,<br />since Kubernetes does not allow it on the Service: switch to another expose type first. |  | Optional: \{\} <br /> |
 
 
 #### NodePortConfig

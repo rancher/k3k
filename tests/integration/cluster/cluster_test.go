@@ -390,6 +390,96 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					loadBalancerClass := service.Spec.LoadBalancerClass
 					Expect(loadBalancerClass).To(Equal(new("example.com/public-vip")))
 				})
+
+				// Kubernetes does not allow the loadBalancerClass of a LoadBalancer Service to be
+				// added, changed or removed, so the Cluster must reject the same updates instead of
+				// accepting them and failing to reconcile the Service.
+				DescribeTable("updating the loadBalancerClass",
+					func(from, to *v1beta1.ExposeConfig, allowed bool) {
+						cluster := &v1beta1.Cluster{
+							ObjectMeta: metav1.ObjectMeta{
+								GenerateName: "cluster-",
+								Namespace:    namespace,
+							},
+							Spec: v1beta1.ClusterSpec{
+								Expose: from,
+							},
+						}
+
+						Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+
+						patch := client.MergeFrom(cluster.DeepCopy())
+						cluster.Spec.Expose = to
+
+						err := k8sClient.Patch(ctx, cluster, patch)
+						if allowed {
+							Expect(err).To(Not(HaveOccurred()))
+						} else {
+							Expect(err).To(HaveOccurred())
+							Expect(apierrors.IsInvalid(err)).To(BeTrue())
+							Expect(err.Error()).To(ContainSubstring("loadBalancerClass cannot be added, changed or removed"))
+						}
+					},
+					Entry("rejects adding a class",
+						lbExpose(nil), lbExpose(new("example.com/a")), false),
+					Entry("rejects changing the class",
+						lbExpose(new("example.com/a")), lbExpose(new("example.com/b")), false),
+					Entry("rejects removing the class",
+						lbExpose(new("example.com/a")), lbExpose(nil), false),
+					Entry("allows keeping the class while changing the ports",
+						lbExpose(new("example.com/a")),
+						&v1beta1.ExposeConfig{LoadBalancer: &v1beta1.LoadBalancerConfig{
+							LoadBalancerClass: new("example.com/a"),
+							ServerPort:        new(int32(6443)),
+						}},
+						true),
+					Entry("allows setting a class when switching from nodePort",
+						&v1beta1.ExposeConfig{NodePort: &v1beta1.NodePortConfig{}}, lbExpose(new("example.com/a")), true),
+					Entry("allows switching from a class to nodePort",
+						lbExpose(new("example.com/a")), &v1beta1.ExposeConfig{NodePort: &v1beta1.NodePortConfig{}}, true),
+				)
+
+				It("will set the class on the Service when switching from nodePort", func() {
+					cluster := &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1beta1.ClusterSpec{
+							Expose: &v1beta1.ExposeConfig{NodePort: &v1beta1.NodePortConfig{}},
+						},
+					}
+
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+
+					serviceKey := client.ObjectKey{
+						Name:      server.ServiceName(cluster.Name),
+						Namespace: cluster.Namespace,
+					}
+
+					var service corev1.Service
+
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, serviceKey, &service)).To(Succeed())
+						g.Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeNodePort))
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					patch := client.MergeFrom(cluster.DeepCopy())
+					cluster.Spec.Expose = lbExpose(new("example.com/a"))
+					Expect(k8sClient.Patch(ctx, cluster, patch)).To(Succeed())
+
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, serviceKey, &service)).To(Succeed())
+						g.Expect(service.Spec.Type).To(Equal(corev1.ServiceTypeLoadBalancer))
+						g.Expect(service.Spec.LoadBalancerClass).To(Equal(new("example.com/a")))
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+				})
 			})
 
 			When("exposing the cluster with ingress", func() {
@@ -676,3 +766,12 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 		})
 	})
 })
+
+// lbExpose returns an expose config for a LoadBalancer with the given class.
+func lbExpose(loadBalancerClass *string) *v1beta1.ExposeConfig {
+	return &v1beta1.ExposeConfig{
+		LoadBalancer: &v1beta1.LoadBalancerConfig{
+			LoadBalancerClass: loadBalancerClass,
+		},
+	}
+}

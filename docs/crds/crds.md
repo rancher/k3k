@@ -278,6 +278,23 @@ _Appears in:_
 | `sources` _[CredentialSources](#credentialsources)_ | Sources defines the sources for all required custom CA certificates. |  |  |
 
 
+#### EndpointSliceSyncConfig
+
+
+
+EndpointSliceSyncConfig specifies the sync options for EndpointSlices.
+
+
+
+_Appears in:_
+- [SyncConfig](#syncconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false | Required: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+
+
 #### EtcdRestore
 
 
@@ -683,6 +700,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `services` _[ServiceSyncConfig](#servicesyncconfig)_ | Services resources sync configuration. | \{ enabled:true \} | Optional: \{\} <br /> |
+| `endpointSlices` _[EndpointSliceSyncConfig](#endpointslicesyncconfig)_ | EndpointSlices resources sync configuration. | \{ enabled:false \} | Optional: \{\} <br /> |
 | `configMaps` _[ConfigMapSyncConfig](#configmapsyncconfig)_ | ConfigMaps resources sync configuration. | \{ enabled:true \} | Optional: \{\} <br /> |
 | `secrets` _[SecretSyncConfig](#secretsyncconfig)_ | Secrets resources sync configuration. | \{ enabled:true \} | Optional: \{\} <br /> |
 | `ingresses` _[IngressSyncConfig](#ingresssyncconfig)_ | Ingresses resources sync configuration. | \{ enabled:false \} | Optional: \{\} <br /> |

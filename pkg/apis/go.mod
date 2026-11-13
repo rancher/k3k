@@ -3,8 +3,8 @@ module github.com/rancher/k3k/pkg/apis
 go 1.26.11
 
 require (
-	k8s.io/api v0.36.5
-	k8s.io/apimachinery v0.36.5
+	k8s.io/api v0.36.6
+	k8s.io/apimachinery v0.36.6
 )
 
 require (

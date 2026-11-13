@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"text/template"
 	"time"
@@ -14,12 +16,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -114,16 +118,6 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			logrus.Warnf("Invalid K3s docker reference version: '%s'. Using '%s' instead", orig, config.version)
 		}
 
-		if config.token != "" {
-			logrus.Info("Creating cluster token secret")
-
-			obj := k3kcluster.TokenSecretObj(config.token, name, namespace)
-
-			if err := client.Create(ctx, &obj); err != nil {
-				return err
-			}
-		}
-
 		if config.customCertsPath != "" {
 			if err := CreateCustomCertsSecrets(ctx, name, namespace, config.customCertsPath, client); err != nil {
 				return err
@@ -151,12 +145,8 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 
 		cluster.Spec.TLSSANs = uniqueStrings(sans)
 
-		if err := client.Create(ctx, cluster); err != nil {
-			if !apierrors.IsAlreadyExists(err) {
-				return err
-			}
-
-			logrus.Infof("Cluster '%s' already exists", name)
+		if err := createCluster(ctx, client, cluster, config.token); err != nil {
+			return err
 		}
 
 		if err := waitForClusterReconciled(ctx, client, cluster, config.timeout); err != nil {
@@ -383,6 +373,184 @@ func waitForClusterReady(ctx context.Context, k8sClient client.Client, cluster *
 		// Condition not met, continue polling.
 		return false, nil
 	})
+}
+
+// createCluster creates the cluster and, with a custom token, the secret holding it. The
+// cluster is made the owner of the token secret, so the secret is deleted with the cluster.
+// A failed create can be run again: an existing token secret with the same token is reused.
+func createCluster(ctx context.Context, k8sclient client.Client, cluster *v1beta1.Cluster, token string) error {
+	var tokenSecretCreated bool
+
+	if token != "" {
+		logrus.Info("Creating cluster token secret")
+
+		created, err := ensureTokenSecret(ctx, k8sclient, token, cluster.Name, cluster.Namespace)
+		if err != nil {
+			return err
+		}
+
+		tokenSecretCreated = created
+	}
+
+	if err := k8sclient.Create(ctx, cluster); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			if !tokenSecretCreated {
+				return err
+			}
+
+			// without a cluster nothing would delete the token secret, but the cluster could
+			// have been created even if the request failed, e.g. when the response was lost
+			if isRejectedRequest(err) {
+				deleteTokenSecret(ctx, k8sclient, cluster)
+				return err
+			}
+
+			return fmt.Errorf("failed to create the cluster, run the command again to retry: %w", err)
+		}
+
+		logrus.Infof("Cluster '%s' already exists", cluster.Name)
+	}
+
+	if token == "" {
+		return nil
+	}
+
+	if err := setTokenSecretOwner(ctx, k8sclient, cluster); err != nil {
+		deleting := errors.Is(err, errClusterDeleting)
+
+		// a deleted or deleting cluster will not own the token secret: nothing else would delete it
+		if tokenSecretCreated && (deleting || apierrors.IsNotFound(err)) {
+			deleteTokenSecret(ctx, k8sclient, cluster)
+
+			if !deleting {
+				return fmt.Errorf("the cluster was deleted while being created: %w", err)
+			}
+		}
+
+		if deleting {
+			return fmt.Errorf("%w, wait for it to be removed and run the command again", err)
+		}
+
+		return fmt.Errorf("failed to set the cluster as the owner of its token secret, run the command again to retry: %w", err)
+	}
+
+	return nil
+}
+
+// ensureTokenSecret creates the secret holding the custom token of a cluster, returning
+// true if it was created. An existing secret is reused only if it holds the same token.
+func ensureTokenSecret(ctx context.Context, k8sclient client.Client, token, name, namespace string) (bool, error) {
+	tokenSecret := k3kcluster.TokenSecretObj(token, name, namespace)
+
+	err := k8sclient.Create(ctx, &tokenSecret)
+	if err == nil {
+		return true, nil
+	}
+
+	if !apierrors.IsAlreadyExists(err) {
+		return false, err
+	}
+
+	var existing corev1.Secret
+	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(&tokenSecret), &existing); err != nil {
+		return false, err
+	}
+
+	if string(existing.Data["token"]) != token {
+		return false, fmt.Errorf("token secret %s/%s already exists with a different token", namespace, tokenSecret.Name)
+	}
+
+	return false, nil
+}
+
+// isRejectedRequest returns true if err is a client error returned by the API server, which
+// rejected the request without persisting anything.
+func isRejectedRequest(err error) bool {
+	var status apierrors.APIStatus
+	if !errors.As(err, &status) {
+		return false
+	}
+
+	code := status.Status().Code
+
+	return code >= http.StatusBadRequest && code < http.StatusInternalServerError && code != http.StatusRequestTimeout
+}
+
+// deleteTokenSecret deletes the token secret of the cluster, logging a failure.
+func deleteTokenSecret(ctx context.Context, k8sclient client.Client, cluster *v1beta1.Cluster) {
+	tokenSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: k3kcluster.TokenSecretName(cluster.Name), Namespace: cluster.Namespace},
+	}
+
+	if err := k8sclient.Delete(ctx, &tokenSecret); client.IgnoreNotFound(err) != nil {
+		logrus.Warnf("Failed to delete the token secret %s/%s: %v", tokenSecret.Namespace, tokenSecret.Name, err)
+	}
+}
+
+// errClusterDeleting is returned when the cluster to create already exists and is being deleted.
+var errClusterDeleting = errors.New("the cluster is being deleted")
+
+// setTokenSecretOwner makes the cluster the controller of its custom token secret, retrying
+// on conflicts.
+func setTokenSecretOwner(ctx context.Context, k8sclient client.Client, cluster *v1beta1.Cluster) error {
+	key := types.NamespacedName{Name: k3kcluster.TokenSecretName(cluster.Name), Namespace: cluster.Namespace}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// fetch the cluster to get its UID, also when it already existed, on every attempt: the
+		// cluster could have been deleted and created again with another UID in the meantime
+		var owner v1beta1.Cluster
+		if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(cluster), &owner); err != nil {
+			return err
+		}
+
+		// the token secret would be deleted with the old cluster
+		if !owner.DeletionTimestamp.IsZero() {
+			return fmt.Errorf("%w: %s/%s", errClusterDeleting, owner.Namespace, owner.Name)
+		}
+
+		var tokenSecret corev1.Secret
+		if err := k8sclient.Get(ctx, key, &tokenSecret); err != nil {
+			return err
+		}
+
+		if ref := metav1.GetControllerOf(&tokenSecret); ref != nil {
+			if ref.UID == owner.UID {
+				return nil
+			}
+
+			// a reference to a cluster with the same name but another UID is left by a deleted
+			// cluster, as the name of a cluster is unique in its namespace
+			if isClusterRef(*ref, owner.Name) {
+				removeOwnerReference(&tokenSecret, ref.UID)
+			}
+		}
+
+		// fails if the secret is controlled by another object
+		if err := controllerutil.SetControllerReference(&owner, &tokenSecret, k8sclient.Scheme()); err != nil {
+			return err
+		}
+
+		return k8sclient.Update(ctx, &tokenSecret)
+	})
+}
+
+// isClusterRef returns true if ref refers to a k3k cluster with the given name.
+func isClusterRef(ref metav1.OwnerReference, name string) bool {
+	gv, err := schema.ParseGroupVersion(ref.APIVersion)
+	if err != nil {
+		return false
+	}
+
+	return gv.Group == v1beta1.SchemeGroupVersion.Group && ref.Kind == "Cluster" && ref.Name == name
+}
+
+// removeOwnerReference removes the owner reference with the given UID from obj.
+func removeOwnerReference(obj metav1.Object, uid types.UID) {
+	refs := slices.DeleteFunc(obj.GetOwnerReferences(), func(ref metav1.OwnerReference) bool {
+		return ref.UID == uid
+	})
+
+	obj.SetOwnerReferences(refs)
 }
 
 // CreateCustomCertsSecrets creates the Secrets holding the custom CA certificates read

@@ -41,14 +41,15 @@ type SharedAgent struct {
 }
 
 type sharedAgentConfig struct {
-	ClusterName      string `yaml:"clusterName"`
-	ClusterNamespace string `yaml:"clusterNamespace"`
-	KubeletPort      int    `yaml:"kubeletPort"`
-	MirrorHostNodes  bool   `yaml:"mirrorHostNodes"`
-	ServerIP         string `yaml:"serverIP"`
-	ServiceName      string `yaml:"serviceName"`
-	Token            string `yaml:"token"`
-	Version          string `yaml:"version"`
+	ClusterName         string `yaml:"clusterName"`
+	ClusterNamespace    string `yaml:"clusterNamespace"`
+	KubeletPort         int    `yaml:"kubeletPort"`
+	MirrorHostNodes     bool   `yaml:"mirrorHostNodes"`
+	ServerIP            string `yaml:"serverIP"`
+	ServiceName         string `yaml:"serviceName"`
+	Token               string `yaml:"token"`
+	Version             string `yaml:"version"`
+	DefaultStorageClass string `yaml:"defaultStorageClass"`
 }
 
 // NewSharedAgent returns a SharedAgent for the cluster in config.
@@ -121,15 +122,21 @@ func sharedAgentData(cluster *v1beta1.Cluster, serviceName, token, ip string, ku
 		version = cluster.Status.HostVersion
 	}
 
+	defaultStorageClass := ""
+	if cluster.Status.Policy != nil {
+		defaultStorageClass = cluster.Status.Policy.DefaultStorageClass
+	}
+
 	sharedAgentConfig := sharedAgentConfig{
-		ClusterName:      cluster.Name,
-		ClusterNamespace: cluster.Namespace,
-		ServerIP:         ip,
-		ServiceName:      serviceName,
-		Token:            token,
-		MirrorHostNodes:  cluster.Spec.MirrorHostNodes,
-		Version:          version,
-		KubeletPort:      kubeletPort,
+		ClusterName:         cluster.Name,
+		ClusterNamespace:    cluster.Namespace,
+		ServerIP:            ip,
+		ServiceName:         serviceName,
+		Token:               token,
+		MirrorHostNodes:     cluster.Spec.MirrorHostNodes,
+		Version:             version,
+		KubeletPort:         kubeletPort,
+		DefaultStorageClass: defaultStorageClass,
 	}
 
 	return yaml.Marshal(sharedAgentConfig)

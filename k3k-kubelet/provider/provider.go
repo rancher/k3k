@@ -569,11 +569,7 @@ func (p *Provider) createPod(ctx context.Context, pod *corev1.Pod) error {
 	if strings.HasPrefix(virtualPod.Spec.PriorityClassName, "system-") {
 		hostPod.Spec.PriorityClassName = virtualPod.Spec.PriorityClassName
 	} else {
-		enforcedPriorityClassName := cluster.Spec.PriorityClass
-		if cluster.Status.Policy != nil && cluster.Status.Policy.PriorityClass != nil {
-			enforcedPriorityClassName = *cluster.Status.Policy.PriorityClass
-		}
-
+		enforcedPriorityClassName := k3kcontroller.PriorityClassName(&cluster)
 		if enforcedPriorityClassName != "" {
 			hostPod.Spec.PriorityClassName = enforcedPriorityClassName
 		} else if virtualPod.Spec.PriorityClassName != "" {

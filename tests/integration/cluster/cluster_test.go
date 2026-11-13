@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -504,6 +505,69 @@ var _ = Describe("Cluster Controller", Label("controller"), Label("Cluster"), fu
 					Expect(err).To(HaveOccurred())
 				})
 			})
+
+			When("using a PriorityClass that doesn't exist", func() {
+				It("will not be provisioned until the PriorityClass is created", func() {
+					priorityClassName := namespace + "-pc"
+
+					cluster := &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "cluster-",
+							Namespace:    namespace,
+						},
+						Spec: v1beta1.ClusterSpec{
+							PriorityClass: priorityClassName,
+						},
+					}
+
+					Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+
+					Eventually(func(g Gomega) {
+						err := k8sClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)
+						g.Expect(err).To(Not(HaveOccurred()))
+
+						g.Expect(cluster.Status.Phase).To(Equal(v1beta1.ClusterPending))
+
+						readyCondition := meta.FindStatusCondition(cluster.Status.Conditions, "Ready")
+						g.Expect(readyCondition).To(Not(BeNil()))
+						g.Expect(readyCondition.Status).To(Equal(metav1.ConditionFalse))
+						g.Expect(readyCondition.Reason).To(Equal("ValidationFailed"))
+						g.Expect(readyCondition.Message).To(ContainSubstring(priorityClassName))
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					statefulSetKey := client.ObjectKey{
+						Name:      k3kcontroller.SafeConcatNameWithPrefix(cluster.Name, "server"),
+						Namespace: cluster.Namespace,
+					}
+
+					// no server StatefulSet should have been created
+					var statefulSet appsv1.StatefulSet
+					Expect(apierrors.IsNotFound(k8sClient.Get(ctx, statefulSetKey, &statefulSet))).To(BeTrue())
+
+					priorityClass := &schedulingv1.PriorityClass{
+						ObjectMeta: metav1.ObjectMeta{Name: priorityClassName},
+						Value:      100,
+					}
+					Expect(k8sClient.Create(ctx, priorityClass)).To(Succeed())
+
+					DeferCleanup(func() {
+						Expect(k8sClient.Delete(ctx, priorityClass)).To(Succeed())
+					})
+
+					Eventually(func() error {
+						return k8sClient.Get(ctx, statefulSetKey, &statefulSet)
+					}).
+						WithTimeout(time.Second * 30).
+						WithPolling(time.Second).
+						Should(Succeed())
+
+					Expect(statefulSet.Spec.Template.Spec.PriorityClassName).To(Equal(priorityClassName))
+				})
+			})
+
 			When("adding addons to the cluster", func() {
 				It("will create a statefulset with the correct addon volumes and volume mounts", func() {
 					// Create the addon secret first

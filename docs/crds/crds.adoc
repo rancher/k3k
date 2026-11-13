@@ -1126,7 +1126,8 @@ to set defaults and constraints (min/max) + |  | Optional: \{} +
 
 | *`defaultNodeSelector`* __object (keys:string, values:string)__ | DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the target Namespace. + |  | Optional: \{} +
 
-| *`defaultPriorityClass`* __string__ | DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the target Namespace. + |  | Optional: \{} +
+| *`defaultPriorityClass`* __string__ | DefaultPriorityClass specifies the priorityClassName applied to the clusters in the target Namespace. +
+When set, it overrides the priorityClass of the Cluster for server and agent pods and, in "shared" mode, for workloads. + |  | Optional: \{} +
 
 | *`defaultServerAffinity`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core[$$Affinity$$]__ | DefaultServerAffinity specifies the affinity rules applied to server pods of all clusters in the target Namespace. +
 This includes both node affinity and pod affinity/anti-affinity rules. + |  | Optional: \{} +
@@ -1144,11 +1145,11 @@ Optional: \{} +
 
 | *`sync`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]__ | Sync specifies the resources types that will be synced from virtual cluster to host cluster. + | {  } | Optional: \{} +
 
-| *`runtimeClassName`* __string__ | SecurityContext specifies custom SecurityContext to be added +
-to the agent and server pods of the cluster in virtual or shared mode. + |  | Optional: \{} +
+| *`runtimeClassName`* __string__ | RuntimeClassName specifies alternative runtime class for the +
+agent and server pods of the cluster. + |  | Optional: \{} +
 
-| *`securityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core[$$SecurityContext$$]__ | RuntimeClassName specifies alternative runtime class for the +
-agent and server pods of the cluster in virtual or shared mode. + |  | Optional: \{} +
+| *`securityContext`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#securitycontext-v1-core[$$SecurityContext$$]__ | SecurityContext specifies custom SecurityContext to be added +
+to the agent and server pods of the cluster. + |  | Optional: \{} +
 
 | *`hostUsers`* __boolean__ | HostUsers sets the user namespace for server and agent pods. +
 If set to true or not present, the pod will be run in the host user namespace. +

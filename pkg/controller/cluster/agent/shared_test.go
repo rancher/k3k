@@ -274,6 +274,35 @@ func Test_sharedAgentPodSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "priority class from policy overrides spec",
+			sharedAgent: SharedAgent{
+				Config: &Config{
+					cluster: &v1beta1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "sc-priorityclass-policy",
+							Namespace: "shared-test",
+						},
+						Spec: v1beta1.ClusterSpec{
+							PriorityClass: "spec-pc",
+						},
+						Status: v1beta1.ClusterStatus{
+							Policy: &v1beta1.AppliedPolicy{
+								PriorityClass: new("policy-pc"),
+							},
+						},
+					},
+				},
+				image:       "rancher/k3k-kubelet:latest",
+				kubeletPort: 10250,
+			},
+			expectedPodSpec: func(sa SharedAgent) corev1.PodSpec {
+				spec := baseSharedAgentPodSpec(sa)
+				spec.PriorityClassName = "policy-pc"
+
+				return spec
+			},
+		},
+		{
 			name: "agent envs from spec are appended to default env",
 			sharedAgent: SharedAgent{
 				Config: &Config{

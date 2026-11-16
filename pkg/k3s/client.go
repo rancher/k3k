@@ -143,13 +143,13 @@ func (c *Client) do(endpoint, user, method string, reader io.Reader) ([]byte, er
 		return nil, err
 	}
 
-	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("failed executing '%s' request to k3s server: %w", endpoint, statusError(resp))
-	}
-
 	defer func() {
 		_ = resp.Body.Close()
 	}()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("failed executing '%s' request to k3s server: %w", endpoint, statusError(resp))
+	}
 
 	return io.ReadAll(resp.Body)
 }

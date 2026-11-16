@@ -39,6 +39,9 @@ type Client struct {
 var ErrServerNotReady = errors.New("server not ready")
 
 const (
+	// maxDrainBytes bounds how much of an unread response body is discarded before closing it.
+	maxDrainBytes = 4096
+
 	k3sNodePasswordHeader = "k3s-Node-Password"
 	k3sNodeIPHeader       = "k3s-Node-IP"
 	k3sNodeNameHeader     = "k3s-Node-Name"
@@ -143,13 +146,15 @@ func (c *Client) do(endpoint, user, method string, reader io.Reader) ([]byte, er
 		return nil, err
 	}
 
+	defer func() {
+		// drain what is left of the body (bounded) so the connection can be reused
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxDrainBytes))
+		_ = resp.Body.Close()
+	}()
+
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
 		return nil, fmt.Errorf("failed executing '%s' request to k3s server: %w", endpoint, statusError(resp))
 	}
-
-	defer func() {
-		_ = resp.Body.Close()
-	}()
 
 	return io.ReadAll(resp.Body)
 }

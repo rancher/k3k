@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1 "k8s.io/api/core/v1"
@@ -404,4 +405,83 @@ func TestUpdateMetadata(t *testing.T) {
 	assert.Equal(t, "node-a", hostPod.Labels[translate.AgentNameLabel])
 	assert.Equal(t, "my-pod", hostPod.Annotations[translate.ResourceNameAnnotation])
 	assert.Equal(t, "default", hostPod.Annotations[translate.ResourceNamespaceAnnotation])
+}
+
+func TestUpdatePod_DoesNotRevertConcurrentVirtualPodChanges(t *testing.T) {
+	const (
+		clusterName      = "c-test"
+		clusterNamespace = "ns-test"
+	)
+
+	translator := translate.ToHostTranslator{
+		ClusterName:      clusterName,
+		ClusterNamespace: clusterNamespace,
+	}
+
+	hostPodName := translator.TranslateName("default", "repro")
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	// Virtual pod already has both label a="1" and a newer concurrent label b="1".
+	liveVirtualPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "repro",
+			Namespace: "default",
+			Labels: map[string]string{
+				"a": "1",
+				"b": "1",
+			},
+		},
+	}
+
+	hostPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      hostPodName,
+			Namespace: clusterNamespace,
+			Labels: map[string]string{
+				translate.ClusterNameLabel: clusterName,
+				"a":                        "0",
+				"b":                        "0",
+			},
+		},
+	}
+
+	virtualClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(liveVirtualPod).Build()
+	hostClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(hostPod).Build()
+
+	p := Provider{
+		host:             ClusterContext{Client: hostClient},
+		virtual:          ClusterContext{Client: virtualClient},
+		translator:       translator,
+		clusterName:      clusterName,
+		clusterNamespace: clusterNamespace,
+		logger:           logr.Discard(),
+	}
+
+	// Stale snapshot from virtual-kubelet cache before label b="1" landed.
+	stalePodSnapshot := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "repro",
+			Namespace: "default",
+			Labels: map[string]string{
+				"a": "1",
+				"b": "0",
+			},
+		},
+	}
+
+	require.NoError(t, p.UpdatePod(context.Background(), stalePodSnapshot))
+
+	// Host pod receives the snapshot's update while preserving k3k managed labels.
+	var updatedHostPod corev1.Pod
+	require.NoError(t, hostClient.Get(context.Background(), types.NamespacedName{Name: hostPodName, Namespace: clusterNamespace}, &updatedHostPod))
+	assert.Equal(t, "1", updatedHostPod.Labels["a"])
+	assert.Equal(t, clusterName, updatedHostPod.Labels[translate.ClusterNameLabel])
+
+	// Live virtual pod must NOT have its newer label b="1" reverted to "0".
+	var currentVirtualPod corev1.Pod
+	require.NoError(t, virtualClient.Get(context.Background(), types.NamespacedName{Name: "repro", Namespace: "default"}, &currentVirtualPod))
+	assert.Equal(t, "1", currentVirtualPod.Labels["a"])
+	assert.Equal(t, "1", currentVirtualPod.Labels["b"])
 }

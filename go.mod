@@ -11,6 +11,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
+	github.com/prometheus/client_model v0.6.2
 	github.com/rancher/dynamiclistener v1.27.5
 	github.com/rancher/k3k/pkg/apis v0.0.0-00010101000000-000000000000
 	github.com/sirupsen/logrus v1.9.4
@@ -31,14 +32,13 @@ require (
 	k8s.io/client-go v0.36.6
 	k8s.io/component-base v0.36.6
 	k8s.io/component-helpers v0.36.6
+	k8s.io/klog/v2 v2.140.0
 	k8s.io/kubectl v0.36.6
 	k8s.io/kubelet v0.36.6
 	k8s.io/kubernetes v1.36.6
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 	sigs.k8s.io/controller-runtime v0.24.1
 )
-
-require go.opentelemetry.io/otel/log v1.47.0 // indirect
 
 require (
 	cel.dev/expr v0.25.2 // indirect
@@ -102,7 +102,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
-	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -120,6 +119,7 @@ require (
 	go.opentelemetry.io/otel v1.47.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.45.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.45.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
@@ -147,7 +147,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	k8s.io/controller-manager v0.36.6 // indirect
-	k8s.io/klog/v2 v2.140.0
 	k8s.io/kms v0.36.6 // indirect
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
 	k8s.io/streaming v0.36.6 // indirect

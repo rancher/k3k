@@ -157,6 +157,9 @@ jobs:
           name: mycluster
           namespace: k3k-mycluster
         spec:
+          sync:
+            endpointSlices:
+              enabled: true
           mirrorHostNodes: true
           tlsSANs:
             - "127.0.0.1"

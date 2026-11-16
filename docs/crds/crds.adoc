@@ -442,6 +442,30 @@ _Appears In:_
 |===
 
 
+[id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-endpointslicesyncconfig"]
+=== EndpointSliceSyncConfig
+
+
+
+EndpointSliceSyncConfig specifies the sync options for EndpointSlices.
+
+
+
+_Appears In:_
+
+* xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-syncconfig[$$SyncConfig$$]
+
+[cols="25a,55a,10a,10a", options="header"]
+|===
+| Field | Description | Default | Validation
+| *`enabled`* __boolean__ | Enabled is an on/off switch for syncing resources. + | false | Required: \{} +
+
+| *`selector`* __object (keys:string, values:string)__ | Selector specifies set of labels of the resources that will be synced, if empty +
+then all resources of the given type will be synced. + |  | Optional: \{} +
+
+|===
+
+
 [id="{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-etcdrestore"]
 === EtcdRestore
 
@@ -1038,6 +1062,8 @@ _Appears In:_
 |===
 | Field | Description | Default | Validation
 | *`services`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-servicesyncconfig[$$ServiceSyncConfig$$]__ | Services resources sync configuration. + | { enabled:true } | Optional: \{} +
+
+| *`endpointSlices`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-endpointslicesyncconfig[$$EndpointSliceSyncConfig$$]__ | EndpointSlices resources sync configuration. + | { enabled:false } | Optional: \{} +
 
 | *`configMaps`* __xref:{anchor_prefix}-github-com-rancher-k3k-pkg-apis-k3k-io-v1beta1-configmapsyncconfig[$$ConfigMapSyncConfig$$]__ | ConfigMaps resources sync configuration. + | { enabled:true } | Optional: \{} +
 

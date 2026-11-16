@@ -355,6 +355,12 @@ func addControllers(ctx context.Context, hostMgr, virtualMgr manager.Manager, c 
 		return fmt.Errorf("failed to add service syncer controller: %w", err)
 	}
 
+	logger.Info("adding endpointSlices syncer controller")
+
+	if err := syncer.AddEndpointSliceSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {
+		return fmt.Errorf("failed to add endpointSlices syncer controller: %w", err)
+	}
+
 	logger.Info("adding ingress syncer controller")
 
 	if err := syncer.AddIngressSyncer(ctx, virtualMgr, hostMgr, c.ClusterName, c.ClusterNamespace); err != nil {

@@ -1,4 +1,7 @@
 changelog:
+  exclude:
+    labels:
+    - ignore-for-release
   categories:
   - title: New Features
     labels:
@@ -12,6 +15,9 @@ changelog:
   - title: Dependencies
     labels:
     - dependencies
+  - title: CI and Tests
+    labels:
+    - ci
   - title: Other Changes
     labels:
     - "*"

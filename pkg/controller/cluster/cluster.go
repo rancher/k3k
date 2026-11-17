@@ -1113,8 +1113,16 @@ func validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) er
 		}
 	}
 
-	if err := validateSyncConfiguration(controller.AppliedSync(cluster)); err != nil {
-		return fmt.Errorf("%w: %w", ErrClusterValidation, err)
+	if cluster.Spec.Sync != nil {
+		if err := validateSyncConfiguration(cluster.Spec.Sync); err != nil {
+			return fmt.Errorf("%w: spec.%w", ErrClusterValidation, err)
+		}
+	}
+
+	if policy != nil && policy.Spec.Sync != nil {
+		if err := validateSyncConfiguration(policy.Spec.Sync); err != nil {
+			return fmt.Errorf("%w: policy %q spec.%w", ErrClusterValidation, policy.Name, err)
+		}
 	}
 
 	return nil
@@ -1238,10 +1246,6 @@ func validateCustomCACerts(credentialSources v1beta1.CredentialSources) error {
 }
 
 func validateSyncConfiguration(sync *v1beta1.SyncConfig) error {
-	if sync == nil {
-		return nil
-	}
-
 	selectors := []struct {
 		field         string
 		labelSelector *metav1.LabelSelector

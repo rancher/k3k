@@ -24,6 +24,7 @@ func Test_validate(t *testing.T) {
 		tlsSANs     []string
 		expose      *v1beta1.ExposeConfig
 		policy      *v1beta1.VirtualClusterPolicy
+		sync        *v1beta1.SyncConfig
 		wantErr     string
 	}{
 		{
@@ -31,7 +32,7 @@ func Test_validate(t *testing.T) {
 		},
 		{
 			name:   "valid cluster with a policy",
-			policy: newTestPolicy(v1beta1.SharedClusterMode),
+			policy: newTestPolicy(v1beta1.SharedClusterMode, nil),
 		},
 		{
 			// the name check does not depend on the policy, so it also runs
@@ -43,13 +44,13 @@ func Test_validate(t *testing.T) {
 		{
 			name:        "invalid cluster name with a policy",
 			clusterName: ClusterInvalidName,
-			policy:      newTestPolicy(v1beta1.SharedClusterMode),
+			policy:      newTestPolicy(v1beta1.SharedClusterMode, nil),
 			wantErr:     "invalid cluster name",
 		},
 		{
 			name:    "mode not allowed by the policy",
 			mode:    v1beta1.VirtualClusterMode,
-			policy:  newTestPolicy(v1beta1.SharedClusterMode),
+			policy:  newTestPolicy(v1beta1.SharedClusterMode, nil),
 			wantErr: "is not allowed by the policy",
 		},
 		{
@@ -82,6 +83,45 @@ func Test_validate(t *testing.T) {
 			tlsSANs: []string{"10.0.0.5"},
 			expose:  &v1beta1.ExposeConfig{LoadBalancer: &v1beta1.LoadBalancerConfig{}},
 		},
+		{
+			name: "valid sync label selector",
+			sync: &v1beta1.SyncConfig{
+				Secrets: v1beta1.SecretSyncConfig{LabelSelector: newTestLabelSelector(metav1.LabelSelectorOpIn)},
+			},
+		},
+		{
+			name: "invalid sync label selector",
+			sync: &v1beta1.SyncConfig{
+				Secrets: v1beta1.SecretSyncConfig{LabelSelector: newTestLabelSelector("broken")},
+			},
+			wantErr: "spec.sync.secrets.labelSelector is invalid",
+		},
+		{
+			name: "invalid sync label selector in the policy",
+			policy: newTestPolicy(v1beta1.SharedClusterMode, &v1beta1.SyncConfig{
+				StorageClasses: v1beta1.StorageClassSyncConfig{LabelSelector: newTestLabelSelector("broken")},
+			}),
+			wantErr: `policy "test-policy" spec.sync.storageClasses.labelSelector is invalid`,
+		},
+		{
+			name: "invalid cluster sync is rejected even with a valid policy sync",
+			sync: &v1beta1.SyncConfig{
+				Secrets: v1beta1.SecretSyncConfig{LabelSelector: newTestLabelSelector("broken")},
+			},
+			policy: newTestPolicy(v1beta1.SharedClusterMode, &v1beta1.SyncConfig{
+				Secrets: v1beta1.SecretSyncConfig{LabelSelector: newTestLabelSelector(metav1.LabelSelectorOpIn)},
+			}),
+			wantErr: "spec.sync.secrets.labelSelector is invalid",
+		},
+		{
+			name: "valid cluster and policy sync",
+			sync: &v1beta1.SyncConfig{
+				Secrets: v1beta1.SecretSyncConfig{LabelSelector: newTestLabelSelector(metav1.LabelSelectorOpIn)},
+			},
+			policy: newTestPolicy(v1beta1.SharedClusterMode, &v1beta1.SyncConfig{
+				Services: v1beta1.ServiceSyncConfig{LabelSelector: newTestLabelSelector(metav1.LabelSelectorOpNotIn)},
+			}),
+		},
 	}
 
 	for _, tt := range tests {
@@ -102,6 +142,7 @@ func Test_validate(t *testing.T) {
 					Mode:    mode,
 					TLSSANs: tt.tlsSANs,
 					Expose:  tt.expose,
+					Sync:    tt.sync,
 				},
 			}
 
@@ -121,10 +162,18 @@ func Test_validate(t *testing.T) {
 	}
 }
 
-func newTestPolicy(allowedMode v1beta1.ClusterMode) *v1beta1.VirtualClusterPolicy {
+func newTestLabelSelector(operator metav1.LabelSelectorOperator) *metav1.LabelSelector {
+	return &metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{Key: "env", Operator: operator, Values: []string{"prod"}},
+		},
+	}
+}
+
+func newTestPolicy(allowedMode v1beta1.ClusterMode, syncConfig *v1beta1.SyncConfig) *v1beta1.VirtualClusterPolicy {
 	return &v1beta1.VirtualClusterPolicy{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
-		Spec:       v1beta1.VirtualClusterPolicySpec{AllowedMode: allowedMode},
+		Spec:       v1beta1.VirtualClusterPolicySpec{AllowedMode: allowedMode, Sync: syncConfig},
 	}
 }
 

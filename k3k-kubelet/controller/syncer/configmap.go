@@ -65,11 +65,6 @@ func (c *ConfigMapSyncer) filterResources(object client.Object) bool {
 	// check for configMap Sync Config
 	syncConfig := controller.AppliedSync(&cluster).ConfigMaps
 
-	// If syncing is disabled, only process deletions to allow for cleanup.
-	if !syncConfig.Enabled {
-		return object.GetDeletionTimestamp() != nil
-	}
-
 	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 

@@ -89,11 +89,6 @@ func (r *PriorityClassSyncer) filterResources(object ctrlruntimeclient.Object) b
 	// check for priorityClassConfig
 	syncConfig := controller.AppliedSync(&cluster).PriorityClasses
 
-	// If syncing is disabled, only process deletions to allow for cleanup.
-	if !syncConfig.Enabled {
-		return object.GetDeletionTimestamp() != nil
-	}
-
 	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 

@@ -102,11 +102,6 @@ func (r *IngressReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	// check for ingressConfig
 	syncConfig := controller.AppliedSync(&cluster).Ingresses
 
-	// If syncing is disabled, only process deletions to allow for cleanup.
-	if !syncConfig.Enabled {
-		return object.GetDeletionTimestamp() != nil
-	}
-
 	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 

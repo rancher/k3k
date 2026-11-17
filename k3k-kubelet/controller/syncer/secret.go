@@ -65,11 +65,6 @@ func (s *SecretSyncer) filterResources(object client.Object) bool {
 	// check for Secrets Sync Config
 	syncConfig := controller.AppliedSync(&cluster).Secrets
 
-	// If syncing is disabled, only process deletions to allow for cleanup.
-	if !syncConfig.Enabled {
-		return object.GetDeletionTimestamp() != nil
-	}
-
 	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 

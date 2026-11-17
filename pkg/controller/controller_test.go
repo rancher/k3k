@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
@@ -153,6 +154,189 @@ func Test_PriorityClassName(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.want, PriorityClassName(cluster))
+		})
+	}
+}
+
+func Test_FilterResources(t *testing.T) {
+	tests := map[string]struct {
+		enabled       bool
+		deleted       bool
+		objLabels     map[string]string
+		selector      map[string]string
+		labelSelector *metav1.LabelSelector
+		want          bool
+	}{
+		"disabled without deletion timestamp": {
+			enabled: false,
+			want:    false,
+		},
+		"disabled with deletion timestamp": {
+			enabled: false,
+			deleted: true,
+			want:    true,
+		},
+		"enabled with no selectors matches everything": {
+			enabled:   true,
+			objLabels: map[string]string{"app": "web"},
+			want:      true,
+		},
+		"enabled with empty label selector matches everything": {
+			enabled:       true,
+			objLabels:     map[string]string{"app": "web"},
+			labelSelector: &metav1.LabelSelector{},
+			want:          true,
+		},
+		"equality selector matches": {
+			enabled:   true,
+			objLabels: map[string]string{"app": "web"},
+			selector:  map[string]string{"app": "web"},
+			want:      true,
+		},
+		"equality selector does not match": {
+			enabled:   true,
+			objLabels: map[string]string{"app": "db"},
+			selector:  map[string]string{"app": "web"},
+			want:      false,
+		},
+		"matchLabels matches": {
+			enabled:       true,
+			objLabels:     map[string]string{"app": "web"},
+			labelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "web"}},
+			want:          true,
+		},
+		"matchLabels does not match": {
+			enabled:       true,
+			objLabels:     map[string]string{"app": "db"},
+			labelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "web"}},
+			want:          false,
+		},
+		"In matches": {
+			enabled:   true,
+			objLabels: map[string]string{"env": "prod"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: metav1.LabelSelectorOpIn, Values: []string{"prod", "staging"}},
+			}},
+			want: true,
+		},
+		"In does not match": {
+			enabled:   true,
+			objLabels: map[string]string{"env": "dev"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: metav1.LabelSelectorOpIn, Values: []string{"prod", "staging"}},
+			}},
+			want: false,
+		},
+		"NotIn matches": {
+			enabled:   true,
+			objLabels: map[string]string{"env": "dev"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: metav1.LabelSelectorOpNotIn, Values: []string{"prod"}},
+			}},
+			want: true,
+		},
+		"NotIn does not match": {
+			enabled:   true,
+			objLabels: map[string]string{"env": "prod"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: metav1.LabelSelectorOpNotIn, Values: []string{"prod"}},
+			}},
+			want: false,
+		},
+		"Exists matches": {
+			enabled:   true,
+			objLabels: map[string]string{"sync": "yes"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "sync", Operator: metav1.LabelSelectorOpExists},
+			}},
+			want: true,
+		},
+		"Exists does not match": {
+			enabled:   true,
+			objLabels: map[string]string{"app": "web"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "sync", Operator: metav1.LabelSelectorOpExists},
+			}},
+			want: false,
+		},
+		"DoesNotExist matches": {
+			enabled:   true,
+			objLabels: map[string]string{"app": "web"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "skip", Operator: metav1.LabelSelectorOpDoesNotExist},
+			}},
+			want: true,
+		},
+		"DoesNotExist does not match": {
+			enabled:   true,
+			objLabels: map[string]string{"skip": "true"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "skip", Operator: metav1.LabelSelectorOpDoesNotExist},
+			}},
+			want: false,
+		},
+		"selector and label selector both match": {
+			enabled:   true,
+			objLabels: map[string]string{"app": "web", "env": "prod"},
+			selector:  map[string]string{"app": "web"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: metav1.LabelSelectorOpIn, Values: []string{"prod"}},
+			}},
+			want: true,
+		},
+		"selector matches but label selector does not": {
+			enabled:   true,
+			objLabels: map[string]string{"app": "web", "env": "dev"},
+			selector:  map[string]string{"app": "web"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: metav1.LabelSelectorOpIn, Values: []string{"prod"}},
+			}},
+			want: false,
+		},
+		"label selector matches but selector does not": {
+			enabled:   true,
+			objLabels: map[string]string{"app": "db", "env": "prod"},
+			selector:  map[string]string{"app": "web"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: metav1.LabelSelectorOpIn, Values: []string{"prod"}},
+			}},
+			want: false,
+		},
+		"invalid label selector without deletion timestamp": {
+			enabled:   true,
+			objLabels: map[string]string{"env": "prod"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: "Bogus", Values: []string{"prod"}},
+			}},
+			want: false,
+		},
+		"invalid label selector with deletion timestamp": {
+			enabled:   true,
+			deleted:   true,
+			objLabels: map[string]string{"env": "prod"},
+			labelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: "Bogus", Values: []string{"prod"}},
+			}},
+			want: true,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			obj := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "test",
+					Labels: tt.objLabels,
+				},
+			}
+
+			if tt.deleted {
+				now := metav1.Now()
+				obj.DeletionTimestamp = &now
+			}
+
+			got := FilterResources(t.Context(), obj, tt.enabled, tt.selector, tt.labelSelector)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

@@ -157,7 +157,7 @@ func FilterResources(ctx context.Context, object client.Object, enabled bool, se
 		return object.GetDeletionTimestamp() != nil
 	}
 
-	return parsedSelector.Empty() || parsedSelector.Matches(labels.Set(object.GetLabels()))
+	return parsedSelector.Matches(labels.Set(object.GetLabels()))
 }
 
 // buildSelector returns the parsed selector matching the resources to sync, combining the equality-based

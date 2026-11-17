@@ -68,11 +68,6 @@ func (r *PVCReconciler) filterResources(object ctrlruntimeclient.Object) bool {
 	// check for pvc config
 	syncConfig := controller.AppliedSync(&cluster).PersistentVolumeClaims
 
-	// If syncing is disabled, only process deletions to allow for cleanup.
-	if !syncConfig.Enabled {
-		return object.GetDeletionTimestamp() != nil
-	}
-
 	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 

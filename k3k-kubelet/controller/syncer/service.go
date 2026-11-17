@@ -135,11 +135,6 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	// check for serviceSyncConfig
 	syncConfig := controller.AppliedSync(&cluster).Services
 
-	// If syncing is disabled, only process deletions to allow for cleanup.
-	if !syncConfig.Enabled {
-		return object.GetDeletionTimestamp() != nil
-	}
-
 	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 

@@ -12,13 +12,11 @@ on:
 permissions:
   contents: read
 
-env:
-  GORELEASER_VERSION: v2.17.0
-  GORELEASER_CHECKSUM_x86_64: dde10e2d5a13cef969c0eec00c74f359c0ac306d702b1bd291ad9337b4e54c1d
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/go1.27:1.27.4
 
     permissions:
       contents: read
@@ -31,24 +29,11 @@ jobs:
     - name: Free disk space
       uses: ./.github/actions/free-disk-space
 
-    - name: Set up Go
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-      with:
-        go-version-file: go.mod
-
     - name: Set up QEMU
       uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
 
-    - name: Setup goreleaser
-      env:
-        FILENAME: goreleaser.tar.gz
-      run: |-
-        curl -sSfL -o ${{ env.FILENAME }} https://github.com/goreleaser/goreleaser/releases/download/${{ env.GORELEASER_VERSION }}/goreleaser_Linux_x86_64.tar.gz
-        echo "${{ env.GORELEASER_CHECKSUM_x86_64 }}  ${{ env.FILENAME }}" | sha256sum --check
-        tar -xvzf "${{ env.FILENAME }}" goreleaser
-        sudo install -m 755 goreleaser /usr/local/bin/goreleaser
-
-        rm -f "${{ env.FILENAME }}" goreleaser
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
     - name: Run GoReleaser
       env:

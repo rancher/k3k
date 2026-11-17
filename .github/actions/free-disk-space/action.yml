@@ -1,6 +1,7 @@
 name: 'Free disk space'
 description: |
   Removes heavy preinstalled runtimes and SDKs and prunes the Docker cache on the runner.
+  In a job container it cleans the host through the Docker socket.
 
   Run it before actions/setup-go: it removes /opt/hostedtoolcache, where setup-go installs Go.
 
@@ -14,18 +15,21 @@ runs:
       echo "=== Disk space before cleanup ==="
       df -h /
 
-      # Remove heavy preinstalled runtimes and SDKs
-      sudo rm -rf /usr/share/dotnet
-      sudo rm -rf /usr/local/.ghcup
-      sudo rm -rf /usr/local/lib/android
-      sudo rm -rf /usr/local/share/powershell
-      sudo rm -rf /usr/lib/jvm
-      sudo rm -rf /usr/share/swift
-      sudo rm -rf /opt/ghc
-      sudo rm -rf /opt/hostedtoolcache
+      # Heavy preinstalled runtimes and SDKs, relative to /.
+      # Only the content of hostedtoolcache is removed: job containers mount it as /__t.
+      DIRS="usr/share/dotnet usr/local/.ghcup usr/local/lib/android usr/local/share/powershell usr/lib/jvm usr/share/swift opt/ghc opt/hostedtoolcache/*"
+
+      if [ -f /.dockerenv ]; then
+        # The host filesystem is only reachable through the Docker socket:
+        # remove them from a container of the job image, with the host root mounted.
+        IMAGE=$(docker inspect --format '{{.Config.Image}}' "$HOSTNAME")
+        docker run --rm -v /:/host -w /host --entrypoint sh "$IMAGE" -c "rm -rf $DIRS"
+      else
+        sudo sh -c "cd / && rm -rf $DIRS"
+      fi
 
       # Prune Docker system cache
-      sudo docker system prune -af || true
+      docker system prune -af || true
 
       echo "=== Disk space after cleanup ==="
       df -h /

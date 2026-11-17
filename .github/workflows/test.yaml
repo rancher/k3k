@@ -60,7 +60,7 @@ jobs:
         flags: integration
 
   tests-cli:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
     - name: Checkout code
@@ -81,6 +81,10 @@ jobs:
         echo "GOCOVERDIR=${{ github.workspace }}/covdata" >> $GITHUB_ENV
         echo "REPO=k3k.local" >> $GITHUB_ENV
         echo "K3S_HOST_VERSION=${{ env.KUBERNETES_VERSION }}+k3s1" >> $GITHUB_ENV
+
+    # See test-e2e.yaml.
+    - name: Allow signals between container processes
+      run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
 
     - name: Install k3s
       run: |

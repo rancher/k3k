@@ -18,13 +18,7 @@ env:
 
 jobs:
   tests-e2e:
-    # PINNED TO UBUNTU 24.04: on the ubuntu-26.04 runner images (from 20261028.624)
-    # the postgres pod of the datastore tests never becomes ready, most likely
-    # because of the stricter containerd AppArmor profile that also denies the
-    # signals in the containers (see the provision-k3s-vm-workers action, which
-    # pins the worker VMs to 24.04 for the same reason).
-    # Before bumping, verify that the datastore tests still pass.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     strategy:
       fail-fast: false
@@ -76,6 +70,12 @@ jobs:
 
     - name: Set up bridge network for worker VMs
       uses: ./.github/actions/setup-k3s-vm-bridge
+
+    # On Ubuntu 26.04 kernels the container AppArmor label is stacked (cri-containerd.apparmor.d//&unconfined),
+    # and the containerd profile denies signals between the processes of a container (postgres never gets ready).
+    # Drop once k3s ships a containerd with containerd/containerd#14487.
+    - name: Allow signals between container processes
+      run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
 
     - name: Install k3s
       run: |

@@ -44,7 +44,7 @@ jobs:
 
   conformance:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     strategy:
       fail-fast: false
@@ -81,6 +81,10 @@ jobs:
 
     - name: Install hydrophone
       run: go install sigs.k8s.io/hydrophone@3de3e886a2f6f09635d8b981c195490af1584d97 # v0.7.0
+
+    # See test-e2e.yaml.
+    - name: Allow signals between container processes
+      run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
 
     - name: Install k3s
       env:

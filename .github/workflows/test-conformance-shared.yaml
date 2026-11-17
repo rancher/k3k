@@ -46,7 +46,7 @@ jobs:
 
   conformance:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     strategy:
       fail-fast: false
@@ -97,6 +97,10 @@ jobs:
         curl -LO "https://dl.k8s.io/release/${{ env.KUBERNETES_VERSION }}/bin/linux/amd64/kubectl"
         curl -LO "https://dl.k8s.io/release/${{ env.KUBERNETES_VERSION }}/bin/linux/amd64/kubectl.sha256"
         echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+
+    # See test-e2e.yaml.
+    - name: Allow signals between container processes
+      run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
 
     - name: Setup Kubernetes (k3d)
       run: |

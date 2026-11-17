@@ -44,7 +44,7 @@ jobs:
 
   conformance:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     strategy:
       fail-fast: false
@@ -84,6 +84,10 @@ jobs:
 
     - name: Set up bridge network for worker VMs
       uses: ./.github/actions/setup-k3s-vm-bridge
+
+    # See test-e2e.yaml.
+    - name: Allow signals between container processes
+      run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
 
     - name: Install k3s
       env:

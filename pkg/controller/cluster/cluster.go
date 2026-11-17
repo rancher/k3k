@@ -892,10 +892,6 @@ func (c *Reconciler) ensureStorageClasses(ctx context.Context, cluster *v1beta1.
 		return fmt.Errorf("failed listing host storageclasses: %w", err)
 	}
 
-	if _, err := metav1.LabelSelectorAsSelector(appliedSync.StorageClasses.LabelSelector); err != nil {
-		return fmt.Errorf("invalid storageclass sync selector: %w", err)
-	}
-
 	// filter the StorageClasses disabled for the sync, and the one not matching the selector
 	filteredHostStorageClasses := make(map[string]storagev1.StorageClass)
 
@@ -1117,6 +1113,10 @@ func validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) er
 		}
 	}
 
+	if err := validateSyncConfiguration(controller.AppliedSync(cluster)); err != nil {
+		return fmt.Errorf("%w: %w", ErrClusterValidation, err)
+	}
+
 	return nil
 }
 
@@ -1232,6 +1232,34 @@ func validateCustomCACerts(credentialSources v1beta1.CredentialSources) error {
 		credentialSources.RequestHeaderCA.SecretName == "" ||
 		credentialSources.ServiceAccountToken.SecretName == "" {
 		return ErrCustomCACertSecretMissing
+	}
+
+	return nil
+}
+
+func validateSyncConfiguration(sync *v1beta1.SyncConfig) error {
+	if sync == nil {
+		return nil
+	}
+
+	selectors := []struct {
+		field         string
+		labelSelector *metav1.LabelSelector
+	}{
+		{"configMaps", sync.ConfigMaps.LabelSelector},
+		{"endpointSlices", sync.EndpointSlices.LabelSelector},
+		{"ingresses", sync.Ingresses.LabelSelector},
+		{"persistentVolumeClaims", sync.PersistentVolumeClaims.LabelSelector},
+		{"priorityClasses", sync.PriorityClasses.LabelSelector},
+		{"secrets", sync.Secrets.LabelSelector},
+		{"services", sync.Services.LabelSelector},
+		{"storageClasses", sync.StorageClasses.LabelSelector},
+	}
+
+	for _, s := range selectors {
+		if _, err := metav1.LabelSelectorAsSelector(s.labelSelector); err != nil {
+			return fmt.Errorf("sync.%s.labelSelector is invalid: %w", s.field, err)
+		}
 	}
 
 	return nil

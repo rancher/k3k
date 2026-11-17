@@ -293,7 +293,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled is an on/off switch for syncing resources. | false | Required: \{\} <br /> |
-| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
+| `selector` _object (keys:string, values:string)_ | Selector specifies set of labels of the resources that will be synced, if empty<br />then all resources of the given type will be synced.<br />Deprecated: use LabelSelector instead. |  | Optional: \{\} <br /> |
+| `labelSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#labelselector-v1-meta)_ | LabelSelector is a set-based label selector of the resources that will be synced.<br />It is combined with Selector, and resources must match both to be synced.<br />If empty then all resources of the given type will be synced. |  | Optional: \{\} <br /> |
 
 
 #### EtcdRestore

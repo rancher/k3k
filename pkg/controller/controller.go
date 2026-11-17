@@ -153,7 +153,7 @@ func FilterResources(ctx context.Context, object client.Object, enabled bool, se
 
 	parsedSelector, err := buildSelector(selector, labelSelector)
 	if err != nil {
-		log.Error(err, "failed to parse selector")
+		log.V(1).Info("failed to parse selector", "error", err)
 		return object.GetDeletionTimestamp() != nil
 	}
 

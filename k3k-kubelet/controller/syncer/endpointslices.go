@@ -3,7 +3,6 @@ package syncer
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/rancher/k3k/k3k-kubelet/translate"
 	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
+	"github.com/rancher/k3k/pkg/controller"
 )
 
 const (
@@ -159,12 +159,7 @@ func (r *EndpointSliceReconciler) filterResources(object ctrlruntimeclient.Objec
 		return false
 	}
 
-	labelSelector := labels.SelectorFromSet(epSyncConfig.Selector)
-	if labelSelector.Empty() {
-		return true
-	}
-
-	return labelSelector.Matches(labels.Set(object.GetLabels()))
+	return controller.FilterResources(ctx, object, epSyncConfig.Enabled, epSyncConfig.Selector, epSyncConfig.LabelSelector) //nolint:staticcheck
 }
 
 func (r *EndpointSliceReconciler) endpointSlice(obj *discoveryv1.EndpointSlice) *discoveryv1.EndpointSlice {

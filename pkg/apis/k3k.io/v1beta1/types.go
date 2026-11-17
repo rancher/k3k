@@ -387,8 +387,17 @@ type EndpointSliceSyncConfig struct {
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
 	//
+	// Deprecated: use LabelSelector instead.
+	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// LabelSelector is a set-based label selector of the resources that will be synced.
+	// It is combined with Selector, and resources must match both to be synced.
+	// If empty then all resources of the given type will be synced.
+	//
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
 // ConfigMapSyncConfig specifies the sync options for ConfigMaps.

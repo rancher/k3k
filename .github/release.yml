@@ -1,0 +1,23 @@
+changelog:
+  exclude:
+    labels:
+    - ignore-for-release
+  categories:
+  - title: New Features
+    labels:
+    - enhancement
+  - title: Bug Fixes
+    labels:
+    - bug
+  - title: Documentation
+    labels:
+    - documentation
+  - title: Dependencies
+    labels:
+    - dependencies
+  - title: CI and Tests
+    labels:
+    - ci
+  - title: Other Changes
+    labels:
+    - "*"

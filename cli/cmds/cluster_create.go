@@ -98,10 +98,6 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return errors.New("invalid flag, --agents flag is only allowed in virtual mode")
 		}
 
-		if config.mode == string(v1beta1.HCPClusterMode) {
-			logrus.Warn("HCP (Hosted Control Plane) mode is experimental.")
-		}
-
 		namespace := appCtx.Namespace(name)
 
 		if err := createNamespace(ctx, client, namespace, config.policy); err != nil {

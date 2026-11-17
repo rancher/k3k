@@ -50,22 +50,8 @@ runs:
   - name: Download Base Cloud Image
     shell: bash
     run: |
-      # PINNED TO UBUNTU 24.04 LTS (noble).
-      #
-      # Newer Ubuntu releases (tested: 26.04 "resolute") ship a stricter
-      # `cri-containerd.apparmor.d` profile that denies inter-thread signal
-      # delivery. The BIND ISC library used by `nslookup` relies on those
-      # signals during shutdown (`isc_app_ctxshutdown()` calls `kill()`),
-      # so when AppArmor denies them nslookup exits 139 with
-      # "kill: Permission denied". The conformance tests
-      #   `[sig-network] Services should be able to change the type from
-      #   {NodePort,ClusterIP} to ExternalName`
-      # both run `nslookup` from an exec pod and fail in that case.
-      #
-      # Before bumping past 24.04, verify those two conformance tests still
-      # pass — or that the containerd AppArmor profile on the newer release
-      # has been relaxed to allow intra-pod signals.
-      wget -q https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img -O ubuntu-cloudimg.img
+      # Pinned Ubuntu 26.04 release build (unlike the daily builds, the release ones are kept).
+      wget -q https://cloud-images.ubuntu.com/releases/resolute/release-20261108/ubuntu-26.04-server-cloudimg-amd64.img -O ubuntu-cloudimg.img
 
   - name: Generate SSH Key and Cloud-Init Seeds
     shell: bash
@@ -173,8 +159,10 @@ runs:
         echo "Registering Worker ${i} (k3s ${{ inputs.k3s-version }})..."
         # Download the install script before running it: piping a failed download into sh
         # runs an empty script, and the step succeeds without installing k3s on the worker.
+        # The sysctl allows signals between container processes (see test-e2e.yaml).
         ssh -i ./id_rsa -o StrictHostKeyChecking=no ubuntu@${IP} \
           "set -euo pipefail
+           sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
            curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 -o /tmp/k3s-install.sh https://get.k3s.io
            INSTALL_K3S_VERSION=${{ inputs.k3s-version }} K3S_URL=${{ inputs.k3s-url }} K3S_TOKEN=${{ inputs.k3s-token }} sh /tmp/k3s-install.sh"
       done

@@ -339,8 +339,17 @@ type SecretSyncConfig struct {
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
 	//
+	// Deprecated: use LabelSelector instead.
+	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// LabelSelector is a set-based label selector of the resources that will be synced.
+	// It is combined with Selector, and resources must match both to be synced.
+	// If empty then all resources of the given type will be synced.
+	//
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
 // ServiceSyncConfig specifies the sync options for Services.
@@ -354,8 +363,17 @@ type ServiceSyncConfig struct {
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
 	//
+	// Deprecated: use LabelSelector instead.
+	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// LabelSelector is a set-based label selector of the resources that will be synced.
+	// It is combined with Selector, and resources must match both to be synced.
+	// If empty then all resources of the given type will be synced.
+	//
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
 // EndpointSliceSyncConfig specifies the sync options for EndpointSlices.
@@ -369,8 +387,17 @@ type EndpointSliceSyncConfig struct {
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
 	//
+	// Deprecated: use LabelSelector instead.
+	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// LabelSelector is a set-based label selector of the resources that will be synced.
+	// It is combined with Selector, and resources must match both to be synced.
+	// If empty then all resources of the given type will be synced.
+	//
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
 // ConfigMapSyncConfig specifies the sync options for ConfigMaps.
@@ -384,8 +411,17 @@ type ConfigMapSyncConfig struct {
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
 	//
+	// Deprecated: use LabelSelector instead.
+	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// LabelSelector is a set-based label selector of the resources that will be synced.
+	// It is combined with Selector, and resources must match both to be synced.
+	// If empty then all resources of the given type will be synced.
+	//
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
 // IngressSyncConfig specifies the sync options for Ingresses.
@@ -399,8 +435,17 @@ type IngressSyncConfig struct {
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
 	//
+	// Deprecated: use LabelSelector instead.
+	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// LabelSelector is a set-based label selector of the resources that will be synced.
+	// It is combined with Selector, and resources must match both to be synced.
+	// If empty then all resources of the given type will be synced.
+	//
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 
 	// DisableTLSSecretTranslation is an on/off switch for translating TLS secrets
 	// from virtual cluster to host cluster
@@ -421,8 +466,17 @@ type PersistentVolumeClaimSyncConfig struct {
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
 	//
+	// Deprecated: use LabelSelector instead.
+	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// LabelSelector is a set-based label selector of the resources that will be synced.
+	// It is combined with Selector, and resources must match both to be synced.
+	// If empty then all resources of the given type will be synced.
+	//
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
 // PriorityClassSyncConfig specifies the sync options for PriorityClasses.
@@ -436,8 +490,17 @@ type PriorityClassSyncConfig struct {
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
 	//
+	// Deprecated: use LabelSelector instead.
+	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// LabelSelector is a set-based label selector of the resources that will be synced.
+	// It is combined with Selector, and resources must match both to be synced.
+	// If empty then all resources of the given type will be synced.
+	//
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
 // StorageClassSyncConfig specifies the sync options for StorageClasses.
@@ -451,8 +514,17 @@ type StorageClassSyncConfig struct {
 	// Selector specifies set of labels of the resources that will be synced, if empty
 	// then all resources of the given type will be synced.
 	//
+	// Deprecated: use LabelSelector instead.
+	//
 	// +optional
 	Selector map[string]string `json:"selector,omitempty"`
+
+	// LabelSelector is a set-based label selector of the resources that will be synced.
+	// It is combined with Selector, and resources must match both to be synced.
+	// If empty then all resources of the given type will be synced.
+	//
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
 // ClusterMode is the possible provisioning mode of a Cluster.

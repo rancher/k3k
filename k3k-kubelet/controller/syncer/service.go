@@ -3,7 +3,6 @@ package syncer
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -136,17 +135,7 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 	// check for serviceSyncConfig
 	syncConfig := controller.AppliedSync(&cluster).Services
 
-	// If syncing is disabled, only process deletions to allow for cleanup.
-	if !syncConfig.Enabled {
-		return object.GetDeletionTimestamp() != nil
-	}
-
-	labelSelector := labels.SelectorFromSet(syncConfig.Selector)
-	if labelSelector.Empty() {
-		return true
-	}
-
-	return labelSelector.Matches(labels.Set(object.GetLabels()))
+	return controller.FilterResources(ctx, object, syncConfig.Enabled, syncConfig.Selector, syncConfig.LabelSelector) //nolint:staticcheck
 }
 
 func (r *ServiceReconciler) service(obj *corev1.Service) *corev1.Service {

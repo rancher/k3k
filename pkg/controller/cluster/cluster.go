@@ -14,7 +14,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
@@ -906,9 +905,8 @@ func (c *Reconciler) ensureStorageClasses(ctx context.Context, cluster *v1beta1.
 		}
 
 		// if selector doesn't match -> continue
-		// an empty selector matche everything
-		selector := labels.SelectorFromSet(appliedSync.StorageClasses.Selector)
-		if !selector.Matches(labels.Set(sc.Labels)) {
+		// an empty selector matches everything
+		if !controller.FilterResources(ctx, &sc, appliedSync.StorageClasses.Enabled, appliedSync.StorageClasses.Selector, appliedSync.StorageClasses.LabelSelector) { //nolint:staticcheck
 			log.V(1).Info("selector not matching", "sc-name", sc.Name)
 			continue
 		}
@@ -1115,6 +1113,18 @@ func validate(cluster *v1beta1.Cluster, policy *v1beta1.VirtualClusterPolicy) er
 		}
 	}
 
+	if cluster.Spec.Sync != nil {
+		if err := validateSyncConfiguration(cluster.Spec.Sync); err != nil {
+			return fmt.Errorf("%w: spec.%w", ErrClusterValidation, err)
+		}
+	}
+
+	if policy != nil && policy.Spec.Sync != nil {
+		if err := validateSyncConfiguration(policy.Spec.Sync); err != nil {
+			return fmt.Errorf("%w: policy %q spec.%w", ErrClusterValidation, policy.Name, err)
+		}
+	}
+
 	return nil
 }
 
@@ -1230,6 +1240,30 @@ func validateCustomCACerts(credentialSources v1beta1.CredentialSources) error {
 		credentialSources.RequestHeaderCA.SecretName == "" ||
 		credentialSources.ServiceAccountToken.SecretName == "" {
 		return ErrCustomCACertSecretMissing
+	}
+
+	return nil
+}
+
+func validateSyncConfiguration(sync *v1beta1.SyncConfig) error {
+	selectors := []struct {
+		field         string
+		labelSelector *metav1.LabelSelector
+	}{
+		{"configMaps", sync.ConfigMaps.LabelSelector},
+		{"endpointSlices", sync.EndpointSlices.LabelSelector},
+		{"ingresses", sync.Ingresses.LabelSelector},
+		{"persistentVolumeClaims", sync.PersistentVolumeClaims.LabelSelector},
+		{"priorityClasses", sync.PriorityClasses.LabelSelector},
+		{"secrets", sync.Secrets.LabelSelector},
+		{"services", sync.Services.LabelSelector},
+		{"storageClasses", sync.StorageClasses.LabelSelector},
+	}
+
+	for _, s := range selectors {
+		if _, err := metav1.LabelSelectorAsSelector(s.labelSelector); err != nil {
+			return fmt.Errorf("sync.%s.labelSelector is invalid: %w", s.field, err)
+		}
 	}
 
 	return nil

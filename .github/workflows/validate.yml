@@ -11,6 +11,22 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/go1.27:1.27.4
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+    - name: Run linters
+      run: golangci-lint run -v
+
+    - name: Run formatters
+      run: golangci-lint -v fmt --diff ./...
+
+  # Runs on the runner: yamllint and shellcheck aren't in the ci-image,
+  # and `make docs` bind-mounts the workspace into a pandoc container.
   validate:
     runs-on: ubuntu-latest
     steps:
@@ -22,16 +38,6 @@ jobs:
       with:
         go-version-file: go.mod
         cache: true
-
-    - name: Run linters
-      uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
-      with:
-        version: v2.15.0
-        args: -v
-        skip-cache: false
-
-    - name: Run formatters
-      run: golangci-lint -v fmt ./...
 
     - name: Lint YAML
       run: |

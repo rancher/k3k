@@ -92,3 +92,48 @@ func newDeletingTestService(name string) *corev1.Service {
 		},
 	}
 }
+
+func TestServiceReconcilerServiceSelectorNamespaceIsolation(t *testing.T) {
+	r := &ServiceReconciler{
+		Context: &Context{
+			ClusterName:      "vc1",
+			ClusterNamespace: "k3k-vc1",
+			Translator: translate.ToHostTranslator{
+				ClusterName:      "vc1",
+				ClusterNamespace: "k3k-vc1",
+			},
+		},
+	}
+
+	t.Run("scopes selector to virtual namespace", func(t *testing.T) {
+		virtSvc := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "web",
+				Namespace: "y2-a",
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: map[string]string{"app": "web"},
+			},
+		}
+
+		hostSvc := r.service(virtSvc)
+		assert.Equal(t, map[string]string{
+			"app":                            "web",
+			translate.ResourceNamespaceLabel: "y2-a",
+		}, hostSvc.Spec.Selector)
+		// Ensure original virtual Service selector is not mutated.
+		assert.Equal(t, map[string]string{"app": "web"}, virtSvc.Spec.Selector)
+	})
+
+	t.Run("leaves selectorless service untouched", func(t *testing.T) {
+		virtSvc := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "external",
+				Namespace: "y2-a",
+			},
+		}
+
+		hostSvc := r.service(virtSvc)
+		assert.Empty(t, hostSvc.Spec.Selector)
+	})
+}

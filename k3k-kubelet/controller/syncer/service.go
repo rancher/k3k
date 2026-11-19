@@ -141,6 +141,9 @@ func (r *ServiceReconciler) filterResources(object ctrlruntimeclient.Object) boo
 func (r *ServiceReconciler) service(obj *corev1.Service) *corev1.Service {
 	hostService := obj.DeepCopy()
 	r.Translator.TranslateTo(hostService)
+	if len(hostService.Spec.Selector) > 0 {
+		hostService.Spec.Selector[translate.ResourceNamespaceLabel] = obj.Namespace
+	}
 	// don't sync finalizers to the host
 	return hostService
 }

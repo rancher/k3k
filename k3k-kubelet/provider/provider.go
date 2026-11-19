@@ -837,6 +837,9 @@ func updatePod(dst, src *corev1.Pod) {
 // while preserving the k3k metadata (labels and annotations with the "k3k.io/*" prefix)
 func updateMetadata(dst, src *corev1.Pod) {
 	dst.Labels = mergeManagedMetadata(dst.Labels, src.Labels)
+	if src.Namespace != "" {
+		dst.Labels[translate.ResourceNamespaceLabel] = src.Namespace
+	}
 	dst.Annotations = mergeManagedMetadata(dst.Annotations, src.Annotations)
 }
 

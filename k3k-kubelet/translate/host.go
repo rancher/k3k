@@ -18,7 +18,8 @@ const (
 	MetadataPrefix = "k3k.io/"
 	// ClusterNameLabel is the key for the label that contains the name of the virtual cluster
 	// this resource was made in
-	ClusterNameLabel = MetadataPrefix + "clusterName"
+	ClusterNameLabel       = MetadataPrefix + "clusterName"
+	ResourceNamespaceLabel = MetadataPrefix + "namespace"
 	// AgentNameLabel is the key for the label that contains the name of the k3k-kubelet agent
 	// (the host node it runs on) that synced this resource
 	AgentNameLabel = MetadataPrefix + "agentName"
@@ -77,6 +78,9 @@ func (t *ToHostTranslator) TranslateTo(obj client.Object) {
 	}
 
 	labels[ClusterNameLabel] = t.ClusterName
+	if obj.GetNamespace() != "" {
+		labels[ResourceNamespaceLabel] = obj.GetNamespace()
+	}
 	obj.SetLabels(labels)
 
 	// resource version/UID won't match what's in the host cluster.
@@ -112,6 +116,7 @@ func (*ToHostTranslator) TranslateFrom(obj client.Object) {
 	// remove the clusteName tracking label
 	labels := obj.GetLabels()
 	delete(labels, ClusterNameLabel)
+	delete(labels, ResourceNamespaceLabel)
 	obj.SetLabels(labels)
 
 	// resource version/UID won't match what's in the virtual cluster.

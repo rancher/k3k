@@ -404,4 +404,5 @@ func TestUpdateMetadata(t *testing.T) {
 	assert.Equal(t, "node-a", hostPod.Labels[translate.AgentNameLabel])
 	assert.Equal(t, "my-pod", hostPod.Annotations[translate.ResourceNameAnnotation])
 	assert.Equal(t, "default", hostPod.Annotations[translate.ResourceNamespaceAnnotation])
+	assert.Equal(t, "default", hostPod.Labels[translate.ResourceNamespaceLabel])
 }

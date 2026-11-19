@@ -422,3 +422,25 @@ func TestTranslateToFromRoundtrip(t *testing.T) {
 	assert.Equal(t, "user-value", original.Annotations["user-annotation"])
 	assert.Equal(t, "user-value", original.Labels["user-label"])
 }
+
+func TestTranslateNamespaceLabel(t *testing.T) {
+	translator := ToHostTranslator{ClusterName: "my-cluster", ClusterNamespace: "k3k-my-cluster"}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "web",
+			Namespace: "y2-a",
+			Labels:    map[string]string{"app": "web"},
+		},
+	}
+
+	translator.TranslateTo(pod)
+	assert.Equal(t, "y2-a", pod.Labels[ResourceNamespaceLabel])
+	assert.Equal(t, "web", pod.Labels["app"])
+
+	translator.TranslateFrom(pod)
+	_, hasNamespaceLabel := pod.Labels[ResourceNamespaceLabel]
+	assert.False(t, hasNamespaceLabel)
+	assert.Equal(t, "y2-a", pod.Namespace)
+	assert.Equal(t, "web", pod.Labels["app"])
+}

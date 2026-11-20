@@ -784,42 +784,6 @@ func (p *Provider) updatePod(ctx context.Context, pod *corev1.Pod) error {
 
 	logger.Info("Pod updated in host cluster")
 
-	//
-	//	Virtual Pod update
-	//
-
-	key := types.NamespacedName{
-		Name:      pod.Name,
-		Namespace: pod.Namespace,
-	}
-
-	var virtualPod corev1.Pod
-	if err := p.virtual.Client.Get(ctx, key, &virtualPod); err != nil {
-		logger.Error(err, "Unable to get pod to update from virtual cluster")
-		return err
-	}
-
-	updatePod(&virtualPod, pod)
-
-	if err := p.virtual.Client.Update(ctx, &virtualPod); err != nil {
-		logger.Error(err, "Unable to update Pod in virtual cluster")
-		return err
-	}
-
-	// Ephemeral containers update (subresource)
-	if !cmp.Equal(virtualPod.Spec.EphemeralContainers, pod.Spec.EphemeralContainers) {
-		logger.V(1).Info("Updating ephemeral containers in virtual pod")
-
-		virtualPod.Spec.EphemeralContainers = pod.Spec.EphemeralContainers
-
-		if _, err := p.host.CoreClient.Pods(p.clusterNamespace).UpdateEphemeralContainers(ctx, virtualPod.Name, &virtualPod, metav1.UpdateOptions{}); err != nil {
-			logger.Error(err, "Error when updating ephemeral containers in virtual pod")
-			return err
-		}
-	}
-
-	logger.Info("Pod updated in virtual and host cluster")
-
 	return nil
 }
 

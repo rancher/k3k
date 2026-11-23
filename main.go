@@ -101,11 +101,11 @@ func run(cmd *cobra.Command, args []string) error {
 
 	mgr, err := ctrl.NewManager(restConfig, manager.Options{
 		Scheme: scheme,
-		// read Secrets from the API server: the controller reads back the Secrets
-		// it has just written, and the cache might not have them yet.
+		// the controller reads back objects it has just written (e.g. the bootstrap
+		// and kubeconfig Secrets): make reads wait for the cache to observe them.
 		Client: client.Options{
 			Cache: &client.CacheOptions{
-				DisableFor: []client.Object{&corev1.Secret{}},
+				EnableReadYourWritesConsistency: new(true),
 			},
 		},
 	})

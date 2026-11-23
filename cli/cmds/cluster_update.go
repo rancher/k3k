@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/blang/semver/v4"
@@ -93,17 +95,12 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 				currentVersion = virtualCluster.Status.HostVersion
 			}
 
-			currentVersionSemver, err := semver.ParseTolerant(currentVersion)
+			downgrade, err := isDowngrade(currentVersion, config.version)
 			if err != nil {
-				return fmt.Errorf("failed to parse current cluster version %w", err)
+				return err
 			}
 
-			newVersionSemver, err := semver.ParseTolerant(config.version)
-			if err != nil {
-				return fmt.Errorf("failed to parse new cluster version %w", err)
-			}
-
-			if newVersionSemver.LT(currentVersionSemver) {
+			if downgrade {
 				return errors.New("downgrading cluster version is not supported")
 			}
 
@@ -201,4 +198,78 @@ func confirmClusterUpdate(cluster *v1beta1.Cluster) bool {
 	fmt.Println()
 
 	return strings.ToLower(strings.TrimSpace(scanner.Text())) == "y"
+}
+
+var (
+	distSuffixRegex = regexp.MustCompile(`^(.*?)[-+](k3s\d+|rke2r\d+)$`)
+	suffixNumRegex  = regexp.MustCompile(`^(.*?)(\d+)$`)
+)
+
+func parseClusterVersion(v string) (semver.Version, string, error) {
+	var suffix string
+	baseStr := v
+	if match := distSuffixRegex.FindStringSubmatch(v); len(match) == 3 {
+		baseStr = match[1]
+		suffix = match[2]
+	}
+
+	sv, err := semver.ParseTolerant(baseStr)
+	if err != nil {
+		return semver.Version{}, "", err
+	}
+
+	return sv, suffix, nil
+}
+
+func compareSuffix(s1, s2 string) int {
+	if s1 == s2 {
+		return 0
+	}
+
+	m1 := suffixNumRegex.FindStringSubmatch(s1)
+	m2 := suffixNumRegex.FindStringSubmatch(s2)
+	if len(m1) == 3 && len(m2) == 3 && m1[1] == m2[1] {
+		n1, err1 := strconv.ParseUint(m1[2], 10, 64)
+		n2, err2 := strconv.ParseUint(m2[2], 10, 64)
+		if err1 == nil && err2 == nil {
+			if n1 < n2 {
+				return -1
+			}
+			if n1 > n2 {
+				return 1
+			}
+			return 0
+		}
+	}
+
+	return strings.Compare(s1, s2)
+}
+
+func isDowngrade(currentVersion, newVersion string) (bool, error) {
+	currentBase, currentSuffix, err := parseClusterVersion(currentVersion)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse current cluster version %w", err)
+	}
+
+	newBase, newSuffix, err := parseClusterVersion(newVersion)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse new cluster version %w", err)
+	}
+
+	cmp := newBase.Compare(currentBase)
+	if cmp < 0 {
+		return true, nil
+	}
+	if cmp > 0 {
+		return false, nil
+	}
+
+	// Base semver versions are equal; compare distribution suffixes if both are present.
+	if currentSuffix != "" && newSuffix != "" {
+		if compareSuffix(newSuffix, currentSuffix) < 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

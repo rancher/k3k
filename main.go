@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
@@ -100,6 +101,13 @@ func run(cmd *cobra.Command, args []string) error {
 
 	mgr, err := ctrl.NewManager(restConfig, manager.Options{
 		Scheme: scheme,
+		// the controller reads back objects it has just written (e.g. the bootstrap
+		// and kubeconfig Secrets): make reads wait for the cache to observe them.
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				EnableReadYourWritesConsistency: new(true),
+			},
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create new controller runtime manager: %v", err)

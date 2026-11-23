@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"syscall"
@@ -34,8 +35,8 @@ type Client struct {
 	staticHeaders http.Header
 }
 
-// ErrServerNotReady is returned when the k3s server refuses the connection,
-// meaning it has not finished starting up yet.
+// ErrServerNotReady is returned when the connection to the k3s server is refused
+// or times out, meaning it has not finished starting up yet.
 var ErrServerNotReady = errors.New("server not ready")
 
 const (
@@ -136,7 +137,8 @@ func (c *Client) do(endpoint, user, method string, reader io.Reader) ([]byte, er
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		if errors.Is(err, syscall.ECONNREFUSED) {
+		var netErr net.Error
+		if errors.Is(err, syscall.ECONNREFUSED) || (errors.As(err, &netErr) && netErr.Timeout()) {
 			return nil, ErrServerNotReady
 		}
 

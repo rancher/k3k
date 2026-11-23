@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -77,6 +78,11 @@ func (c *Reconciler) updateStatus(ctx context.Context, cluster *v1beta1.Cluster,
 			Message: reconcileErr.Error(),
 		})
 
+		return
+	}
+
+	// A conflict is transient: leave the status as it is and requeue.
+	if apierrors.IsConflict(reconcileErr) {
 		return
 	}
 

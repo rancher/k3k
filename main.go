@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
@@ -100,6 +101,13 @@ func run(cmd *cobra.Command, args []string) error {
 
 	mgr, err := ctrl.NewManager(restConfig, manager.Options{
 		Scheme: scheme,
+		// read Secrets from the API server: the controller reads back the Secrets
+		// it has just written, and the cache might not have them yet.
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{&corev1.Secret{}},
+			},
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create new controller runtime manager: %v", err)

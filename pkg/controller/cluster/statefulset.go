@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -122,6 +123,11 @@ func (p *StatefulSetReconciler) Reconcile(ctx context.Context, req reconcile.Req
 
 	config, err := k3sClient.GetServerConfig()
 	if err != nil {
+		if errors.Is(err, k3s.ErrServerNotReady) {
+			log.V(1).Info("Server not ready, requeueing")
+			return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
+		}
+
 		return reconcile.Result{}, err
 	}
 

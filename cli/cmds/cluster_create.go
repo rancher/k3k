@@ -104,11 +104,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 			return err
 		}
 
-		if strings.Contains(config.version, "+") {
-			orig := config.version
-			config.version = strings.ReplaceAll(config.version, "+", "-")
-			logrus.Warnf("Invalid K3s docker reference version: '%s'. Using '%s' instead", orig, config.version)
-		}
+		config.version = toImageTagVersion(config.version)
 
 		if config.token != "" {
 			logrus.Info("Creating cluster token secret")
@@ -221,6 +217,18 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 
 		return nil
 	}
+}
+
+// toImageTagVersion replaces the '+' of a K3s release name (v1.31.1+k3s1) with the '-' used by the image tags (v1.31.1-k3s1).
+func toImageTagVersion(version string) string {
+	if !strings.Contains(version, "+") {
+		return version
+	}
+
+	tag := strings.ReplaceAll(version, "+", "-")
+	logrus.Warnf("Invalid K3s docker reference version: '%s'. Using '%s' instead", version, tag)
+
+	return tag
 }
 
 func printHCPJoinInstructions(cluster *v1beta1.Cluster, serverURL string) {

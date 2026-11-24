@@ -87,6 +87,8 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 
 		var changes []change
 
+		config.version = toImageTagVersion(config.version)
+
 		if cmd.Flags().Changed("version") && config.version != virtualCluster.Spec.Version {
 			currentVersion := virtualCluster.Spec.Version
 			if currentVersion == "" {
@@ -103,8 +105,16 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 				return fmt.Errorf("failed to parse new cluster version %w", err)
 			}
 
+			// The k3s suffix (-rcN, -k3sN) is not semver, so only major.minor.patch can be compared.
+			currentVersionSemver.Pre = nil
+			newVersionSemver.Pre = nil
+
 			if newVersionSemver.LT(currentVersionSemver) {
 				return errors.New("downgrading cluster version is not supported")
+			}
+
+			if newVersionSemver.EQ(currentVersionSemver) {
+				logrus.Warnf("Version '%s' has the same Kubernetes version as '%s': cannot tell if it is an upgrade or a downgrade", config.version, currentVersion)
 			}
 
 			changes = append(changes, change{"Version", currentVersion, config.version})

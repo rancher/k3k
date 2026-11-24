@@ -95,7 +95,7 @@ func createAction(appCtx *AppContext, config *CreateConfig) func(cmd *cobra.Comm
 		}
 
 		if config.agents != 0 && config.mode != string(v1beta1.VirtualClusterMode) {
-			return errors.New("invalid flag, --agents flag is only allowed in virtual mode")
+			return fmt.Errorf("%w, --agents flag is only allowed in virtual mode", errInvalidFlag)
 		}
 
 		namespace := appCtx.Namespace(name)

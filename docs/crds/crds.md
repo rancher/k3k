@@ -147,7 +147,7 @@ _Appears in:_
 | `version` _string_ | Version is the K3s version to use for the virtual nodes.<br />It should follow the K3s versioning convention (e.g., v1.28.2-k3s1).<br />If not specified, the Kubernetes version of the host node will be used. |  | Optional: \{\} <br /> |
 | `mode` _[ClusterMode](#clustermode)_ | Mode specifies the cluster provisioning mode. This field is immutable. | shared | Enum: [shared virtual hcp] <br />Optional: \{\} <br /> |
 | `servers` _integer_ | Servers specifies the number of K3s pods to run in server (control plane) mode.<br />Must be at least 1. Defaults to 1. | 1 | Optional: \{\} <br /> |
-| `agents` _integer_ | Agents specifies the number of K3s pods to run in agent (worker) mode.<br />Must be 0 or greater. Defaults to 0.<br />This field is ignored in "shared" mode. | 0 | Optional: \{\} <br /> |
+| `agents` _integer_ | Agents specifies the number of K3s pods to run in agent (worker) mode.<br />Must be 0 or greater. Defaults to 0.<br />This field is ignored in "shared" and "hcp" modes. | 0 | Optional: \{\} <br /> |
 | `clusterCIDR` _string_ | ClusterCIDR is the CIDR range for pod IPs.<br />Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.<br />This field is immutable. |  | Optional: \{\} <br /> |
 | `serviceCIDR` _string_ | ServiceCIDR is the CIDR range for service IPs.<br />Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.<br />This field is immutable. |  | Optional: \{\} <br /> |
 | `clusterDNS` _string_ | ClusterDNS is the IP address for the CoreDNS service.<br />Must be within the ServiceCIDR range. Defaults to 10.43.0.10.<br />This field is immutable. |  | Optional: \{\} <br /> |

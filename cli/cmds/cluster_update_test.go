@@ -89,3 +89,72 @@ func TestUpdateCluster(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateClusterAgents(t *testing.T) {
+	tests := []struct {
+		name       string
+		mode       v1beta1.ClusterMode
+		agents     string
+		wantAgents int32
+		wantErr    error
+	}{
+		{
+			name:       "virtual mode",
+			mode:       v1beta1.VirtualClusterMode,
+			agents:     "2",
+			wantAgents: 2,
+		},
+		{
+			name:       "hcp mode",
+			mode:       v1beta1.HCPClusterMode,
+			agents:     "2",
+			wantAgents: 1,
+			wantErr:    errInvalidFlag,
+		},
+		{
+			name:       "shared mode",
+			mode:       v1beta1.SharedClusterMode,
+			agents:     "2",
+			wantAgents: 1,
+			wantErr:    errInvalidFlag,
+		},
+		{
+			name:       "hcp mode can reset agents to 0",
+			mode:       v1beta1.HCPClusterMode,
+			agents:     "0",
+			wantAgents: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "myns"},
+				Spec:       v1beta1.ClusterSpec{Mode: tt.mode, Agents: new(int32(1))},
+			}
+
+			cl := fake.NewClientBuilder().WithScheme(newTestScheme(t)).WithObjects(cluster).Build()
+			appCtx := &AppContext{Client: cl}
+
+			config := &UpdateConfig{}
+			cmd := &cobra.Command{}
+			updateFlags(cmd, config)
+
+			require.NoError(t, cmd.Flags().Set("agents", tt.agents))
+			require.NoError(t, cmd.Flags().Set("no-confirm", "true"))
+
+			err := updateAction(appCtx, config)(cmd, []string{"myns/foo"})
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			var updated v1beta1.Cluster
+			require.NoError(t, cl.Get(t.Context(), types.NamespacedName{Name: "foo", Namespace: "myns"}, &updated))
+
+			require.NotNil(t, updated.Spec.Agents)
+			assert.Equal(t, tt.wantAgents, *updated.Spec.Agents)
+		})
+	}
+}

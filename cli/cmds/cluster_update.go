@@ -124,6 +124,10 @@ func updateAction(appCtx *AppContext, config *UpdateConfig) func(cmd *cobra.Comm
 		}
 
 		if cmd.Flags().Changed("agents") {
+			if config.agents != 0 && virtualCluster.Spec.Mode != v1beta1.VirtualClusterMode {
+				return fmt.Errorf("%w, --agents flag is only allowed in virtual mode", errInvalidFlag)
+			}
+
 			var oldAgents int32
 			if virtualCluster.Spec.Agents != nil {
 				oldAgents = *virtualCluster.Spec.Agents

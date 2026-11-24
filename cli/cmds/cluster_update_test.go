@@ -96,7 +96,7 @@ func TestUpdateClusterAgents(t *testing.T) {
 		mode       v1beta1.ClusterMode
 		agents     string
 		wantAgents int32
-		wantErr    string
+		wantErr    error
 	}{
 		{
 			name:       "virtual mode",
@@ -109,14 +109,14 @@ func TestUpdateClusterAgents(t *testing.T) {
 			mode:       v1beta1.HCPClusterMode,
 			agents:     "2",
 			wantAgents: 1,
-			wantErr:    "invalid flag, --agents flag is only allowed in virtual mode",
+			wantErr:    errInvalidFlag,
 		},
 		{
 			name:       "shared mode",
 			mode:       v1beta1.SharedClusterMode,
 			agents:     "2",
 			wantAgents: 1,
-			wantErr:    "invalid flag, --agents flag is only allowed in virtual mode",
+			wantErr:    errInvalidFlag,
 		},
 		{
 			name:       "hcp mode can reset agents to 0",
@@ -144,8 +144,8 @@ func TestUpdateClusterAgents(t *testing.T) {
 			require.NoError(t, cmd.Flags().Set("no-confirm", "true"))
 
 			err := updateAction(appCtx, config)(cmd, []string{"myns/foo"})
-			if tt.wantErr != "" {
-				require.EqualError(t, err, tt.wantErr)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
 			}

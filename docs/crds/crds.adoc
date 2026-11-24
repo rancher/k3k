@@ -212,7 +212,7 @@ Must be at least 1. Defaults to 1. + | 1 | Optional: \{} +
 
 | *`agents`* __integer__ | Agents specifies the number of K3s pods to run in agent (worker) mode. +
 Must be 0 or greater. Defaults to 0. +
-This field is ignored in "shared" mode. + | 0 | Optional: \{} +
+This field is ignored in "shared" and "hcp" modes. + | 0 | Optional: \{} +
 
 | *`clusterCIDR`* __string__ | ClusterCIDR is the CIDR range for pod IPs. +
 Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode. +

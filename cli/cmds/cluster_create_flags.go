@@ -44,6 +44,8 @@ func createFlags(cmd *cobra.Command, cfg *CreateConfig) {
 	}
 }
 
+var errInvalidFlag = errors.New("invalid flag")
+
 var validPersistenceModes = map[v1beta1.PersistenceMode]struct{}{
 	v1beta1.EphemeralPersistenceMode: {},
 	v1beta1.DynamicPersistenceMode:   {},

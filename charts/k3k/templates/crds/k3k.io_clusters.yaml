@@ -1155,7 +1155,7 @@ spec:
                 description: |-
                   Agents specifies the number of K3s pods to run in agent (worker) mode.
                   Must be 0 or greater. Defaults to 0.
-                  This field is ignored in "shared" mode.
+                  This field is ignored in "shared" and "hcp" modes.
                 format: int32
                 type: integer
                 x-kubernetes-validations:

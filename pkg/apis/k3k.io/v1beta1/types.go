@@ -64,7 +64,7 @@ type ClusterSpec struct {
 
 	// Agents specifies the number of K3s pods to run in agent (worker) mode.
 	// Must be 0 or greater. Defaults to 0.
-	// This field is ignored in "shared" mode.
+	// This field is ignored in "shared" and "hcp" modes.
 	//
 	// +kubebuilder:default=0
 	// +kubebuilder:validation:XValidation:message="invalid value for agents",rule="self >= 0"

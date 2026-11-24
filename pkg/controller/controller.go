@@ -62,10 +62,15 @@ func (v K3sVersion) ImageTag() string {
 	return v.Raw
 }
 
-// ReleaseName returns the version string formatted for GitHub releases using the '+' delimiter
-// (e.g., "v1.31.1+k3s1").
+// ReleaseName returns the version string formatted for GitHub releases, replacing the last '-'
+// with the '+' delimiter (e.g., "v1.31.1+k3s1" or "v1.31.1-rc1+k3s1").
 func (v K3sVersion) ReleaseName() string {
-	return strings.Replace(v.Raw, "-", "+", 1)
+	i := strings.LastIndex(v.Raw, "-")
+	if i < 0 {
+		return v.Raw
+	}
+
+	return v.Raw[:i] + "+" + v.Raw[i+1:]
 }
 
 // KubernetesVersion extracts the base semver string by stripping both build ('+') and prerelease/k3s ('-') metadata tags

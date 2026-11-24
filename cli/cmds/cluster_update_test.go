@@ -3,6 +3,8 @@ package cmds
 import (
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -155,6 +157,86 @@ func TestUpdateClusterAgents(t *testing.T) {
 
 			require.NotNil(t, updated.Spec.Agents)
 			assert.Equal(t, tt.wantAgents, *updated.Spec.Agents)
+		})
+	}
+}
+
+func TestUpdateClusterVersion(t *testing.T) {
+	tests := []struct {
+		name        string
+		version     string
+		newVersion  string
+		wantVersion string
+		wantErr     string
+		wantWarn    string
+	}{
+		{
+			name:        "rc to GA of the same version",
+			version:     "v1.37.1-rc2-k3s1",
+			newVersion:  "v1.37.1-k3s1",
+			wantVersion: "v1.37.1-k3s1",
+			wantWarn:    "Version 'v1.37.1-k3s1' has the same Kubernetes version as 'v1.37.1-rc2-k3s1': cannot tell if it is an upgrade or a downgrade",
+		},
+		{
+			name:        "older minor",
+			version:     "v1.37.1-k3s1",
+			newVersion:  "v1.36.5-k3s1",
+			wantVersion: "v1.37.1-k3s1",
+			wantErr:     "downgrading cluster version is not supported",
+		},
+		{
+			name:        "release name is converted to the image tag",
+			version:     "v1.37.1-k3s1",
+			newVersion:  "v1.37.2+k3s1",
+			wantVersion: "v1.37.2-k3s1",
+			wantWarn:    "Invalid K3s docker reference version: 'v1.37.2+k3s1'. Using 'v1.37.2-k3s1' instead",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logs := test.NewGlobal()
+			defer logs.Reset()
+
+			cluster := &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "myns"},
+				Spec:       v1beta1.ClusterSpec{Version: tt.version},
+			}
+
+			cl := fake.NewClientBuilder().WithScheme(newTestScheme(t)).WithObjects(cluster).Build()
+			appCtx := &AppContext{Client: cl}
+
+			config := &UpdateConfig{}
+			cmd := &cobra.Command{}
+			updateFlags(cmd, config)
+
+			require.NoError(t, cmd.Flags().Set("version", tt.newVersion))
+			require.NoError(t, cmd.Flags().Set("no-confirm", "true"))
+
+			err := updateAction(appCtx, config)(cmd, []string{"myns/foo"})
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			var warnings []string
+
+			for _, entry := range logs.AllEntries() {
+				if entry.Level == logrus.WarnLevel {
+					warnings = append(warnings, entry.Message)
+				}
+			}
+
+			if tt.wantWarn == "" {
+				assert.Empty(t, warnings)
+			} else {
+				assert.Equal(t, []string{tt.wantWarn}, warnings)
+			}
+
+			var updated v1beta1.Cluster
+			require.NoError(t, cl.Get(t.Context(), types.NamespacedName{Name: "foo", Namespace: "myns"}, &updated))
+			assert.Equal(t, tt.wantVersion, updated.Spec.Version)
 		})
 	}
 }

@@ -118,6 +118,23 @@ func Test_K3S_Image(t *testing.T) {
 	}
 }
 
+func Test_ReleaseName(t *testing.T) {
+	tests := map[string]struct {
+		version  string
+		expected string
+	}{
+		"GA":     {version: "v1.37.1-k3s1", expected: "v1.37.1+k3s1"},
+		"rc":     {version: "v1.37.1-rc2-k3s1", expected: "v1.37.1-rc2+k3s1"},
+		"latest": {version: "latest", expected: "latest"},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, K3sVersion{Raw: tt.version}.ReleaseName())
+		})
+	}
+}
+
 func Test_PriorityClassName(t *testing.T) {
 	tests := map[string]struct {
 		spec   string

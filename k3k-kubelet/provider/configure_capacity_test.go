@@ -1,13 +1,22 @@
 package provider
 
 import (
+	"context"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/k3k/pkg/apis/k3k.io/v1beta1"
 )
 
 func Test_distributeQuotas(t *testing.T) {
@@ -472,6 +481,113 @@ func Test_filterQuotas(t *testing.T) {
 				assert.True(t, ok, "%s resource is not found in filtered quotas", expectedResourceName)
 				assert.True(t, expectedResourceQty.Equal(actualResourceQty), "Filtered Resource %s did not match. want: %s, got: %s", expectedResourceName, expectedResourceQty.String(), actualResourceQty.String())
 			}
+		})
+	}
+}
+
+func Test_updateNodeCapacity_version(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, v1beta1.AddToScheme(scheme))
+
+	hostNode := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node-1",
+		},
+		Status: corev1.NodeStatus{
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceMemory: resource.MustParse("8Gi"),
+			},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		cluster        *v1beta1.Cluster
+		initialVersion string
+		wantVersion    string
+	}{
+		{
+			name: "updates kubelet version from cluster spec version",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "shared1",
+					Namespace: "k3k-shared1",
+				},
+				Spec: v1beta1.ClusterSpec{
+					Version: "v1.32.11-k3s1",
+				},
+				Status: v1beta1.ClusterStatus{
+					HostVersion: "v1.32.10-k3s1",
+				},
+			},
+			initialVersion: "v1.32.10-k3s1",
+			wantVersion:    "v1.32.11-k3s1",
+		},
+		{
+			name: "falls back to host version when spec version is empty",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "shared1",
+					Namespace: "k3k-shared1",
+				},
+				Status: v1beta1.ClusterStatus{
+					HostVersion: "v1.33.0-k3s1",
+				},
+			},
+			initialVersion: "v1.32.10-k3s1",
+			wantVersion:    "v1.33.0-k3s1",
+		},
+		{
+			name:           "keeps existing version if cluster is not found",
+			cluster:        nil,
+			initialVersion: "v1.32.10-k3s1",
+			wantVersion:    "v1.32.10-k3s1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hostObjs := []client.Object{hostNode.DeepCopy()}
+			if tt.cluster != nil {
+				hostObjs = append(hostObjs, tt.cluster)
+			}
+
+			hostClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(hostObjs...).
+				Build()
+
+			virtualNode := &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "node-1",
+				},
+				Status: corev1.NodeStatus{
+					NodeInfo: corev1.NodeSystemInfo{
+						KubeletVersion: tt.initialVersion,
+					},
+				},
+			}
+
+			virtualClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(virtualNode).
+				WithStatusSubresource(virtualNode).
+				Build()
+
+			virtualCluster := v1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "shared1",
+					Namespace: "k3k-shared1",
+				},
+			}
+
+			updateNodeCapacity(context.Background(), logr.Discard(), hostClient, virtualClient, virtualCluster, "node-1")
+
+			var updatedNode corev1.Node
+			require.NoError(t, virtualClient.Get(context.Background(), types.NamespacedName{Name: "node-1"}, &updatedNode))
+			assert.Equal(t, tt.wantVersion, updatedNode.Status.NodeInfo.KubeletVersion)
 		})
 	}
 }

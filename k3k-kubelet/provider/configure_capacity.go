@@ -138,6 +138,20 @@ func updateNodeCapacity(ctx context.Context, logger logr.Logger, hostClient clie
 		return
 	}
 
+	var cluster v1beta1.Cluster
+	if err := hostClient.Get(ctx, types.NamespacedName{Name: virtualCluster.Name, Namespace: virtualCluster.Namespace}, &cluster); err != nil {
+		logger.Error(err, "error getting virtual cluster for updating node version")
+	} else {
+		version := cluster.Spec.Version
+		if version == "" {
+			version = cluster.Status.HostVersion
+		}
+
+		if version != "" {
+			virtualNode.Status.NodeInfo.KubeletVersion = version
+		}
+	}
+
 	virtualNode.Status.Capacity = allocatable
 	virtualNode.Status.Allocatable = allocatable
 

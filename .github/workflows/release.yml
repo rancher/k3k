@@ -15,13 +15,11 @@ permissions:
   packages: write
   id-token: write
 
-env:
-  GORELEASER_VERSION: v2.17.0
-  GORELEASER_CHECKSUM_x86_64: dde10e2d5a13cef969c0eec00c74f359c0ac306d702b1bd291ad9337b4e54c1d
-
 jobs:
   release:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/go1.27:1.27.4
 
     steps:
     - name: Checkout code
@@ -36,11 +34,6 @@ jobs:
     - name: Checkout code at the specific commit
       if: inputs.commit != ''
       run: git checkout ${{ inputs.commit }}
-
-    - name: Set up Go
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-      with:
-        go-version-file: go.mod
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
@@ -90,17 +83,6 @@ jobs:
         fi
 
         echo "CURRENT_TAG=${CURRENT_TAG}" >> "$GITHUB_OUTPUT"
-
-    - name: Setup goreleaser
-      env:
-        FILENAME: goreleaser.tar.gz
-      run: |-
-        curl -sSfL -o ${{ env.FILENAME }} https://github.com/goreleaser/goreleaser/releases/download/${{ env.GORELEASER_VERSION }}/goreleaser_Linux_x86_64.tar.gz
-        echo "${{ env.GORELEASER_CHECKSUM_x86_64 }}  ${{ env.FILENAME }}" | sha256sum --check
-        tar -xvzf "${{ env.FILENAME }}" goreleaser
-        sudo install -m 755 goreleaser /usr/local/bin/goreleaser
-
-        rm -f "${{ env.FILENAME }}" goreleaser
 
     - name: Run GoReleaser
       env:
